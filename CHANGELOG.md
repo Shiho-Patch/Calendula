@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-06-08
+
 ### Added
-- Initial project scaffold with Material 3 Expressive theme
-- Adaptive launcher icon (numeral "1" on slate squircle, referencing *kalendae*)
+- Initial project scaffold (Gradle Kotlin DSL, Version Catalog, Hilt, DataStore)
+- Material 3 Expressive theme with Dynamic Color (API 31+) and slate-derived fallback
+- Adaptive launcher icon — stylized "1" on slate squircle (references *kalendae*)
 - German + English localization infrastructure
-- Hilt + DataStore dependency injection and preferences setup
-- Gitea CI/CD workflows for build, test, lint, and release
+- Permission declaration for `READ_CALENDAR` (no UI flow yet — that's Plan 02)
+- Gitea CI workflow: lint, unit tests, debug build, Trivy scan
+- Gitea release workflow: signed release APK + F-Droid metadata sync to Hetzner
+- F-Droid metadata stubs (DE + EN short/full descriptions)
+- `.planning/` project-tracking documents
