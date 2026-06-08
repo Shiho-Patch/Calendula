@@ -1,0 +1,6 @@
+<resources>
+    <!-- Seed color: desaturated slate blue-gray. Material 3 derives Light & Dark schemes from this. -->
+    <color name="seed">#FF5C6B7A</color>
+    <!-- Adaptive icon background -->
+    <color name="ic_launcher_background">#FF5C6B7A</color>
+</resources>

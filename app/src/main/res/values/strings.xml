@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">Calendula</string>
+    <string name="app_tagline">A modern calendar.</string>
+
+    <!-- Loading / Failure / Success generic strings (used across screens) -->
+    <string name="state_loading">Loading…</string>
+    <string name="state_retry">Retry</string>
+    <string name="state_failure_unknown">Something went wrong.</string>
+    <string name="state_failure_permission">Calendar access is required.</string>
+    <string name="state_failure_permission_action">Grant access</string>
+    <string name="state_failure_no_calendars">No calendars configured.</string>
+    <string name="state_failure_no_calendars_action">Open system calendar settings</string>
+    <string name="state_failure_provider">Could not read the calendar.</string>
+</resources>
