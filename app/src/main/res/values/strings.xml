@@ -11,4 +11,20 @@
     <string name="state_failure_no_calendars">No calendars configured.</string>
     <string name="state_failure_no_calendars_action">Open system calendar settings</string>
     <string name="state_failure_provider">Could not read the calendar.</string>
+
+    <!-- Permission flow (F1) -->
+    <string name="permission_rationale_title">Calendar access</string>
+    <string name="permission_rationale_body">Calendula reads only your device calendar — no data leaves your device.</string>
+    <string name="permission_request_button">Continue</string>
+    <string name="permission_denied_title">Calendar access denied</string>
+    <string name="permission_denied_body">Calendula cannot show events without calendar access. You can grant it again in the system settings.</string>
+    <string name="permission_open_settings_button">Open system settings</string>
+    <string name="permission_retry_button">Try again</string>
+
+    <!-- Debug screen (wegwerfbar — entfällt mit Plan 03) -->
+    <string name="debug_banner">DEBUG — replaced by month view in Plan 03</string>
+    <string name="debug_calendars_header">Calendars</string>
+    <string name="debug_events_header">Next 50 events</string>
+    <string name="debug_no_calendars">No calendars configured. Add one via DAVx5 or system settings.</string>
+    <string name="debug_no_events">No upcoming events in the next 30 days.</string>
 </resources>

@@ -10,4 +10,20 @@
     <string name="state_failure_no_calendars">Keine Kalender eingerichtet.</string>
     <string name="state_failure_no_calendars_action">System-Kalender-Einstellungen öffnen</string>
     <string name="state_failure_provider">Kalender konnte nicht gelesen werden.</string>
+
+    <!-- Permission-Flow (F1) -->
+    <string name="permission_rationale_title">Kalender-Zugriff</string>
+    <string name="permission_rationale_body">Calendula liest nur deinen Gerätekalender — keine Daten verlassen das Gerät.</string>
+    <string name="permission_request_button">Weiter</string>
+    <string name="permission_denied_title">Kalender-Zugriff abgelehnt</string>
+    <string name="permission_denied_body">Ohne Kalender-Zugriff kann Calendula keine Termine anzeigen. Du kannst den Zugriff in den System-Einstellungen wieder erlauben.</string>
+    <string name="permission_open_settings_button">System-Einstellungen öffnen</string>
+    <string name="permission_retry_button">Erneut versuchen</string>
+
+    <!-- Debug-Screen (wegwerfbar — entfällt mit Plan 03) -->
+    <string name="debug_banner">DEBUG — wird mit Plan 03 durch die Monatsansicht ersetzt</string>
+    <string name="debug_calendars_header">Kalender</string>
+    <string name="debug_events_header">Nächste 50 Termine</string>
+    <string name="debug_no_calendars">Keine Kalender eingerichtet. Füge einen über DAVx5 oder die System-Einstellungen hinzu.</string>
+    <string name="debug_no_events">Keine anstehenden Termine in den nächsten 30 Tagen.</string>
 </resources>
