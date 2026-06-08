@@ -5,11 +5,11 @@ See full design spec: `docs/superpowers/specs/2026-06-08-calendar-app-design.md`
 ## V1 Scope (Variant "B")
 
 ### Validated (shipped)
-- (none yet — first milestone in progress)
+- Foundation & CI infrastructure — v0.1.0 (2026-06-08)
 
 ### Active (V1)
 
-- [ ] Foundation & CI infrastructure
+- [x] Foundation & CI infrastructure
 - [ ] Data Layer over `CalendarContract`
 - [ ] Permission flow (`READ_CALENDAR`)
 - [ ] Month view (S1)
