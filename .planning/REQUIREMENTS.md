@@ -37,6 +37,7 @@ See full design spec: `docs/superpowers/specs/2026-06-08-calendar-app-design.md`
 ## Constraints
 
 - **Tech stack:** Kotlin + Jetpack Compose + Material 3 Expressive, Hilt, DataStore
+- **Tech stack pin:** Hilt 2.59.2 + KSP 2.3.9; Kotlin 2.3.21 (KSP for Kotlin 2.4.0 not released yet). Material 3 pinned to `1.5.0-alpha21` (Expressive APIs only exist in alpha). Re-evaluate when KSP/Material3 stable land.
 - **Platform:** Android 10+ (API 29 minimum), Android 16 (API 36) target
 - **Offline-first:** all data lives in `CalendarContract`; no app-side network
 - **Privacy:** zero telemetry, no analytics

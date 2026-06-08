@@ -20,8 +20,11 @@ icon, i18n, Hilt, DataStore, green CI.
 
 ## Stack
 
-Kotlin 2.3, Jetpack Compose + Material 3 Expressive (alpha for 1.5 APIs),
-Hilt, DataStore. Gradle Kotlin DSL with Version Catalog. AGP 9.1, Gradle 9.5.
+Kotlin 2.3.21 (paired with KSP 2.3.9 — Kotlin 2.4.0 has no KSP release
+yet, do not upgrade until one ships). Jetpack Compose + Material 3
+Expressive 1.5.0-alpha21 (alpha is intentional — Expressive APIs only
+live in the 1.5 alpha line). Hilt 2.59.2, DataStore. Gradle Kotlin DSL
+with Version Catalog. AGP 9.1.1, Gradle 9.5.1. JVM target 17.
 
 Read-only V1, write support V2.
 
