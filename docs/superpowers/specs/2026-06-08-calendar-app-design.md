@@ -1,4 +1,4 @@
-# Calendar App - V1 Design Spec
+# Calendula - V1 Design Spec
 
 **Date:** 2026-06-08
 **Status:** Draft for review
@@ -66,7 +66,8 @@ von Google Calendar gibt - speziell mit dem 2025er Expressive-Design.
 - `android.permission.QUERY_ALL_PACKAGES` **nicht** nötig (Maps-Intent geht ohne)
 
 ### App-Identifier
-- Package: `de.jeanlucmakiola.cal` (Name "cal" als Platzhalter, finalisierung später)
+- **App-Name:** Calendula (vom lateinischen *kalendae* - "der erste Tag des Monats", Wortwurzel von "Kalender"; gleichzeitig der Name der Ringelblume)
+- **Package:** `de.jeanlucmakiola.calendula`
 - Convention identisch zu `HouseHoldKeaper`: `de.jeanlucmakiola.<app_name>`
 
 ## 4. Architektur
@@ -77,8 +78,8 @@ wenn nötig - YAGNI.
 
 ### Package-Layout
 ```
-de.jeanlucmakiola.cal/
-├── App.kt + MainActivity.kt
+de.jeanlucmakiola.calendula/
+├── CalendulaApp.kt + MainActivity.kt
 ├── data/          ContentResolver-Wrapper, Repositories
 ├── domain/        Pure-Kotlin Models (Event, CalendarSource)
 └── ui/
@@ -369,18 +370,30 @@ Adaption der `HouseHoldKeaper`-Pipeline, nur Flutter-Steps durch Gradle ersetzt.
 
 ### Repo-Konventionen
 - `CHANGELOG.md` wird beim Taggen gepflegt (patch/minor/major)
-- `fdroid-metadata/de.jeanlucmakiola.cal/` Verzeichnis-Struktur
+- `fdroid-metadata/de.jeanlucmakiola.calendula/` Verzeichnis-Struktur
 - `LICENSE` = MIT, Jean-Luc Makiola, 2026
 - `.planning/` mit `PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`
 
-## 12. Open Decisions
+## 12. Design-Decisions (gelöst)
 
-| Punkt | Status |
-|---|---|
-| Finaler App-Name (Platzhalter `cal`) | offen, später |
-| Konkretes UI-Layout pro Screen (Mockups, Komponenten-Wahl) | offen, eigene Design-Iteration nach Spec-Approval |
-| Theme-Seed-Color (Hex) für Fallback wenn kein Dynamic Color | offen, später beim Design |
-| Icon (Adaptive Launcher + Foreground) | offen, später beim Design |
+### Theme-Seed-Color (Fallback wenn kein Dynamic Color verfügbar)
+**`0xFF5C6B7A`** - desaturiertes Schiefer-Blaugrau.
+- Bewusst anders als HouseHoldKeaper's Sage (`0xFF7A9A6D`), damit beide Apps unterscheidbar sind
+- Mid-Saturation → M3 Expressive Dynamic Color generiert daraus eine ausgewogene Palette
+- Cool aber nicht kalt → passt zu "modern functional"
+- Funktioniert in Light- und Dark-Theme
+
+### App-Icon (Adaptive Launcher)
+**Statische "1" auf M3-Expressive-Squircle.**
+- **Foreground:** Stilisierte Ziffer "1" (bold), zentriert auf einem Squircle
+- **Background:** Seed-Color `0xFF5C6B7A` (slate)
+- **Bedeutung:** Die "1" referenziert *kalendae* (der erste Tag des Monats) - Wortwurzel sowohl von "Kalender" als auch "Calendula". Die App heisst Calendula, aber das Icon zeigt klar: dies ist ein Kalender.
+- Adaptive-Icon-Spec: Foreground 432dp x 432dp Safe-Zone in 108dp Tile, Background fest
+- Vektor-basiert (kein PNG), in `res/drawable/ic_launcher_*.xml` als VectorDrawable
+
+### Konkretes UI-Layout pro Screen
+**Bewusst offen** - wird in eigener UI-Design-Iteration nach Spec-Approval entworfen
+(Mockups pro Screen, alle drei States, vor Implementation).
 
 ## 13. Nächste Schritte nach Spec-Approval
 
