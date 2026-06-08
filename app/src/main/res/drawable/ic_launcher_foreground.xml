@@ -18,6 +18,27 @@
     android:height="108dp"
     android:viewportWidth="232"
     android:viewportHeight="232">
+    <!--
+        Android adaptive icon spec: 108dp canvas.
+
+        Centering Logic:
+        - The calendar body is a 142x142 square centered at (114, 108).
+        - The viewport center is (116, 116).
+        - We use pivot (114, 108) and translate by (2, 8) to align the
+          calendar's geometric center perfectly with the canvas center,
+          ignoring the visual weight of the bloom badge.
+
+        Scale:
+        - Scaled by 0.50 to provide significant padding, preventing a
+          "zoomed in" look on home screens and splash screens.
+    -->
+    <group
+        android:pivotX="114"
+        android:pivotY="108"
+        android:scaleX="0.50"
+        android:scaleY="0.50"
+        android:translateX="2"
+        android:translateY="8">
     <!-- Calendar body (rounded square with horizontal header divider) -->
     <path
         android:strokeColor="#FFFAF6F0"
@@ -70,4 +91,5 @@
     <path
         android:fillColor="#FFFAF6F0"
         android:pathData="M170.786,169C174.77,169 178,165.77 178,161.786C178,157.802 174.77,154.572 170.786,154.572C166.802,154.572 163.572,157.802 163.572,161.786C163.572,165.77 166.802,169 170.786,169Z" />
+    </group>
 </vector>
