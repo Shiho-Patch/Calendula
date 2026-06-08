@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!--
+        Stylized "1" centered in the 108x108 viewport.
+        Reference: kalendae (the first day of the month) - etymological root
+        of both "Calendar" and "Calendula".
+        Color is off-white for high contrast on the slate background.
+    -->
+    <path
+        android:fillColor="#FFFAF6F0"
+        android:pathData="M51.5,38 L51.5,38 C49.5,40 46.5,41.5 43,42.5 L43,49 C46.2,48.2 49,47 51.5,45.5 L51.5,72 L43.5,72 L43.5,76 L65.5,76 L65.5,72 L57.5,72 L57.5,38 Z" />
+</vector>
