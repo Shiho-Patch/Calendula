@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit-Tests für Cursor-Mapping (alle §8-Defensiv-Cases), Repository-Flows mit Turbine, DataStore round-trip
 - Instrumented smoke test against the real CalendarContract provider
 
+### Changed
+- Redesigned launcher icon: line-art calendar with a stylized "1" inside
+  (kalendae reference) and a small calendula bloom badge in the
+  bottom-right corner. Replaces the simple "1"-only foreground from
+  v0.1.0. Source SVG checked in at `design/icon/calendula_mark.svg`,
+  also used to regenerate the F-Droid catalog `icon.png` (512x512)
+  per locale.
+
 ## [0.1.1] — 2026-06-08
 
 ### Fixed

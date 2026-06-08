@@ -1,16 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Calendula launcher icon foreground.
+
+    Converted from design/icon/calendula_mark.svg (232x232 viewport).
+    Composition: rounded line-art calendar with a stylized "1" inside
+    (referencing kalendae, the Latin word for the first day of the month
+    that is the etymological root of both "calendar" and "calendula"),
+    plus a small Calendula bloom as a badge in the bottom-right corner.
+
+    Strokes render in off-white (#FAF6F0) over the slate background
+    drawable (drawable/ic_launcher_background.xml = @color/ic_launcher_background).
+    The same vector is reused as the <monochrome> slot in the adaptive icon
+    so Android 13+ themed-icon launchers can recolor it from wallpaper.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <!--
-        Stylized "1" centered in the 108x108 viewport.
-        Reference: kalendae (the first day of the month) - etymological root
-        of both "Calendar" and "Calendula".
-        Color is off-white for high contrast on the slate background.
-    -->
+    android:viewportWidth="232"
+    android:viewportHeight="232">
+    <!-- Calendar body (rounded square with horizontal header divider) -->
+    <path
+        android:strokeColor="#FFFAF6F0"
+        android:strokeWidth="12"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeMiterLimit="12"
+        android:pathData="M43,69H185M185,115V63C185,48.64 173.359,37 159,37H69C54.64,37 43,48.64 43,63V153C43,167.359 54.64,179 69,179H124" />
+    <!-- Numeral "1" inside the calendar body -->
+    <path
+        android:strokeColor="#FFFAF6F0"
+        android:strokeWidth="12"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M103,110L113.999,99V142.428" />
+    <!-- Calendula bloom: 8 petals around a filled center -->
+    <path
+        android:strokeColor="#FFFAF6F0"
+        android:strokeWidth="8"
+        android:pathData="M163.072,136.714C163.072,142.886 168.214,153.429 170.786,157.929C173.357,153.429 178.5,142.886 178.5,136.714C178.5,130.543 173.357,129 170.786,129C168.214,129 163.072,130.543 163.072,136.714Z" />
+    <path
+        android:strokeColor="#FFFAF6F0"
+        android:strokeWidth="8"
+        android:pathData="M178.5,186.857C178.5,180.686 173.357,170.143 170.786,165.643C168.214,170.143 163.072,180.686 163.072,186.857C163.072,193.029 168.214,194.572 170.786,194.572C173.357,194.572 178.5,193.029 178.5,186.857Z" />
+    <path
+        android:strokeColor="#FFFAF6F0"
+        android:strokeWidth="8"
+        android:pathData="M195.857,154.072C189.686,154.072 179.143,159.214 174.643,161.786C179.143,164.357 189.686,169.5 195.857,169.5C202.029,169.5 203.572,164.357 203.572,161.786C203.572,159.214 202.029,154.072 195.857,154.072Z" />
+    <path
+        android:strokeColor="#FFFAF6F0"
+        android:strokeWidth="8"
+        android:pathData="M145.714,170.008C151.886,170.008 162.429,164.865 166.929,162.294C162.429,159.722 151.886,154.58 145.714,154.58C139.543,154.58 138,159.722 138,162.294C138,164.865 139.543,170.008 145.714,170.008Z" />
+    <path
+        android:strokeColor="#FFFAF6F0"
+        android:strokeWidth="8"
+        android:pathData="M194.768,174.858C190.404,170.494 179.312,166.676 174.312,165.312C175.676,170.312 179.494,181.404 183.858,185.768C188.222,190.132 192.949,187.586 194.768,185.768C196.586,183.949 199.132,179.222 194.768,174.858Z" />
+    <path
+        android:strokeColor="#FFFAF6F0"
+        android:strokeWidth="8"
+        android:pathData="M146.804,149.222C151.168,153.586 162.259,157.404 167.26,158.768C165.896,153.767 162.077,142.676 157.714,138.312C153.35,133.948 148.622,136.494 146.804,138.312C144.986,140.13 142.44,144.858 146.804,149.222Z" />
+    <path
+        android:strokeColor="#FFFAF6F0"
+        android:strokeWidth="8"
+        android:pathData="M183.858,138.312C179.494,142.676 175.676,153.767 174.312,158.768C179.312,157.404 190.404,153.586 194.768,149.222C199.132,144.858 196.586,140.13 194.768,138.312C192.949,136.494 188.222,133.948 183.858,138.312Z" />
+    <path
+        android:strokeColor="#FFFAF6F0"
+        android:strokeWidth="8"
+        android:pathData="M157.714,185.768C162.077,181.404 165.896,170.312 167.26,165.312C162.259,166.676 151.168,170.494 146.804,174.858C142.44,179.222 144.986,183.949 146.804,185.768C148.622,187.586 153.35,190.132 157.714,185.768Z" />
+    <!-- Calendula center disc -->
     <path
         android:fillColor="#FFFAF6F0"
-        android:pathData="M51.5,38 L51.5,38 C49.5,40 46.5,41.5 43,42.5 L43,49 C46.2,48.2 49,47 51.5,45.5 L51.5,72 L43.5,72 L43.5,76 L65.5,76 L65.5,72 L57.5,72 L57.5,38 Z" />
+        android:pathData="M170.786,169C174.77,169 178,165.77 178,161.786C178,157.802 174.77,154.572 170.786,154.572C166.802,154.572 163.572,157.802 163.572,161.786C163.572,165.77 166.802,169 170.786,169Z" />
 </vector>
