@@ -1,0 +1,12 @@
+Calendula ist eine moderne, quelloffene Kalender-App für Android. Sie liest
+direkt aus dem System-Kalender-Provider — jede Quelle, die mit deinem Gerät
+synchronisiert ist (Nextcloud über DAVx5, Google, lokal, WebCal-Subscriptions)
+erscheint automatisch.
+
+Der Unterschied liegt im Design: echtes Material 3 Expressive durchgehend,
+mit Dynamic Color, expressiven Animationen und neuen Shape-Sprachen.
+
+V1 ist read-only. Erstellen, Bearbeiten und Löschen von Events kommt mit V2.
+
+Datenschutz: keinerlei Telemetrie, kein Tracking, kein Netzwerkzugriff — deine
+Daten bleiben auf dem Gerät.
