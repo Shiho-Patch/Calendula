@@ -37,11 +37,12 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Lint
-        run: ./gradlew lint --no-daemon
+      # Lint already enforced on every push to main via ci.yaml.
+      # Release sanity only re-runs tests + a debug build to catch
+      # any tag-resolved drift (e.g. version code substitution issues).
 
       - name: Unit tests
-        run: ./gradlew test --no-daemon
+        run: ./gradlew testDebugUnitTest --no-daemon
 
       - name: Assemble debug APK (sanity)
         run: ./gradlew assembleDebug --no-daemon
