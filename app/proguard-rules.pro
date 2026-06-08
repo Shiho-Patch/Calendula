@@ -1,6 +1,6 @@
 # Keep Hilt-generated classes
 -keep class dagger.hilt.** { *; }
--keep class * extends dagger.hilt.android.HiltAndroidApp
+-keep @dagger.hilt.android.HiltAndroidApp class *
 
 # Compose Compiler may keep its own; defaults are fine
 -dontwarn org.jetbrains.annotations.**
