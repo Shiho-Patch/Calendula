@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "de.jeanlucmakiola.calendula"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "de.jeanlucmakiola.calendula"
