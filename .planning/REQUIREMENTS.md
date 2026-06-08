@@ -10,8 +10,8 @@ See full design spec: `docs/superpowers/specs/2026-06-08-calendar-app-design.md`
 ### Active (V1)
 
 - [x] Foundation & CI infrastructure
-- [ ] Data Layer over `CalendarContract`
-- [ ] Permission flow (`READ_CALENDAR`)
+- [x] Data Layer over `CalendarContract`
+- [x] Permission flow (`READ_CALENDAR`)
 - [ ] Month view (S1)
 - [ ] Week view (S2)
 - [ ] Day view (S3)

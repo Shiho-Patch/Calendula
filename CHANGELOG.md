@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-06-08
+
+### Added
+- Domain models for calendars, event instances, event detail, attendees
+- `CalendarContract`-backed `CalendarRepository` with `ContentObserver`-driven live updates
+- DataStore preference for app-side hidden-calendar visibility
+- `READ_CALENDAR` permission flow (rationale + denied recovery + system-settings shortcut)
+- Wegwerfbarer Debug-Screen: zeigt alle Kalender + die nächsten 50 Termine ab heute
+- Hilt-Wiring für Data-Layer (Repository, DataSource, DataStore, IO-Dispatcher)
+- Unit-Tests für Cursor-Mapping (alle §8-Defensiv-Cases), Repository-Flows mit Turbine, DataStore round-trip
+- Instrumented smoke test against the real CalendarContract provider
+
 ## [0.1.1] — 2026-06-08
 
 ### Fixed

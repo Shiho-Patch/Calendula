@@ -5,7 +5,7 @@
 | Version | Milestone | Status |
 |---|---|---|
 | v0.1 | Foundation & CI | complete |
-| v0.2 | Data Layer & Permission Flow | pending |
+| v0.2 | Data Layer & Permission Flow | complete |
 | v0.3 | Month view | pending |
 | v0.4 | Week view | pending |
 | v0.5 | Day view | pending |
