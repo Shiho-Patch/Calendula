@@ -37,8 +37,14 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Lint + tests + debug build (sanity)
-        run: ./gradlew lint test assembleDebug --no-daemon
+      - name: Lint
+        run: ./gradlew lint --no-daemon
+
+      - name: Unit tests
+        run: ./gradlew test --no-daemon
+
+      - name: Assemble debug APK (sanity)
+        run: ./gradlew assembleDebug --no-daemon
 
   build-and-deploy:
     needs: ci
