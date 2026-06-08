@@ -97,7 +97,7 @@ private fun SuccessContent(state: DebugUiState.Success) {
                 )
             }
         } else {
-            items(state.calendars, key = { it.id }) { CalendarRow(it) }
+            items(state.calendars, key = { "cal-${it.id}" }) { CalendarRow(it) }
         }
 
         item { Spacer(Modifier.height(16.dp)) }
@@ -111,7 +111,12 @@ private fun SuccessContent(state: DebugUiState.Success) {
                 )
             }
         } else {
-            items(state.nextEvents, key = { it.instanceId }) { EventRow(it) }
+            items(
+                state.nextEvents,
+                // Recurring events share Instances._ID across occurrences, so
+                // include the start instant to keep the LazyColumn key unique.
+                key = { "evt-${it.instanceId}-${it.start.toEpochMilliseconds()}" },
+            ) { EventRow(it) }
         }
     }
 }
