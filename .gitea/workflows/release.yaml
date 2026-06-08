@@ -1,0 +1,183 @@
+name: Build and Release to F-Droid
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+
+jobs:
+  ci:
+    runs-on: docker
+    env:
+      ANDROID_HOME: /opt/android-sdk
+      ANDROID_SDK_ROOT: /opt/android-sdk
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "platforms;android-37.0" \
+            "build-tools;36.0.0"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Lint + tests + debug build (sanity)
+        run: ./gradlew lint test assembleDebug --no-daemon
+
+  build-and-deploy:
+    needs: ci
+    runs-on: docker
+    env:
+      ANDROID_HOME: /opt/android-sdk
+      ANDROID_SDK_ROOT: /opt/android-sdk
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-36" \
+            "platforms;android-37.0" \
+            "build-tools;36.0.0"
+
+      - name: Install jq
+        run: |
+          set -e
+          SUDO=""
+          if command -v sudo >/dev/null 2>&1; then SUDO="sudo"; fi
+          if command -v apt-get >/dev/null 2>&1; then
+            $SUDO apt-get update
+            $SUDO apt-get install -y jq
+          elif command -v apk >/dev/null 2>&1; then
+            $SUDO apk add --no-cache jq
+          fi
+
+      - name: Set version from git tag
+        run: |
+          set -e
+          RAW_TAG="${GITHUB_REF_NAME:-${GITHUB_REF##*/}}"
+          VERSION="${RAW_TAG#v}"
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          PATCH=$(echo "$VERSION" | cut -d. -f3)
+          MAJOR=${MAJOR:-0}; MINOR=${MINOR:-0}; PATCH=${PATCH:-0}
+          VERSION_CODE=$(( MAJOR * 10000 + MINOR * 100 + PATCH ))
+          echo "Version: $VERSION, VersionCode: $VERSION_CODE"
+          sed -i "s/versionName = \".*\"/versionName = \"$VERSION\"/" app/build.gradle.kts
+          sed -i "s/versionCode = .*/versionCode = $VERSION_CODE/" app/build.gradle.kts
+          grep -E 'versionName|versionCode' app/build.gradle.kts
+
+      - name: Setup Android Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          mkdir -p app
+          echo "$KEYSTORE_BASE64" | base64 --decode > app/upload-keystore.jks
+          cat > key.properties <<EOF
+          storePassword=$KEY_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=$KEY_ALIAS
+          storeFile=upload-keystore.jks
+          EOF
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Setup F-Droid Server Tools
+        run: |
+          SUDO=""
+          if command -v sudo >/dev/null 2>&1; then SUDO="sudo"; fi
+          $SUDO apt-get update
+          $SUDO apt-get install -y sshpass python3-pip
+          pip3 install --break-system-packages --upgrade fdroidserver
+
+      - name: Initialize or fetch F-Droid Repository
+        env:
+          HOST: ${{ secrets.HETZNER_HOST }}
+          USER: ${{ secrets.HETZNER_USER }}
+          PASS: ${{ secrets.HETZNER_PASS }}
+        run: |
+          mkdir -p fdroid
+          sshpass -p "$PASS" sftp -o StrictHostKeyChecking=no "$USER@$HOST" <<'SFTP'
+          -mkdir dev
+          -mkdir dev/fdroid
+          -mkdir dev/fdroid/repo
+          SFTP
+          sshpass -p "$PASS" scp -o StrictHostKeyChecking=no -r "$USER@$HOST:dev/fdroid/." fdroid/ || (cd fdroid && fdroid init)
+
+      - name: Ensure F-Droid repo signing key and icon
+        run: |
+          cd fdroid
+          mkdir -p repo/icons
+          if [ ! -f keystore.p12 ]; then
+            fdroid update --create-key
+          fi
+
+      - name: Copy new APK to repo
+        run: |
+          set -e
+          mkdir -p fdroid/repo
+          REF_NAME="${GITHUB_REF_NAME:-${GITHUB_REF##*/}}"
+          SAFE_REF_NAME="$(echo "$REF_NAME" | tr '/ ' '__' | tr -cd '[:alnum:]_.-')"
+          if [ -z "$SAFE_REF_NAME" ]; then
+            SAFE_REF_NAME="${GITHUB_SHA:-manual}"
+          fi
+          cp app/build/outputs/apk/release/app-release.apk "fdroid/repo/calendula_${SAFE_REF_NAME}.apk"
+
+      - name: Copy metadata to F-Droid repo
+        run: |
+          mkdir -p fdroid/metadata
+          cp -r fdroid-metadata/* fdroid/metadata/
+
+      - name: Generate F-Droid Index
+        run: |
+          cd fdroid
+          fdroid update -c
+
+      - name: Upload Repo to Hetzner
+        env:
+          HOST: ${{ secrets.HETZNER_HOST }}
+          USER: ${{ secrets.HETZNER_USER }}
+          PASS: ${{ secrets.HETZNER_PASS }}
+        run: |
+          set -euo pipefail
+          SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=20"
+          sshpass -p "$PASS" sftp $SSH_OPTS "$USER@$HOST" <<'SFTP'
+          -mkdir dev
+          -mkdir dev/fdroid
+          -mkdir dev/fdroid/repo
+          SFTP
+          sshpass -p "$PASS" scp $SSH_OPTS -r fdroid/. "$USER@$HOST:dev/fdroid/"
