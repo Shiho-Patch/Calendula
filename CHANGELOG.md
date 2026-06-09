@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-06-09
+
+### Changed
+- Regenerated the F-Droid catalog `icon.png` (512x512, both locales) so it
+  is pixel-faithful to the on-device adaptive launcher icon: same slate
+  background (`#5C6B7A`), off-white mark (`#FAF6F0`), and the foreground
+  group transform (`scale 0.5`, pivot `114,108`, translate `2,8`) baked in.
+- Added `design/icon/calendula_launcher.svg` — the composed full-bleed
+  icon (background + transformed mark) as the single source of truth for
+  store/F-Droid renders.
+
 ## [0.2.0] — 2026-06-08
 
 ### Added
