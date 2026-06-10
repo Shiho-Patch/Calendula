@@ -38,6 +38,36 @@
     <!-- Tagesansicht (S3) -->
     <string name="day_today_action">Heute</string>
 
+    <!-- Event-Detail-Screen (S4) -->
+    <string name="event_detail_back">Zurück</string>
+    <string name="event_detail_edit">Bearbeiten</string>
+    <string name="event_detail_delete">Löschen</string>
+    <string name="event_detail_all_day">Ganztägig</string>
+    <string name="event_detail_calendar">Kalender</string>
+    <string name="event_detail_calendar_unknown">Unbekannter Kalender</string>
+    <string name="event_detail_location">Ort</string>
+    <string name="event_detail_description">Beschreibung</string>
+    <string name="event_detail_attendees">Teilnehmer</string>
+    <string name="event_detail_recurrence">Wiederholung</string>
+    <string name="event_detail_recurring">Wiederkehrender Termin</string>
+    <string name="recurrence_daily">Jeden Tag</string>
+    <string name="recurrence_weekly">Jede Woche</string>
+    <string name="recurrence_monthly">Jeden Monat</string>
+    <string name="recurrence_yearly">Jedes Jahr</string>
+    <string name="recurrence_every_n_days">Alle %1$d Tage</string>
+    <string name="recurrence_every_n_weeks">Alle %1$d Wochen</string>
+    <string name="recurrence_every_n_months">Alle %1$d Monate</string>
+    <string name="recurrence_every_n_years">Alle %1$d Jahre</string>
+    <string name="recurrence_on_days">%1$s am %2$s</string>
+    <string name="recurrence_with_until">%1$s bis %2$s</string>
+    <string name="recurrence_with_count">%1$s, %2$d Mal</string>
+    <string name="event_detail_not_found">Dieser Termin existiert nicht mehr.</string>
+    <string name="event_attendee_accepted">Zugesagt</string>
+    <string name="event_attendee_declined">Abgesagt</string>
+    <string name="event_attendee_tentative">Vorläufig</string>
+    <string name="event_attendee_needs_action">Keine Antwort</string>
+    <string name="event_attendee_unknown">—</string>
+
     <!-- Geteilte Event-Strings -->
     <string name="event_untitled">(Ohne Titel)</string>
 

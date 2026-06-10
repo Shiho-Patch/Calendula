@@ -39,6 +39,36 @@
     <!-- Day view (S3) -->
     <string name="day_today_action">Today</string>
 
+    <!-- Event detail screen (S4) -->
+    <string name="event_detail_back">Back</string>
+    <string name="event_detail_edit">Edit</string>
+    <string name="event_detail_delete">Delete</string>
+    <string name="event_detail_all_day">All day</string>
+    <string name="event_detail_calendar">Calendar</string>
+    <string name="event_detail_calendar_unknown">Unknown calendar</string>
+    <string name="event_detail_location">Location</string>
+    <string name="event_detail_description">Description</string>
+    <string name="event_detail_attendees">Attendees</string>
+    <string name="event_detail_recurrence">Recurrence</string>
+    <string name="event_detail_recurring">Repeating event</string>
+    <string name="recurrence_daily">Every day</string>
+    <string name="recurrence_weekly">Every week</string>
+    <string name="recurrence_monthly">Every month</string>
+    <string name="recurrence_yearly">Every year</string>
+    <string name="recurrence_every_n_days">Every %1$d days</string>
+    <string name="recurrence_every_n_weeks">Every %1$d weeks</string>
+    <string name="recurrence_every_n_months">Every %1$d months</string>
+    <string name="recurrence_every_n_years">Every %1$d years</string>
+    <string name="recurrence_on_days">%1$s on %2$s</string>
+    <string name="recurrence_with_until">%1$s until %2$s</string>
+    <string name="recurrence_with_count">%1$s, %2$d times</string>
+    <string name="event_detail_not_found">This event no longer exists.</string>
+    <string name="event_attendee_accepted">Accepted</string>
+    <string name="event_attendee_declined">Declined</string>
+    <string name="event_attendee_tentative">Tentative</string>
+    <string name="event_attendee_needs_action">No response</string>
+    <string name="event_attendee_unknown">—</string>
+
     <!-- Shared event strings -->
     <string name="event_untitled">(No title)</string>
 

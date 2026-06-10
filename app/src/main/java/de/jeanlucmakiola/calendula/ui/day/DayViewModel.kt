@@ -78,6 +78,11 @@ class DayViewModel @Inject constructor(
         _date.value = todayDate
     }
 
+    /** Jump to a specific date (e.g. when opened from the month grid). */
+    fun goToDate(date: LocalDate) {
+        _date.value = date
+    }
+
     private fun buildState(
         day: LocalDate,
         calendars: List<CalendarSource>,

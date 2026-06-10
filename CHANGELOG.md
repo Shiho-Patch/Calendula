@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-06-10
+
+### Added
+- Event detail (S4): full-screen destination (MD3 list→detail, not a bottom
+  sheet) opened by tapping an event in the week/day timeline — title with a
+  calendar-colour accent line, a card per field (when, calendar, location,
+  description, attendees, recurrence) with leading icons, location tap opens a
+  maps intent, Loading/Failure/Success states, slide-in/out over the calendar
+- Human-readable recurrence: RRULE rendered as e.g. "Every week on _Tue_ and
+  _Thu_ until 31 Dec 2026" (FREQ/INTERVAL/BYDAY/UNTIL/COUNT, abbreviated +
+  italicised day names, localized list formatting), with a generic fallback
+- Month → day navigation: tapping a day cell opens the day view on that date
+
+### Fixed
+- Recurring events failed to open in the detail view: the series row stores
+  DURATION instead of DTEND, so the mapper dropped it (EventNotFound). The
+  detail now keeps such events and shows the tapped occurrence's own times
+  (from CalendarContract.Instances) instead of the series start
+
 ## [0.3.0] — 2026-06-10
 
 ### Added

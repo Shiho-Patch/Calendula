@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -105,11 +106,18 @@ private fun DayUiState.Success.allDayStripHeight(): Dp {
 fun DayScreen(
     selectedView: CalendarView,
     onSelectView: (CalendarView) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
     modifier: Modifier = Modifier,
+    initialDateIso: String? = null,
     viewModel: DayViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val date by viewModel.date.collectAsStateWithLifecycle()
+
+    // When opened from the month grid, anchor to the tapped date.
+    LaunchedEffect(initialDateIso) {
+        initialDateIso?.let { viewModel.goToDate(LocalDate.parse(it)) }
+    }
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -182,6 +190,7 @@ fun DayScreen(
                 onSwipeNext = goNext,
                 onSwipePrev = goPrev,
                 onRetry = jumpToToday,
+                onEventClick = onEventClick,
                 modifier = Modifier
                     .padding(innerPadding)
                     .fillMaxSize(),
@@ -198,6 +207,7 @@ private fun DayContent(
     onSwipeNext: () -> Unit,
     onSwipePrev: () -> Unit,
     onRetry: () -> Unit,
+    onEventClick: (EventInstance) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -265,6 +275,7 @@ private fun DayContent(
                 topSectionColor = topSectionColor,
                 scrollState = scrollState,
                 allDayHeight = allDayHeight,
+                onEventClick = onEventClick,
             )
         }
     }
@@ -276,6 +287,7 @@ private fun DaySuccess(
     topSectionColor: Color,
     scrollState: ScrollState,
     allDayHeight: Dp,
+    onEventClick: (EventInstance) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // All-day strip collapses to nothing when the day has no all-day events,
@@ -283,6 +295,7 @@ private fun DaySuccess(
         AllDayStrip(
             state = state,
             height = allDayHeight,
+            onEventClick = onEventClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .background(topSectionColor),
@@ -290,7 +303,7 @@ private fun DaySuccess(
         // Breathing room between the (colour-shifting) top section and the
         // scrolling timeline below.
         Spacer(Modifier.height(8.dp))
-        Timeline(state = state, scrollState = scrollState)
+        Timeline(state = state, scrollState = scrollState, onEventClick = onEventClick)
     }
 }
 
@@ -337,6 +350,7 @@ private fun DayTopBar(
 private fun AllDayStrip(
     state: DayUiState.Success,
     height: Dp,
+    onEventClick: (EventInstance) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val dark = isSystemInDarkTheme()
@@ -364,6 +378,7 @@ private fun AllDayStrip(
                 AllDayBar(
                     event = span.event,
                     dark = dark,
+                    onClick = { onEventClick(span.event) },
                     modifier = Modifier
                         .offset(y = ALL_DAY_ROW_HEIGHT * span.lane)
                         .width(barWidth)
@@ -376,11 +391,17 @@ private fun AllDayStrip(
 }
 
 @Composable
-private fun AllDayBar(event: EventInstance, dark: Boolean, modifier: Modifier = Modifier) {
+private fun AllDayBar(
+    event: EventInstance,
+    dark: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     Box(
         modifier = modifier
             .background(pastelize(event.color, dark), RoundedCornerShape(4.dp))
+            .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 2.dp)
             .semantics { contentDescription = title },
         contentAlignment = Alignment.CenterStart,
@@ -396,7 +417,11 @@ private fun AllDayBar(event: EventInstance, dark: Boolean, modifier: Modifier = 
 }
 
 @Composable
-private fun Timeline(state: DayUiState.Success, scrollState: ScrollState) {
+private fun Timeline(
+    state: DayUiState.Success,
+    scrollState: ScrollState,
+    onEventClick: (EventInstance) -> Unit,
+) {
     val totalHeight = HOUR_HEIGHT * 24
     val dark = isSystemInDarkTheme()
 
@@ -443,6 +468,7 @@ private fun Timeline(state: DayUiState.Success, scrollState: ScrollState) {
                 DayColumnCard(
                     blocks = state.timed,
                     dark = dark,
+                    onEventClick = onEventClick,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(totalHeight),
@@ -456,6 +482,7 @@ private fun Timeline(state: DayUiState.Success, scrollState: ScrollState) {
 private fun DayColumnCard(
     blocks: List<TimedBlock>,
     dark: Boolean,
+    onEventClick: (EventInstance) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -477,6 +504,7 @@ private fun DayColumnCard(
                 EventBlock(
                     block = block,
                     dark = dark,
+                    onClick = { onEventClick(block.event) },
                     modifier = Modifier
                         .offset(x = laneWidth * block.lane, y = top)
                         .width(laneWidth)
@@ -492,6 +520,7 @@ private fun DayColumnCard(
 private fun EventBlock(
     block: TimedBlock,
     dark: Boolean,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val title = block.event.title.ifBlank { stringResource(R.string.event_untitled) }
@@ -500,6 +529,7 @@ private fun EventBlock(
     Box(
         modifier = modifier
             .background(pastelize(block.event.color, dark), RoundedCornerShape(4.dp))
+            .clickable(onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 2.dp)
             .semantics { contentDescription = "$title, $timeLabel" },
     ) {

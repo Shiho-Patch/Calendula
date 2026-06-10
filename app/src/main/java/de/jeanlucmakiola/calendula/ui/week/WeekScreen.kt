@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -111,6 +112,7 @@ private fun WeekUiState.Success.allDayStripHeight(): Dp {
 fun WeekScreen(
     selectedView: CalendarView,
     onSelectView: (CalendarView) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: WeekViewModel = hiltViewModel(),
 ) {
@@ -188,6 +190,7 @@ fun WeekScreen(
                 onSwipeNext = goNext,
                 onSwipePrev = goPrev,
                 onRetry = jumpToToday,
+                onEventClick = onEventClick,
                 modifier = Modifier
                     .padding(innerPadding)
                     .fillMaxSize(),
@@ -204,6 +207,7 @@ private fun WeekContent(
     onSwipeNext: () -> Unit,
     onSwipePrev: () -> Unit,
     onRetry: () -> Unit,
+    onEventClick: (EventInstance) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -274,6 +278,7 @@ private fun WeekContent(
                 topSectionColor = topSectionColor,
                 scrollState = scrollState,
                 allDayHeight = allDayHeight,
+                onEventClick = onEventClick,
             )
         }
     }
@@ -285,6 +290,7 @@ private fun WeekSuccess(
     topSectionColor: Color,
     scrollState: ScrollState,
     allDayHeight: Dp,
+    onEventClick: (EventInstance) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -293,12 +299,12 @@ private fun WeekSuccess(
                 .background(topSectionColor),
         ) {
             WeekDayHeader(days = state.days, today = state.today)
-            AllDayStrip(state = state, height = allDayHeight)
+            AllDayStrip(state = state, height = allDayHeight, onEventClick = onEventClick)
         }
         // Breathing room between the (colour-shifting) top section and the
         // scrolling timeline below.
         Spacer(Modifier.height(8.dp))
-        Timeline(state = state, scrollState = scrollState)
+        Timeline(state = state, scrollState = scrollState, onEventClick = onEventClick)
     }
 }
 
@@ -433,7 +439,11 @@ private fun WeekNumberBadge(weekNumber: Int, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun AllDayStrip(state: WeekUiState.Success, height: Dp) {
+private fun AllDayStrip(
+    state: WeekUiState.Success,
+    height: Dp,
+    onEventClick: (EventInstance) -> Unit,
+) {
     val dark = isSystemInDarkTheme()
 
     Row(
@@ -461,6 +471,7 @@ private fun AllDayStrip(state: WeekUiState.Success, height: Dp) {
                 AllDayBar(
                     event = span.event,
                     dark = dark,
+                    onClick = { onEventClick(span.event) },
                     modifier = Modifier
                         .offset(
                             x = colWidth * span.startCol,
@@ -476,11 +487,17 @@ private fun AllDayStrip(state: WeekUiState.Success, height: Dp) {
 }
 
 @Composable
-private fun AllDayBar(event: EventInstance, dark: Boolean, modifier: Modifier = Modifier) {
+private fun AllDayBar(
+    event: EventInstance,
+    dark: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     Box(
         modifier = modifier
             .background(pastelize(event.color, dark), RoundedCornerShape(4.dp))
+            .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 2.dp)
             .semantics { contentDescription = title },
         contentAlignment = Alignment.CenterStart,
@@ -496,7 +513,11 @@ private fun AllDayBar(event: EventInstance, dark: Boolean, modifier: Modifier = 
 }
 
 @Composable
-private fun Timeline(state: WeekUiState.Success, scrollState: ScrollState) {
+private fun Timeline(
+    state: WeekUiState.Success,
+    scrollState: ScrollState,
+    onEventClick: (EventInstance) -> Unit,
+) {
     val totalHeight = HOUR_HEIGHT * 24
     val dark = isSystemInDarkTheme()
 
@@ -551,6 +572,7 @@ private fun Timeline(state: WeekUiState.Success, scrollState: ScrollState) {
                         DayColumnCard(
                             blocks = state.timedByDay[day].orEmpty(),
                             dark = dark,
+                            onEventClick = onEventClick,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
@@ -566,6 +588,7 @@ private fun Timeline(state: WeekUiState.Success, scrollState: ScrollState) {
 private fun DayColumnCard(
     blocks: List<TimedBlock>,
     dark: Boolean,
+    onEventClick: (EventInstance) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Card(
@@ -587,6 +610,7 @@ private fun DayColumnCard(
                 EventBlock(
                     block = block,
                     dark = dark,
+                    onClick = { onEventClick(block.event) },
                     modifier = Modifier
                         .offset(x = laneWidth * block.lane, y = top)
                         .width(laneWidth)
@@ -602,6 +626,7 @@ private fun DayColumnCard(
 private fun EventBlock(
     block: TimedBlock,
     dark: Boolean,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val title = block.event.title.ifBlank { stringResource(R.string.event_untitled) }
@@ -610,6 +635,7 @@ private fun EventBlock(
     Box(
         modifier = modifier
             .background(pastelize(block.event.color, dark), RoundedCornerShape(4.dp))
+            .clickable(onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 2.dp)
             .semantics { contentDescription = "$title, $timeLabel" },
     ) {

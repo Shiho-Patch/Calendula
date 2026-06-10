@@ -84,6 +84,7 @@ import java.util.Locale
 fun MonthScreen(
     selectedView: CalendarView,
     onSelectView: (CalendarView) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MonthViewModel = hiltViewModel(),
 ) {
@@ -168,6 +169,7 @@ fun MonthScreen(
                     onSwipeNext = goNext,
                     onSwipePrev = goPrev,
                     onRetry = jumpToToday,
+                    onOpenDay = onOpenDay,
                 )
             }
         }
@@ -181,6 +183,7 @@ private fun MonthContent(
     onSwipeNext: () -> Unit,
     onSwipePrev: () -> Unit,
     onRetry: () -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
 ) {
     val density = LocalDensity.current
     val threshold = with(density) { 6.dp.toPx() }
@@ -218,7 +221,11 @@ private fun MonthContent(
         when (s) {
             MonthUiState.Loading -> MonthGridLoading()
             is MonthUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
-            is MonthUiState.Success -> MonthGrid(state = s, weekStart = DayOfWeek.MONDAY)
+            is MonthUiState.Success -> MonthGrid(
+                state = s,
+                weekStart = DayOfWeek.MONDAY,
+                onOpenDay = onOpenDay,
+            )
         }
     }
 }
@@ -290,6 +297,7 @@ private fun WeekdayHeader(weekStart: DayOfWeek) {
 private fun MonthGrid(
     state: MonthUiState.Success,
     weekStart: DayOfWeek,
+    onOpenDay: (LocalDate) -> Unit,
 ) {
     val firstOfMonth = LocalDate(state.month.year, state.month.month, 1)
     val gridStart = firstOfMonth.startOfGridWeek(weekStart)
@@ -323,6 +331,7 @@ private fun MonthGrid(
                             date = date,
                             isToday = date == state.today,
                             data = state.cells[date],
+                            onClick = { onOpenDay(date) },
                             modifier = Modifier.weight(1f),
                         )
                     } else {
@@ -340,6 +349,7 @@ private fun DayCard(
     date: LocalDate,
     isToday: Boolean,
     data: DayCellData?,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val todayPrefix = stringResource(R.string.month_a11y_today_prefix)
@@ -362,7 +372,7 @@ private fun DayCard(
     )
 
     Card(
-        onClick = { /* TODO: open the day view (S3) for this date */ },
+        onClick = onClick,
         interactionSource = interactionSource,
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(

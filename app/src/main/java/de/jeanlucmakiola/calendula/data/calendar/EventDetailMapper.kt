@@ -11,15 +11,25 @@ private const val TAG = "EventDetailMapper"
 
 internal fun ColumnReader.toEventDetailCore(attendees: List<Attendee>): EventDetail? {
     val begin = getLong(EventDetailProjection.IDX_DTSTART)
-    val end = getLong(EventDetailProjection.IDX_DTEND)
 
     if (begin < 0L) {
         Log.w(TAG, "Dropping event with negative dtstart=$begin")
         return null
     }
-    if (end < begin) {
-        Log.w(TAG, "Dropping event with dtend=$end < dtstart=$begin")
-        return null
+
+    // Recurring events store DURATION instead of DTEND, so the series row's
+    // DTEND is null. Keep the event (end == begin); callers that opened a
+    // specific occurrence supply the real per-occurrence times from
+    // CalendarContract.Instances. Only a present-but-backwards DTEND is malformed.
+    val end = if (isNull(EventDetailProjection.IDX_DTEND)) {
+        begin
+    } else {
+        val rawEnd = getLong(EventDetailProjection.IDX_DTEND)
+        if (rawEnd < begin) {
+            Log.w(TAG, "Dropping event with dtend=$rawEnd < dtstart=$begin")
+            return null
+        }
+        rawEnd
     }
 
     val rawTitle = getString(EventDetailProjection.IDX_TITLE)
