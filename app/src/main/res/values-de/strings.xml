@@ -35,6 +35,9 @@
     <string name="week_today_action">Diese Woche</string>
     <string name="week_number_label">KW</string>
 
+    <!-- Tagesansicht (S3) -->
+    <string name="day_today_action">Heute</string>
+
     <!-- Geteilte Event-Strings -->
     <string name="event_untitled">(Ohne Titel)</string>
 

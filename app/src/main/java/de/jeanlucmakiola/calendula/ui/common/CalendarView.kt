@@ -12,9 +12,10 @@ enum class CalendarView {
 
 /**
  * Views that actually have a screen today. The view-switcher pill cycles
- * through these in order; Day joins once its screen lands.
+ * through these in order.
  */
-val IMPLEMENTED_VIEWS: List<CalendarView> = listOf(CalendarView.Month, CalendarView.Week)
+val IMPLEMENTED_VIEWS: List<CalendarView> =
+    listOf(CalendarView.Month, CalendarView.Week, CalendarView.Day)
 
 /** Next view in [available], wrapping around. Falls back to Month if absent. */
 fun CalendarView.next(available: List<CalendarView> = IMPLEMENTED_VIEWS): CalendarView {

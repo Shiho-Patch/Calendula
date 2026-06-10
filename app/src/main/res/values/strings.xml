@@ -36,6 +36,9 @@
     <string name="week_today_action">This week</string>
     <string name="week_number_label">Wk</string>
 
+    <!-- Day view (S3) -->
+    <string name="day_today_action">Today</string>
+
     <!-- Shared event strings -->
     <string name="event_untitled">(No title)</string>
 

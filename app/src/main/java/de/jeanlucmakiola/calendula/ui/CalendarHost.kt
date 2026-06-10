@@ -7,6 +7,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.day.DayScreen
 import de.jeanlucmakiola.calendula.ui.month.MonthScreen
 import de.jeanlucmakiola.calendula.ui.week.WeekScreen
 
@@ -26,8 +27,12 @@ fun CalendarHost(modifier: Modifier = Modifier) {
             onSelectView = onSelectView,
             modifier = modifier,
         )
-        // Month, plus Day as a fallback until the day view lands (v0.5).
-        else -> MonthScreen(
+        CalendarView.Day -> DayScreen(
+            selectedView = view,
+            onSelectView = onSelectView,
+            modifier = modifier,
+        )
+        CalendarView.Month -> MonthScreen(
             selectedView = view,
             onSelectView = onSelectView,
             modifier = modifier,
