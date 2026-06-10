@@ -33,8 +33,8 @@
     <string name="month_a11y_today_prefix">Today</string>
 
     <!-- Week view (S2) -->
-    <string name="week_all_day">All-day</string>
     <string name="week_today_action">This week</string>
+    <string name="week_number_label">Wk</string>
 
     <!-- Shared event strings -->
     <string name="event_untitled">(No title)</string>

@@ -3,7 +3,7 @@ package de.jeanlucmakiola.calendula.ui.week
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -57,7 +58,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -65,8 +68,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -94,6 +97,14 @@ private val HOUR_HEIGHT = 56.dp
 private val GUTTER_WIDTH = 48.dp
 private val MIN_EVENT_HEIGHT = 24.dp
 private val ALL_DAY_ROW_HEIGHT = 24.dp
+private val ALL_DAY_VERTICAL_PADDING = 6.dp
+
+/** Total all-day strip height for a week (0 when there are no all-day events). */
+private fun WeekUiState.Success.allDayStripHeight(): Dp {
+    if (allDaySpans.isEmpty()) return 0.dp
+    val lanes = allDaySpans.maxOf { it.lane } + 1
+    return ALL_DAY_ROW_HEIGHT * lanes + ALL_DAY_VERTICAL_PADDING * 2
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -200,6 +211,29 @@ private fun WeekContent(
     var dragAccum by remember { mutableFloatStateOf(0f) }
     val slideSpec = rememberCalendarSlideSpec()
 
+    // Hoisted above the per-week AnimatedContent so the vertical scroll position
+    // survives week-to-week swipes (e.g. 18:00 stays centred). We only centre on
+    // noon once, on first entry into the week view (i.e. when arriving from the
+    // month/day view), not on every swipe.
+    val scrollState = rememberScrollState()
+    LaunchedEffect(Unit) {
+        snapshotFlow { scrollState.maxValue }.first { it > 0 }
+        val maxV = scrollState.maxValue
+        val target = with(density) {
+            (HOUR_HEIGHT.toPx() * 12 - (HOUR_HEIGHT.toPx() * 24 - maxV) / 2f).roundToInt()
+        }.coerceIn(0, maxV)
+        scrollState.scrollTo(target)
+    }
+
+    // Single, hoisted all-day strip height — shared by the outgoing and incoming
+    // week during a swipe, so the strip slides along but never jumps in height;
+    // it just springs smoothly from the old to the new size.
+    val targetAllDayHeight = (state as? WeekUiState.Success)?.allDayStripHeight() ?: 0.dp
+    val allDayHeight by animateDpAsState(
+        targetValue = targetAllDayHeight,
+        label = "all-day-strip-height",
+    )
+
     // Whole-page horizontal swipe. It sits one level above the timeline's
     // vertical scroll: a horizontal drag only crosses *this* detector's slop,
     // while a vertical drag is consumed by the inner scroll first — so the two
@@ -235,27 +269,36 @@ private fun WeekContent(
         when (s) {
             WeekUiState.Loading -> WeekLoading()
             is WeekUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
-            is WeekUiState.Success -> WeekSuccess(state = s, topSectionColor = topSectionColor)
+            is WeekUiState.Success -> WeekSuccess(
+                state = s,
+                topSectionColor = topSectionColor,
+                scrollState = scrollState,
+                allDayHeight = allDayHeight,
+            )
         }
     }
 }
 
 @Composable
-private fun WeekSuccess(state: WeekUiState.Success, topSectionColor: Color) {
+private fun WeekSuccess(
+    state: WeekUiState.Success,
+    topSectionColor: Color,
+    scrollState: ScrollState,
+    allDayHeight: Dp,
+) {
     Column(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(topSectionColor)
-                .animateContentSize(),
+                .background(topSectionColor),
         ) {
             WeekDayHeader(days = state.days, today = state.today)
-            AllDayStrip(state = state)
+            AllDayStrip(state = state, height = allDayHeight)
         }
         // Breathing room between the (colour-shifting) top section and the
         // scrolling timeline below.
         Spacer(Modifier.height(8.dp))
-        Timeline(state = state)
+        Timeline(state = state, scrollState = scrollState)
     }
 }
 
@@ -303,12 +346,26 @@ private fun WeekTopBar(
 @Composable
 private fun WeekDayHeader(days: List<LocalDate>, today: LocalDate) {
     val locale = currentLocale()
+    val weekStart = days.first()
+    val weekNumber = remember(weekStart) {
+        java.time.LocalDate.of(weekStart.year, weekStart.month.ordinal + 1, weekStart.day)
+            .get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 4.dp, bottom = 8.dp),
     ) {
-        Spacer(Modifier.width(GUTTER_WIDTH))
+        // Mirror the day-column layout (empty weekday line + spacer) so the
+        // badge lines up vertically with the date numbers.
+        Column(
+            modifier = Modifier.width(GUTTER_WIDTH),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(text = " ", style = MaterialTheme.typography.labelSmall)
+            Spacer(Modifier.height(2.dp))
+            WeekNumberBadge(weekNumber = weekNumber)
+        }
         days.forEach { date ->
             val javaDow = java.time.DayOfWeek.of(date.dayOfWeek.ordinal + 1)
             val isToday = date == today
@@ -355,35 +412,48 @@ private fun WeekDayHeader(days: List<LocalDate>, today: LocalDate) {
     }
 }
 
+/** Calendar-week badge shown in the header gutter, deliberately set apart with a
+ *  filled box and bold number. */
 @Composable
-private fun AllDayStrip(state: WeekUiState.Success) {
-    if (state.allDaySpans.isEmpty()) return
+private fun WeekNumberBadge(weekNumber: Int, modifier: Modifier = Modifier) {
+    val label = stringResource(R.string.week_number_label)
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        modifier = modifier.semantics { contentDescription = "$label $weekNumber" },
+    ) {
+        Text(
+            text = weekNumber.toString(),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+        )
+    }
+}
+
+@Composable
+private fun AllDayStrip(state: WeekUiState.Success, height: Dp) {
     val dark = isSystemInDarkTheme()
-    val lanes = state.allDaySpans.maxOf { it.lane } + 1
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            // Height is hoisted + animated so it slides and resizes smoothly;
+            // padding sits inside it so the content area is lanes * row height.
+            .height(height)
+            .padding(vertical = ALL_DAY_VERTICAL_PADDING),
     ) {
-        Box(
-            modifier = Modifier.width(GUTTER_WIDTH),
-            contentAlignment = Alignment.TopEnd,
-        ) {
-            Text(
-                text = stringResource(R.string.week_all_day),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.End,
-                modifier = Modifier.padding(top = 2.dp, end = 4.dp),
-            )
-        }
+        // Keep the gutter-width offset so the bars line up with the day columns.
+        Spacer(Modifier.width(GUTTER_WIDTH))
         // Span bars are positioned absolutely so a multi-day event is one
-        // connected bar across columns rather than a chip per day.
+        // connected bar across columns rather than a chip per day. clipToBounds
+        // keeps bars from spilling out while the height animates.
         BoxWithConstraints(
             modifier = Modifier
                 .weight(1f)
-                .height(ALL_DAY_ROW_HEIGHT * lanes),
+                .fillMaxHeight()
+                .clipToBounds(),
         ) {
             val colWidth = maxWidth / 7
             state.allDaySpans.forEach { span ->
@@ -426,39 +496,23 @@ private fun AllDayBar(event: EventInstance, dark: Boolean, modifier: Modifier = 
 }
 
 @Composable
-private fun Timeline(state: WeekUiState.Success) {
+private fun Timeline(state: WeekUiState.Success, scrollState: ScrollState) {
     val totalHeight = HOUR_HEIGHT * 24
     val dark = isSystemInDarkTheme()
-    val density = LocalDensity.current
 
     Box(modifier = Modifier.fillMaxSize()) {
-        val scrollState = rememberScrollState()
-
-        // Center the timeline on noon once the content is measured. Deriving the
-        // target from maxValue (known after layout) is reliable, unlike reading
-        // the viewport height during the first composition.
-        LaunchedEffect(scrollState) {
-            snapshotFlow { scrollState.maxValue }.first { it > 0 }
-            val maxV = scrollState.maxValue
-            val target = with(density) {
-                (HOUR_HEIGHT.toPx() * 12 - (HOUR_HEIGHT.toPx() * 24 - maxV) / 2f).roundToInt()
-            }.coerceIn(0, maxV)
-            scrollState.scrollTo(target)
-        }
-
-        // One scroll container for the whole timeline. Gutter and day columns
-        // are siblings inside it, so they share the exact same scroll position
-        // and can never drift apart.
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState),
-        ) {
-            // Hour gutter
+        // Gutter and day columns are two scroll viewports that SHARE one scroll
+        // state, so they stay perfectly aligned. The day-column viewport is a
+        // static, rounded-clipped window — the content scrolls inside it, so the
+        // soft corners are permanent at any scroll position (not just at the
+        // day's start/end).
+        Row(modifier = Modifier.fillMaxSize()) {
+            // Hour gutter (scrolls in sync with the day columns)
             Column(
                 modifier = Modifier
                     .width(GUTTER_WIDTH)
-                    .height(totalHeight),
+                    .fillMaxHeight()
+                    .verticalScroll(scrollState),
             ) {
                 (0 until 24).forEach { h ->
                     Box(
@@ -479,16 +533,18 @@ private fun Timeline(state: WeekUiState.Success) {
                     }
                 }
             }
-            // Day columns bundled in a rounded container so the whole block has
-            // soft corners (rounded at the day's start and end).
+            // Day columns: rounded, clipped scroll viewport (permanent corners).
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(totalHeight)
-                    .clip(RoundedCornerShape(16.dp)),
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(16.dp))
+                    .verticalScroll(scrollState),
             ) {
                 Row(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(totalHeight),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
                     state.days.forEach { day ->
@@ -513,7 +569,9 @@ private fun DayColumnCard(
     modifier: Modifier = Modifier,
 ) {
     Card(
-        shape = MaterialTheme.shapes.small,
+        // Plain rectangular columns — the soft corners come from the outer
+        // rounded scroll viewport, so inner rounding would look odd at the edges.
+        shape = RectangleShape,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
@@ -559,15 +617,19 @@ private fun EventBlock(
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelMedium,
-                maxLines = if (showTime) 2 else 1,
+                maxLines = if (showTime) 1 else 2,
                 overflow = TextOverflow.Ellipsis,
                 color = Color.Black.copy(alpha = 0.85f),
             )
             if (showTime) {
+                // Narrow columns can't fit "13:00–14:00" on one line, so let it
+                // wrap to a second line (after the dash) instead of clipping the
+                // end time.
                 Text(
                     text = timeLabel,
                     style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     color = Color.Black.copy(alpha = 0.6f),
                 )
             }
