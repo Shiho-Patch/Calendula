@@ -27,7 +27,7 @@ von Google Calendar gibt - speziell mit dem 2025er Expressive-Design.
 - 3 Hauptansichten: Monat, Woche, Tag
 - Event-Detail-Sheet (read-only Detailansicht)
 - Multi-Kalender-Toggle (Sichtbarkeit pro Kalender)
-- Heute-Button + Jump-to-Date
+- Heute-Button (Jump-to-Date gestrichen, siehe Out-of-Scope)
 - Settings-Screen (Theme, Dynamic Color, Wochenstart, Sprache)
 - Permission-Flow für `READ_CALENDAR`
 - Empty-States und Error-Recovery
@@ -35,6 +35,7 @@ von Google Calendar gibt - speziell mit dem 2025er Expressive-Design.
 - Tests + CI ab Tag 1
 
 ### Out-of-Scope (V2+)
+- Jump-to-Date / Datum-Picker (aus V1-Scope gestrichen)
 - Event-Create/Edit/Delete (V2)
 - Home-Screen-Widget
 - Volltextsuche
@@ -202,9 +203,9 @@ fragt Repository nur für sichtbaren Range an - kein "alle Events der Welt".
 - Immer erreichbar von allen Hauptansichten
 - State persistent (zuletzt aktive Ansicht)
 
-**M2 - Heute / Springe-zu-Datum**
-- Schnell zurück zu "heute"
-- Springe zu beliebigem Datum via Datum-Picker
+**M2 - Heute**
+- Schnell zurück zu "heute" (Drawer-Eintrag, ausgeliefert in v0.5)
+- ~~Springe zu beliebigem Datum via Datum-Picker~~ — **gestrichen**, siehe Out-of-Scope
 - Erreichbar von allen Hauptansichten
 
 **M3 - Kalender-Filter (Bottom-Sheet)**

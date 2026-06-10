@@ -5,8 +5,9 @@
 ## Status
 
 **Milestone:** v0.5 — Calendar filter (M3) + Settings (M4) (complete)
-**Phase:** All V1 screens and cross-cutting wiring done except jump-to-date
-(M2), which is deferred to the v1.0 polish pass
+**Phase:** All V1 screens and cross-cutting wiring done. Jump-to-date (the
+date-picker half of M2) was cut from scope; V1 is feature-complete and only a
+polish/QA pass remains before v1.0
 
 ## Progress
 
@@ -21,10 +22,9 @@
 - [x] Event-detail screen (S4) — full-screen, humanized recurrence
 - [x] Filter sheet (M3) — per-calendar visibility, grouped by account, persisted, applied centrally in the repository
 - [x] Settings (M4) — appearance (theme, dynamic colour, week start), language (per-app locales), about
-- [ ] Jump-to-date (M2) — drawer entry still stubbed (deferred to v1.0)
+- [~] Jump-to-date (M2) — **cut from scope**; "Today" half shipped in v0.5, date-picker dropped
 
 ## Next
 
-1. Jump-to-date (M2) — date picker from the drawer, reachable on every view
-2. UI polish / QA pass across all views before v1.0
-3. F-Droid release of v1.0
+1. UI polish / QA pass across all views before v1.0
+2. F-Droid release of v1.0

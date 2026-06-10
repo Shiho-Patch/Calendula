@@ -17,7 +17,7 @@ See full design spec: `docs/superpowers/specs/2026-06-08-calendar-app-design.md`
 - [ ] Day view (S3)
 - [ ] Event Detail Sheet (S4)
 - [ ] Multi-Calendar Filter (M3)
-- [ ] Today button + Jump-to-Date (M2)
+- [x] Today button (M2) — shipped v0.5; Jump-to-Date **cut from scope**
 - [ ] View-Switcher (M1)
 - [ ] Settings screen (M4)
 - [ ] Empty / no-permission / no-calendars states

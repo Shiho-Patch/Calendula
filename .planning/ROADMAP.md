@@ -9,16 +9,19 @@
 | v0.3 | Month + Week + Day views, view switcher | complete |
 | v0.4 | Event Detail (S4) + humanized recurrence | complete |
 | v0.5 | Calendar filter (M3) + Settings (M4) | complete |
-| v1.0 | Polish + jump-to-date (M2), F-Droid release | pending |
+| v1.0 | Polish pass, F-Droid release | pending |
 
 Delivery ran ahead of the original table: Day view (S3) shipped in v0.3 and
 Event Detail (S4) in v0.4, so the Filter/Settings milestone became v0.5.
-Jump-to-date (M2) was deferred out of v0.5 and folds into the v1.0 polish pass.
+
+Jump-to-date (the date-picker half of M2) was **cut from scope** and will not
+ship. The "Today" half of M2 already shipped in v0.5 (drawer entry). V1 is
+therefore feature-complete; only a polish/QA pass remains.
 
 ## v1.0 — First Public Release
 
 All V1 features shipped, polished, on F-Droid. Read-only calendar.
-Remaining before v1.0: jump-to-date (M2) and a UI polish/QA pass.
+Remaining before v1.0: a UI polish/QA pass.
 
 ## v2.0 — Write Support
 

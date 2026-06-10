@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   separate from the system VISIBLE flag) and applied centrally in the
   repository, so month/week/day re-filter live the moment a switch flips.
   The drawer was trimmed to just Today, the calendar filter, and Settings
-  (the stubbed jump-to-date entry was removed; M2 returns in v1.0)
+  (the stubbed jump-to-date entry was removed; jump-to-date was later cut
+  from scope entirely)
 - Settings (M4): a full-screen destination with
   - **Appearance** — theme (System / Light / Dark), Material You dynamic colour
     (auto-disabled below Android 12), week start (Automatic / Monday / Sunday)
