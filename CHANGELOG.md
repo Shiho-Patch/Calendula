@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-06-10
+
+### Added
+- Calendar filter (M3): the navigation drawer now hosts the calendar list
+  inline — every calendar grouped by account, each with a colour swatch and a
+  visibility switch. Hiding a calendar is persisted app-side (DataStore,
+  separate from the system VISIBLE flag) and applied centrally in the
+  repository, so month/week/day re-filter live the moment a switch flips.
+  The drawer was trimmed to just Today, the calendar filter, and Settings
+  (the stubbed jump-to-date entry was removed; M2 returns in v1.0)
+- Settings (M4): a full-screen destination with
+  - **Appearance** — theme (System / Light / Dark), Material You dynamic colour
+    (auto-disabled below Android 12), week start (Automatic / Monday / Sunday)
+  - **Language** — app language (System / Deutsch / English) via per-app
+    locales, persisted across cold starts down to Android 10
+  - **About** — version, license, and a link to the source on Gitea
+- Week-start preference now drives the month grid and week view; "Automatic"
+  follows the active locale (Monday in DE, Sunday in en-US)
+
+### Changed
+- Theme is driven by one activity-scoped settings source, so a theme or
+  dynamic-colour change applies app-wide immediately
+- `versionName`/`versionCode` bumped to 0.5.0 / 5 (the in-repo version had
+  lagged behind the release tags); the About screen reads it directly
+
 ## [0.4.0] — 2026-06-10
 
 ### Added

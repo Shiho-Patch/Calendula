@@ -107,6 +107,7 @@ fun DayScreen(
     selectedView: CalendarView,
     onSelectView: (CalendarView) -> Unit,
     onEventClick: (EventInstance) -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     initialDateIso: String? = null,
     viewModel: DayViewModel = hiltViewModel(),
@@ -152,9 +153,10 @@ fun DayScreen(
         drawerContent = {
             CalendarDrawer(
                 onToday = { jumpToToday(); scope.launch { drawerState.close() } },
-                onJumpToDate = { scope.launch { drawerState.close() } /* TODO: date picker */ },
-                onFilter = { scope.launch { drawerState.close() } /* TODO: filter sheet */ },
-                onSettings = { scope.launch { drawerState.close() } /* TODO: settings */ },
+                onSettings = {
+                    onOpenSettings()
+                    scope.launch { drawerState.close() }
+                },
             )
         },
     ) {

@@ -20,6 +20,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.day.DayScreen
 import de.jeanlucmakiola.calendula.ui.detail.EventDetailScreen
 import de.jeanlucmakiola.calendula.ui.month.MonthScreen
+import de.jeanlucmakiola.calendula.ui.settings.SettingsScreen
 import de.jeanlucmakiola.calendula.ui.week.WeekScreen
 import kotlinx.datetime.LocalDate
 
@@ -30,7 +31,7 @@ import kotlinx.datetime.LocalDate
  */
 @Composable
 fun CalendarHost(modifier: Modifier = Modifier) {
-    var view by rememberSaveable { mutableStateOf(CalendarView.Month) }
+    var view by rememberSaveable { mutableStateOf(CalendarView.Week) }
     val onSelectView: (CalendarView) -> Unit = { view = it }
 
     // Tapping a day in the month grid opens the day view anchored to that date.
@@ -59,6 +60,12 @@ fun CalendarHost(modifier: Modifier = Modifier) {
         detailKey = key
     }
 
+    // Settings (M4) is hoisted here so it overlays whichever calendar view is
+    // active and survives view switches. (The calendar filter now lives inline
+    // in the navigation drawer, so no overlay state is needed for it.)
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    val onOpenSettings = { showSettings = true }
+
     val slideSpec = rememberCalendarSlideSpec()
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -67,17 +74,20 @@ fun CalendarHost(modifier: Modifier = Modifier) {
                 selectedView = view,
                 onSelectView = onSelectView,
                 onEventClick = onEventClick,
+                onOpenSettings = onOpenSettings,
             )
             CalendarView.Day -> DayScreen(
                 selectedView = view,
                 onSelectView = onSelectView,
                 onEventClick = onEventClick,
+                onOpenSettings = onOpenSettings,
                 initialDateIso = pendingDayIso,
             )
             CalendarView.Month -> MonthScreen(
                 selectedView = view,
                 onSelectView = onSelectView,
                 onOpenDay = onOpenDay,
+                onOpenSettings = onOpenSettings,
             )
         }
 
@@ -96,6 +106,15 @@ fun CalendarHost(modifier: Modifier = Modifier) {
                     onBack = { detailKey = null },
                 )
             }
+        }
+
+        // Settings (M4) — full-screen destination, slides over the calendar.
+        AnimatedVisibility(
+            visible = showSettings,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            SettingsScreen(onBack = { showSettings = false })
         }
     }
 }

@@ -1,12 +1,14 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
+import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onStart
@@ -23,6 +25,7 @@ import javax.inject.Singleton
 @Singleton
 class CalendarRepositoryImpl @Inject constructor(
     private val dataSource: CalendarDataSource,
+    private val prefs: CalendarPrefs,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : CalendarRepository {
 
@@ -41,16 +44,26 @@ class CalendarRepositoryImpl @Inject constructor(
             .reQuery { dataSource.calendars() }
             .flowOn(io)
 
+    // Instances are filtered by the app-side hidden-calendar set (M3): an event
+    // is dropped whenever the user has hidden its calendar. Re-runs when the
+    // provider ticks *or* the hidden set changes — toggling a calendar in the
+    // filter sheet updates every view immediately. [calendars] stays unfiltered
+    // so the filter sheet can list and re-enable hidden calendars.
     override fun instances(range: ClosedRange<Instant>): Flow<List<EventInstance>> =
-        ticks
-            .onStart { emit(Unit) }
-            .reQuery {
-                dataSource.instances(
-                    beginMillis = range.start.toEpochMillis(),
-                    endMillis = range.endInclusive.toEpochMillis(),
-                )
-            }
-            .flowOn(io)
+        combine(
+            ticks
+                .onStart { emit(Unit) }
+                .reQuery {
+                    dataSource.instances(
+                        beginMillis = range.start.toEpochMillis(),
+                        endMillis = range.endInclusive.toEpochMillis(),
+                    )
+                },
+            prefs.hiddenCalendarIds,
+        ) { instances, hidden ->
+            if (hidden.isEmpty()) instances
+            else instances.filterNot { it.calendarId in hidden }
+        }.flowOn(io)
 
     override suspend fun eventDetail(eventId: Long): EventDetail = withContext(io) {
         dataSource.eventDetail(eventId) ?: throw NoSuchEventException(eventId)

@@ -66,6 +66,7 @@ import de.jeanlucmakiola.calendula.domain.Attendee
 import de.jeanlucmakiola.calendula.domain.AttendeeStatus
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
+import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import kotlinx.datetime.TimeZone
 import java.time.DayOfWeek
@@ -347,11 +348,10 @@ private fun SkeletonBar(widthFraction: Float, height: Dp) {
 
 // --- helpers -------------------------------------------------------------
 
+// Observable locale read (shared helper) — avoids NonObservableLocale /
+// LocalContextConfigurationRead lint by going through LocalConfiguration.
 @Composable
-private fun currentDetailLocale(): Locale {
-    val config = LocalContext.current.resources.configuration
-    return config.locales[0] ?: Locale.getDefault()
-}
+private fun currentDetailLocale(): Locale = currentLocale()
 
 private fun attendeeStatusLabel(status: AttendeeStatus): Int = when (status) {
     AttendeeStatus.Accepted -> R.string.event_attendee_accepted

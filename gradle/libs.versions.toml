@@ -4,6 +4,7 @@ kotlin = "2.3.21"
 ksp = "2.3.9"
 hilt = "2.59.2"
 coreKtx = "1.19.0"
+appcompat = "1.7.1"
 lifecycleRuntime = "2.10.0"
 activityCompose = "1.13.0"
 composeBom = "2026.05.01"
@@ -27,6 +28,7 @@ androidxTestRules = "1.7.0"
 [libraries]
 # AndroidX core
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntime" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 
