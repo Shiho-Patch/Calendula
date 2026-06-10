@@ -1,10 +1,14 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
 import android.Manifest
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import com.google.common.truth.Truth.assertThat
+import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -24,7 +28,10 @@ class CalendarRepositorySmokeTest {
 
     private fun newRepo(): CalendarRepositoryImpl {
         val dataSource = AndroidCalendarDataSource(context)
-        return CalendarRepositoryImpl(dataSource, Dispatchers.IO)
+        val store: DataStore<Preferences> = PreferenceDataStoreFactory.create(
+            produceFile = { context.cacheDir.resolve("smoke_test_prefs.preferences_pb") },
+        )
+        return CalendarRepositoryImpl(dataSource, CalendarPrefs(store), Dispatchers.IO)
     }
 
     @Test

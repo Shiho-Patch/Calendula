@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
+import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
@@ -15,8 +17,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
@@ -28,6 +32,7 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import java.util.Locale
 import kotlin.time.Clock
 import kotlin.time.Instant
 import javax.inject.Inject
@@ -38,48 +43,68 @@ const val MINUTES_PER_DAY: Int = 24 * 60
 @HiltViewModel
 class WeekViewModel @Inject constructor(
     private val repository: CalendarRepository,
+    settingsPrefs: SettingsPrefs,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
     private val zone = TimeZone.currentSystemDefault()
-
-    // V1: week starts Monday. DataStore-driven preference comes with Settings.
-    private val weekStart: DayOfWeek = DayOfWeek.MONDAY
+    private val locale: Locale = Locale.getDefault()
 
     private val todayDate: LocalDate
         get() = Clock.System.now().toLocalDateTime(zone).date
 
-    private val _weekStartDate = MutableStateFlow(todayDate.startOfWeek(weekStart))
-    val weekStartDate: StateFlow<LocalDate> = _weekStartDate
-
-    val state: StateFlow<WeekUiState> = _weekStartDate
-        .flatMapLatest { start ->
-            val range = weekRange(start, zone)
-            combine(
-                repository.calendars(),
-                repository.instances(range),
-            ) { calendars, instances ->
-                buildState(start, calendars, instances)
-            }
-        }
-        .catch { emit(WeekUiState.Failure(FailureReason.ProviderUnavailable)) }
-        .flowOn(io)
+    /** First day of the week, from the Settings preference (AUTO → locale). */
+    private val weekStart: StateFlow<DayOfWeek> = settingsPrefs.weekStart
+        .map { it.resolveFirstDay(locale) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = WeekUiState.Loading,
+            initialValue = DayOfWeek.MONDAY,
         )
 
+    // Anchor is a representative day inside the visible week; the actual week
+    // start is derived against [weekStart], so changing the first-day preference
+    // re-frames the same week instead of jumping.
+    private val _anchor = MutableStateFlow(todayDate)
+
+    val weekStartDate: StateFlow<LocalDate> =
+        combine(_anchor, weekStart) { anchor, ws -> anchor.startOfWeek(ws) }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000L),
+                initialValue = todayDate.startOfWeek(DayOfWeek.MONDAY),
+            )
+
+    val state: StateFlow<WeekUiState> =
+        combine(_anchor, weekStart) { anchor, ws -> anchor.startOfWeek(ws) }
+            .distinctUntilChanged()
+            .flatMapLatest { start ->
+                val range = weekRange(start, zone)
+                combine(
+                    repository.calendars(),
+                    repository.instances(range),
+                ) { calendars, instances ->
+                    buildState(start, calendars, instances)
+                }
+            }
+            .catch { emit(WeekUiState.Failure(FailureReason.ProviderUnavailable)) }
+            .flowOn(io)
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000L),
+                initialValue = WeekUiState.Loading,
+            )
+
     fun goToPrev() {
-        _weekStartDate.value = _weekStartDate.value.minus(7, DateTimeUnit.DAY)
+        _anchor.value = _anchor.value.minus(7, DateTimeUnit.DAY)
     }
 
     fun goToNext() {
-        _weekStartDate.value = _weekStartDate.value.plus(7, DateTimeUnit.DAY)
+        _anchor.value = _anchor.value.plus(7, DateTimeUnit.DAY)
     }
 
     fun goToToday() {
-        _weekStartDate.value = todayDate.startOfWeek(weekStart)
+        _anchor.value = todayDate
     }
 
     private fun buildState(

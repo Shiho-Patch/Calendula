@@ -87,7 +87,6 @@ import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
 import java.time.format.TextStyle as JavaTextStyle
@@ -113,6 +112,7 @@ fun WeekScreen(
     selectedView: CalendarView,
     onSelectView: (CalendarView) -> Unit,
     onEventClick: (EventInstance) -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: WeekViewModel = hiltViewModel(),
 ) {
@@ -135,7 +135,10 @@ fun WeekScreen(
     )
 
     val isOnCurrentWeek = when (val s = state) {
-        is WeekUiState.Success -> s.weekStart == s.today.startOfWeek(DayOfWeek.MONDAY)
+        // True when today falls inside the displayed week — independent of which
+        // weekday the user picked as the first day.
+        is WeekUiState.Success ->
+            s.today >= s.weekStart && s.today <= s.weekStart.plus(6, kotlinx.datetime.DateTimeUnit.DAY)
         else -> true
     }
 
@@ -152,9 +155,10 @@ fun WeekScreen(
         drawerContent = {
             CalendarDrawer(
                 onToday = { jumpToToday(); scope.launch { drawerState.close() } },
-                onJumpToDate = { scope.launch { drawerState.close() } /* TODO: date picker */ },
-                onFilter = { scope.launch { drawerState.close() } /* TODO: filter sheet */ },
-                onSettings = { scope.launch { drawerState.close() } /* TODO: settings */ },
+                onSettings = {
+                    onOpenSettings()
+                    scope.launch { drawerState.close() }
+                },
             )
         },
     ) {

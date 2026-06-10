@@ -85,11 +85,13 @@ fun MonthScreen(
     selectedView: CalendarView,
     onSelectView: (CalendarView) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MonthViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val month by viewModel.month.collectAsStateWithLifecycle()
+    val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -126,9 +128,10 @@ fun MonthScreen(
                     jumpToToday()
                     scope.launch { drawerState.close() }
                 },
-                onJumpToDate = { scope.launch { drawerState.close() } /* TODO: open date picker */ },
-                onFilter = { scope.launch { drawerState.close() } /* TODO: open filter sheet */ },
-                onSettings = { scope.launch { drawerState.close() } /* TODO: navigate to settings */ },
+                onSettings = {
+                    onOpenSettings()
+                    scope.launch { drawerState.close() }
+                },
             )
         },
     ) {
@@ -162,9 +165,10 @@ fun MonthScreen(
                     .padding(innerPadding)
                     .fillMaxSize(),
             ) {
-                WeekdayHeader(weekStart = DayOfWeek.MONDAY)
+                WeekdayHeader(weekStart = weekStart)
                 MonthContent(
                     state = state,
+                    weekStart = weekStart,
                     slideDir = slideDir,
                     onSwipeNext = goNext,
                     onSwipePrev = goPrev,
@@ -179,6 +183,7 @@ fun MonthScreen(
 @Composable
 private fun MonthContent(
     state: MonthUiState,
+    weekStart: DayOfWeek,
     slideDir: Int,
     onSwipeNext: () -> Unit,
     onSwipePrev: () -> Unit,
@@ -223,7 +228,7 @@ private fun MonthContent(
             is MonthUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
             is MonthUiState.Success -> MonthGrid(
                 state = s,
-                weekStart = DayOfWeek.MONDAY,
+                weekStart = weekStart,
                 onOpenDay = onOpenDay,
             )
         }
