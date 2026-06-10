@@ -5,9 +5,9 @@
 ## Status
 
 **Milestone:** v0.5 — Calendar filter (M3) + Settings (M4) (complete)
-**Phase:** All V1 screens and cross-cutting wiring done. Jump-to-date (the
-date-picker half of M2) was cut from scope; V1 is feature-complete and only a
-polish/QA pass remains before v1.0
+**Phase:** All V1 screens done. Jump-to-date (date-picker half of M2) cut from
+scope. Next up is v0.6 — full event read (surface every readable
+`CalendarContract` field) — then a polish/QA pass before v1.0
 
 ## Progress
 
@@ -26,5 +26,9 @@ polish/QA pass remains before v1.0
 
 ## Next
 
-1. UI polish / QA pass across all views before v1.0
-2. F-Droid release of v1.0
+1. v0.6 — full event read: reminders, status, availability, attendee role +
+   self-status, timezone (when it differs), URL, access level. Read the
+   `CalendarContract` columns we don't yet pull and show them in the detail
+   view. (Planned, not started — implement another day.)
+2. UI polish / QA pass across all views before v1.0
+3. F-Droid release of v1.0
