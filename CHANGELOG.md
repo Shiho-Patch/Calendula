@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-06-10
+
 ### Added
 - Month view (S1): Material 3 Expressive card-per-day grid (only the current
   month's weeks; neighbouring days left blank), per-day event dots with "+N"
@@ -16,7 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Week view (S2): vertical time schedule with overlap-resolved lanes,
   separate all-day strip, midnight-spanning events clipped per day, swipe
   navigation, Loading/Failure/Success states
-- Functional view-switcher (M1) cycling Month ↔ Week (Day joins with S3)
+- Day view (S3): single-column slice of the week schedule reusing its
+  overlap-lane layout, per-day swipe navigation, noon-centred scroll that
+  persists across swipes, animated all-day strip, compact top bar with the
+  full date, Loading/Failure/Success states
+- Functional view-switcher (M1) cycling Month ↔ Week ↔ Day
 - Shared calendar UI building blocks in `ui/common/` (navigation drawer,
   failure screen, view-switcher pill, color pastelizer, observable locale)
 
