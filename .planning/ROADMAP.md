@@ -6,8 +6,8 @@
 |---|---|---|
 | v0.1 | Foundation & CI | complete |
 | v0.2 | Data Layer & Permission Flow | complete |
-| v0.3 | Month view | pending |
-| v0.4 | Week view | pending |
+| v0.3 | Month view | in progress |
+| v0.4 | Week view | in progress |
 | v0.5 | Day view | pending |
 | v0.6 | Event Detail Sheet | pending |
 | v0.7 | Filter & Settings | pending |

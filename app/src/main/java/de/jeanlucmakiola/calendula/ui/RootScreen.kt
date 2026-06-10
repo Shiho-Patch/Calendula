@@ -2,21 +2,18 @@ package de.jeanlucmakiola.calendula.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import de.jeanlucmakiola.calendula.ui.debug.DebugScreen
 import de.jeanlucmakiola.calendula.ui.permission.PermissionScreen
 
 @Composable
@@ -42,14 +39,12 @@ fun RootScreen(modifier: Modifier = Modifier) {
         onDispose { lifecycle.removeObserver(obs) }
     }
 
-    Scaffold(modifier = modifier) { innerPadding ->
-        if (hasPermission) {
-            DebugScreen(modifier = Modifier.padding(innerPadding))
-        } else {
-            PermissionScreen(
-                onGranted = { hasPermission = true },
-                modifier = Modifier.padding(innerPadding),
-            )
-        }
+    if (hasPermission) {
+        CalendarHost(modifier = modifier)
+    } else {
+        PermissionScreen(
+            onGranted = { hasPermission = true },
+            modifier = modifier,
+        )
     }
 }

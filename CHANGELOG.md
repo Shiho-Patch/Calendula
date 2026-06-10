@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Month view (S1): Material 3 Expressive card-per-day grid (only the current
+  month's weeks; neighbouring days left blank), per-day event dots with "+N"
+  overflow, today emphasised via `primaryContainer`, spring-based press
+  feedback from the active motion scheme, swipe + drawer navigation,
+  Loading/Failure/Success states
+- Week view (S2): vertical time schedule with overlap-resolved lanes,
+  separate all-day strip, midnight-spanning events clipped per day, swipe
+  navigation, Loading/Failure/Success states
+- Functional view-switcher (M1) cycling Month ↔ Week (Day joins with S3)
+- Shared calendar UI building blocks in `ui/common/` (navigation drawer,
+  failure screen, view-switcher pill, color pastelizer, observable locale)
+
+### Removed
+- Throwaway debug screen — superseded by the month view
+
 ## [0.2.1] — 2026-06-09
 
 ### Changed

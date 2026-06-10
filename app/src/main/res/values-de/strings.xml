@@ -20,10 +20,26 @@
     <string name="permission_open_settings_button">System-Einstellungen öffnen</string>
     <string name="permission_retry_button">Erneut versuchen</string>
 
-    <!-- Debug-Screen (wegwerfbar — entfällt mit Plan 03) -->
-    <string name="debug_banner">DEBUG — wird mit Plan 03 durch die Monatsansicht ersetzt</string>
-    <string name="debug_calendars_header">Kalender</string>
-    <string name="debug_events_header">Nächste 50 Termine</string>
-    <string name="debug_no_calendars">Keine Kalender eingerichtet. Füge einen über DAVx5 oder die System-Einstellungen hinzu.</string>
-    <string name="debug_no_events">Keine anstehenden Termine in den nächsten 30 Tagen.</string>
+    <!-- Monatsansicht (S1) -->
+    <string name="month_prev">Vorheriger Monat</string>
+    <string name="month_next">Nächster Monat</string>
+    <string name="month_today_action">Heute</string>
+    <string name="month_more_actions">Weitere Aktionen</string>
+    <string name="month_open_menu">Menü öffnen</string>
+    <string name="month_action_filter">Kalender</string>
+    <string name="month_action_jump_to_date">Zu Datum springen…</string>
+    <string name="month_action_settings">Einstellungen</string>
+    <string name="month_a11y_today_prefix">Heute</string>
+
+    <!-- Wochenansicht (S2) -->
+    <string name="week_all_day">Ganztägig</string>
+    <string name="week_today_action">Diese Woche</string>
+
+    <!-- Geteilte Event-Strings -->
+    <string name="event_untitled">(Ohne Titel)</string>
+
+    <!-- View-Switcher (M1) -->
+    <string name="view_month">Monat</string>
+    <string name="view_week">Woche</string>
+    <string name="view_day">Tag</string>
 </resources>
