@@ -117,3 +117,24 @@ Deliberately deferred (add only if needed):
   consequences warning — deferred from v2.0, see above)
 
 Order is indicative — community feedback after V1 may re-prioritize.
+
+## Idea backlog — Locations & People (captured 2026-06-11, undecided)
+
+Beyond classic calendar-client scope; discussed, deliberately not planned
+in detail yet:
+
+- **Contact address picker** for the location field via the system picker
+  (`ACTION_PICK` on postal addresses) — one-shot, needs no READ_CONTACTS,
+  fits the privacy story. Same mechanism later for picking emails.
+- **OSM address autocomplete** in the location field (type "Brandenburger
+  Tor" → tap suggestion → resolved address inserted). Backend would be
+  Photon (Nominatim's public policy forbids autocomplete). **Requires the
+  INTERNET permission** — first dent in the "no network access" promise;
+  if built: opt-in (off by default), honest copy, configurable endpoint
+  for self-hosters, onboarding footnote + F-Droid copy reworded. This
+  trade-off is an explicit go/no-go decision before any work starts.
+- **Inline contact suggestions** while typing (needs READ_CONTACTS) — only
+  if the picker proves clunky.
+- **Attendee editing / invites from contacts** — own milestone; writing
+  `Attendees` rows touches sync-adapter invitation behavior (Google vs
+  DAVx5 differ).
