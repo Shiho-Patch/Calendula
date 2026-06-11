@@ -66,6 +66,38 @@
     <string name="event_attendee_needs_action">Keine Antwort</string>
     <string name="event_attendee_unknown">—</string>
 
+    <!-- Event-Detail — vollständiges Auslesen (v0.6) -->
+    <string name="event_detail_reminders">Erinnerungen</string>
+    <string name="event_detail_timezone">Zeitzone</string>
+    <string name="event_status_tentative">Vorläufig</string>
+    <string name="event_status_cancelled">Abgesagt</string>
+    <string name="event_availability_free">Frei</string>
+    <string name="event_availability_busy">Gebucht</string>
+    <string name="event_access_private">Privat</string>
+    <string name="event_access_confidential">Vertraulich</string>
+    <string name="event_attendee_organizer">Organisator</string>
+    <string name="event_attendee_optional">Optional</string>
+    <string name="event_attendee_resource">Ressource</string>
+    <string name="event_detail_self_response">Deine Antwort: %1$s</string>
+    <string name="reminder_at_time">Zur Startzeit</string>
+    <string name="reminder_default">Standarderinnerung</string>
+    <plurals name="reminder_minutes">
+        <item quantity="one">%d Minute vorher</item>
+        <item quantity="other">%d Minuten vorher</item>
+    </plurals>
+    <plurals name="reminder_hours">
+        <item quantity="one">%d Stunde vorher</item>
+        <item quantity="other">%d Stunden vorher</item>
+    </plurals>
+    <plurals name="reminder_days">
+        <item quantity="one">%d Tag vorher</item>
+        <item quantity="other">%d Tage vorher</item>
+    </plurals>
+    <plurals name="reminder_weeks">
+        <item quantity="one">%d Woche vorher</item>
+        <item quantity="other">%d Wochen vorher</item>
+    </plurals>
+
     <!-- Geteilte Event-Strings -->
     <string name="event_untitled">(Ohne Titel)</string>
 

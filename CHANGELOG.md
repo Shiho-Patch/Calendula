@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-06-11
+
+### Added
+- Full event read (v0.6): the detail screen now surfaces every readable
+  `CalendarContract` field that V1 had been dropping —
+  - **Reminders** — each configured lead time, humanised ("10 minutes before",
+    "1 day before", "At time of event"), read from `CalendarContract.Reminders`
+  - **Status** — Tentative / Cancelled chip under the title; a cancelled event
+    also strikes through its title (Confirmed shows no chip)
+  - **Availability** — a Free / Busy chip (`Events.AVAILABILITY`, the iCal
+    TRANSP field)
+  - **Access level** — a Private / Confidential chip when the event isn't public
+  - **Attendee role** — organizer / optional / resource badge under each
+    attendee, plus the device user's own response ("Your response: …") from
+    `Events.SELF_ATTENDEE_STATUS`
+  - **Time zone** — shown only for timed events pinned to a zone other than the
+    device's, so cross-zone events read unambiguously
+  - **Linked URLs** — http(s) links in the description are now tappable
+- Domain model rounded out with `Reminder`, `EventStatus`, `Availability`,
+  `AccessLevel`, `AttendeeRelationship`, `AttendeeType`, and the attendee/self
+  status fields; mappers + unit tests cover every new column's integer codes
+
+### Changed
+- `versionName`/`versionCode` bumped to 0.6.0 / 6
+
+### Notes
+- A dedicated event **URL** field was dropped from scope: `CalendarContract`
+  has no `Events.URL` column (only `CUSTOM_APP_URI`, an app deep-link), so URLs
+  are surfaced by linkifying the description instead
+
 ## [0.5.0] — 2026-06-10
 
 ### Added
