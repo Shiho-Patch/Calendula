@@ -50,9 +50,8 @@ All V1 features shipped, polished, on F-Droid. Read-only calendar.
 Remaining before v1.0: a UI polish/QA pass.
 
 ### Polish backlog (pre-1.0)
-- **Redesign the initial grant-access (permission) screen** — the first thing a
-  new user sees; the current rationale/permission flow needs a proper Material 3
-  Expressive pass to match the rest of the app
+- ~~Redesign the initial grant-access (permission) screen~~ — **done**
+  (Material 3 Expressive onboarding, shipped on the v0.6.0 branch)
 
 ## v2.0 — Write Support
 

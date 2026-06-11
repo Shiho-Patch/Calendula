@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Redesigned the first-run grant-access screen — the onboarding a new user
+  sees. Material 3 Expressive layout: branded launcher-mark hero, an
+  app-name eyebrow, a benefit-led headline, three trust rows (on-device,
+  every calendar, no tracking) with tonal icon chips, a full-width filled CTA
+  with a trailing arrow, and a "Read-only · no internet permission" footnote
+  (the app declares only `READ_CALENDAR`). The denied/recovery state shares the
+  same shell with a lock-badged hero and Open-settings / Try-again actions
+
 ## [0.6.0] — 2026-06-11
 
 ### Added

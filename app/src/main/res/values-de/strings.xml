@@ -12,13 +12,20 @@
     <string name="state_failure_provider">Kalender konnte nicht gelesen werden.</string>
 
     <!-- Permission-Flow (F1) -->
-    <string name="permission_rationale_title">Kalender-Zugriff</string>
-    <string name="permission_rationale_body">Calendula liest nur deinen Gerätekalender — keine Daten verlassen das Gerät.</string>
-    <string name="permission_request_button">Weiter</string>
+    <string name="permission_rationale_title">Alle Termine, schön im Blick</string>
+    <string name="permission_rationale_body">Calendula braucht Lesezugriff auf deinen Kalender, um deine Termine zu zeigen. Mehr verlangt die App nie.</string>
+    <string name="permission_request_button">Kalender-Zugriff erlauben</string>
     <string name="permission_denied_title">Kalender-Zugriff abgelehnt</string>
     <string name="permission_denied_body">Ohne Kalender-Zugriff kann Calendula keine Termine anzeigen. Du kannst den Zugriff in den System-Einstellungen wieder erlauben.</string>
     <string name="permission_open_settings_button">System-Einstellungen öffnen</string>
     <string name="permission_retry_button">Erneut versuchen</string>
+    <string name="permission_benefit_private_title">Bleibt auf deinem Gerät</string>
+    <string name="permission_benefit_private_body">Deine Kalender werden lokal gelesen und verlassen das Telefon nie.</string>
+    <string name="permission_benefit_sync_title">Alle Kalender vereint</string>
+    <string name="permission_benefit_sync_body">Google, CalDAV, lokal — alles, was synchronisiert ist, erscheint automatisch.</string>
+    <string name="permission_benefit_privacy_title">Kein Tracking, niemals</string>
+    <string name="permission_benefit_privacy_body">Keine Telemetrie, keine Analyse, keine Werbung.</string>
+    <string name="permission_privacy_footnote">Nur Lesezugriff · keine Internet-Berechtigung</string>
 
     <!-- Monatsansicht (S1) -->
     <string name="month_prev">Vorheriger Monat</string>
