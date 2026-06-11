@@ -1,7 +1,9 @@
 package de.jeanlucmakiola.calendula.ui.settings
 
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
+import de.jeanlucmakiola.calendula.domain.EventFormField
 
 /**
  * Settings screen state (M4). Persisted preferences are instant to read, so
@@ -14,4 +16,6 @@ data class SettingsUiState(
     val dynamicColor: Boolean = true,
     val dynamicColorAvailable: Boolean = true,
     val weekStart: WeekStartPref = WeekStartPref.AUTO,
+    /** Optional event-form fields shown by default (rest behind "more fields"). */
+    val defaultFormFields: Set<EventFormField> = SettingsPrefs.DEFAULT_FORM_FIELDS,
 )

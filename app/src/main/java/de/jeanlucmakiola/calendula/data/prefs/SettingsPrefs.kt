@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import de.jeanlucmakiola.calendula.domain.EventFormField
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.DayOfWeek
@@ -67,10 +68,38 @@ class SettingsPrefs @Inject constructor(
         store.edit { it[WEEK_START_KEY] = pref.name }
     }
 
+    /**
+     * Optional event-form fields shown by default (the rest hide behind
+     * "more fields"). Stored comma-joined by enum name: an absent key means
+     * the factory default, an empty string means "none". Unknown names are
+     * dropped defensively, like the other enum prefs.
+     */
+    val defaultFormFields: Flow<Set<EventFormField>> = store.data.map { prefs ->
+        parseFormFields(prefs[FORM_FIELDS_KEY])
+    }
+
+    suspend fun setFormFieldDefault(field: EventFormField, enabled: Boolean) {
+        store.edit { prefs ->
+            val current = parseFormFields(prefs[FORM_FIELDS_KEY])
+            val updated = if (enabled) current + field else current - field
+            prefs[FORM_FIELDS_KEY] = updated.joinToString(",") { it.name }
+        }
+    }
+
+    private fun parseFormFields(stored: String?): Set<EventFormField> = when (stored) {
+        null -> DEFAULT_FORM_FIELDS
+        else -> stored.split(',')
+            .mapNotNull { name -> EventFormField.entries.firstOrNull { it.name == name.trim() } }
+            .toSet()
+    }
+
     companion object {
         internal val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
         internal val WEEK_START_KEY = stringPreferencesKey("week_start")
+        internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
+        internal val DEFAULT_FORM_FIELDS =
+            setOf(EventFormField.Location, EventFormField.Description)
     }
 }
 

@@ -141,7 +141,15 @@ fun DayScreen(
     var slideDir by remember { mutableIntStateOf(0) }
     val goNext = { slideDir = 1; viewModel.goToNext() }
     val goPrev = { slideDir = -1; viewModel.goToPrev() }
-    val jumpToToday = { slideDir = 0; viewModel.goToToday() }
+    // Slide toward today: viewing the future → today comes in from the left
+    // (back), viewing the past → from the right (forward).
+    val jumpToToday = {
+        slideDir = when (val s = state) {
+            is DayUiState.Success -> if (s.today < s.date) -1 else 1
+            else -> 0
+        }
+        viewModel.goToToday()
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,

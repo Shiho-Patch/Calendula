@@ -9,6 +9,7 @@ import android.database.Cursor
 import android.os.Handler
 import android.os.Looper
 import android.provider.CalendarContract
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.domain.Attendee
 import de.jeanlucmakiola.calendula.domain.CalendarSource
@@ -102,6 +103,8 @@ class AndroidCalendarDataSource @Inject constructor(
             put(CalendarContract.Events.DTSTART, times.dtStartMillis)
             put(CalendarContract.Events.DTEND, times.dtEndMillis)
             put(CalendarContract.Events.EVENT_TIMEZONE, times.timezone)
+            put(CalendarContract.Events.AVAILABILITY, form.availability.toProviderValue())
+            put(CalendarContract.Events.ACCESS_LEVEL, form.accessLevel.toProviderValue())
             form.location.trim().takeIf { it.isNotEmpty() }
                 ?.let { put(CalendarContract.Events.EVENT_LOCATION, it) }
             form.description.trim().takeIf { it.isNotEmpty() }
@@ -109,7 +112,20 @@ class AndroidCalendarDataSource @Inject constructor(
         }
         val uri = resolver.insert(CalendarContract.Events.CONTENT_URI, values)
             ?: throw WriteFailedException("insert event into calendar id=${form.calendarId}")
-        return ContentUris.parseId(uri)
+        val eventId = ContentUris.parseId(uri)
+        // Best effort (spec §8): the event exists at this point — a reminder
+        // that fails to attach is logged, not surfaced as a failed create.
+        form.reminders.distinct().forEach { minutes ->
+            val reminder = ContentValues().apply {
+                put(CalendarContract.Reminders.EVENT_ID, eventId)
+                put(CalendarContract.Reminders.MINUTES, minutes)
+                put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+            }
+            if (resolver.insert(CalendarContract.Reminders.CONTENT_URI, reminder) == null) {
+                Log.w(TAG, "Failed to attach reminder ($minutes min) to event $eventId")
+            }
+        }
+        return eventId
     }
 
     override fun deleteEvent(eventId: Long) {
@@ -178,5 +194,9 @@ class AndroidCalendarDataSource @Inject constructor(
     /** Iterate every row and map; drops nulls. */
     private inline fun <T : Any> Cursor.mapAllNotNull(mapper: (Cursor) -> T?): List<T> = buildList {
         while (moveToNext()) mapper(this@mapAllNotNull)?.let(::add)
+    }
+
+    private companion object {
+        const val TAG = "CalendarDataSource"
     }
 }

@@ -15,7 +15,23 @@ data class EventForm(
     val end: LocalDateTime,
     val location: String = "",
     val description: String = "",
+    /** Reminder lead times in minutes before the start, deduplicated. */
+    val reminders: List<Int> = emptyList(),
+    val availability: Availability = Availability.Busy,
+    val accessLevel: AccessLevel = AccessLevel.Default,
 )
+
+/**
+ * The form's optional sections. Which ones show by default is a user setting;
+ * the rest unfold behind a "more fields" button.
+ */
+enum class EventFormField {
+    Location,
+    Description,
+    Reminders,
+    Availability,
+    Visibility,
+}
 
 enum class EventFormProblem {
     /** No target calendar — none picked and no writable calendar exists. */

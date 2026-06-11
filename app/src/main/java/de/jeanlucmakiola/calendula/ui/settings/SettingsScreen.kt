@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
+import de.jeanlucmakiola.calendula.domain.EventFormField
 
 /**
  * Settings (M4) — appearance (theme, dynamic colour, week start), language,
@@ -110,6 +111,22 @@ fun SettingsScreen(
                 optionLabel = { weekStartLabel(it) },
                 onSelect = viewModel::setWeekStart,
             )
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            SectionHeader(stringResource(R.string.settings_section_event_form))
+            Text(
+                text = stringResource(R.string.settings_form_fields_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp),
+            )
+            EventFormField.entries.forEach { field ->
+                FormFieldRow(
+                    title = stringResource(formFieldLabel(field)),
+                    checked = field in state.defaultFormFields,
+                    onCheckedChange = { viewModel.setFormFieldDefault(field, it) },
+                )
+            }
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             SectionHeader(stringResource(R.string.settings_section_language))
@@ -296,6 +313,35 @@ private fun AboutRow(title: String, value: String) {
         )
         Spacer(Modifier.width(8.dp))
     }
+}
+
+@Composable
+private fun FormFieldRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+private fun formFieldLabel(field: EventFormField): Int = when (field) {
+    EventFormField.Location -> R.string.event_detail_location
+    EventFormField.Description -> R.string.event_detail_description
+    EventFormField.Reminders -> R.string.event_detail_reminders
+    EventFormField.Availability -> R.string.event_edit_availability
+    EventFormField.Visibility -> R.string.event_edit_visibility
 }
 
 @Composable

@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import com.google.common.truth.Truth.assertThat
+import de.jeanlucmakiola.calendula.domain.EventFormField
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DayOfWeek
@@ -58,6 +59,45 @@ class SettingsPrefsTest {
             m
         }
         assertThat(prefs.themeMode.first()).isEqualTo(ThemeMode.SYSTEM)
+    }
+
+    @Test
+    fun `form fields default to location and description`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.defaultFormFields.first()).containsExactly(
+            EventFormField.Location,
+            EventFormField.Description,
+        )
+    }
+
+    @Test
+    fun `form field toggle round-trips`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        prefs.setFormFieldDefault(EventFormField.Reminders, enabled = true)
+        prefs.setFormFieldDefault(EventFormField.Location, enabled = false)
+        assertThat(prefs.defaultFormFields.first()).containsExactly(
+            EventFormField.Description,
+            EventFormField.Reminders,
+        )
+    }
+
+    @Test
+    fun `disabling every form field persists as none, not factory default`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        EventFormField.entries.forEach { prefs.setFormFieldDefault(it, enabled = false) }
+        assertThat(prefs.defaultFormFields.first()).isEmpty()
+    }
+
+    @Test
+    fun `unknown stored form-field names are dropped`(@TempDir tempDir: Path) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = SettingsPrefs(store)
+        store.updateData { p ->
+            val m = p.toMutablePreferences()
+            m[SettingsPrefs.FORM_FIELDS_KEY] = "Location,Hologram"
+            m
+        }
+        assertThat(prefs.defaultFormFields.first()).containsExactly(EventFormField.Location)
     }
 
     @Test

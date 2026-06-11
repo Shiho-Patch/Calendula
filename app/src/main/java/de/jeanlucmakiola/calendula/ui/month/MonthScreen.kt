@@ -113,8 +113,14 @@ fun MonthScreen(
         slideDir = -1
         viewModel.goToPrev()
     }
+    // Slide toward today: viewing the future → today comes in from the left
+    // (back), viewing the past → from the right (forward).
     val jumpToToday = {
-        slideDir = 0
+        slideDir = when (val s = state) {
+            is MonthUiState.Success ->
+                if (YearMonth(s.today.year, s.today.month) < s.month) -1 else 1
+            else -> 0
+        }
         viewModel.goToToday()
     }
 

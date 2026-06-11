@@ -1,5 +1,8 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
+import android.provider.CalendarContract
+import de.jeanlucmakiola.calendula.domain.AccessLevel
+import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.EventForm
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toJavaLocalDateTime
@@ -32,4 +35,17 @@ internal fun EventForm.toWriteTimes(zone: ZoneId): EventWriteTimes = if (isAllDa
         dtEndMillis = end.toJavaLocalDateTime().atZone(zone).toInstant().toEpochMilli(),
         timezone = zone.id,
     )
+}
+
+internal fun Availability.toProviderValue(): Int = when (this) {
+    Availability.Busy -> CalendarContract.Events.AVAILABILITY_BUSY
+    Availability.Free -> CalendarContract.Events.AVAILABILITY_FREE
+    Availability.Tentative -> CalendarContract.Events.AVAILABILITY_TENTATIVE
+}
+
+internal fun AccessLevel.toProviderValue(): Int = when (this) {
+    AccessLevel.Default -> CalendarContract.Events.ACCESS_DEFAULT
+    AccessLevel.Confidential -> CalendarContract.Events.ACCESS_CONFIDENTIAL
+    AccessLevel.Private -> CalendarContract.Events.ACCESS_PRIVATE
+    AccessLevel.Public -> CalendarContract.Events.ACCESS_PUBLIC
 }

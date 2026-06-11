@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -47,7 +46,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -68,7 +66,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -95,6 +92,7 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.EventStatus
 import de.jeanlucmakiola.calendula.domain.Reminder
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
+import de.jeanlucmakiola.calendula.ui.common.OptionCard
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import kotlinx.datetime.TimeZone
@@ -257,16 +255,16 @@ private fun DeleteEventDialog(
         },
         text = {
             if (isRecurring) {
-                Column {
-                    DeleteChoiceRow(
-                        selected = !wholeSeries,
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OptionCard(
                         label = stringResource(R.string.event_delete_option_occurrence),
-                        onSelect = { wholeSeries = false },
+                        onClick = { wholeSeries = false },
+                        selected = !wholeSeries,
                     )
-                    DeleteChoiceRow(
-                        selected = wholeSeries,
+                    OptionCard(
                         label = stringResource(R.string.event_delete_option_series),
-                        onSelect = { wholeSeries = true },
+                        onClick = { wholeSeries = true },
+                        selected = wholeSeries,
                     )
                 }
             } else {
@@ -289,20 +287,6 @@ private fun DeleteEventDialog(
     )
 }
 
-@Composable
-private fun DeleteChoiceRow(selected: Boolean, label: String, onSelect: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected = selected, onClick = null)
-        Spacer(Modifier.width(8.dp))
-        Text(label, style = MaterialTheme.typography.bodyLarge)
-    }
-}
 
 @Composable
 private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modifier = Modifier) {

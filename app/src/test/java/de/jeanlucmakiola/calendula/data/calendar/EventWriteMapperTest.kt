@@ -1,6 +1,9 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
+import android.provider.CalendarContract
 import com.google.common.truth.Truth.assertThat
+import de.jeanlucmakiola.calendula.domain.AccessLevel
+import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.EventForm
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -34,6 +37,28 @@ class EventWriteMapperTest {
         assertThat(times.dtStartMillis % 86_400_000L).isEqualTo(0L)
         // Single-day all-day event: DTEND is the NEXT UTC midnight.
         assertThat(times.dtEndMillis - times.dtStartMillis).isEqualTo(86_400_000L)
+    }
+
+    @Test
+    fun `availability maps to the provider constants`() {
+        assertThat(Availability.Busy.toProviderValue())
+            .isEqualTo(CalendarContract.Events.AVAILABILITY_BUSY)
+        assertThat(Availability.Free.toProviderValue())
+            .isEqualTo(CalendarContract.Events.AVAILABILITY_FREE)
+        assertThat(Availability.Tentative.toProviderValue())
+            .isEqualTo(CalendarContract.Events.AVAILABILITY_TENTATIVE)
+    }
+
+    @Test
+    fun `access level maps to the provider constants`() {
+        assertThat(AccessLevel.Default.toProviderValue())
+            .isEqualTo(CalendarContract.Events.ACCESS_DEFAULT)
+        assertThat(AccessLevel.Private.toProviderValue())
+            .isEqualTo(CalendarContract.Events.ACCESS_PRIVATE)
+        assertThat(AccessLevel.Confidential.toProviderValue())
+            .isEqualTo(CalendarContract.Events.ACCESS_CONFIDENTIAL)
+        assertThat(AccessLevel.Public.toProviderValue())
+            .isEqualTo(CalendarContract.Events.ACCESS_PUBLIC)
     }
 
     @Test

@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Optional event-form fields with user-controlled defaults: reminders,
+  availability (busy/free), and visibility (default/public/private/
+  confidential) joined location and description as form sections. Settings
+  gained a "New event form" section choosing which show by default; the rest
+  unfold via a "More fields" picker
+- Reminders editor: stacked rows with right-bound remove, full-width add
+  action; the picker offers one-tap presets and a custom amount + unit
+  (minutes/hours/days/weeks) step
+- `OptionCard` — the app's standard selection-dialog row (full-width tonal
+  card, optional icon + supporting line, highlighted selection). All dialogs
+  (calendar, visibility, more-fields, reminder presets, recurring-delete)
+  now use it; radio-row dialogs are retired
+
+### Changed
+- Event form redesigned onto the detail screen's design system: tonal cards
+  with gutter icons (top-aligned on tall cards), borderless inline text
+  fields, calendar-coloured accent bar under the title, no dividers, no
+  top-bar title; placeholders render clearly fainter than input
+- M3 Expressive motion: the theme now provides a MotionScheme
+  (`MaterialExpressiveTheme`, standard springs — expressive bounce reviewed
+  as overdone), the FAB stack and "more fields" reveals animate on theme
+  springs
+- The jump-to-today slide is direction-aware (future → today slides in from
+  the left, past → from the right)
+
+### Fixed
+- The keyboard no longer pans the whole event form; the screen stays
+  anchored and the focused field scrolls into view (`adjustResize` +
+  `imePadding`)
+
 ## [1.2.0] — 2026-06-11
 
 ### Added

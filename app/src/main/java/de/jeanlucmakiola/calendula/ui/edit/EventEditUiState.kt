@@ -2,6 +2,7 @@ package de.jeanlucmakiola.calendula.ui.edit
 
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventForm
+import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.EventFormProblem
 
 /**
@@ -16,6 +17,10 @@ data class EventEditUiState(
     /** Validation problems; empty until a save was attempted. */
     val problems: Set<EventFormProblem>,
     val saveState: SaveUiState,
+    /** Optional sections currently rendered (settings defaults ∪ revealed). */
+    val visibleFields: Set<EventFormField> = emptySet(),
+    /** True while at least one optional section hides behind "more fields". */
+    val hasHiddenFields: Boolean = false,
 )
 
 /** One-shot state of a save request, mirroring DeleteUiState on the detail screen. */

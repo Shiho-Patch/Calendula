@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,6 +25,7 @@ import de.jeanlucmakiola.calendula.R
  * create an event, with the jump-to-today pill appearing above it whenever
  * the view isn't anchored on today.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CalendarFabColumn(
     todayVisible: Boolean,
@@ -36,8 +39,8 @@ fun CalendarFabColumn(
     ) {
         AnimatedVisibility(
             visible = todayVisible,
-            enter = scaleIn(),
-            exit = scaleOut(),
+            enter = scaleIn(MaterialTheme.motionScheme.fastSpatialSpec()),
+            exit = scaleOut(MaterialTheme.motionScheme.fastSpatialSpec()),
         ) {
             ExtendedFloatingActionButton(
                 onClick = onToday,

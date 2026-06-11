@@ -6,7 +6,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
+import de.jeanlucmakiola.calendula.domain.AccessLevel
+import de.jeanlucmakiola.calendula.domain.Availability
+import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventForm
+import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.problems
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +44,7 @@ import javax.inject.Inject
 class EventEditViewModel @Inject constructor(
     private val repository: CalendarRepository,
     private val prefs: CalendarPrefs,
+    private val settingsPrefs: SettingsPrefs,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -47,26 +53,46 @@ class EventEditViewModel @Inject constructor(
     // Problems stay hidden until the first save attempt, so a half-filled
     // form isn't already shouting errors.
     private val _showProblems = MutableStateFlow(false)
+    // Fields added through the "more fields" picker; folds back on reset().
+    private val _revealed = MutableStateFlow<Set<EventFormField>>(emptySet())
+
+    private data class LocalInputs(
+        val form: EventForm?,
+        val saveState: SaveUiState,
+        val showProblems: Boolean,
+        val revealed: Set<EventFormField>,
+    )
+
+    private data class ExternalInputs(
+        val writable: List<CalendarSource>,
+        val lastUsed: Long?,
+        val defaultFields: Set<EventFormField>,
+    )
 
     val state: StateFlow<EventEditUiState?> = combine(
-        _form,
-        repository.calendars()
-            .map { calendars -> calendars.filter { it.canModifyContents } }
-            .catch { emit(emptyList()) },
-        prefs.lastUsedCalendarId,
-        _saveState,
-        _showProblems,
-    ) { form, writable, lastUsed, saveState, showProblems ->
-        if (form == null) return@combine null
+        combine(_form, _saveState, _showProblems, _revealed, ::LocalInputs),
+        combine(
+            repository.calendars()
+                .map { calendars -> calendars.filter { it.canModifyContents } }
+                .catch { emit(emptyList()) },
+            prefs.lastUsedCalendarId,
+            settingsPrefs.defaultFormFields,
+            ::ExternalInputs,
+        ),
+    ) { local, external ->
+        val form = local.form ?: return@combine null
         val resolvedId = form.calendarId
-            ?: lastUsed?.takeIf { id -> writable.any { it.id == id } }
-            ?: writable.firstOrNull()?.id
+            ?: external.lastUsed?.takeIf { id -> external.writable.any { it.id == id } }
+            ?: external.writable.firstOrNull()?.id
         val resolved = form.copy(calendarId = resolvedId)
+        val visibleFields = external.defaultFields + local.revealed
         EventEditUiState(
             form = resolved,
-            calendars = writable,
-            problems = if (showProblems) resolved.problems() else emptySet(),
-            saveState = saveState,
+            calendars = external.writable,
+            problems = if (local.showProblems) resolved.problems() else emptySet(),
+            saveState = local.saveState,
+            visibleFields = visibleFields,
+            hasHiddenFields = visibleFields.size < EventFormField.entries.size,
         )
     }
         .flowOn(io)
@@ -102,6 +128,12 @@ class EventEditViewModel @Inject constructor(
         _form.value = null
         _saveState.value = SaveUiState.Idle
         _showProblems.value = false
+        _revealed.value = emptySet()
+    }
+
+    /** Unfold one optional field, picked in the "more fields" dialog. */
+    fun revealField(field: EventFormField) {
+        _revealed.value = _revealed.value + field
     }
 
     fun setTitle(value: String) = update { it.copy(title = value) }
@@ -109,6 +141,16 @@ class EventEditViewModel @Inject constructor(
     fun setDescription(value: String) = update { it.copy(description = value) }
     fun setAllDay(value: Boolean) = update { it.copy(isAllDay = value) }
     fun setCalendar(id: Long) = update { it.copy(calendarId = id) }
+    fun setAvailability(value: Availability) = update { it.copy(availability = value) }
+    fun setAccessLevel(value: AccessLevel) = update { it.copy(accessLevel = value) }
+
+    fun addReminder(minutes: Int) = update {
+        it.copy(reminders = (it.reminders + minutes).distinct().sorted())
+    }
+
+    fun removeReminder(minutes: Int) = update {
+        it.copy(reminders = it.reminders - minutes)
+    }
 
     /** Moving the start drags the end along, preserving the duration. */
     fun setStartDate(date: LocalDate) = moveStart { LocalDateTime(date, it.time) }

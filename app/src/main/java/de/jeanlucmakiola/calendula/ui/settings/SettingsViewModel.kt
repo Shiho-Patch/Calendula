@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
+import de.jeanlucmakiola.calendula.domain.EventFormField
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -26,12 +27,14 @@ class SettingsViewModel @Inject constructor(
             prefs.themeMode,
             prefs.dynamicColor,
             prefs.weekStart,
-        ) { theme, dynamic, weekStart ->
+            prefs.defaultFormFields,
+        ) { theme, dynamic, weekStart, formFields ->
             SettingsUiState(
                 themeMode = theme,
                 dynamicColor = dynamic && dynamicColorAvailable,
                 dynamicColorAvailable = dynamicColorAvailable,
                 weekStart = weekStart,
+                defaultFormFields = formFields,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -49,5 +52,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setWeekStart(pref: WeekStartPref) {
         viewModelScope.launch { prefs.setWeekStart(pref) }
+    }
+
+    fun setFormFieldDefault(field: EventFormField, enabled: Boolean) {
+        viewModelScope.launch { prefs.setFormFieldDefault(field, enabled) }
     }
 }

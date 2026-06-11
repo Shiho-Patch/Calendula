@@ -2,7 +2,9 @@ package de.jeanlucmakiola.calendula.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -17,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
  * The Settings screen (later) can override useDynamicColor and themePreference,
  * but the V1 foundation just follows the system.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CalendulaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -32,9 +35,15 @@ fun CalendulaTheme(
         else -> CalendulaLightFallback
     }
 
-    MaterialTheme(
+    // MaterialExpressiveTheme routes all component + custom motion through
+    // MaterialTheme.motionScheme (switches, chips, pickers, calendar slide,
+    // FAB, field reveal). The STANDARD scheme is a deliberate choice over
+    // expressive(): same spring choreography, but without the overshoot —
+    // the bouncy variant felt overdone in review (2026-06-11).
+    MaterialExpressiveTheme(
         colorScheme = colorScheme,
         typography = CalendulaTypography,
+        motionScheme = MotionScheme.standard(),
         content = content,
     )
 }
