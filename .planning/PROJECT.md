@@ -2,11 +2,12 @@
 
 ## What This Is
 
-A modern Material 3 Expressive Android calendar app, read-only V1. Lives
-entirely on top of Android's `CalendarContract` — any calendar synced to the
-device (CalDAV via DAVx5, Google, local, WebCal, …) shows up automatically.
-The differentiator is visual: real Material 3 Expressive design that no
-existing FOSS calendar app delivers.
+A modern Material 3 Expressive Android calendar app. Lives entirely on top
+of Android's `CalendarContract` — any calendar synced to the device (CalDAV
+via DAVx5, Google, local, WebCal, …) shows up automatically; creating,
+editing, and deleting writes straight back, and reminders are delivered by
+the app itself (Etar model). The differentiator is visual: real Material 3
+Expressive design that no existing FOSS calendar app delivers.
 
 ## Core Value
 
@@ -15,8 +16,10 @@ re-inventing the calendar sync stack — leave that to DAVx5 and the system.
 
 ## Current Milestone
 
-**v0.1 — Foundation & CI:** Buildable Android project scaffold with theme,
-icon, i18n, Hilt, DataStore, green CI.
+Milestones 1 (read, v1.0) and 2 (write support, v1.1–v2.0.0 incl. reminder
+delivery) are **complete** — v2.0.0 shipped 2026-06-11. Next is v3.0
+(power-user features) plus an undecided "Locations & People" idea backlog;
+see `ROADMAP.md`.
 
 ## Stack
 
@@ -26,9 +29,8 @@ Expressive 1.5.0-alpha21 (alpha is intentional — Expressive APIs only
 live in the 1.5 alpha line). Hilt 2.59.2, DataStore. Gradle Kotlin DSL
 with Version Catalog. AGP 9.1.1, Gradle 9.5.1. JVM target 17.
 
-Read-only V1, write support V2.
-
-Android-only (minSdk 29, targetSdk 36). No iOS.
+Android-only (minSdk 29, targetSdk 36). No iOS. No `INTERNET` permission —
+any feature that would need one is an explicit product decision first.
 
 ## Naming
 

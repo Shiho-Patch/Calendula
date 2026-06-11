@@ -2,39 +2,43 @@
 
 See full design spec: `docs/superpowers/specs/2026-06-08-calendar-app-design.md`
 
-## V1 Scope (Variant "B")
+## V1 Scope (Variant "B") — shipped in full (v1.0.0, 2026-06-11)
 
-### Validated (shipped)
-- Foundation & CI infrastructure — v0.1.0 (2026-06-08)
-
-### Active (V1)
-
-- [x] Foundation & CI infrastructure
+- [x] Foundation & CI infrastructure — v0.1.0 (2026-06-08)
 - [x] Data Layer over `CalendarContract`
 - [x] Permission flow (`READ_CALENDAR`)
-- [ ] Month view (S1)
-- [ ] Week view (S2)
-- [ ] Day view (S3)
-- [ ] Event Detail Sheet (S4)
-- [ ] Multi-Calendar Filter (M3)
+- [x] Month view (S1)
+- [x] Week view (S2)
+- [x] Day view (S3)
+- [x] Event Detail Sheet (S4) — became a full screen, plus full event read (v0.6)
+- [x] Multi-Calendar Filter (M3)
 - [x] Today button (M2) — shipped v0.5; Jump-to-Date **cut from scope**
-- [ ] View-Switcher (M1)
-- [ ] Settings screen (M4)
-- [ ] Empty / no-permission / no-calendars states
-- [ ] German + English localization
-- [ ] Loading/Failure/Success states per screen (architectural pattern)
+- [x] View-Switcher (M1)
+- [x] Settings screen (M4)
+- [x] Empty / no-permission / no-calendars states
+- [x] German + English localization
+- [x] Loading/Failure/Success states per screen (architectural pattern)
 
-### Out of Scope (V2+)
+## V2 Scope — write support, shipped in full (v2.0.0, 2026-06-11)
 
-- Event create / edit / delete (V2)
+- [x] Write foundation: `WRITE_CALENDAR`, read-only-calendar detection, delete (v1.1)
+- [x] Create event: form, FAB, last-used calendar (v1.2; polish v1.2.1)
+- [x] Edit event: shared form, scoped recurring writes, recurrence picker (v1.3)
+- [x] Reminder notifications (v1.4) — **reversal of the original
+  "system handles reminders" assumption:** Calendula targets
+  sole-calendar-app users, so it posts reminder notifications itself
+  (Etar model), incl. `POST_NOTIFICATIONS` onboarding
+- [x] Conflict dialog on save + store polish (v2.0)
+- Quick-add — **cut from scope** (the prefilled form covers it)
+- Calendar switching while editing — moved to v3 backlog
+
+### Out of Scope (V3+)
+
 - Home-screen widget
 - Full-text search
-- Quick-add
-- ~~Custom notifications/reminders (system already handles these)~~ —
-  **reversed:** Calendula targets sole-calendar-app users, so no other app
-  posts reminder notifications. We post them ourselves (Etar model). Planned
-  for v1.4 — see `ROADMAP.md`.
 - Tablet/foldable-specific layouts
+- Locations & People ideas (contact picker, OSM autocomplete) — see
+  `ROADMAP.md` idea backlog, undecided
 - iOS support (Android-only by design)
 
 ## Constraints

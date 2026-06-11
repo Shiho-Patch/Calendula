@@ -4,13 +4,10 @@
 
 ## Status
 
-**Milestone:** v2.0 — Write support (milestone 2, in progress)
-**Phase:** v1.3.0 (edit event) shipped 2026-06-11 after four on-device
-review rounds (BYDAY toggles, scoped recurring writes, scope-at-save flip,
-stale-instances split bugfix). Milestone 2 runs in four slices
-(`docs/superpowers/plans/2026-06-11-03-write-support.md`); v2.0 (quick-add,
-conflict dialog, polish) is the remaining slice, v1.4 (reminder
-notifications) comes first.
+**Milestone:** 2 (write support) **complete** — v2.0.0 shipped 2026-06-11.
+**Phase:** between milestones. Next: v3.0 (power-user features) and the
+go/no-go on the "Locations & People" idea backlog (`ROADMAP.md`). Docs
+pass done (ARCHITECTURE.md, README overhaul, planning docs refreshed).
 
 ## Progress
 
@@ -62,10 +59,22 @@ notifications) comes first.
   recurring saves park in `SaveUiState.AwaitingScope`, a changed rule drops
   the "only this event" option
 
+- [x] v1.4 reminder notifications (shipped 2026-06-11) — exported
+  `EVENT_REMINDER` receiver → `CalendarAlerts` (SCHEDULED & due) →
+  dedicated channel, tap opens detail (singleTop deep link); best-effort
+  FIRED marking; one-time onboarding step requesting `POST_NOTIFICATIONS`
+  with duplicate-reminders warning; Settings mirror. Provider only fires
+  `METHOD_ALERT` rows (AOSP-verified), so email reminders never reach us
+
+- [x] v2.0 conflict dialog + store polish (shipped 2026-06-11 as v2.0.0) —
+  `EditSnapshot` compare on save (overwrite/discard; deleted → close),
+  quick-add cut, calendar-switch → v3 backlog; F-Droid/README copy
+  refreshed, fastlane screenshots DE+EN captured on-device
+
 ## Next
 
-1. v1.4 — reminder notifications (essential for sole-app use): `EVENT_REMINDER`
-   receiver + notification channel, `POST_NOTIFICATIONS`, onboarding step with
-   default-on toggle + duplicate-reminder warning (Etar model)
-2. v2.0 — quick-add sheet, conflict dialog, polish pass, milestone release
-3. Monitor the F-Droid build/publish for v1.1.0 – v1.3.0
+1. Decide the "Locations & People" go/no-go (INTERNET permission question)
+   — see `ROADMAP.md` idea backlog
+2. v3.0 scoping: widget, full-text search, tablet layouts, ICS import,
+   calendar-move
+3. Monitor the F-Droid build/publish for the v1.4.0 / v2.0.0 tags
