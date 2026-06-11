@@ -4,6 +4,7 @@ import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.EventFormProblem
+import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 
 /**
  * UI state for the event form (v1.2: create; v1.3 reuses it for edit). Null
@@ -39,6 +40,14 @@ sealed interface SaveUiState {
     data object Idle : SaveUiState
     /** A dirty recurring event waits for the user to pick the write scope. */
     data object AwaitingScope : SaveUiState
+    /**
+     * The event changed externally (sync) while the form was open; the save
+     * is parked with its chosen [scope] until the user picks overwrite,
+     * discard, or cancel.
+     */
+    data class AwaitingConflict(val scope: RecurringWriteScope) : SaveUiState
+    /** The event was deleted externally while the form was open. */
+    data object Gone : SaveUiState
     data object Saving : SaveUiState
     data object Saved : SaveUiState
     /** WRITE_CALENDAR was revoked between the tap and the provider call. */

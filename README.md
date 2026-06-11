@@ -8,10 +8,14 @@ word "calendar". Calendula reads from Android's built-in `CalendarContract`,
 so any calendar source synced to your device (CalDAV via DAVx5, Google,
 local, WebCal subscriptions, ...) is shown.
 
-## Features (V1)
+## Features
 
 - Month, Week, and Day views
-- Read-only event details (write support comes in V2)
+- Full event details — attendees, reminders, recurrence, availability, and more
+- Create, edit, and delete events — recurring events with scoped writes
+  (only this event / this and all following / whole series) and a simple
+  recurrence picker
+- Reminder notifications, delivered by Calendula itself (tap opens the event)
 - Multi-calendar visibility toggle
 - Material You Dynamic Color (Android 12+)
 - Light/Dark theme follows system

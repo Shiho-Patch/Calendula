@@ -217,7 +217,8 @@ fun EventEditScreen(
                 viewModel.consumeSaveResult()
                 snackbarHostState.showSnackbar(writeDeniedMessage)
             }
-            SaveUiState.Idle, SaveUiState.AwaitingScope, SaveUiState.Saving, null -> Unit
+            // AwaitingScope/AwaitingConflict/Gone render as dialogs below.
+            else -> Unit
         }
     }
 
@@ -269,6 +270,68 @@ fun EventEditScreen(
             onDismiss = viewModel::consumeSaveResult,
         )
     }
+
+    // The event changed externally (sync) while the form was open (v2.0).
+    if (state?.saveState is SaveUiState.AwaitingConflict) {
+        SaveConflictDialog(
+            onOverwrite = viewModel::saveOverwriting,
+            onDiscard = close,
+            onDismiss = viewModel::consumeSaveResult,
+        )
+    }
+
+    // ...or was deleted underneath us — nothing left to save onto. Closing
+    // through [onSaved] also pops the detail screen, whose occurrence is gone.
+    if (state?.saveState == SaveUiState.Gone) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.event_edit_gone_title)) },
+            text = { Text(stringResource(R.string.event_edit_gone_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.reset()
+                    onSaved()
+                }) { Text(stringResource(R.string.dialog_ok)) }
+            },
+        )
+    }
+}
+
+/**
+ * Overwrite-or-discard choice when the event changed underneath an open
+ * form (no locking; detected by re-reading at save time). "Overwrite" still
+ * only writes the fields the user edited — external changes to untouched
+ * fields survive either way. Cancelling returns to the form.
+ */
+@Composable
+private fun SaveConflictDialog(
+    onOverwrite: () -> Unit,
+    onDiscard: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.event_edit_conflict_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.event_edit_conflict_body))
+                Spacer(Modifier.height(4.dp))
+                OptionCard(
+                    label = stringResource(R.string.event_edit_conflict_overwrite),
+                    supportingText = stringResource(R.string.event_edit_conflict_overwrite_hint),
+                    onClick = onOverwrite,
+                )
+                OptionCard(
+                    label = stringResource(R.string.event_edit_conflict_discard),
+                    supportingText = stringResource(R.string.event_edit_conflict_discard_hint),
+                    onClick = onDiscard,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
+        },
+    )
 }
 
 /**

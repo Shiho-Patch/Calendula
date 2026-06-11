@@ -95,6 +95,30 @@ fun EventDetail.toEditForm(beginMillis: Long, endMillis: Long, zone: TimeZone): 
 }
 
 /**
+ * What the edit form saw when it loaded — compared against a fresh read at
+ * save time to detect external changes (sync, another device) that landed
+ * while the form was open. The raw row times ride along because
+ * [toEditForm] derives the form's times from the *tapped occurrence*, so
+ * re-deriving with the same occurrence would mask an externally moved
+ * event. Not covered (the form can't write them, and the dirty-checked
+ * write can't clobber them): attendees, status, the user's own response,
+ * reminder methods, and a recurring event's duration.
+ */
+data class EditSnapshot(
+    val form: EventForm,
+    /** The raw Events-row times (for recurring events: the series anchor). */
+    val rowStart: Instant,
+    val rowEnd: Instant,
+)
+
+fun EventDetail.toEditSnapshot(beginMillis: Long, endMillis: Long, zone: TimeZone): EditSnapshot =
+    EditSnapshot(
+        form = toEditForm(beginMillis, endMillis, zone),
+        rowStart = instance.start,
+        rowEnd = instance.end,
+    )
+
+/**
  * The optional sections that hold a value in [form] — when editing, these
  * must be visible regardless of the user's default-fields setting, or the
  * data they carry would be invisible (though still preserved).

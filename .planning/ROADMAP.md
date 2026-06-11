@@ -66,7 +66,21 @@ guide here, not a contract — scope per slice is decided as we go.
 | v1.2.1 | Form polish after on-device review — card design system, optional fields + settings defaults, OptionCard dialogs, expressive motion | complete (shipped 2026-06-11) |
 | v1.3 | Edit event — shared form, scoped recurring writes (this / following / all), recurrence picker | complete (shipped 2026-06-11) |
 | v1.4 | Reminder notifications — see below | complete (shipped 2026-06-11) |
-| v2.0 | Quick-add, occurrence edit, conflict dialog, polish, release | planned |
+| v2.0 | Conflict dialog, polish pass (stale read-only copy in F-Droid/README), release | planned |
+
+v2.0 scope was re-cut on 2026-06-11, after v1.4:
+- **Occurrence edit** already shipped early, in v1.3.
+- **Quick-add** is **cut from scope**: the full form already opens prefilled
+  (visible day, last-used calendar, optional fields hidden), so the sheet
+  would only save one screen transition while adding a second create-surface
+  to maintain. Revisit only if real-world feedback says creation feels heavy.
+- **Calendar switching while editing** moves to the v3 backlog (sync-adapter
+  minefield: `CALENDAR_ID` is sync-adapter-owned, AOSP locks the field; an
+  honest implementation is copy+delete like Google Calendar, with sync-identity
+  and attendee side effects).
+- **Conflict dialog** stays (plan 03, decision 5): on save, compare against
+  the row as it was when the form loaded; on external change, ask
+  overwrite / discard. Closes the silent-clobber gap on synced calendars.
 
 ## v1.4 — Reminder Notifications
 
@@ -99,5 +113,7 @@ Deliberately deferred (add only if needed):
 - Full-text search
 - Tablet / foldable layouts
 - Optional: ICS file import (drag-and-drop)
+- Optional: move event to another calendar (copy+delete model with a
+  consequences warning — deferred from v2.0, see above)
 
 Order is indicative — community feedback after V1 may re-prioritize.

@@ -47,8 +47,8 @@ Domain bleibt pure Kotlin.
 |---|---|---|
 | v1.1 | Write-Fundament: `WRITE_CALENDAR`, `canModifyContents`, Delete (Serie + einzelnes Vorkommen) | ausgeliefert (v1.1.0, 2026-06-11) |
 | v1.2 | Create: Event-Formular (Titel, Kalender, ganztägig, Start/Ende, Ort, Beschreibung), FAB, Default-Kalender-Pref | ausgeliefert (v1.2.0, 2026-06-11) |
-| v1.3 | Edit: Formular wiederverwendet, Serien-Edit, Reminder-Edit, einfacher Recurrence-Picker | implementiert (Release wartet auf On-Device-Review) |
-| v2.0 | Quick-Add, Occurrence-Edit, Konflikt-Dialog, Polish-Pass, Release | offen |
+| v1.3 | Edit: Formular wiederverwendet, Serien-Edit, Reminder-Edit, einfacher Recurrence-Picker | ausgeliefert (v1.3.0, 2026-06-11) |
+| v2.0 | Konflikt-Dialog, Polish-Pass (read-only-Copy in F-Droid/README), Release | offen (Scope-Recut, s.u.) |
 
 ## v1.1 — Write-Fundament + Delete
 
@@ -180,9 +180,24 @@ Domain bleibt pure Kotlin.
 Bewusst nicht in v1.3 (→ v2.0): Konflikt-Dialog, Kalender-Wechsel beim
 Bearbeiten (Sync-Adapter-Minenfeld, sperren auch alle Stock-Apps).
 
-## v2.0 — Abschluss (Skizze)
+## v2.0 — Abschluss (Scope-Recut 2026-06-11, nach v1.4)
 
-- Quick-Add-Sheet (Titel + Zeit, Rest Defaults)
-- Occurrence-Edit (Exception mit geänderten Werten)
-- Konflikt-Dialog beim Speichern
-- Changelog, F-Droid-Metadaten, Release-Tag
+- ~~Quick-Add-Sheet (Titel + Zeit, Rest Defaults)~~ — **gestrichen**: das
+  Formular öffnet bereits vorbefüllt (sichtbarer Tag, zuletzt benutzter
+  Kalender, optionale Felder versteckt); der Sheet spart nur einen
+  Screen-Übergang und kostet eine zweite Create-Surface. Nur bei
+  Praxis-Feedback wieder aufnehmen
+- ~~Occurrence-Edit (Exception mit geänderten Werten)~~ — schon in v1.3
+  ausgeliefert (vorgezogen)
+- [x] Konflikt-Dialog beim Speichern (Leitentscheidung 5): `EditSnapshot`
+      (Formular + rohe Row-Zeiten) wird beim Laden gemerkt und vor dem
+      Schreiben gegen einen frischen Read verglichen; Abweichung parkt den
+      Save in `AwaitingConflict` (Überschreiben/Verwerfen/Abbrechen,
+      OptionCard-Stil), gelöschtes Event → `Gone`-Dialog. "Überschreiben"
+      schreibt weiterhin nur dirty Felder
+- Kalender-Wechsel beim Bearbeiten → v3-Backlog (copy+delete-Modell)
+- [x] Polish: F-Droid-Description + README auf Write-Support + Reminder
+      aktualisiert (DE+EN)
+- [x] F-Droid-Screenshots (de-DE + en-US, je 6: Woche/Monat/Tag/Detail/
+      Formular/Onboarding) — mit Demo-Kalendern auf dem Gerät aufgenommen
+- Changelog, Release-Tag v2.0.0 (nach On-Device-Review)

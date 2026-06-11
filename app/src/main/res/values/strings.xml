@@ -83,6 +83,16 @@
     <string name="event_edit_availability">Availability</string>
     <string name="event_edit_visibility">Visibility</string>
 
+    <!-- Event form — save conflict (v2.0) -->
+    <string name="event_edit_conflict_title">Event changed elsewhere</string>
+    <string name="event_edit_conflict_body">While you were editing, this event was changed — by sync or another app. What should happen to your changes?</string>
+    <string name="event_edit_conflict_overwrite">Save my changes</string>
+    <string name="event_edit_conflict_overwrite_hint">Only fields you edited overwrite the outside change</string>
+    <string name="event_edit_conflict_discard">Discard my changes</string>
+    <string name="event_edit_conflict_discard_hint">The event stays as it is now</string>
+    <string name="event_edit_gone_title">Event deleted</string>
+    <string name="event_edit_gone_body">This event was deleted in the meantime, for example on another device. Your changes can no longer be saved.</string>
+
     <!-- Event form — recurrence picker (v1.3) -->
     <string name="event_edit_recurrence_none">Does not repeat</string>
     <string name="event_edit_recurrence_custom">Custom</string>

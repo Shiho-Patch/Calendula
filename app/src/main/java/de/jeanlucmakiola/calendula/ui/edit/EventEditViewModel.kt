@@ -4,18 +4,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
+import de.jeanlucmakiola.calendula.data.calendar.NoSuchEventException
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.EditSnapshot
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.populatedFields
 import de.jeanlucmakiola.calendula.domain.problems
-import de.jeanlucmakiola.calendula.domain.toEditForm
+import de.jeanlucmakiola.calendula.domain.toEditSnapshot
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,15 +70,21 @@ class EventEditViewModel @Inject constructor(
     val loadFailed: StateFlow<Boolean> = _loadFailed.asStateFlow()
 
     /**
-     * The event being edited plus the form exactly as it was prefilled.
+     * The event being edited plus everything the form saw at load time.
      * For recurring events the write scope is chosen at save time; the
-     * tapped occurrence's [beginMillis] anchors occurrence-level writes.
+     * tapped occurrence's [beginMillis]/[endMillis] anchor occurrence-level
+     * writes and the conflict re-read. [zone] is pinned at load so a device
+     * timezone change mid-edit can't fake a conflict.
      */
     private data class EditTarget(
         val eventId: Long,
-        val original: EventForm,
+        val snapshot: EditSnapshot,
         val beginMillis: Long,
-    )
+        val endMillis: Long,
+        val zone: TimeZone,
+    ) {
+        val original: EventForm get() = snapshot.form
+    }
 
     private data class LocalInputs(
         val form: EventForm?,
@@ -167,11 +175,12 @@ class EventEditViewModel @Inject constructor(
                 _loadFailed.value = true
                 return@launch
             }
-            val original = detail.toEditForm(beginMillis, endMillis, TimeZone.currentSystemDefault())
-            _editTarget.value = EditTarget(eventId, original, beginMillis)
+            val zone = TimeZone.currentSystemDefault()
+            val snapshot = detail.toEditSnapshot(beginMillis, endMillis, zone)
+            _editTarget.value = EditTarget(eventId, snapshot, beginMillis, endMillis, zone)
             // Sections holding data must show even when not in the defaults.
-            _revealed.value = original.populatedFields()
-            _form.value = original
+            _revealed.value = snapshot.form.populatedFields()
+            _form.value = snapshot.form
         }
     }
 
@@ -249,10 +258,43 @@ class EventEditViewModel @Inject constructor(
         performSave(current.form, scope)
     }
 
-    private fun performSave(form: EventForm, scope: RecurringWriteScope) {
+    /** Finish a save parked in [SaveUiState.AwaitingConflict], overwriting. */
+    fun saveOverwriting() {
+        val current = state.value ?: return
+        val parked = current.saveState as? SaveUiState.AwaitingConflict ?: return
+        performSave(current.form, parked.scope, ignoreConflict = true)
+    }
+
+    private fun performSave(
+        form: EventForm,
+        scope: RecurringWriteScope,
+        ignoreConflict: Boolean = false,
+    ) {
         val target = _editTarget.value
         viewModelScope.launch {
             _saveState.value = SaveUiState.Saving
+            // No locking (plan 03, decision 5): right before writing, re-read
+            // the event and compare against what the form loaded. An external
+            // change parks the save in a conflict dialog instead of silently
+            // clobbering the edited fields.
+            if (target != null && !ignoreConflict) {
+                val fresh = try {
+                    repository.eventDetail(target.eventId)
+                        .toEditSnapshot(target.beginMillis, target.endMillis, target.zone)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: NoSuchEventException) {
+                    _saveState.value = SaveUiState.Gone
+                    return@launch
+                } catch (e: Exception) {
+                    // Can't verify — proceed; a real problem fails the write itself.
+                    null
+                }
+                if (fresh != null && fresh != target.snapshot) {
+                    _saveState.value = SaveUiState.AwaitingConflict(scope)
+                    return@launch
+                }
+            }
             _saveState.value = try {
                 if (target == null) {
                     repository.createEvent(form)

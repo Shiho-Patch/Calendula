@@ -112,21 +112,24 @@ class EventFormTest {
         reminders: List<Reminder> = emptyList(),
         availability: Availability = Availability.Busy,
         accessLevel: AccessLevel = AccessLevel.Default,
+        rowStart: Long = 0L,
+        rowEnd: Long = 0L,
+        attendees: List<Attendee> = emptyList(),
     ): EventDetail = EventDetail(
         instance = EventInstance(
             instanceId = 1L,
             eventId = 1L,
             calendarId = 7L,
             title = title,
-            start = Instant.fromEpochMilliseconds(0L),
-            end = Instant.fromEpochMilliseconds(0L),
+            start = Instant.fromEpochMilliseconds(rowStart),
+            end = Instant.fromEpochMilliseconds(rowEnd),
             isAllDay = isAllDay,
             color = 0,
             location = location,
         ),
         description = description,
         organizer = null,
-        attendees = emptyList(),
+        attendees = attendees,
         rrule = rrule,
         reminders = reminders,
         availability = availability,
@@ -175,6 +178,41 @@ class EventFormTest {
         ).toEditForm(beginMillis = 0L, endMillis = 3_600_000L, zone = berlin)
         assertThat(prefilled.reminders).containsExactly(10, 30).inOrder()
         assertThat(prefilled.rrule).isEqualTo("FREQ=WEEKLY")
+    }
+
+    @Test
+    fun `snapshots of an unchanged event are equal`() {
+        val a = detail().toEditSnapshot(0L, 3_600_000L, berlin)
+        val b = detail().toEditSnapshot(0L, 3_600_000L, berlin)
+        assertThat(b).isEqualTo(a)
+    }
+
+    @Test
+    fun `an external field change makes snapshots differ`() {
+        val loaded = detail().toEditSnapshot(0L, 3_600_000L, berlin)
+        val fresh = detail(title = "Stand-up (moved)").toEditSnapshot(0L, 3_600_000L, berlin)
+        assertThat(fresh).isNotEqualTo(loaded)
+    }
+
+    @Test
+    fun `an external time move is caught by the row times the form cannot see`() {
+        // Both snapshots are taken for the same tapped occurrence, so the
+        // *forms* derive identical times — only rowStart/rowEnd betray the move.
+        val loaded = detail(rrule = "FREQ=WEEKLY", rowStart = 0L)
+            .toEditSnapshot(0L, 3_600_000L, berlin)
+        val fresh = detail(rrule = "FREQ=WEEKLY", rowStart = 86_400_000L)
+            .toEditSnapshot(0L, 3_600_000L, berlin)
+        assertThat(fresh.form).isEqualTo(loaded.form)
+        assertThat(fresh).isNotEqualTo(loaded)
+    }
+
+    @Test
+    fun `changes the form cannot write do not fake a conflict`() {
+        val loaded = detail().toEditSnapshot(0L, 3_600_000L, berlin)
+        val fresh = detail(
+            attendees = listOf(Attendee("Ada", "ada@example.org", AttendeeStatus.Accepted)),
+        ).toEditSnapshot(0L, 3_600_000L, berlin)
+        assertThat(fresh).isEqualTo(loaded)
     }
 
     @Test

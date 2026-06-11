@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Conflict handling when saving an edit: if the event changed elsewhere
+  (sync, another device) while the form was open, saving now asks whether
+  to keep or discard your changes instead of silently overwriting the
+  edited fields — and tells you when the event was deleted in the meantime.
+  "Keep" still writes only the fields you touched; external changes to
+  untouched fields survive either way
+- F-Droid store screenshots (German + English), captured with demo data
+
+### Changed
+- F-Droid description and README no longer claim the app is read-only —
+  they now describe write support and reminder delivery
+
 ## [1.4.0] — 2026-06-11
 
 ### Added

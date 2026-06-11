@@ -82,6 +82,16 @@
     <string name="event_edit_availability">Verfügbarkeit</string>
     <string name="event_edit_visibility">Sichtbarkeit</string>
 
+    <!-- Termin-Formular — Speicher-Konflikt (v2.0) -->
+    <string name="event_edit_conflict_title">Termin wurde extern geändert</string>
+    <string name="event_edit_conflict_body">Während du bearbeitet hast, wurde dieser Termin anderswo geändert — durch Synchronisierung oder eine andere App. Was soll mit deinen Änderungen passieren?</string>
+    <string name="event_edit_conflict_overwrite">Meine Änderungen speichern</string>
+    <string name="event_edit_conflict_overwrite_hint">Nur von dir bearbeitete Felder überschreiben die externe Änderung</string>
+    <string name="event_edit_conflict_discard">Meine Änderungen verwerfen</string>
+    <string name="event_edit_conflict_discard_hint">Der Termin bleibt, wie er jetzt ist</string>
+    <string name="event_edit_gone_title">Termin wurde gelöscht</string>
+    <string name="event_edit_gone_body">Dieser Termin wurde zwischenzeitlich gelöscht, etwa auf einem anderen Gerät. Deine Änderungen können nicht mehr gespeichert werden.</string>
+
     <!-- Termin-Formular — Wiederholungs-Picker (v1.3) -->
     <string name="event_edit_recurrence_none">Wiederholt sich nicht</string>
     <string name="event_edit_recurrence_custom">Benutzerdefiniert</string>
