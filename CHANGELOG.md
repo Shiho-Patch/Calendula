@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] — 2026-06-11
+
 ### Added
 - Optional event-form fields with user-controlled defaults: reminders,
   availability (busy/free), and visibility (default/public/private/
@@ -32,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   springs
 - The jump-to-today slide is direction-aware (future → today slides in from
   the left, past → from the right)
+- `versionName`/`versionCode` bumped to 1.2.1 / 10
 
 ### Fixed
 - The keyboard no longer pans the whole event form; the screen stays

@@ -5,10 +5,11 @@
 ## Status
 
 **Milestone:** v2.0 — Write support (milestone 2, in progress)
-**Phase:** v1.2.0 shipped 2026-06-11 (create event), after v1.1.0 the same
-day (write foundation + delete). Milestone 2 runs in four slices
+**Phase:** v1.2.1 shipped 2026-06-11 — the create-form polish pass after
+Jean-Luc's on-device review (v1.2.0 and v1.1.0 shipped the same day).
+Milestone 2 runs in four slices
 (`docs/superpowers/plans/2026-06-11-03-write-support.md`); next up is v1.3
-(edit event).
+(edit event). Note: UI slices now hold release until his explicit approval.
 
 ## Progress
 

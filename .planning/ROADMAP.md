@@ -63,6 +63,7 @@ guide here, not a contract — scope per slice is decided as we go.
 |---|---|---|
 | v1.1 | Write foundation — `WRITE_CALENDAR`, read-only-calendar detection, delete (series + single occurrence) | complete (shipped 2026-06-11) |
 | v1.2 | Create event — form, FAB, last-used-calendar preselect | complete (shipped 2026-06-11) |
+| v1.2.1 | Form polish after on-device review — card design system, optional fields + settings defaults, OptionCard dialogs, expressive motion | complete (shipped 2026-06-11) |
 | v1.3 | Edit event — shared form, series edit, reminders, simple recurrence picker | planned |
 | v2.0 | Quick-add, occurrence edit, conflict dialog, polish, release | planned |
 
