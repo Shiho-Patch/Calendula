@@ -65,7 +65,7 @@ guide here, not a contract — scope per slice is decided as we go.
 | v1.2 | Create event — form, FAB, last-used-calendar preselect | complete (shipped 2026-06-11) |
 | v1.2.1 | Form polish after on-device review — card design system, optional fields + settings defaults, OptionCard dialogs, expressive motion | complete (shipped 2026-06-11) |
 | v1.3 | Edit event — shared form, scoped recurring writes (this / following / all), recurrence picker | complete (shipped 2026-06-11) |
-| v1.4 | Reminder notifications — see below | implemented (release awaits on-device review) |
+| v1.4 | Reminder notifications — see below | complete (shipped 2026-06-11) |
 | v2.0 | Quick-add, occurrence edit, conflict dialog, polish, release | planned |
 
 ## v1.4 — Reminder Notifications

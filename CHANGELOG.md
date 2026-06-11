@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-06-11
+
 ### Added
 - Reminder notifications (v1.4): Calendula now delivers event reminders as
   notifications itself — the system schedules them but posts nothing, so a
@@ -21,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings gained a "Notifications" section mirroring the choice: an event-
   reminders toggle (default on) with the duplicate-reminders hint; turning it
   on re-requests the notification permission when missing
+
+### Fixed
+- `versionName`/`versionCode` bumped to 1.4.0 / 12
 
 ## [1.3.0] — 2026-06-11
 
