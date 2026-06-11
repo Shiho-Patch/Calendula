@@ -16,8 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     "1 day before", "At time of event"), read from `CalendarContract.Reminders`
   - **Status** — Tentative / Cancelled chip under the title; a cancelled event
     also strikes through its title (Confirmed shows no chip)
-  - **Availability** — a Free / Busy chip (`Events.AVAILABILITY`, the iCal
-    TRANSP field)
+  - **Availability** — a "Free" pill pinned top-right of the title when the
+    event doesn't block your time (`Events.AVAILABILITY`, the iCal TRANSP
+    field); the default "Busy" is left implicit to avoid noise on every event
   - **Access level** — a Private / Confidential chip when the event isn't public
   - **Attendee role** — organizer / optional / resource badge under each
     attendee, plus the device user's own response ("Your response: …") from

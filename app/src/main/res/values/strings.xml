@@ -73,7 +73,6 @@
     <string name="event_status_tentative">Tentative</string>
     <string name="event_status_cancelled">Cancelled</string>
     <string name="event_availability_free">Free</string>
-    <string name="event_availability_busy">Busy</string>
     <string name="event_access_private">Private</string>
     <string name="event_access_confidential">Confidential</string>
     <string name="event_attendee_organizer">Organizer</string>

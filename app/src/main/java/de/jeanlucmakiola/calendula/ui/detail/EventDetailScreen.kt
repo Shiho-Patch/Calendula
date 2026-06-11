@@ -174,18 +174,30 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
             .verticalScroll(rememberScrollState())
             .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 40.dp),
     ) {
-        // Title with a short accent line in the calendar colour underneath.
-        // A cancelled event strikes through the title.
-        Text(
-            text = instance.title.ifBlank { stringResource(R.string.event_untitled) },
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.SemiBold,
-            textDecoration = if (detail.status == EventStatus.Cancelled) {
-                TextDecoration.LineThrough
-            } else {
-                null
-            },
-        )
+        // Title row: title on the left, a "Free" pill pinned top-right when the
+        // event doesn't block your time. Busy is the default for nearly every
+        // event, so it's left implicit — only Free is worth surfacing. A
+        // cancelled event strikes through its title.
+        Row(verticalAlignment = Alignment.Top) {
+            Text(
+                text = instance.title.ifBlank { stringResource(R.string.event_untitled) },
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+                textDecoration = if (detail.status == EventStatus.Cancelled) {
+                    TextDecoration.LineThrough
+                } else {
+                    null
+                },
+                modifier = Modifier.weight(1f),
+            )
+            if (detail.availability == Availability.Free) {
+                Spacer(Modifier.width(12.dp))
+                InfoChip(
+                    text = stringResource(R.string.event_availability_free),
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+        }
         Spacer(Modifier.height(10.dp))
         Box(
             modifier = Modifier
@@ -194,10 +206,15 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
                 .background(accent, RoundedCornerShape(2.dp)),
         )
 
-        // Status / availability / access chips. Availability is always known, so
-        // this row always shows at least the Free/Busy chip.
-        Spacer(Modifier.height(16.dp))
-        StatusChips(detail.status, detail.availability, detail.accessLevel)
+        // Status / access chips — shown only when noteworthy (Confirmed status
+        // and Default/Public access are the silent norm).
+        val hasStatusChips = detail.status != EventStatus.Confirmed ||
+            detail.accessLevel == AccessLevel.Private ||
+            detail.accessLevel == AccessLevel.Confidential
+        if (hasStatusChips) {
+            Spacer(Modifier.height(16.dp))
+            StatusChips(detail.status, detail.accessLevel)
+        }
 
         Spacer(Modifier.height(20.dp))
 
@@ -399,14 +416,10 @@ private fun AttendeeRow(attendee: Attendee) {
     }
 }
 
-/** Status / availability / access pills shown directly under the title accent. */
+/** Status / access pills shown directly under the title accent. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun StatusChips(
-    status: EventStatus,
-    availability: Availability,
-    accessLevel: AccessLevel,
-) {
+private fun StatusChips(status: EventStatus, accessLevel: AccessLevel) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -425,13 +438,6 @@ private fun StatusChips(
             EventStatus.Confirmed -> Unit
         }
 
-        val availabilityLabel = if (availability == Availability.Free) {
-            R.string.event_availability_free
-        } else {
-            R.string.event_availability_busy
-        }
-        InfoChip(text = stringResource(availabilityLabel))
-
         when (accessLevel) {
             AccessLevel.Private -> InfoChip(text = stringResource(R.string.event_access_private))
             AccessLevel.Confidential ->
@@ -444,10 +450,11 @@ private fun StatusChips(
 @Composable
 private fun InfoChip(
     text: String,
+    modifier: Modifier = Modifier,
     container: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
     content: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
-    Surface(color = container, shape = RoundedCornerShape(8.dp)) {
+    Surface(color = container, shape = RoundedCornerShape(8.dp), modifier = modifier) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelMedium,

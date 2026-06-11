@@ -72,7 +72,6 @@
     <string name="event_status_tentative">Vorläufig</string>
     <string name="event_status_cancelled">Abgesagt</string>
     <string name="event_availability_free">Frei</string>
-    <string name="event_availability_busy">Gebucht</string>
     <string name="event_access_private">Privat</string>
     <string name="event_access_confidential">Vertraulich</string>
     <string name="event_attendee_organizer">Organisator</string>
