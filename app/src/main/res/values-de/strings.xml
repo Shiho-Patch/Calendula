@@ -159,6 +159,20 @@
     <!-- Geteilte Event-Strings -->
     <string name="event_untitled">(Ohne Titel)</string>
 
+    <!-- Erinnerungs-Benachrichtigungen (v1.4) -->
+    <string name="reminder_channel_name">Termin-Erinnerungen</string>
+    <string name="reminder_channel_description">Benachrichtigungen zu den Erinnerungszeiten deiner Termine</string>
+    <string name="reminder_onboarding_title">Keinen Termin mehr verpassen</string>
+    <string name="reminder_onboarding_body">Android zeigt Termin-Erinnerungen nicht von selbst — das muss eine Kalender-App tun. Überlass Calendula den Job.</string>
+    <string name="reminder_benefit_delivery_title">Erinnerungen, zugestellt</string>
+    <string name="reminder_benefit_delivery_body">Jede Erinnerung an deinen Terminen kommt pünktlich als Benachrichtigung an.</string>
+    <string name="reminder_benefit_duplicates_title">Noch eine zweite Kalender-App?</string>
+    <string name="reminder_benefit_duplicates_body">Wenn eine andere App ebenfalls Erinnerungen zeigt, siehst du sie doppelt — schalte sie dort oder hier ab.</string>
+    <string name="reminder_benefit_reversible_title">Jederzeit änderbar</string>
+    <string name="reminder_benefit_reversible_body">Der Schalter liegt in den Einstellungen unter Benachrichtigungen.</string>
+    <string name="reminder_onboarding_enable_button">Erinnerungen einschalten</string>
+    <string name="reminder_onboarding_skip_button">Später</string>
+
     <!-- View-Switcher (M1) -->
     <string name="view_month">Monat</string>
     <string name="view_week">Woche</string>
@@ -183,6 +197,9 @@
     <string name="settings_week_start_sunday">Sonntag</string>
     <string name="settings_section_event_form">Termin-Formular</string>
     <string name="settings_form_fields_hint">Standardmäßig angezeigte Felder — alles Weitere liegt hinter \"Weitere Felder\"</string>
+    <string name="settings_section_notifications">Benachrichtigungen</string>
+    <string name="settings_reminders">Termin-Erinnerungen</string>
+    <string name="settings_reminders_hint">Erinnerungen doppelt? Eine andere Kalender-App zeigt sie ebenfalls — schalte sie in einer der beiden ab.</string>
     <string name="settings_section_language">Sprache</string>
     <string name="settings_language">App-Sprache</string>
     <string name="settings_language_auto">Systemstandard</string>

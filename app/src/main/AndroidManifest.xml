@@ -4,6 +4,7 @@
 
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".CalendulaApp"
@@ -19,12 +20,27 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- The provider broadcasts EVENT_REMINDER at reminder time but posts
+             no notification itself — a calendar app must (v1.4, Etar model).
+             Exported: the broadcast arrives from the provider's process. -->
+        <receiver
+            android:name=".data.reminders.EventReminderReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.EVENT_REMINDER" />
+                <data
+                    android:host="com.android.calendar"
+                    android:scheme="content" />
+            </intent-filter>
+        </receiver>
 
         <!-- Persists the per-app language (M4) on API < 33, where the platform
              per-app-languages API is unavailable. On 33+ this is a no-op. -->

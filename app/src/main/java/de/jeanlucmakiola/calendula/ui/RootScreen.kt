@@ -10,14 +10,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import de.jeanlucmakiola.calendula.ui.permission.PermissionScreen
+import de.jeanlucmakiola.calendula.ui.permission.ReminderOnboardingScreen
+import de.jeanlucmakiola.calendula.ui.permission.ReminderOnboardingViewModel
 
 @Composable
-fun RootScreen(modifier: Modifier = Modifier) {
+fun RootScreen(
+    modifier: Modifier = Modifier,
+    requestedDetailKey: LongArray? = null,
+    onDetailKeyConsumed: () -> Unit = {},
+) {
     val context = LocalContext.current
     var hasPermission by remember {
         mutableStateOf(
@@ -40,7 +48,23 @@ fun RootScreen(modifier: Modifier = Modifier) {
     }
 
     if (hasPermission) {
-        CalendarHost(modifier = modifier)
+        // Second onboarding gate (v1.4, one-time): reminder notifications.
+        // Null until DataStore's first emission — render nothing for that
+        // frame instead of flashing the wrong screen.
+        val reminderOnboarding: ReminderOnboardingViewModel = hiltViewModel()
+        val onboardingDone by reminderOnboarding.onboardingDone.collectAsStateWithLifecycle()
+        when (onboardingDone) {
+            true -> CalendarHost(
+                modifier = modifier,
+                requestedDetailKey = requestedDetailKey,
+                onDetailKeyConsumed = onDetailKeyConsumed,
+            )
+            false -> ReminderOnboardingScreen(
+                onFinished = reminderOnboarding::finish,
+                modifier = modifier,
+            )
+            null -> {}
+        }
     } else {
         PermissionScreen(
             onGranted = { hasPermission = true },

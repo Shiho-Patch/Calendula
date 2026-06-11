@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Reminder notifications (v1.4): Calendula now delivers event reminders as
+  notifications itself — the system schedules them but posts nothing, so a
+  calendar app must (essential when Calendula is the only one installed).
+  Due reminders appear on a dedicated "Event reminders" channel; tapping one
+  opens the event's detail screen. Email reminders are never posted (the
+  provider only schedules alert-type reminders)
+- A one-time onboarding step after the calendar grant introduces reminders,
+  requests the notification permission (Android 13+), and warns that a second
+  calendar app with notifications on will duplicate them. "Not now" leaves
+  the feature off
+- Settings gained a "Notifications" section mirroring the choice: an event-
+  reminders toggle (default on) with the duplicate-reminders hint; turning it
+  on re-requests the notification permission when missing
+
 ## [1.3.0] — 2026-06-11
 
 ### Added

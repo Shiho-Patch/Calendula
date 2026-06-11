@@ -86,6 +86,31 @@ class SettingsPrefs @Inject constructor(
         }
     }
 
+    /**
+     * Whether Calendula posts reminder notifications (v1.4). Defaults to ON —
+     * for users whose only calendar app this is, reminders are essential; the
+     * onboarding step and Settings warn about duplicates from a second app.
+     */
+    val remindersEnabled: Flow<Boolean> = store.data.map { prefs ->
+        prefs[REMINDERS_ENABLED_KEY] ?: true
+    }
+
+    suspend fun setRemindersEnabled(enabled: Boolean) {
+        store.edit { it[REMINDERS_ENABLED_KEY] = enabled }
+    }
+
+    /**
+     * Whether the one-time reminder onboarding step (after the calendar
+     * grant) has been shown — also true for users who tapped "not now".
+     */
+    val reminderOnboardingDone: Flow<Boolean> = store.data.map { prefs ->
+        prefs[REMINDER_ONBOARDING_KEY] ?: false
+    }
+
+    suspend fun setReminderOnboardingDone() {
+        store.edit { it[REMINDER_ONBOARDING_KEY] = true }
+    }
+
     private fun parseFormFields(stored: String?): Set<EventFormField> = when (stored) {
         null -> DEFAULT_FORM_FIELDS
         else -> stored.split(',')
@@ -98,6 +123,8 @@ class SettingsPrefs @Inject constructor(
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
         internal val WEEK_START_KEY = stringPreferencesKey("week_start")
         internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
+        internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")
+        internal val REMINDER_ONBOARDING_KEY = booleanPreferencesKey("reminder_onboarding_done")
         internal val DEFAULT_FORM_FIELDS =
             setOf(EventFormField.Location, EventFormField.Description)
     }

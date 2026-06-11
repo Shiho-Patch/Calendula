@@ -18,4 +18,6 @@ data class SettingsUiState(
     val weekStart: WeekStartPref = WeekStartPref.AUTO,
     /** Optional event-form fields shown by default (rest behind "more fields"). */
     val defaultFormFields: Set<EventFormField> = SettingsPrefs.DEFAULT_FORM_FIELDS,
+    /** Whether Calendula posts reminder notifications (v1.4). */
+    val remindersEnabled: Boolean = true,
 )

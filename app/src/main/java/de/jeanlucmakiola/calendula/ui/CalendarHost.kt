@@ -8,6 +8,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,9 +30,18 @@ import kotlinx.datetime.LocalDate
  * Holds the active top-level view (spec M1) and swaps between the calendar
  * screens. Each screen owns its own ViewModel and date anchor; the view-switcher
  * pill in their top bars writes back here via [onSelectView].
+ *
+ * [requestedDetailKey] is an externally requested occurrence (a tapped
+ * reminder notification routed through MainActivity): it opens the detail
+ * overlay exactly like an event tap and is cleared via [onDetailKeyConsumed]
+ * so a later recomposition can't re-open it.
  */
 @Composable
-fun CalendarHost(modifier: Modifier = Modifier) {
+fun CalendarHost(
+    modifier: Modifier = Modifier,
+    requestedDetailKey: LongArray? = null,
+    onDetailKeyConsumed: () -> Unit = {},
+) {
     var view by rememberSaveable { mutableStateOf(CalendarView.Week) }
     val onSelectView: (CalendarView) -> Unit = { view = it }
 
@@ -59,6 +69,15 @@ fun CalendarHost(modifier: Modifier = Modifier) {
         )
         heldKey = key
         detailKey = key
+    }
+
+    // A tapped reminder notification asks for a specific occurrence.
+    LaunchedEffect(requestedDetailKey) {
+        if (requestedDetailKey != null) {
+            heldKey = requestedDetailKey
+            detailKey = requestedDetailKey
+            onDetailKeyConsumed()
+        }
     }
 
     // Settings (M4) is hoisted here so it overlays whichever calendar view is

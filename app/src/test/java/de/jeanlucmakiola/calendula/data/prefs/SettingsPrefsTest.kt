@@ -101,6 +101,27 @@ class SettingsPrefsTest {
     }
 
     @Test
+    fun `reminders default to enabled, onboarding to not done`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.remindersEnabled.first()).isTrue()
+        assertThat(prefs.reminderOnboardingDone.first()).isFalse()
+    }
+
+    @Test
+    fun `reminders toggle round-trips`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        prefs.setRemindersEnabled(false)
+        assertThat(prefs.remindersEnabled.first()).isFalse()
+    }
+
+    @Test
+    fun `reminder onboarding completes one-way`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        prefs.setReminderOnboardingDone()
+        assertThat(prefs.reminderOnboardingDone.first()).isTrue()
+    }
+
+    @Test
     fun `explicit week-start prefs resolve regardless of locale`() {
         assertThat(WeekStartPref.MONDAY.resolveFirstDay(Locale.US)).isEqualTo(DayOfWeek.MONDAY)
         assertThat(WeekStartPref.SUNDAY.resolveFirstDay(Locale.GERMANY)).isEqualTo(DayOfWeek.SUNDAY)

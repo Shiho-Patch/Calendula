@@ -160,6 +160,20 @@
     <!-- Shared event strings -->
     <string name="event_untitled">(No title)</string>
 
+    <!-- Reminder notifications (v1.4) -->
+    <string name="reminder_channel_name">Event reminders</string>
+    <string name="reminder_channel_description">Notifications at the reminder times of your events</string>
+    <string name="reminder_onboarding_title">Never miss an event</string>
+    <string name="reminder_onboarding_body">Android doesn\'t show event reminders by itself — a calendar app has to. Let Calendula take that job.</string>
+    <string name="reminder_benefit_delivery_title">Reminders, delivered</string>
+    <string name="reminder_benefit_delivery_body">Every reminder on your events arrives as a notification, right on time.</string>
+    <string name="reminder_benefit_duplicates_title">Using a second calendar app?</string>
+    <string name="reminder_benefit_duplicates_body">If another app also posts reminders, you\'ll see them twice — turn them off there or here.</string>
+    <string name="reminder_benefit_reversible_title">Change it anytime</string>
+    <string name="reminder_benefit_reversible_body">The switch lives in Settings, under Notifications.</string>
+    <string name="reminder_onboarding_enable_button">Turn on reminders</string>
+    <string name="reminder_onboarding_skip_button">Not now</string>
+
     <!-- View switcher (M1) -->
     <string name="view_month">Month</string>
     <string name="view_week">Week</string>
@@ -184,6 +198,9 @@
     <string name="settings_week_start_sunday">Sunday</string>
     <string name="settings_section_event_form">New event form</string>
     <string name="settings_form_fields_hint">Fields shown by default — everything else sits behind \"More fields\"</string>
+    <string name="settings_section_notifications">Notifications</string>
+    <string name="settings_reminders">Event reminders</string>
+    <string name="settings_reminders_hint">Seeing reminders twice? Another calendar app is posting them too — turn them off in one of the two.</string>
     <string name="settings_section_language">Language</string>
     <string name="settings_language">App language</string>
     <string name="settings_language_auto">System default</string>

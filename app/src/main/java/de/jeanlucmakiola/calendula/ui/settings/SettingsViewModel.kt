@@ -28,13 +28,15 @@ class SettingsViewModel @Inject constructor(
             prefs.dynamicColor,
             prefs.weekStart,
             prefs.defaultFormFields,
-        ) { theme, dynamic, weekStart, formFields ->
+            prefs.remindersEnabled,
+        ) { theme, dynamic, weekStart, formFields, reminders ->
             SettingsUiState(
                 themeMode = theme,
                 dynamicColor = dynamic && dynamicColorAvailable,
                 dynamicColorAvailable = dynamicColorAvailable,
                 weekStart = weekStart,
                 defaultFormFields = formFields,
+                remindersEnabled = reminders,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -56,5 +58,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setFormFieldDefault(field: EventFormField, enabled: Boolean) {
         viewModelScope.launch { prefs.setFormFieldDefault(field, enabled) }
+    }
+
+    fun setRemindersEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefs.setRemindersEnabled(enabled) }
     }
 }

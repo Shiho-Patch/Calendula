@@ -14,6 +14,8 @@ import de.jeanlucmakiola.calendula.data.calendar.AndroidCalendarDataSource
 import de.jeanlucmakiola.calendula.data.calendar.CalendarDataSource
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepositoryImpl
+import de.jeanlucmakiola.calendula.data.reminders.AndroidReminderAlertStore
+import de.jeanlucmakiola.calendula.data.reminders.ReminderAlertStore
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import javax.inject.Singleton
@@ -37,6 +39,12 @@ abstract class DataBindModule {
     abstract fun bindCalendarRepository(
         impl: CalendarRepositoryImpl,
     ): CalendarRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindReminderAlertStore(
+        impl: AndroidReminderAlertStore,
+    ): ReminderAlertStore
 }
 
 @Module
