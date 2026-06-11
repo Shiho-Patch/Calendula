@@ -5,9 +5,10 @@
 ## Status
 
 **Milestone:** v2.0 — Write support (milestone 2, in progress)
-**Phase:** v1.1.0 shipped 2026-06-11 (write foundation + delete). Milestone 2
-runs in four slices (`docs/superpowers/plans/2026-06-11-03-write-support.md`);
-next up is v1.2 (create event).
+**Phase:** v1.2.0 shipped 2026-06-11 (create event), after v1.1.0 the same
+day (write foundation + delete). Milestone 2 runs in four slices
+(`docs/superpowers/plans/2026-06-11-03-write-support.md`); next up is v1.3
+(edit event).
 
 ## Progress
 
@@ -35,7 +36,15 @@ next up is v1.2 (create event).
   "only this event" via cancelled exception / "all events in the series"),
   repository + mapper tests
 
+- [x] v1.2 create event — full-screen `EventEditScreen` (title, all-day,
+  M3 date/time pickers with duration-preserving start moves, writable-only
+  calendar picker preselecting the last-used calendar, location, description),
+  "+" FAB on all three views prefilled with the visible day, `insertEvent`
+  with provider-correct all-day normalisation (UTC midnights, exclusive end),
+  domain/mapper/repository tests
+
 ## Next
 
-1. v1.2 — create event: form screen, FAB, default-calendar pref, `insertEvent`
-2. Monitor the F-Droid build/publish for v1.1.0
+1. v1.3 — edit event: reuse the form, series edit, reminder edit, simple
+   recurrence picker
+2. Monitor the F-Droid build/publish for v1.1.0 / v1.2.0

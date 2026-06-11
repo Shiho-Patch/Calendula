@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-06-11
+
+### Added
+- Create events (milestone 2, slice 2):
+  - A "+" FAB on the month, week, and day views opens a new full-screen event
+    form, prefilled with the visible day (today at the next full hour, or
+    09:00 on other days)
+  - The form covers title, all-day toggle, start/end with Material 3 date and
+    time pickers (moving the start drags the end along, preserving duration),
+    target calendar, location, and description
+  - The calendar picker offers only writable calendars and preselects the one
+    you last created an event in
+  - Validation on save ("ends before it starts", no writable calendar), with
+    the same contextual write-permission upgrade as delete
+  - All-day events are stored provider-correctly (UTC midnights, exclusive
+    end), timed events in the device time zone
+
+### Changed
+- The jump-to-today pill now stacks above the new "+" FAB instead of being
+  the only floating action
+- `versionName`/`versionCode` bumped to 1.2.0 / 9
+
 ## [1.1.0] — 2026-06-11
 
 ### Added
