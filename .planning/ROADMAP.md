@@ -53,7 +53,7 @@ after v0.6 (full event read) plus the onboarding-screen polish pass.
 - ~~Redesign the initial grant-access (permission) screen~~ — **done**
   (Material 3 Expressive onboarding, shipped in v0.6.0 / v1.0.0)
 
-## v2.0 — Write Support (in progress)
+## v2.0 — Write Support (complete, shipped 2026-06-11)
 
 Delivered in four releasable slices (plan:
 `docs/superpowers/plans/2026-06-11-03-write-support.md`). The V1 spec is a
@@ -66,7 +66,7 @@ guide here, not a contract — scope per slice is decided as we go.
 | v1.2.1 | Form polish after on-device review — card design system, optional fields + settings defaults, OptionCard dialogs, expressive motion | complete (shipped 2026-06-11) |
 | v1.3 | Edit event — shared form, scoped recurring writes (this / following / all), recurrence picker | complete (shipped 2026-06-11) |
 | v1.4 | Reminder notifications — see below | complete (shipped 2026-06-11) |
-| v2.0 | Conflict dialog, polish pass (stale read-only copy in F-Droid/README), release | planned |
+| v2.0 | Conflict dialog, polish pass (store copy refresh, F-Droid screenshots), release | complete (shipped 2026-06-11) |
 
 v2.0 scope was re-cut on 2026-06-11, after v1.4:
 - **Occurrence edit** already shipped early, in v1.3.

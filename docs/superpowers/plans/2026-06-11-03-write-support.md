@@ -48,7 +48,7 @@ Domain bleibt pure Kotlin.
 | v1.1 | Write-Fundament: `WRITE_CALENDAR`, `canModifyContents`, Delete (Serie + einzelnes Vorkommen) | ausgeliefert (v1.1.0, 2026-06-11) |
 | v1.2 | Create: Event-Formular (Titel, Kalender, ganztägig, Start/Ende, Ort, Beschreibung), FAB, Default-Kalender-Pref | ausgeliefert (v1.2.0, 2026-06-11) |
 | v1.3 | Edit: Formular wiederverwendet, Serien-Edit, Reminder-Edit, einfacher Recurrence-Picker | ausgeliefert (v1.3.0, 2026-06-11) |
-| v2.0 | Konflikt-Dialog, Polish-Pass (read-only-Copy in F-Droid/README), Release | offen (Scope-Recut, s.u.) |
+| v2.0 | Konflikt-Dialog, Polish-Pass (Store-Copy, Screenshots), Release | ausgeliefert (v2.0.0, 2026-06-11) |
 
 ## v1.1 — Write-Fundament + Delete
 
@@ -200,4 +200,5 @@ Bearbeiten (Sync-Adapter-Minenfeld, sperren auch alle Stock-Apps).
       aktualisiert (DE+EN)
 - [x] F-Droid-Screenshots (de-DE + en-US, je 6: Woche/Monat/Tag/Detail/
       Formular/Onboarding) — mit Demo-Kalendern auf dem Gerät aufgenommen
-- Changelog, Release-Tag v2.0.0 (nach On-Device-Review)
+- [x] Changelog, Release-Tag v2.0.0 (ausgeliefert 2026-06-11 — Milestone 2
+      damit abgeschlossen)

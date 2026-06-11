@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-06-11
+
 ### Added
 - Conflict handling when saving an edit: if the event changed elsewhere
   (sync, another device) while the form was open, saving now asks whether
@@ -19,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - F-Droid description and README no longer claim the app is read-only —
   they now describe write support and reminder delivery
+
+### Fixed
+- `versionName`/`versionCode` bumped to 2.0.0 / 13 — closing out the
+  write-support milestone (v1.1 through v2.0)
 
 ## [1.4.0] — 2026-06-11
 
