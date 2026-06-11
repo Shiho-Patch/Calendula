@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-06-11
+
+First public release. Calendula is a read-only, Material 3 Expressive calendar
+that lives entirely on top of Android's `CalendarContract` — every calendar
+synced to the device (CalDAV via DAVx5, Google, local, WebCal, …) shows up
+automatically, with zero telemetry and no internet permission.
+
+### Highlights (accumulated across v0.1 → v0.6)
+- Month, week, and day views with a view switcher, swipe navigation, and
+  Loading / Failure / Success states on every screen
+- Full-screen event detail surfacing every readable `CalendarContract` field —
+  times, recurrence (humanised), location, description (with tappable links),
+  attendees + roles + your own response, reminders, status, availability,
+  access level, and foreign time zones
+- Per-calendar visibility filter (grouped by account, persisted) and a Settings
+  screen (theme, Material You dynamic colour, week start, app language)
+- Material 3 Expressive first-run onboarding for calendar access
+- German + English localization throughout
+
+### Changed
+- `versionName`/`versionCode` bumped to 1.0.0 / 7
+
 ## [0.6.0] — 2026-06-11
 
 ### Added

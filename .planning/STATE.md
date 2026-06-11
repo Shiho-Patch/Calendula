@@ -4,10 +4,10 @@
 
 ## Status
 
-**Milestone:** v0.6 — Full event read (complete)
-**Phase:** All V1 screens done and the read model is now complete — the detail
-view surfaces every readable `CalendarContract` field. Next up is a UI
-polish/QA pass before v1.0
+**Milestone:** v1.0.0 — First public release (shipped 2026-06-11)
+**Phase:** V1 is complete and released. All screens done, the read model
+surfaces every readable `CalendarContract` field, and the onboarding screen
+got its Material 3 Expressive polish pass. Next horizon is v2.0 (write support)
 
 ## Progress
 
@@ -30,5 +30,5 @@ polish/QA pass before v1.0
 
 ## Next
 
-1. UI polish / QA pass across all views before v1.0
-2. F-Droid release of v1.0
+1. v1.0.0 released — monitor the F-Droid build/publish
+2. Plan v2.0 (write support: create / edit / delete, quick-add, conflict UX)
