@@ -24,15 +24,32 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+
+      - name: Setup Android SDK cache
+        uses: actions/cache@v4
+        with:
+          path: /opt/android-sdk
+          key: ${{ runner.os }}-android-sdk-37-36.0.0
 
       - name: Install Android SDK packages
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager \
             "platform-tools" \
-            "platforms;android-36" \
             "platforms;android-37.0" \
             "build-tools;36.0.0"
+
+      - name: Setup Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
@@ -42,10 +59,10 @@ jobs:
       # any tag-resolved drift (e.g. version code substitution issues).
 
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest --no-daemon
+        run: ./gradlew testDebugUnitTest
 
       - name: Assemble debug APK (sanity)
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug
 
   build-and-deploy:
     needs: ci
@@ -65,15 +82,32 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+
+      - name: Setup Android SDK cache
+        uses: actions/cache@v4
+        with:
+          path: /opt/android-sdk
+          key: ${{ runner.os }}-android-sdk-37-36.0.0
 
       - name: Install Android SDK packages
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager \
             "platform-tools" \
-            "platforms;android-36" \
             "platforms;android-37.0" \
             "build-tools;36.0.0"
+
+      - name: Setup Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
       - name: Install jq
         run: |
@@ -121,7 +155,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build release APK
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease
 
       - name: Setup F-Droid Server Tools
         run: |

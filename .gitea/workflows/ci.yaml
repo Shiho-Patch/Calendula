@@ -6,7 +6,11 @@ on:
       - '**'
     tags-ignore:
       - '**'
-  pull_request:
+
+# Cancel superseded runs on the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
@@ -26,29 +30,24 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # Default ("tools platform-tools") drags in the Android Emulator
+          # (~300 MB) which the build never uses.
+          packages: ''
+
+      - name: Setup Android SDK cache
+        uses: actions/cache@v4
+        with:
+          path: /opt/android-sdk
+          key: ${{ runner.os }}-android-sdk-37-36.0.0
 
       - name: Install Android SDK packages
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager \
             "platform-tools" \
-            "platforms;android-36" \
             "platforms;android-37.0" \
             "build-tools;36.0.0"
-
-      - name: Install jq
-        run: |
-          set -e
-          SUDO=""
-          if command -v sudo >/dev/null 2>&1; then
-            SUDO="sudo"
-          fi
-          if command -v apt-get >/dev/null 2>&1; then
-            $SUDO apt-get update
-            $SUDO apt-get install -y jq
-          elif command -v apk >/dev/null 2>&1; then
-            $SUDO apk add --no-cache jq
-          fi
 
       - name: Setup Gradle cache
         uses: actions/cache@v4
@@ -63,16 +62,19 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      # No --no-daemon: the daemon lives only as long as this job container
+      # and lets the following steps skip JVM startup + reconfiguration.
       - name: Lint (debug variant only)
-        run: ./gradlew lintDebug --no-daemon
+        run: ./gradlew lintDebug
 
       - name: Unit tests
-        run: ./gradlew testDebugUnitTest --no-daemon
+        run: ./gradlew testDebugUnitTest
 
       - name: Assemble debug APK
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug
 
       - name: Trivy filesystem scan
+        if: github.ref == 'refs/heads/main'
         run: |
           set -e
           SUDO=""
