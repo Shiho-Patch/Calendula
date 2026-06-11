@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-06-11
+
+### Added
+- Event editing: a pencil action on the detail screen (writable calendars
+  only) opens the event form prefilled with the event. Only fields you
+  actually changed are written back; saving an untouched form is a no-op.
+  Sections holding data are always shown, regardless of the form-field
+  defaults; the calendar itself can't be changed while editing
+- Recurring events — scoped writes, chosen when saving (Google model):
+  "only this event" (a modified-occurrence exception), "this and all
+  following" (the series is split at the occurrence), or "all events in
+  the series". Changing the recurrence rule rules out "only this event"
+- Deleting a recurring event gained the middle option too: "this and all
+  following events" ends the series just before the chosen occurrence
+- Recurrence picker (create and edit): one-tap daily/weekly/monthly/yearly
+  presets plus a custom step with interval + unit, weekday toggles for
+  weekly rules ("every week on Mon and Fri"), and an end condition (never /
+  on a date / after a number of times). Rules the picker can't express
+  (e.g. "second Thursday monthly") are shown humanized and preserved
+  verbatim unless replaced. Recurrence also joined the optional form
+  fields and their settings defaults
+- Validation: a repeat that would end before the event starts is flagged
+  (it would otherwise vanish from every view)
+
+### Changed
+- Editing reminders reconciles against the provider's actual rows:
+  reminders you didn't touch keep their method (e.g. email reminders on
+  synced events survive unrelated edits)
+- The contextual WRITE_CALENDAR upgrade for v1.0 installs covers the edit
+  action like delete
+
+### Fixed
+- Splitting a series ("this and following") sends the complete time-column
+  set in one update, so the provider regenerates its cached instances — an
+  RRULE-only update left a stale duplicate of the tapped occurrence on the
+  split day
+- RRULE UNTIL values are written as the local end of day expressed in UTC
+  (instead of a flat `T235959Z`), so recurrences can't leak an extra day in
+  timezones ahead of UTC
+- `versionName`/`versionCode` bumped to 1.3.0 / 11
+
 ## [1.2.1] — 2026-06-11
 
 ### Added
