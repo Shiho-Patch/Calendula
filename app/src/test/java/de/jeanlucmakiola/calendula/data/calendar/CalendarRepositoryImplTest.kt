@@ -7,8 +7,12 @@ import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import kotlinx.coroutines.Dispatchers
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -154,6 +158,43 @@ class CalendarRepositoryImplTest {
 
             assertThat(awaitItem().map { it.title }).containsExactly("A")
             cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `createEvent delegates and returns the new id`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource().apply { nextInsertId = 77L }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val form = EventForm(
+            calendarId = 1L,
+            title = "Stand-up",
+            start = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(9, 15)),
+        )
+
+        val id = repo.createEvent(form)
+
+        assertThat(id).isEqualTo(77L)
+        assertThat(fake.insertedForms).containsExactly(form)
+    }
+
+    @Test
+    fun `createEvent propagates write failures`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource().apply {
+            writeError = WriteFailedException("insert event")
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val form = EventForm(
+            calendarId = 1L,
+            start = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(10, 0)),
+        )
+
+        try {
+            repo.createEvent(form)
+            error("Expected WriteFailedException")
+        } catch (expected: WriteFailedException) {
+            assertThat(expected.message).contains("insert")
         }
     }
 

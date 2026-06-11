@@ -54,6 +54,19 @@
     <string name="event_delete_failed">Termin konnte nicht gelöscht werden</string>
     <string name="event_delete_write_denied">Calendula braucht Schreibzugriff, um Termine zu löschen</string>
     <string name="dialog_cancel">Abbrechen</string>
+    <string name="dialog_ok">OK</string>
+
+    <!-- Termin-Formular (v1.2 Erstellen) -->
+    <string name="event_edit_new_title">Neuer Termin</string>
+    <string name="event_edit_close">Schließen</string>
+    <string name="event_edit_save">Speichern</string>
+    <string name="event_edit_title_hint">Titel hinzufügen</string>
+    <string name="event_edit_starts">Beginn</string>
+    <string name="event_edit_ends">Ende</string>
+    <string name="event_edit_error_end_before_start">Endet vor dem Beginn</string>
+    <string name="event_edit_error_no_calendar">Kein beschreibbarer Kalender verfügbar</string>
+    <string name="event_edit_save_failed">Termin konnte nicht gespeichert werden</string>
+    <string name="event_edit_write_denied">Calendula braucht Schreibzugriff, um Termine zu erstellen</string>
     <string name="event_detail_all_day">Ganztägig</string>
     <string name="event_detail_calendar">Kalender</string>
     <string name="event_detail_calendar_unknown">Unbekannter Kalender</string>

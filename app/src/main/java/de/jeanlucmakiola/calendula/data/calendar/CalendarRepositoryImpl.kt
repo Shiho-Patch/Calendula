@@ -4,6 +4,7 @@ import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventDetail
+import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -67,6 +68,10 @@ class CalendarRepositoryImpl @Inject constructor(
 
     override suspend fun eventDetail(eventId: Long): EventDetail = withContext(io) {
         dataSource.eventDetail(eventId) ?: throw NoSuchEventException(eventId)
+    }
+
+    override suspend fun createEvent(form: EventForm): Long = withContext(io) {
+        dataSource.insertEvent(form)
     }
 
     override suspend fun deleteEvent(eventId: Long) = withContext(io) {

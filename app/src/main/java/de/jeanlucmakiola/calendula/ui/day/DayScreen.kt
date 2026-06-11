@@ -1,11 +1,8 @@
 package de.jeanlucmakiola.calendula.ui.day
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -28,12 +25,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -72,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
+import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
@@ -108,6 +104,7 @@ fun DayScreen(
     onSelectView: (CalendarView) -> Unit,
     onEventClick: (EventInstance) -> Unit,
     onOpenSettings: () -> Unit,
+    onCreateEvent: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     initialDateIso: String? = null,
     viewModel: DayViewModel = hiltViewModel(),
@@ -172,17 +169,12 @@ fun DayScreen(
                 )
             },
             floatingActionButton = {
-                AnimatedVisibility(
-                    visible = !isOnToday,
-                    enter = scaleIn(),
-                    exit = scaleOut(),
-                ) {
-                    ExtendedFloatingActionButton(
-                        onClick = jumpToToday,
-                        icon = { Icon(Icons.Default.Refresh, contentDescription = null) },
-                        text = { Text(stringResource(R.string.day_today_action)) },
-                    )
-                }
+                CalendarFabColumn(
+                    todayVisible = !isOnToday,
+                    todayText = stringResource(R.string.day_today_action),
+                    onToday = jumpToToday,
+                    onCreate = { onCreateEvent(date) },
+                )
             },
         ) { innerPadding ->
             DayContent(

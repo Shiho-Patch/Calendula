@@ -19,6 +19,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.day.DayScreen
 import de.jeanlucmakiola.calendula.ui.detail.EventDetailScreen
+import de.jeanlucmakiola.calendula.ui.edit.EventEditScreen
 import de.jeanlucmakiola.calendula.ui.month.MonthScreen
 import de.jeanlucmakiola.calendula.ui.settings.SettingsScreen
 import de.jeanlucmakiola.calendula.ui.week.WeekScreen
@@ -66,6 +67,15 @@ fun CalendarHost(modifier: Modifier = Modifier) {
     var showSettings by rememberSaveable { mutableStateOf(false) }
     val onOpenSettings = { showSettings = true }
 
+    // Event form (v1.2 create) — same held-key pattern as the detail screen:
+    // [heldCreateIso] keeps the prefill date alive through the slide-out.
+    var createDateIso by rememberSaveable { mutableStateOf<String?>(null) }
+    var heldCreateIso by remember { mutableStateOf<String?>(null) }
+    val onCreateEvent: (LocalDate) -> Unit = { date ->
+        heldCreateIso = date.toString()
+        createDateIso = date.toString()
+    }
+
     val slideSpec = rememberCalendarSlideSpec()
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -75,12 +85,14 @@ fun CalendarHost(modifier: Modifier = Modifier) {
                 onSelectView = onSelectView,
                 onEventClick = onEventClick,
                 onOpenSettings = onOpenSettings,
+                onCreateEvent = onCreateEvent,
             )
             CalendarView.Day -> DayScreen(
                 selectedView = view,
                 onSelectView = onSelectView,
                 onEventClick = onEventClick,
                 onOpenSettings = onOpenSettings,
+                onCreateEvent = onCreateEvent,
                 initialDateIso = pendingDayIso,
             )
             CalendarView.Month -> MonthScreen(
@@ -88,6 +100,7 @@ fun CalendarHost(modifier: Modifier = Modifier) {
                 onSelectView = onSelectView,
                 onOpenDay = onOpenDay,
                 onOpenSettings = onOpenSettings,
+                onCreateEvent = onCreateEvent,
             )
         }
 
@@ -104,6 +117,20 @@ fun CalendarHost(modifier: Modifier = Modifier) {
                     beginMillis = key[1],
                     endMillis = key[2],
                     onBack = { detailKey = null },
+                )
+            }
+        }
+
+        // Event form (v1.2) — full-screen destination, slides over the calendar.
+        AnimatedVisibility(
+            visible = createDateIso != null,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            (createDateIso ?: heldCreateIso)?.let { iso ->
+                EventEditScreen(
+                    initialDateIso = iso,
+                    onClose = { createDateIso = null },
                 )
             }
         }

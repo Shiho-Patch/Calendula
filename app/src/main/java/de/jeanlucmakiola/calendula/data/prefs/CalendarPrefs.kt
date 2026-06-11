@@ -3,6 +3,7 @@ package de.jeanlucmakiola.calendula.data.prefs
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -38,7 +39,20 @@ class CalendarPrefs @Inject constructor(
         }
     }
 
+    /**
+     * The calendar the user last created an event in; preselected in the
+     * event form. Null until the first event is created.
+     */
+    val lastUsedCalendarId: Flow<Long?> = store.data.map { prefs ->
+        prefs[LAST_USED_CALENDAR_KEY]
+    }
+
+    suspend fun setLastUsedCalendarId(id: Long) {
+        store.edit { prefs -> prefs[LAST_USED_CALENDAR_KEY] = id }
+    }
+
     companion object {
         internal val HIDDEN_IDS_KEY = stringPreferencesKey("hidden_calendar_ids")
+        internal val LAST_USED_CALENDAR_KEY = longPreferencesKey("last_used_calendar_id")
     }
 }

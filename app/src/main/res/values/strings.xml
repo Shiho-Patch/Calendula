@@ -55,6 +55,19 @@
     <string name="event_delete_failed">Couldn\'t delete the event</string>
     <string name="event_delete_write_denied">Calendula needs write access to delete events</string>
     <string name="dialog_cancel">Cancel</string>
+    <string name="dialog_ok">OK</string>
+
+    <!-- Event form (v1.2 create) -->
+    <string name="event_edit_new_title">New event</string>
+    <string name="event_edit_close">Close</string>
+    <string name="event_edit_save">Save</string>
+    <string name="event_edit_title_hint">Add title</string>
+    <string name="event_edit_starts">Starts</string>
+    <string name="event_edit_ends">Ends</string>
+    <string name="event_edit_error_end_before_start">Ends before it starts</string>
+    <string name="event_edit_error_no_calendar">No writable calendar available</string>
+    <string name="event_edit_save_failed">Couldn\'t save the event</string>
+    <string name="event_edit_write_denied">Calendula needs write access to create events</string>
     <string name="event_detail_all_day">All day</string>
     <string name="event_detail_calendar">Calendar</string>
     <string name="event_detail_calendar_unknown">Unknown calendar</string>

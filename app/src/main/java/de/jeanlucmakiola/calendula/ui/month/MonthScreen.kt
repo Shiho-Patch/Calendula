@@ -1,10 +1,7 @@
 package de.jeanlucmakiola.calendula.ui.month
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -23,13 +20,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -62,6 +57,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
+import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
@@ -74,8 +70,11 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.YearMonth
 import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
@@ -86,6 +85,7 @@ fun MonthScreen(
     onSelectView: (CalendarView) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     onOpenSettings: () -> Unit,
+    onCreateEvent: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MonthViewModel = hiltViewModel(),
 ) {
@@ -147,17 +147,20 @@ fun MonthScreen(
                 )
             },
             floatingActionButton = {
-                AnimatedVisibility(
-                    visible = !isOnCurrentMonth,
-                    enter = scaleIn(),
-                    exit = scaleOut(),
-                ) {
-                    ExtendedFloatingActionButton(
-                        onClick = jumpToToday,
-                        icon = { Icon(Icons.Default.Refresh, contentDescription = null) },
-                        text = { Text(stringResource(R.string.month_today_action)) },
-                    )
-                }
+                CalendarFabColumn(
+                    todayVisible = !isOnCurrentMonth,
+                    todayText = stringResource(R.string.month_today_action),
+                    onToday = jumpToToday,
+                    onCreate = {
+                        // Anchor on today when its month is shown, else the 1st.
+                        val today = Clock.System.now()
+                            .toLocalDateTime(TimeZone.currentSystemDefault()).date
+                        onCreateEvent(
+                            if (isOnCurrentMonth) today
+                            else LocalDate(month.year, month.month, 1),
+                        )
+                    },
+                )
             },
         ) { innerPadding ->
             Column(

@@ -13,8 +13,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.domain.Attendee
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventDetail
+import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.Reminder
+import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,6 +32,9 @@ interface CalendarDataSource {
     fun calendars(): List<CalendarSource>
     fun instances(beginMillis: Long, endMillis: Long): List<EventInstance>
     fun eventDetail(eventId: Long): EventDetail?
+
+    /** Insert a new event; returns the new `Events._ID`. */
+    fun insertEvent(form: EventForm): Long
 
     /** Delete the whole event (for recurring events: the entire series). */
     fun deleteEvent(eventId: Long)
@@ -83,6 +88,28 @@ class AndroidCalendarDataSource @Inject constructor(
             if (!c.moveToFirst()) null
             else CursorColumnReader(c).toEventDetailCore(attendees, reminders)
         }
+    }
+
+    override fun insertEvent(form: EventForm): Long {
+        val times = form.toWriteTimes(ZoneId.systemDefault())
+        val values = ContentValues().apply {
+            put(
+                CalendarContract.Events.CALENDAR_ID,
+                requireNotNull(form.calendarId) { "EventForm.calendarId is required" },
+            )
+            put(CalendarContract.Events.TITLE, form.title.trim())
+            put(CalendarContract.Events.ALL_DAY, if (form.isAllDay) 1 else 0)
+            put(CalendarContract.Events.DTSTART, times.dtStartMillis)
+            put(CalendarContract.Events.DTEND, times.dtEndMillis)
+            put(CalendarContract.Events.EVENT_TIMEZONE, times.timezone)
+            form.location.trim().takeIf { it.isNotEmpty() }
+                ?.let { put(CalendarContract.Events.EVENT_LOCATION, it) }
+            form.description.trim().takeIf { it.isNotEmpty() }
+                ?.let { put(CalendarContract.Events.DESCRIPTION, it) }
+        }
+        val uri = resolver.insert(CalendarContract.Events.CONTENT_URI, values)
+            ?: throw WriteFailedException("insert event into calendar id=${form.calendarId}")
+        return ContentUris.parseId(uri)
     }
 
     override fun deleteEvent(eventId: Long) {

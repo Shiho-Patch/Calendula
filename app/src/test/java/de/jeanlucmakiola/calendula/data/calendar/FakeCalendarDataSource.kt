@@ -2,6 +2,7 @@ package de.jeanlucmakiola.calendula.data.calendar
 
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventDetail
+import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 
 /**
@@ -15,7 +16,10 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     var eventDetailResult: (Long) -> EventDetail? = { null }
     /** Set to make the next write call throw. */
     var writeError: Exception? = null
+    /** Id returned by the next [insertEvent]. */
+    var nextInsertId: Long = 100L
 
+    val insertedForms = mutableListOf<EventForm>()
     val deletedEventIds = mutableListOf<Long>()
     val deletedOccurrences = mutableListOf<Pair<Long, Long>>()
 
@@ -25,6 +29,12 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     override fun instances(beginMillis: Long, endMillis: Long): List<EventInstance> =
         instancesResult(beginMillis, endMillis)
     override fun eventDetail(eventId: Long): EventDetail? = eventDetailResult(eventId)
+
+    override fun insertEvent(form: EventForm): Long {
+        writeError?.let { throw it }
+        insertedForms += form
+        return nextInsertId
+    }
 
     override fun deleteEvent(eventId: Long) {
         writeError?.let { throw it }

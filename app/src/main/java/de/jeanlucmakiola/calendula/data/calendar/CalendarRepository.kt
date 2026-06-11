@@ -2,6 +2,7 @@ package de.jeanlucmakiola.calendula.data.calendar
 
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventDetail
+import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Instant
@@ -10,6 +11,9 @@ interface CalendarRepository {
     fun calendars(): Flow<List<CalendarSource>>
     fun instances(range: ClosedRange<Instant>): Flow<List<EventInstance>>
     suspend fun eventDetail(eventId: Long): EventDetail
+
+    /** Create a new event from a validated form; returns the new `Events._ID`. */
+    suspend fun createEvent(form: EventForm): Long
 
     /** Delete the whole event (for recurring events: the entire series). */
     suspend fun deleteEvent(eventId: Long)

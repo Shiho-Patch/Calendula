@@ -45,8 +45,8 @@ Domain bleibt pure Kotlin.
 
 | Slice | Inhalt | Status |
 |---|---|---|
-| v1.1 | Write-Fundament: `WRITE_CALENDAR`, `canModifyContents`, Delete (Serie + einzelnes Vorkommen) | in Arbeit |
-| v1.2 | Create: Event-Formular (Titel, Kalender, ganztägig, Start/Ende, Ort, Beschreibung), FAB, Default-Kalender-Pref | offen |
+| v1.1 | Write-Fundament: `WRITE_CALENDAR`, `canModifyContents`, Delete (Serie + einzelnes Vorkommen) | ausgeliefert (v1.1.0, 2026-06-11) |
+| v1.2 | Create: Event-Formular (Titel, Kalender, ganztägig, Start/Ende, Ort, Beschreibung), FAB, Default-Kalender-Pref | ausgeliefert (v1.2.0, 2026-06-11) |
 | v1.3 | Edit: Formular wiederverwendet, Serien-Edit, Reminder-Edit, einfacher Recurrence-Picker | offen |
 | v2.0 | Quick-Add, Occurrence-Edit, Konflikt-Dialog, Polish-Pass, Release | offen |
 
@@ -82,15 +82,18 @@ Domain bleibt pure Kotlin.
 - [x] `CalendarRepositoryImplTest`: delete-Pfade (Erfolg, Fehler)
 - [x] `CalendarMapperTest`: Access-Level-Mapping
 
-## v1.2 — Create (Skizze)
+## v1.2 — Create
 
-- `EventForm`-Domain-Modell + Validierung (Ende > Start, Titel-Fallback)
-- `EventEditScreen` (ein Formular für Create+Edit), M3-Date/Time-Picker
-- FAB auf allen drei Hauptansichten, vorbelegt mit sichtbarem Tag/Slot
-- `CalendarPrefs.defaultCalendarId` + Auswahl im Formular (nur beschreibbare
-  Kalender anbieten)
-- `insertEvent(form): Long` im DataSource (`DTSTART/DTEND/EVENT_TIMEZONE`,
-  all-day in UTC)
+- [x] `EventForm`-Domain-Modell + Validierung (`problems()`: EndBeforeStart,
+      NoCalendar; leerer Titel und Instant-Events erlaubt)
+- [x] `EventEditScreen` (ein Formular, ab v1.3 auch für Edit), M3-Date/Time-Picker
+- [x] FAB-Stack auf allen drei Hauptansichten (`CalendarFabColumn`: "+" immer,
+      Heute-Pill darüber), vorbelegt mit dem sichtbaren Tag
+- [x] Kalender-Vorauswahl: explizit > zuletzt benutzt
+      (`CalendarPrefs.lastUsedCalendarId` statt Settings-Eintrag) > erster
+      beschreibbarer; Picker bietet nur beschreibbare Kalender an
+- [x] `insertEvent(form): Long` im DataSource; `EventWriteMapper` (JVM-testbar)
+      normalisiert all-day auf UTC-Mitternächte mit exklusivem DTEND
 
 ## v1.3 — Edit (Skizze)
 
