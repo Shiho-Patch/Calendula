@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,8 +32,10 @@ import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,25 +50,36 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Attendee
+import de.jeanlucmakiola.calendula.domain.AttendeeRelationship
 import de.jeanlucmakiola.calendula.domain.AttendeeStatus
+import de.jeanlucmakiola.calendula.domain.AttendeeType
+import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.EventStatus
+import de.jeanlucmakiola.calendula.domain.Reminder
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.pastelize
@@ -159,12 +174,30 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
             .verticalScroll(rememberScrollState())
             .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 40.dp),
     ) {
-        // Title with a short accent line in the calendar colour underneath.
-        Text(
-            text = instance.title.ifBlank { stringResource(R.string.event_untitled) },
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
+        // Title row: title on the left, a "Free" pill pinned top-right when the
+        // event doesn't block your time. Busy is the default for nearly every
+        // event, so it's left implicit — only Free is worth surfacing. A
+        // cancelled event strikes through its title.
+        Row(verticalAlignment = Alignment.Top) {
+            Text(
+                text = instance.title.ifBlank { stringResource(R.string.event_untitled) },
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+                textDecoration = if (detail.status == EventStatus.Cancelled) {
+                    TextDecoration.LineThrough
+                } else {
+                    null
+                },
+                modifier = Modifier.weight(1f),
+            )
+            if (detail.availability == Availability.Free) {
+                Spacer(Modifier.width(12.dp))
+                InfoChip(
+                    text = stringResource(R.string.event_availability_free),
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
+        }
         Spacer(Modifier.height(10.dp))
         Box(
             modifier = Modifier
@@ -172,6 +205,16 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
                 .height(3.dp)
                 .background(accent, RoundedCornerShape(2.dp)),
         )
+
+        // Status / access chips — shown only when noteworthy (Confirmed status
+        // and Default/Public access are the silent norm).
+        val hasStatusChips = detail.status != EventStatus.Confirmed ||
+            detail.accessLevel == AccessLevel.Private ||
+            detail.accessLevel == AccessLevel.Confidential
+        if (hasStatusChips) {
+            Spacer(Modifier.height(16.dp))
+            StatusChips(detail.status, detail.accessLevel)
+        }
 
         Spacer(Modifier.height(20.dp))
 
@@ -191,6 +234,18 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+
+        // Time zone — only when the event is timed and pinned to a zone other
+        // than the device's, so cross-zone events read unambiguously.
+        foreignTimeZoneLabel(detail.eventTimezone, instance.isAllDay, locale)?.let { tzLabel ->
+            Spacer(Modifier.height(gap))
+            DetailCard(
+                icon = Icons.Default.Public,
+                iconContentDescription = stringResource(R.string.event_detail_timezone),
+            ) {
+                Text(text = tzLabel, style = MaterialTheme.typography.titleMedium)
             }
         }
 
@@ -228,25 +283,60 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
             }
         }
 
-        // Description (conditional).
+        // Description (conditional). URLs are auto-linked.
         detail.description?.takeIf { it.isNotBlank() }?.let { description ->
             Spacer(Modifier.height(gap))
             DetailCard(
                 icon = Icons.AutoMirrored.Filled.Notes,
                 iconContentDescription = stringResource(R.string.event_detail_description),
             ) {
-                Text(text = description, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = linkifyUrls(description, MaterialTheme.colorScheme.primary),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
         }
 
-        // Attendees (conditional).
+        // Attendees (conditional). The user's own response leads the list, then
+        // each attendee with their role and reply.
         detail.attendees.takeIf { it.isNotEmpty() }?.let { attendees ->
             Spacer(Modifier.height(gap))
             DetailCard(
                 icon = Icons.Default.People,
                 iconContentDescription = stringResource(R.string.event_detail_attendees),
             ) {
+                if (detail.selfStatus != AttendeeStatus.Unknown) {
+                    Text(
+                        text = stringResource(
+                            R.string.event_detail_self_response,
+                            stringResource(attendeeStatusLabel(detail.selfStatus)),
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
                 attendees.forEach { AttendeeRow(it) }
+            }
+        }
+
+        // Reminders (conditional) — list each lead time before the event.
+        detail.reminders.takeIf { it.isNotEmpty() }?.let { reminders ->
+            Spacer(Modifier.height(gap))
+            DetailCard(
+                icon = Icons.Default.Notifications,
+                iconContentDescription = stringResource(R.string.event_detail_reminders),
+            ) {
+                reminders
+                    .distinctBy { it.minutes }
+                    .sortedBy { it.minutes }
+                    .forEach { reminder ->
+                        Text(
+                            text = reminderLeadText(reminder),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(vertical = 2.dp),
+                        )
+                    }
             }
         }
 
@@ -304,14 +394,72 @@ private fun AttendeeRow(attendee: Attendee) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = attendee.name.ifBlank { attendee.email.orEmpty() },
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = attendee.name.ifBlank { attendee.email.orEmpty() },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            attendeeRoleLabel(attendee)?.let { roleRes ->
+                Text(
+                    text = stringResource(roleRes),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        Spacer(Modifier.width(8.dp))
         Text(
             text = stringResource(attendeeStatusLabel(attendee.status)),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** Status / access pills shown directly under the title accent. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun StatusChips(status: EventStatus, accessLevel: AccessLevel) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        when (status) {
+            EventStatus.Cancelled -> InfoChip(
+                text = stringResource(R.string.event_status_cancelled),
+                container = MaterialTheme.colorScheme.errorContainer,
+                content = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            EventStatus.Tentative -> InfoChip(
+                text = stringResource(R.string.event_status_tentative),
+                container = MaterialTheme.colorScheme.tertiaryContainer,
+                content = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
+            EventStatus.Confirmed -> Unit
+        }
+
+        when (accessLevel) {
+            AccessLevel.Private -> InfoChip(text = stringResource(R.string.event_access_private))
+            AccessLevel.Confidential ->
+                InfoChip(text = stringResource(R.string.event_access_confidential))
+            AccessLevel.Default, AccessLevel.Public -> Unit
+        }
+    }
+}
+
+@Composable
+private fun InfoChip(
+    text: String,
+    modifier: Modifier = Modifier,
+    container: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    content: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+) {
+    Surface(color = container, shape = RoundedCornerShape(8.dp), modifier = modifier) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = content,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
         )
     }
 }
@@ -359,6 +507,77 @@ private fun attendeeStatusLabel(status: AttendeeStatus): Int = when (status) {
     AttendeeStatus.Tentative -> R.string.event_attendee_tentative
     AttendeeStatus.NeedsAction -> R.string.event_attendee_needs_action
     AttendeeStatus.Unknown -> R.string.event_attendee_unknown
+}
+
+/**
+ * The role badge shown under an attendee's name. Organizer wins over type;
+ * required attendees (the common case) get no badge to keep the list quiet.
+ */
+private fun attendeeRoleLabel(attendee: Attendee): Int? = when {
+    attendee.relationship == AttendeeRelationship.Organizer -> R.string.event_attendee_organizer
+    attendee.type == AttendeeType.Optional -> R.string.event_attendee_optional
+    attendee.type == AttendeeType.Resource -> R.string.event_attendee_resource
+    else -> null
+}
+
+/** Humanise a reminder's lead time, e.g. "10 minutes before" / "At time of event". */
+@Composable
+private fun reminderLeadText(reminder: Reminder): String {
+    val minutes = reminder.minutes
+    return when {
+        minutes < 0 -> stringResource(R.string.reminder_default)
+        minutes == 0 -> stringResource(R.string.reminder_at_time)
+        minutes % 10_080 == 0 -> {
+            val weeks = minutes / 10_080
+            pluralStringResource(R.plurals.reminder_weeks, weeks, weeks)
+        }
+        minutes % 1_440 == 0 -> {
+            val days = minutes / 1_440
+            pluralStringResource(R.plurals.reminder_days, days, days)
+        }
+        minutes % 60 == 0 -> {
+            val hours = minutes / 60
+            pluralStringResource(R.plurals.reminder_hours, hours, hours)
+        }
+        else -> pluralStringResource(R.plurals.reminder_minutes, minutes, minutes)
+    }
+}
+
+/**
+ * A localized label for [tz] (e.g. "Central European Time (Europe/Berlin)"),
+ * but only when the event is timed and pinned to a zone different from the
+ * device's. Returns null when there's nothing worth showing.
+ */
+private fun foreignTimeZoneLabel(tz: String?, isAllDay: Boolean, locale: Locale): String? {
+    if (isAllDay || tz.isNullOrBlank()) return null
+    val deviceZone = ZoneId.systemDefault().id
+    if (tz == deviceZone) return null
+    return try {
+        val zone = ZoneId.of(tz)
+        val name = zone.getDisplayName(JavaTextStyle.FULL, locale)
+        if (name == tz) tz else "$name ($tz)"
+    } catch (e: Exception) {
+        tz
+    }
+}
+
+/** Wrap http(s) URLs in [text] as tappable links tinted [linkColor]. */
+@Composable
+private fun linkifyUrls(text: String, linkColor: Color): AnnotatedString = remember(text, linkColor) {
+    val regex = Regex("""https?://\S+""")
+    val styles = TextLinkStyles(
+        style = SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline),
+    )
+    buildAnnotatedString {
+        append(text)
+        for (match in regex.findAll(text)) {
+            // Trim trailing punctuation that commonly abuts a URL in prose.
+            val raw = match.value
+            val url = raw.trimEnd('.', ',', ';', ':', '!', '?', ')', ']', '"', '\'')
+            val end = match.range.first + url.length
+            addLink(LinkAnnotation.Url(url, styles), match.range.first, end)
+        }
+    }
 }
 
 /**

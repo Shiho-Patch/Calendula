@@ -13,6 +13,7 @@ import de.jeanlucmakiola.calendula.domain.Attendee
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.Reminder
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -62,13 +63,14 @@ class AndroidCalendarDataSource @Inject constructor(
 
     override fun eventDetail(eventId: Long): EventDetail? {
         val attendees = queryAttendees(eventId)
+        val reminders = queryReminders(eventId)
         return resolver.query(
             ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId),
             EventDetailProjection.COLUMNS,
             null, null, null,
         )?.use { c ->
             if (!c.moveToFirst()) null
-            else CursorColumnReader(c).toEventDetailCore(attendees)
+            else CursorColumnReader(c).toEventDetailCore(attendees, reminders)
         }
     }
 
@@ -97,6 +99,14 @@ class AndroidCalendarDataSource @Inject constructor(
         arrayOf(eventId.toString()),
         null,
     )?.use { c -> c.mapAll { CursorColumnReader(c).toAttendee() } } ?: emptyList()
+
+    private fun queryReminders(eventId: Long): List<Reminder> = resolver.query(
+        CalendarContract.Reminders.CONTENT_URI,
+        ReminderProjection.COLUMNS,
+        CalendarContract.Reminders.EVENT_ID + " = ?",
+        arrayOf(eventId.toString()),
+        null,
+    )?.use { c -> c.mapAll { CursorColumnReader(c).toReminder() } } ?: emptyList()
 
     private fun toCalendarSource(c: Cursor): CalendarSource = CursorColumnReader(c).toCalendarSource()
 

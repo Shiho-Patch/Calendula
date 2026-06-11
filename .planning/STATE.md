@@ -1,13 +1,13 @@
 # Calendula — Current State
 
-*Last updated: 2026-06-10*
+*Last updated: 2026-06-11*
 
 ## Status
 
-**Milestone:** v0.5 — Calendar filter (M3) + Settings (M4) (complete)
-**Phase:** All V1 screens done. Jump-to-date (date-picker half of M2) cut from
-scope. Next up is v0.6 — full event read (surface every readable
-`CalendarContract` field) — then a polish/QA pass before v1.0
+**Milestone:** v1.0.0 — First public release (shipped 2026-06-11)
+**Phase:** V1 is complete and released. All screens done, the read model
+surfaces every readable `CalendarContract` field, and the onboarding screen
+got its Material 3 Expressive polish pass. Next horizon is v2.0 (write support)
 
 ## Progress
 
@@ -23,12 +23,12 @@ scope. Next up is v0.6 — full event read (surface every readable
 - [x] Filter sheet (M3) — per-calendar visibility, grouped by account, persisted, applied centrally in the repository
 - [x] Settings (M4) — appearance (theme, dynamic colour, week start), language (per-app locales), about
 - [~] Jump-to-date (M2) — **cut from scope**; "Today" half shipped in v0.5, date-picker dropped
+- [x] Full event read (v0.6) — reminders, status, availability, access level,
+  attendee role + self-response, foreign timezone, and linkified description
+  URLs in the detail view; new domain enums + mapper unit tests. (A dedicated
+  URL field was cut — no `CalendarContract` column backs it.)
 
 ## Next
 
-1. v0.6 — full event read: reminders, status, availability, attendee role +
-   self-status, timezone (when it differs), URL, access level. Read the
-   `CalendarContract` columns we don't yet pull and show them in the detail
-   view. (Planned, not started — implement another day.)
-2. UI polish / QA pass across all views before v1.0
-3. F-Droid release of v1.0
+1. v1.0.0 released — monitor the F-Droid build/publish
+2. Plan v2.0 (write support: create / edit / delete, quick-add, conflict UX)

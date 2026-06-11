@@ -9,8 +9,8 @@
 | v0.3 | Month + Week + Day views, view switcher | complete |
 | v0.4 | Event Detail (S4) + humanized recurrence | complete |
 | v0.5 | Calendar filter (M3) + Settings (M4) | complete |
-| v0.6 | Full event read — surface every readable field | pending |
-| v1.0 | Polish pass, F-Droid release | pending |
+| v0.6 | Full event read — surface every readable field | complete |
+| v1.0 | First public release — polish pass, F-Droid | complete |
 
 Delivery ran ahead of the original table: Day view (S3) shipped in v0.3 and
 Event Detail (S4) in v0.4, so the Filter/Settings milestone became v0.5.
@@ -30,8 +30,12 @@ columns we don't yet read/display:
 - **Attendee extras** — role (required / optional / organizer) + the user's own
   `SELF_ATTENDEE_STATUS`
 - **Timezone** (`EVENT_TIMEZONE`) — shown only when it differs from the device zone
-- **URL** — tappable link card
+- **URL** — ~~tappable link card~~ **cut**: `CalendarContract` exposes no
+  `Events.URL` column (only `CUSTOM_APP_URI`, an originating-app deep-link).
+  URLs are instead surfaced by linkifying the description text
 - **Access level / class** (private / confidential) — small chip (optional, trivial)
+
+All of the above shipped in v0.6.0 (2026-06-11).
 
 Deliberately out of v0.6:
 - Recurrence exception / modified-occurrence badges — `Instances` already
@@ -40,10 +44,14 @@ Deliberately out of v0.6:
 - `CATEGORIES`, `ATTACH` — not reliably exposed by `CalendarContract`
   (provider limitation, not our choice)
 
-## v1.0 — First Public Release
+## v1.0 — First Public Release — shipped 2026-06-11
 
-All V1 features shipped, polished, on F-Droid. Read-only calendar.
-Remaining before v1.0: a UI polish/QA pass.
+All V1 features shipped, polished, on F-Droid. Read-only calendar. Cut directly
+after v0.6 (full event read) plus the onboarding-screen polish pass.
+
+### Polish backlog (pre-1.0)
+- ~~Redesign the initial grant-access (permission) screen~~ — **done**
+  (Material 3 Expressive onboarding, shipped in v0.6.0 / v1.0.0)
 
 ## v2.0 — Write Support
 

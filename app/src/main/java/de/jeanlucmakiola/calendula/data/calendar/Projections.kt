@@ -60,6 +60,11 @@ internal object EventDetailProjection {
         CalendarContract.Events.ALL_DAY,
         CalendarContract.Events.EVENT_LOCATION,
         CalendarContract.Events.CALENDAR_ID,
+        CalendarContract.Events.STATUS,
+        CalendarContract.Events.AVAILABILITY,
+        CalendarContract.Events.ACCESS_LEVEL,
+        CalendarContract.Events.EVENT_TIMEZONE,
+        CalendarContract.Events.SELF_ATTENDEE_STATUS,
     )
 
     const val IDX_EVENT_ID = 0
@@ -74,6 +79,11 @@ internal object EventDetailProjection {
     const val IDX_ALL_DAY = 9
     const val IDX_LOCATION = 10
     const val IDX_CALENDAR_ID = 11
+    const val IDX_STATUS = 12
+    const val IDX_AVAILABILITY = 13
+    const val IDX_ACCESS_LEVEL = 14
+    const val IDX_EVENT_TIMEZONE = 15
+    const val IDX_SELF_ATTENDEE_STATUS = 16
 }
 
 internal object AttendeeProjection {
@@ -81,11 +91,25 @@ internal object AttendeeProjection {
         CalendarContract.Attendees.ATTENDEE_NAME,
         CalendarContract.Attendees.ATTENDEE_EMAIL,
         CalendarContract.Attendees.ATTENDEE_STATUS,
+        CalendarContract.Attendees.ATTENDEE_RELATIONSHIP,
+        CalendarContract.Attendees.ATTENDEE_TYPE,
     )
 
     const val IDX_NAME = 0
     const val IDX_EMAIL = 1
     const val IDX_STATUS = 2
+    const val IDX_RELATIONSHIP = 3
+    const val IDX_TYPE = 4
+}
+
+internal object ReminderProjection {
+    val COLUMNS: Array<String> = arrayOf(
+        CalendarContract.Reminders.MINUTES,
+        CalendarContract.Reminders.METHOD,
+    )
+
+    const val IDX_MINUTES = 0
+    const val IDX_METHOD = 1
 }
 
 internal object Fallbacks {

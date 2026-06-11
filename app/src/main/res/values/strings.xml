@@ -13,13 +13,20 @@
     <string name="state_failure_provider">Could not read the calendar.</string>
 
     <!-- Permission flow (F1) -->
-    <string name="permission_rationale_title">Calendar access</string>
-    <string name="permission_rationale_body">Calendula reads only your device calendar — no data leaves your device.</string>
-    <string name="permission_request_button">Continue</string>
+    <string name="permission_rationale_title">See all your events, beautifully</string>
+    <string name="permission_rationale_body">Calendula needs to read your calendar to show your events. That\'s the only thing it ever asks for.</string>
+    <string name="permission_request_button">Grant calendar access</string>
     <string name="permission_denied_title">Calendar access denied</string>
     <string name="permission_denied_body">Calendula cannot show events without calendar access. You can grant it again in the system settings.</string>
     <string name="permission_open_settings_button">Open system settings</string>
     <string name="permission_retry_button">Try again</string>
+    <string name="permission_benefit_private_title">Stays on your device</string>
+    <string name="permission_benefit_private_body">Your calendars are read locally and never leave the phone.</string>
+    <string name="permission_benefit_sync_title">All your calendars, together</string>
+    <string name="permission_benefit_sync_body">Google, CalDAV, local — anything synced to the device just appears.</string>
+    <string name="permission_benefit_privacy_title">No tracking, ever</string>
+    <string name="permission_benefit_privacy_body">Zero telemetry, zero analytics, no ads.</string>
+    <string name="permission_privacy_footnote">Read-only · no internet permission</string>
 
     <!-- Month view (S1) -->
     <string name="month_prev">Previous month</string>
@@ -66,6 +73,37 @@
     <string name="event_attendee_tentative">Tentative</string>
     <string name="event_attendee_needs_action">No response</string>
     <string name="event_attendee_unknown">—</string>
+
+    <!-- Event detail — full read (v0.6) -->
+    <string name="event_detail_reminders">Reminders</string>
+    <string name="event_detail_timezone">Time zone</string>
+    <string name="event_status_tentative">Tentative</string>
+    <string name="event_status_cancelled">Cancelled</string>
+    <string name="event_availability_free">Free</string>
+    <string name="event_access_private">Private</string>
+    <string name="event_access_confidential">Confidential</string>
+    <string name="event_attendee_organizer">Organizer</string>
+    <string name="event_attendee_optional">Optional</string>
+    <string name="event_attendee_resource">Resource</string>
+    <string name="event_detail_self_response">Your response: %1$s</string>
+    <string name="reminder_at_time">At time of event</string>
+    <string name="reminder_default">Default reminder</string>
+    <plurals name="reminder_minutes">
+        <item quantity="one">%d minute before</item>
+        <item quantity="other">%d minutes before</item>
+    </plurals>
+    <plurals name="reminder_hours">
+        <item quantity="one">%d hour before</item>
+        <item quantity="other">%d hours before</item>
+    </plurals>
+    <plurals name="reminder_days">
+        <item quantity="one">%d day before</item>
+        <item quantity="other">%d days before</item>
+    </plurals>
+    <plurals name="reminder_weeks">
+        <item quantity="one">%d week before</item>
+        <item quantity="other">%d weeks before</item>
+    </plurals>
 
     <!-- Shared event strings -->
     <string name="event_untitled">(No title)</string>

@@ -23,8 +23,8 @@ android {
         applicationId = "de.jeanlucmakiola.calendula"
         minSdk = 29
         targetSdk = 36
-        versionCode = 5
-        versionName = "0.5.0"
+        versionCode = 7
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
