@@ -1,11 +1,15 @@
 package de.jeanlucmakiola.calendula.ui.detail
 
+import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.icu.text.ListFormatter
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -24,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -31,31 +36,40 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -94,10 +108,10 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 /**
- * Read-only full-screen event detail (spec S4, realised as a navigation
- * destination rather than a bottom sheet — MD3 list→detail pattern). Back
- * gesture and the top-bar arrow both return to the calendar. The only action is
- * tapping the location to open a maps intent.
+ * Full-screen event detail (spec S4, realised as a navigation destination
+ * rather than a bottom sheet — MD3 list→detail pattern). Back gesture and the
+ * top-bar arrow both return to the calendar. Events in writable calendars can
+ * be deleted from here (v1.1); edit follows in v1.3.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,10 +126,55 @@ fun EventDetailScreen(
         viewModel.open(eventId, beginMillis, endMillis)
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val deleteState by viewModel.deleteState.collectAsStateWithLifecycle()
 
     BackHandler(onBack = onBack)
 
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+
+    // v1.0 installs only hold READ_CALENDAR; the first write asks for the
+    // upgrade in place. Granting continues straight into the confirm dialog.
+    val writePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) showDeleteDialog = true
+    }
+    val onDeleteClick = {
+        val granted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.WRITE_CALENDAR,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            showDeleteDialog = true
+        } else {
+            writePermissionLauncher.launch(Manifest.permission.WRITE_CALENDAR)
+        }
+    }
+
+    val deleteFailedMessage = stringResource(R.string.event_delete_failed)
+    val writeDeniedMessage = stringResource(R.string.event_delete_write_denied)
+    LaunchedEffect(deleteState) {
+        when (deleteState) {
+            DeleteUiState.Deleted -> {
+                viewModel.consumeDeleteResult()
+                onBack()
+            }
+            DeleteUiState.Failed -> {
+                viewModel.consumeDeleteResult()
+                snackbarHostState.showSnackbar(deleteFailedMessage)
+            }
+            DeleteUiState.NeedsPermission -> {
+                viewModel.consumeDeleteResult()
+                snackbarHostState.showSnackbar(writeDeniedMessage)
+            }
+            DeleteUiState.Idle, DeleteUiState.Deleting -> Unit
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {},
@@ -128,17 +187,19 @@ fun EventDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: edit event (V2) */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = stringResource(R.string.event_detail_edit),
-                        )
-                    }
-                    IconButton(onClick = { /* TODO: delete event (V2) */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = stringResource(R.string.event_detail_delete),
-                        )
+                    // Only writable calendars get actions — WebCal subscriptions,
+                    // birthday calendars etc. are read-only at the provider level.
+                    val s = state
+                    if (s is EventDetailUiState.Success && s.canModify) {
+                        IconButton(
+                            onClick = onDeleteClick,
+                            enabled = deleteState != DeleteUiState.Deleting,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.event_detail_delete),
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -158,6 +219,88 @@ fun EventDetailScreen(
             )
             is EventDetailUiState.Success -> EventDetailContent(s, contentModifier)
         }
+    }
+
+    val loaded = state
+    if (showDeleteDialog && loaded is EventDetailUiState.Success) {
+        DeleteEventDialog(
+            isRecurring = !loaded.detail.rrule.isNullOrBlank(),
+            onConfirm = { wholeSeries ->
+                showDeleteDialog = false
+                viewModel.delete(wholeSeries)
+            },
+            onDismiss = { showDeleteDialog = false },
+        )
+    }
+}
+
+/**
+ * Delete confirmation. Recurring events choose between cancelling just the
+ * tapped occurrence (default) and removing the whole series.
+ */
+@Composable
+private fun DeleteEventDialog(
+    isRecurring: Boolean,
+    onConfirm: (wholeSeries: Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var wholeSeries by rememberSaveable { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                stringResource(
+                    if (isRecurring) R.string.event_delete_recurring_title
+                    else R.string.event_delete_title,
+                ),
+            )
+        },
+        text = {
+            if (isRecurring) {
+                Column {
+                    DeleteChoiceRow(
+                        selected = !wholeSeries,
+                        label = stringResource(R.string.event_delete_option_occurrence),
+                        onSelect = { wholeSeries = false },
+                    )
+                    DeleteChoiceRow(
+                        selected = wholeSeries,
+                        label = stringResource(R.string.event_delete_option_series),
+                        onSelect = { wholeSeries = true },
+                    )
+                }
+            } else {
+                Text(stringResource(R.string.event_delete_body))
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(if (isRecurring) wholeSeries else true) }) {
+                Text(
+                    text = stringResource(R.string.event_detail_delete),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dialog_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun DeleteChoiceRow(selected: Boolean, label: String, onSelect: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge)
     }
 }
 

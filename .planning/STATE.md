@@ -4,10 +4,10 @@
 
 ## Status
 
-**Milestone:** v1.0.0 — First public release (shipped 2026-06-11)
-**Phase:** V1 is complete and released. All screens done, the read model
-surfaces every readable `CalendarContract` field, and the onboarding screen
-got its Material 3 Expressive polish pass. Next horizon is v2.0 (write support)
+**Milestone:** v2.0 — Write support (milestone 2, in progress)
+**Phase:** v1.0.0 shipped 2026-06-11. Milestone 2 is planned in four slices
+(`docs/superpowers/plans/2026-06-11-03-write-support.md`); slice v1.1
+(write foundation + delete) is implemented and awaiting release.
 
 ## Progress
 
@@ -28,7 +28,15 @@ got its Material 3 Expressive polish pass. Next horizon is v2.0 (write support)
   URLs in the detail view; new domain enums + mapper unit tests. (A dedicated
   URL field was cut — no `CalendarContract` column backs it.)
 
+- [x] v1.1 write foundation — `WRITE_CALENDAR` (onboarding asks READ+WRITE,
+  only READ gates; contextual upgrade for v1.0 installs), read-only-calendar
+  detection (`CALENDAR_ACCESS_LEVEL` → `canModifyContents`, actions hidden for
+  WebCal/birthday calendars), delete from the detail screen (recurring:
+  "only this event" via cancelled exception / "all events in the series"),
+  repository + mapper tests
+
 ## Next
 
-1. v1.0.0 released — monitor the F-Droid build/publish
-2. Plan v2.0 (write support: create / edit / delete, quick-add, conflict UX)
+1. Cut v1.1 release (changelog entry is staged under [Unreleased])
+2. v1.2 — create event: form screen, FAB, default-calendar pref, `insertEvent`
+3. v1.0.0 — keep monitoring the F-Droid build/publish

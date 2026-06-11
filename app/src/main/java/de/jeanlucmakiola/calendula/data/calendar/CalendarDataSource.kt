@@ -2,6 +2,7 @@ package de.jeanlucmakiola.calendula.data.calendar
 
 import android.content.ContentResolver
 import android.content.ContentUris
+import android.content.ContentValues
 import android.content.Context
 import android.database.ContentObserver
 import android.database.Cursor
@@ -29,6 +30,16 @@ interface CalendarDataSource {
     fun calendars(): List<CalendarSource>
     fun instances(beginMillis: Long, endMillis: Long): List<EventInstance>
     fun eventDetail(eventId: Long): EventDetail?
+
+    /** Delete the whole event (for recurring events: the entire series). */
+    fun deleteEvent(eventId: Long)
+
+    /**
+     * Cancel a single occurrence of a recurring event by inserting a
+     * cancelled exception at [beginMillis] (the occurrence's `Instances.BEGIN`).
+     */
+    fun deleteOccurrence(eventId: Long, beginMillis: Long)
+
     fun registerChangeListener(listener: () -> Unit)
     fun unregisterChangeListener(listener: () -> Unit)
 }
@@ -72,6 +83,28 @@ class AndroidCalendarDataSource @Inject constructor(
             if (!c.moveToFirst()) null
             else CursorColumnReader(c).toEventDetailCore(attendees, reminders)
         }
+    }
+
+    override fun deleteEvent(eventId: Long) {
+        val deleted = resolver.delete(
+            ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId),
+            null, null,
+        )
+        if (deleted == 0) throw WriteFailedException("delete event id=$eventId")
+    }
+
+    override fun deleteOccurrence(eventId: Long, beginMillis: Long) {
+        // A cancelled exception row hides exactly this occurrence; the sync
+        // adapter turns it into an EXDATE/cancelled VEVENT upstream.
+        val values = ContentValues().apply {
+            put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, beginMillis)
+            put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CANCELED)
+        }
+        val uri = ContentUris.withAppendedId(
+            CalendarContract.Events.CONTENT_EXCEPTION_URI, eventId,
+        )
+        resolver.insert(uri, values)
+            ?: throw WriteFailedException("cancel occurrence event id=$eventId begin=$beginMillis")
     }
 
     override fun registerChangeListener(listener: () -> Unit) {

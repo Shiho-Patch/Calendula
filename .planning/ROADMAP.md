@@ -53,11 +53,18 @@ after v0.6 (full event read) plus the onboarding-screen polish pass.
 - ~~Redesign the initial grant-access (permission) screen~~ — **done**
   (Material 3 Expressive onboarding, shipped in v0.6.0 / v1.0.0)
 
-## v2.0 — Write Support
+## v2.0 — Write Support (in progress)
 
-- Event create / edit / delete via `CalendarContract` writes
-- Quick-add sheet
-- Conflict UX (event modified externally during edit)
+Delivered in four releasable slices (plan:
+`docs/superpowers/plans/2026-06-11-03-write-support.md`). The V1 spec is a
+guide here, not a contract — scope per slice is decided as we go.
+
+| Version | Milestone | Status |
+|---|---|---|
+| v1.1 | Write foundation — `WRITE_CALENDAR`, read-only-calendar detection, delete (series + single occurrence) | in progress |
+| v1.2 | Create event — form, FAB, default-calendar pref | planned |
+| v1.3 | Edit event — shared form, series edit, reminders, simple recurrence picker | planned |
+| v2.0 | Quick-add, occurrence edit, conflict dialog, polish, release | planned |
 
 ## v3.0 — Power-User Features
 

@@ -56,6 +56,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.Image
 import de.jeanlucmakiola.calendula.R
 
+private val CALENDAR_PERMISSIONS = arrayOf(
+    Manifest.permission.READ_CALENDAR,
+    Manifest.permission.WRITE_CALENDAR,
+)
+
 // MD3 8dp spacing scale, scoped to this screen.
 private object Space {
     val xs = 8.dp
@@ -73,10 +78,17 @@ fun PermissionScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    // READ and WRITE are requested together (one system dialog — same
+    // permission group), but only READ gates the app: declining write keeps
+    // Calendula usable read-only.
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        if (granted) viewModel.onGranted() else viewModel.onDenied()
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { results ->
+        if (results[Manifest.permission.READ_CALENDAR] == true) {
+            viewModel.onGranted()
+        } else {
+            viewModel.onDenied()
+        }
     }
 
     LaunchedEffect(state) {
@@ -85,13 +97,13 @@ fun PermissionScreen(
 
     when (state) {
         is PermissionUiState.Rationale -> RationaleContent(
-            onRequest = { launcher.launch(Manifest.permission.READ_CALENDAR) },
+            onRequest = { launcher.launch(CALENDAR_PERMISSIONS) },
             modifier = modifier,
         )
         is PermissionUiState.Denied -> DeniedContent(
             onRetry = {
                 viewModel.onRetry()
-                launcher.launch(Manifest.permission.READ_CALENDAR)
+                launcher.launch(CALENDAR_PERMISSIONS)
             },
             modifier = modifier,
         )

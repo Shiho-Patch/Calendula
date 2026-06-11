@@ -158,6 +158,43 @@ class CalendarRepositoryImplTest {
     }
 
     @Test
+    fun `deleteEvent delegates to the data source`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource()
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+
+        repo.deleteEvent(eventId = 42L)
+
+        assertThat(fake.deletedEventIds).containsExactly(42L)
+        assertThat(fake.deletedOccurrences).isEmpty()
+    }
+
+    @Test
+    fun `deleteOccurrence forwards event id and begin time`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource()
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+
+        repo.deleteOccurrence(eventId = 42L, beginMillis = 1_000L)
+
+        assertThat(fake.deletedOccurrences).containsExactly(42L to 1_000L)
+        assertThat(fake.deletedEventIds).isEmpty()
+    }
+
+    @Test
+    fun `deleteEvent propagates write failures`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource().apply {
+            writeError = WriteFailedException("delete event id=42")
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+
+        try {
+            repo.deleteEvent(eventId = 42L)
+            error("Expected WriteFailedException")
+        } catch (expected: WriteFailedException) {
+            assertThat(expected.message).contains("42")
+        }
+    }
+
+    @Test
     fun `eventDetail throws NoSuchEventException when data source returns null`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource().apply {
             eventDetailResult = { null }

@@ -68,6 +68,14 @@ class CalendarRepositoryImpl @Inject constructor(
     override suspend fun eventDetail(eventId: Long): EventDetail = withContext(io) {
         dataSource.eventDetail(eventId) ?: throw NoSuchEventException(eventId)
     }
+
+    override suspend fun deleteEvent(eventId: Long) = withContext(io) {
+        dataSource.deleteEvent(eventId)
+    }
+
+    override suspend fun deleteOccurrence(eventId: Long, beginMillis: Long) = withContext(io) {
+        dataSource.deleteOccurrence(eventId, beginMillis)
+    }
 }
 
 private fun <T> Flow<Unit>.reQuery(block: suspend () -> T): Flow<T> = flow {

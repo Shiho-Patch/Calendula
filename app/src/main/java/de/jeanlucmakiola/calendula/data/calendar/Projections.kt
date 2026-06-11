@@ -10,6 +10,7 @@ internal object CalendarProjection {
         CalendarContract.Calendars.ACCOUNT_TYPE,
         CalendarContract.Calendars.CALENDAR_COLOR,
         CalendarContract.Calendars.VISIBLE,
+        CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL,
     )
 
     const val IDX_ID = 0
@@ -18,6 +19,7 @@ internal object CalendarProjection {
     const val IDX_ACCOUNT_TYPE = 3
     const val IDX_COLOR = 4
     const val IDX_VISIBLE = 5
+    const val IDX_ACCESS_LEVEL = 6
 }
 
 internal object InstanceProjection {

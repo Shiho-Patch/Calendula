@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Write foundation (milestone 2, slice 1): Calendula can now **delete events**.
+  - Delete action on the event detail screen, with a confirmation dialog;
+    recurring events choose between "Only this event" (a cancelled exception,
+    so the rest of the series survives) and "All events in the series"
+  - `WRITE_CALENDAR` permission: onboarding asks for read+write in one system
+    dialog, but only read access is required — declining write keeps the app
+    fully usable read-only. Existing v1.0 installs are asked for the write
+    upgrade in place, on their first delete
+  - Read-only calendars (WebCal subscriptions, birthday calendars, …) are
+    detected via `CALENDAR_ACCESS_LEVEL` and show no edit/delete actions at all
+
+### Changed
+- Onboarding copy no longer claims "read-only"; it now says your data stays on
+  the device (still no internet permission, still zero telemetry)
+- The placeholder Edit button on the detail screen (a no-op since v0.4) is
+  removed until editing ships in a later slice
+
 ## [1.0.0] — 2026-06-11
 
 First public release. Calendula is a read-only, Material 3 Expressive calendar

@@ -9,6 +9,12 @@ data class CalendarSource(
     val accountType: String,
     val color: Int,
     val isVisibleInSystem: Boolean,
+    /**
+     * Whether events in this calendar can be created/edited/deleted
+     * (`Calendars.CALENDAR_ACCESS_LEVEL` >= contributor). False for WebCal
+     * subscriptions, birthday calendars and other read-only sources.
+     */
+    val canModifyContents: Boolean = false,
 )
 
 data class EventInstance(

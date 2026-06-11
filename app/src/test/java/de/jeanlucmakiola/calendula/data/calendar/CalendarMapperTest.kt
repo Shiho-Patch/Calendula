@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
+import android.provider.CalendarContract
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 
@@ -12,6 +13,7 @@ class CalendarMapperTest {
         accountType: String? = "LOCAL",
         color: Int = 0,
         visible: Int = 1,
+        accessLevel: Int = CalendarContract.Calendars.CAL_ACCESS_OWNER,
     ): MapColumnReader = MapColumnReader(
         CalendarProjection.IDX_ID to id,
         CalendarProjection.IDX_DISPLAY_NAME to displayName,
@@ -19,6 +21,7 @@ class CalendarMapperTest {
         CalendarProjection.IDX_ACCOUNT_TYPE to accountType,
         CalendarProjection.IDX_COLOR to color,
         CalendarProjection.IDX_VISIBLE to visible,
+        CalendarProjection.IDX_ACCESS_LEVEL to accessLevel,
     )
 
     @Test
@@ -39,6 +42,7 @@ class CalendarMapperTest {
                 accountType = "com.google",
                 color = 0xFF112233.toInt(),
                 isVisibleInSystem = true,
+                canModifyContents = true,
             )
         )
     }
@@ -64,5 +68,26 @@ class CalendarMapperTest {
         val src = reader(accountName = null, accountType = null).toCalendarSource()
         assertThat(src.accountName).isEqualTo("")
         assertThat(src.accountType).isEqualTo("")
+    }
+
+    @Test
+    fun `contributor access and above can modify contents`() {
+        val contributor = reader(accessLevel = CalendarContract.Calendars.CAL_ACCESS_CONTRIBUTOR)
+        val owner = reader(accessLevel = CalendarContract.Calendars.CAL_ACCESS_OWNER)
+        assertThat(contributor.toCalendarSource().canModifyContents).isTrue()
+        assertThat(owner.toCalendarSource().canModifyContents).isTrue()
+    }
+
+    @Test
+    fun `read access cannot modify contents`() {
+        val src = reader(accessLevel = CalendarContract.Calendars.CAL_ACCESS_READ)
+        assertThat(src.toCalendarSource().canModifyContents).isFalse()
+    }
+
+    @Test
+    fun `missing access level defaults to read-only`() {
+        // WebCal subscriptions on some providers report level 0 (CAL_ACCESS_NONE).
+        val src = reader(accessLevel = CalendarContract.Calendars.CAL_ACCESS_NONE)
+        assertThat(src.toCalendarSource().canModifyContents).isFalse()
     }
 }

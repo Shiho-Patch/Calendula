@@ -13,7 +13,7 @@
 
     <!-- Permission-Flow (F1) -->
     <string name="permission_rationale_title">Alle Termine, schön im Blick</string>
-    <string name="permission_rationale_body">Calendula braucht Lesezugriff auf deinen Kalender, um deine Termine zu zeigen. Mehr verlangt die App nie.</string>
+    <string name="permission_rationale_body">Calendula braucht Zugriff auf deinen Kalender, um deine Termine zu zeigen und zu verwalten. Mehr verlangt die App nie.</string>
     <string name="permission_request_button">Kalender-Zugriff erlauben</string>
     <string name="permission_denied_title">Kalender-Zugriff abgelehnt</string>
     <string name="permission_denied_body">Ohne Kalender-Zugriff kann Calendula keine Termine anzeigen. Du kannst den Zugriff in den System-Einstellungen wieder erlauben.</string>
@@ -25,7 +25,7 @@
     <string name="permission_benefit_sync_body">Google, CalDAV, lokal — alles, was synchronisiert ist, erscheint automatisch.</string>
     <string name="permission_benefit_privacy_title">Kein Tracking, niemals</string>
     <string name="permission_benefit_privacy_body">Keine Telemetrie, keine Analyse, keine Werbung.</string>
-    <string name="permission_privacy_footnote">Nur Lesezugriff · keine Internet-Berechtigung</string>
+    <string name="permission_privacy_footnote">Bleibt auf deinem Gerät · keine Internet-Berechtigung</string>
 
     <!-- Monatsansicht (S1) -->
     <string name="month_prev">Vorheriger Monat</string>
@@ -45,8 +45,15 @@
 
     <!-- Event-Detail-Screen (S4) -->
     <string name="event_detail_back">Zurück</string>
-    <string name="event_detail_edit">Bearbeiten</string>
     <string name="event_detail_delete">Löschen</string>
+    <string name="event_delete_title">Termin löschen?</string>
+    <string name="event_delete_body">Der Termin wird aus deinem Kalender und von allen synchronisierten Geräten entfernt.</string>
+    <string name="event_delete_recurring_title">Wiederkehrenden Termin löschen</string>
+    <string name="event_delete_option_occurrence">Nur dieser Termin</string>
+    <string name="event_delete_option_series">Alle Termine der Serie</string>
+    <string name="event_delete_failed">Termin konnte nicht gelöscht werden</string>
+    <string name="event_delete_write_denied">Calendula braucht Schreibzugriff, um Termine zu löschen</string>
+    <string name="dialog_cancel">Abbrechen</string>
     <string name="event_detail_all_day">Ganztägig</string>
     <string name="event_detail_calendar">Kalender</string>
     <string name="event_detail_calendar_unknown">Unbekannter Kalender</string>
