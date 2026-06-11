@@ -61,7 +61,7 @@ guide here, not a contract — scope per slice is decided as we go.
 
 | Version | Milestone | Status |
 |---|---|---|
-| v1.1 | Write foundation — `WRITE_CALENDAR`, read-only-calendar detection, delete (series + single occurrence) | in progress |
+| v1.1 | Write foundation — `WRITE_CALENDAR`, read-only-calendar detection, delete (series + single occurrence) | complete (shipped 2026-06-11) |
 | v1.2 | Create event — form, FAB, default-calendar pref | planned |
 | v1.3 | Edit event — shared form, series edit, reminders, simple recurrence picker | planned |
 | v2.0 | Quick-add, occurrence edit, conflict dialog, polish, release | planned |

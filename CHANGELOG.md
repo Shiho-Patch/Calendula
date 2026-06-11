@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-06-11
+
 ### Added
 - Write foundation (milestone 2, slice 1): Calendula can now **delete events**.
   - Delete action on the event detail screen, with a confirmation dialog;
@@ -24,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the device (still no internet permission, still zero telemetry)
 - The placeholder Edit button on the detail screen (a no-op since v0.4) is
   removed until editing ships in a later slice
+- `versionName`/`versionCode` bumped to 1.1.0 / 8
 
 ## [1.0.0] — 2026-06-11
 

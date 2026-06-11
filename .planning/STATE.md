@@ -5,9 +5,9 @@
 ## Status
 
 **Milestone:** v2.0 — Write support (milestone 2, in progress)
-**Phase:** v1.0.0 shipped 2026-06-11. Milestone 2 is planned in four slices
-(`docs/superpowers/plans/2026-06-11-03-write-support.md`); slice v1.1
-(write foundation + delete) is implemented and awaiting release.
+**Phase:** v1.1.0 shipped 2026-06-11 (write foundation + delete). Milestone 2
+runs in four slices (`docs/superpowers/plans/2026-06-11-03-write-support.md`);
+next up is v1.2 (create event).
 
 ## Progress
 
@@ -37,6 +37,5 @@
 
 ## Next
 
-1. Cut v1.1 release (changelog entry is staged under [Unreleased])
-2. v1.2 — create event: form screen, FAB, default-calendar pref, `insertEvent`
-3. v1.0.0 — keep monitoring the F-Droid build/publish
+1. v1.2 — create event: form screen, FAB, default-calendar pref, `insertEvent`
+2. Monitor the F-Droid build/publish for v1.1.0
