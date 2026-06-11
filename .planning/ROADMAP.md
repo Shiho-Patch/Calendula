@@ -118,6 +118,31 @@ Deliberately deferred (add only if needed):
 
 Order is indicative — community feedback after V1 may re-prioritize.
 
+## Idea backlog — Daily-driver polish (captured 2026-06-11, all approved as ideas, unscheduled)
+
+Interaction:
+- Tap/long-press an empty slot in day/week → create form prefilled with that time
+- Drag & drop rescheduling in day/week (recurring drops reuse the scope dialog) — big-ticket, own slice
+- Agenda view (fourth view: upcoming events grouped by day; natural widget data source)
+- Pinch-to-zoom time scale in day/week
+
+Reminders, round two:
+- Snooze + dismiss actions on the notification (snooze needs an exact-alarm/WorkManager decision)
+- Settings default reminder applied to new events
+
+Event niceties:
+- Duplicate event (detail action → prefilled create form)
+- Per-event color (`Events.EVENT_COLOR`, OptionCard picker in the form)
+- Share event as .ics + open/receive .ics into a prefilled create form (front-runs v3 ICS import)
+
+Small delights:
+- App shortcuts (launcher long-press → New event), maybe a quick-settings tile
+- Jump to date (un-cut from V1 — drawer date picker)
+
+Consciously rejected: travel time / weather / smart suggestions (network,
+core-promise conflict), natural-language quick entry (high effort,
+locale-fragile, prefilled form already covers fast entry).
+
 ## Idea backlog — Locations & People (captured 2026-06-11, undecided)
 
 Beyond classic calendar-client scope; discussed, deliberately not planned

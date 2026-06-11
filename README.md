@@ -68,9 +68,26 @@ database, no sync stack reinvented.
 
 ## 📦 Install
 
-Calendula ships through a self-hosted F-Droid repository (releases are
-built and published automatically from version tags). Alternatively, build
-from source — see below.
+Calendula ships through a self-hosted F-Droid repository; every version tag
+is built, signed, and published there automatically.
+
+1. Install an F-Droid client ([F-Droid](https://f-droid.org), Droid-ify, Neo
+   Store, …).
+2. Add the repository — open this link on your phone, or paste it under
+   *Settings → Repositories → Add*:
+
+   ```
+   https://apps.dev.jeanlucmakiola.de/dev/fdroid/repo?fingerprint=968F796B05DF622BBE18AD6FC1D1EF788D5A6DA1FF05BBEC6B7043BF10A09465
+   ```
+
+   <sub>Repo: `https://apps.dev.jeanlucmakiola.de/dev/fdroid/repo` ·
+   fingerprint (SHA-256):
+   `968F 796B 05DF 622B BE18 AD6F C1D1 EF78 8D5A 6DA1 FF05 BBEC 6B70 43BF 10A0 9465`</sub>
+
+3. Refresh, search for **Calendula**, install. Updates arrive like any
+   other F-Droid app.
+
+Alternatively, build from source — see below.
 
 ## 🛠 Building
 
