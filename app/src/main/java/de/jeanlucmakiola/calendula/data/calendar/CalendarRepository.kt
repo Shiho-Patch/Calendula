@@ -15,11 +15,37 @@ interface CalendarRepository {
     /** Create a new event from a validated form; returns the new `Events._ID`. */
     suspend fun createEvent(form: EventForm): Long
 
+    /**
+     * Update an event (recurring: the whole series) from a validated form.
+     * [original] is the prefilled form, used to write only what changed.
+     */
+    suspend fun updateEvent(eventId: Long, original: EventForm, updated: EventForm)
+
+    /**
+     * Change a single occurrence of a recurring event (exception row with the
+     * form's values); returns the exception's `Events._ID`.
+     */
+    suspend fun updateOccurrence(eventId: Long, beginMillis: Long, form: EventForm): Long
+
+    /**
+     * Change a recurring event from [beginMillis] onwards (series split);
+     * returns the new event's `Events._ID`.
+     */
+    suspend fun updateEventFromOccurrence(
+        eventId: Long,
+        beginMillis: Long,
+        original: EventForm,
+        updated: EventForm,
+    ): Long
+
     /** Delete the whole event (for recurring events: the entire series). */
     suspend fun deleteEvent(eventId: Long)
 
     /** Cancel a single occurrence of a recurring event at its `Instances.BEGIN` time. */
     suspend fun deleteOccurrence(eventId: Long, beginMillis: Long)
+
+    /** Delete a recurring event from the occurrence at [beginMillis] onwards. */
+    suspend fun deleteEventFromOccurrence(eventId: Long, beginMillis: Long)
 }
 
 class NoSuchEventException(eventId: Long) :

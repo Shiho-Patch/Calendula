@@ -115,6 +115,16 @@ enum class AccessLevel {
     Confidential,
 }
 
+/**
+ * How far a write to a recurring event reaches. Non-recurring events always
+ * use [AllEvents] (there is only one).
+ */
+enum class RecurringWriteScope {
+    ThisEvent,
+    ThisAndFollowing,
+    AllEvents,
+}
+
 enum class FailureReason {
     PermissionRevoked,
     NoCalendarsConfigured,

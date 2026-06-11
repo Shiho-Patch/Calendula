@@ -30,7 +30,10 @@ See full design spec: `docs/superpowers/specs/2026-06-08-calendar-app-design.md`
 - Home-screen widget
 - Full-text search
 - Quick-add
-- Custom notifications/reminders (system already handles these)
+- ~~Custom notifications/reminders (system already handles these)~~ —
+  **reversed:** Calendula targets sole-calendar-app users, so no other app
+  posts reminder notifications. We post them ourselves (Etar model). Planned
+  for v1.4 — see `ROADMAP.md`.
 - Tablet/foldable-specific layouts
 - iOS support (Android-only by design)
 

@@ -76,6 +76,15 @@ fun CalendarHost(modifier: Modifier = Modifier) {
         createDateIso = date.toString()
     }
 
+    // Edit form (v1.3) — reuses the detail screen's occurrence key; for
+    // recurring events the form itself asks for the write scope at save
+    // time. A saved edit closes the detail screen too: the occurrence the
+    // user tapped may not exist anymore (time moved, recurrence changed), so
+    // falling back to the auto-refreshing calendar is the only honest
+    // destination.
+    var editKey by rememberSaveable { mutableStateOf<LongArray?>(null) }
+    var heldEditKey by remember { mutableStateOf<LongArray?>(null) }
+
     val slideSpec = rememberCalendarSlideSpec()
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -117,6 +126,10 @@ fun CalendarHost(modifier: Modifier = Modifier) {
                     beginMillis = key[1],
                     endMillis = key[2],
                     onBack = { detailKey = null },
+                    onEdit = {
+                        heldEditKey = key
+                        editKey = key
+                    },
                 )
             }
         }
@@ -131,6 +144,26 @@ fun CalendarHost(modifier: Modifier = Modifier) {
                 EventEditScreen(
                     initialDateIso = iso,
                     onClose = { createDateIso = null },
+                    onSaved = { createDateIso = null },
+                )
+            }
+        }
+
+        // Edit form (v1.3) — slides over the detail screen.
+        AnimatedVisibility(
+            visible = editKey != null,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            (editKey ?: heldEditKey)?.let { key ->
+                EventEditScreen(
+                    initialDateIso = null,
+                    editKey = key,
+                    onClose = { editKey = null },
+                    onSaved = {
+                        editKey = null
+                        detailKey = null
+                    },
                 )
             }
         }

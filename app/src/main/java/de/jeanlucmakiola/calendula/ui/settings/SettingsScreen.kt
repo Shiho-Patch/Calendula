@@ -340,6 +340,7 @@ private fun formFieldLabel(field: EventFormField): Int = when (field) {
     EventFormField.Location -> R.string.event_detail_location
     EventFormField.Description -> R.string.event_detail_description
     EventFormField.Reminders -> R.string.event_detail_reminders
+    EventFormField.Recurrence -> R.string.event_detail_recurrence
     EventFormField.Availability -> R.string.event_edit_availability
     EventFormField.Visibility -> R.string.event_edit_visibility
 }

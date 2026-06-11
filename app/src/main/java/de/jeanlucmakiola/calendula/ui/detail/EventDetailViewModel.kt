@@ -7,6 +7,7 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.calendar.NoSuchEventException
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.domain.FailureReason
+import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -78,20 +79,23 @@ class EventDetailViewModel @Inject constructor(
     }
 
     /**
-     * Delete the open event. [wholeSeries] is meaningful only for recurring
-     * events: false cancels just the tapped occurrence. Result lands in
-     * [deleteState]; the screen consumes it via [consumeDeleteResult].
+     * Delete the open event. [scope] is meaningful only for recurring events
+     * (one-off events always pass [RecurringWriteScope.AllEvents]). Result
+     * lands in [deleteState]; the screen consumes it via [consumeDeleteResult].
      */
-    fun delete(wholeSeries: Boolean) {
+    fun delete(scope: RecurringWriteScope) {
         val target = _target.value ?: return
         if (_deleteState.value == DeleteUiState.Deleting) return
         viewModelScope.launch {
             _deleteState.value = DeleteUiState.Deleting
             _deleteState.value = try {
-                if (wholeSeries) {
-                    repository.deleteEvent(target.eventId)
-                } else {
-                    repository.deleteOccurrence(target.eventId, target.beginMillis)
+                when (scope) {
+                    RecurringWriteScope.AllEvents ->
+                        repository.deleteEvent(target.eventId)
+                    RecurringWriteScope.ThisEvent ->
+                        repository.deleteOccurrence(target.eventId, target.beginMillis)
+                    RecurringWriteScope.ThisAndFollowing ->
+                        repository.deleteEventFromOccurrence(target.eventId, target.beginMillis)
                 }
                 DeleteUiState.Deleted
             } catch (e: CancellationException) {

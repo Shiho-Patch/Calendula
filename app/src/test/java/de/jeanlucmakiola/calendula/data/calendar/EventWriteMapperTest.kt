@@ -71,4 +71,151 @@ class EventWriteMapperTest {
         // 11th, 12th, 13th inclusive = 3 days.
         assertThat(times.dtEndMillis - times.dtStartMillis).isEqualTo(3L * 86_400_000L)
     }
+
+    @Test
+    fun `truncation cutoff is the end of the previous local day`() {
+        // June 9 2026 15:30Z == 17:30 in Berlin. The cutoff must be
+        // June 8 23:59:59 Berlin == June 8 21:59:59Z.
+        assertThat(previousLocalDayEndUtcMillis(1_781_019_000_000L, berlin))
+            .isEqualTo(1_780_955_999_000L)
+        // All-day series live in UTC: the cutoff for a June 9 UTC-midnight
+        // occurrence is June 8 23:59:59Z.
+        assertThat(previousLocalDayEndUtcMillis(1_780_963_200_000L, ZoneId.of("UTC")))
+            .isEqualTo(1_780_963_199_000L)
+    }
+
+    @Test
+    fun `duration renders seconds for timed and days for all-day events`() {
+        assertThat(form().toWriteTimes(berlin).toRfc2445Duration(isAllDay = false))
+            .isEqualTo("P5400S")
+        assertThat(form(isAllDay = true).toWriteTimes(berlin).toRfc2445Duration(isAllDay = true))
+            .isEqualTo("P1D")
+    }
+
+    // --- buildEventUpdateValues (dirty-checked partial update) ---
+
+    private val seriesStart = 1_700_000_000_000L
+
+    private fun update(original: EventForm, updated: EventForm): Map<String, Any?> =
+        buildEventUpdateValues(original, updated, seriesStart, berlin)
+
+    @Test
+    fun `pristine form produces no values`() {
+        val original = form()
+        assertThat(update(original, original.copy())).isEmpty()
+    }
+
+    @Test
+    fun `text-only edit writes just the changed columns`() {
+        val original = form()
+        val values = update(original, original.copy(title = "New", description = "Body"))
+        assertThat(values).containsExactly(
+            CalendarContract.Events.TITLE, "New",
+            CalendarContract.Events.DESCRIPTION, "Body",
+        )
+    }
+
+    @Test
+    fun `clearing location writes an explicit null`() {
+        val original = form().copy(location = "Berlin")
+        val values = update(original, original.copy(location = " "))
+        assertThat(values).containsExactly(CalendarContract.Events.EVENT_LOCATION, null)
+    }
+
+    @Test
+    fun `time edit on a one-off event writes absolute times and clears recurrence columns`() {
+        val original = form()
+        val updated = original.copy(
+            start = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(11, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(12, 0)),
+        )
+        val values = update(original, updated)
+        // 2026-06-11 11:00 CEST == 09:00Z.
+        assertThat(values[CalendarContract.Events.DTSTART])
+            .isEqualTo(1_781_164_800_000L + 3_600_000L)
+        assertThat(values[CalendarContract.Events.DTEND])
+            .isEqualTo(1_781_164_800_000L + 2L * 3_600_000L)
+        assertThat(values).containsEntry(CalendarContract.Events.RRULE, null)
+        assertThat(values).containsEntry(CalendarContract.Events.DURATION, null)
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("Europe/Berlin")
+        assertThat(values[CalendarContract.Events.ALL_DAY]).isEqualTo(0)
+    }
+
+    @Test
+    fun `time edit on a recurring event moves the series start by the same delta`() {
+        val original = form().copy(rrule = "FREQ=WEEKLY")
+        val updated = original.copy(
+            // Pushed one hour later than the displayed occurrence.
+            start = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(11, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(12, 30)),
+        )
+        val values = update(original, updated)
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(seriesStart + 3_600_000L)
+        assertThat(values).containsEntry(CalendarContract.Events.DTEND, null)
+        assertThat(values[CalendarContract.Events.RRULE]).isEqualTo("FREQ=WEEKLY")
+        assertThat(values[CalendarContract.Events.DURATION]).isEqualTo("P5400S")
+    }
+
+    @Test
+    fun `adding a recurrence keeps the times and writes rule plus duration`() {
+        val original = form()
+        val values = update(original, original.copy(rrule = "FREQ=DAILY;COUNT=5"))
+        // The event was one-off, so the row's DTSTART is the occurrence start
+        // and a zero delta keeps it in place.
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(seriesStart)
+        assertThat(values[CalendarContract.Events.RRULE]).isEqualTo("FREQ=DAILY;COUNT=5")
+        assertThat(values[CalendarContract.Events.DURATION]).isEqualTo("P5400S")
+        assertThat(values).containsEntry(CalendarContract.Events.DTEND, null)
+    }
+
+    @Test
+    fun `removing the recurrence writes absolute occurrence times and clears the rule`() {
+        val original = form().copy(rrule = "FREQ=WEEKLY")
+        val values = update(original, original.copy(rrule = null))
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_781_164_800_000L)
+        assertThat(values[CalendarContract.Events.DTEND])
+            .isEqualTo(1_781_164_800_000L + 5_400_000L)
+        assertThat(values).containsEntry(CalendarContract.Events.RRULE, null)
+        assertThat(values).containsEntry(CalendarContract.Events.DURATION, null)
+    }
+
+    @Test
+    fun `reminder-only changes touch no event columns`() {
+        val original = form()
+        assertThat(update(original, original.copy(reminders = listOf(10)))).isEmpty()
+    }
+
+    // --- buildOccurrenceExceptionValues ("edit only this event") ---
+
+    @Test
+    fun `occurrence exception carries absolute times and the original instance`() {
+        val values = buildOccurrenceExceptionValues(
+            form = form().copy(title = "Moved", location = "Berlin"),
+            originalInstanceMillis = 1_700_000_000_000L,
+            zone = berlin,
+        )
+        assertThat(values[CalendarContract.Events.ORIGINAL_INSTANCE_TIME])
+            .isEqualTo(1_700_000_000_000L)
+        assertThat(values[CalendarContract.Events.TITLE]).isEqualTo("Moved")
+        assertThat(values[CalendarContract.Events.EVENT_LOCATION]).isEqualTo("Berlin")
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_781_164_800_000L)
+        assertThat(values[CalendarContract.Events.DTEND])
+            .isEqualTo(1_781_164_800_000L + 5_400_000L)
+        // A single occurrence never carries its own rule.
+        assertThat(values).doesNotContainKey(CalendarContract.Events.RRULE)
+        assertThat(values).doesNotContainKey(CalendarContract.Events.DURATION)
+    }
+
+    @Test
+    fun `occurrence exception clears empty optionals explicitly`() {
+        // The provider clones the parent row, so a blank field must be an
+        // explicit NULL or the parent's value would survive.
+        val values = buildOccurrenceExceptionValues(
+            form = form(),
+            originalInstanceMillis = 0L,
+            zone = berlin,
+        )
+        assertThat(values).containsEntry(CalendarContract.Events.EVENT_LOCATION, null)
+        assertThat(values).containsEntry(CalendarContract.Events.DESCRIPTION, null)
+    }
 }

@@ -20,8 +20,12 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     var nextInsertId: Long = 100L
 
     val insertedForms = mutableListOf<EventForm>()
+    val updatedEvents = mutableListOf<Triple<Long, EventForm, EventForm>>()
+    val updatedOccurrences = mutableListOf<Triple<Long, Long, EventForm>>()
+    val updatedFromOccurrences = mutableListOf<Triple<Long, Long, EventForm>>()
     val deletedEventIds = mutableListOf<Long>()
     val deletedOccurrences = mutableListOf<Pair<Long, Long>>()
+    val deletedFromOccurrences = mutableListOf<Pair<Long, Long>>()
 
     private val listeners = mutableListOf<() -> Unit>()
 
@@ -34,6 +38,33 @@ internal class FakeCalendarDataSource : CalendarDataSource {
         writeError?.let { throw it }
         insertedForms += form
         return nextInsertId
+    }
+
+    override fun updateEvent(eventId: Long, original: EventForm, updated: EventForm) {
+        writeError?.let { throw it }
+        updatedEvents += Triple(eventId, original, updated)
+    }
+
+    override fun updateOccurrence(eventId: Long, beginMillis: Long, form: EventForm): Long {
+        writeError?.let { throw it }
+        updatedOccurrences += Triple(eventId, beginMillis, form)
+        return nextInsertId
+    }
+
+    override fun updateEventFromOccurrence(
+        eventId: Long,
+        beginMillis: Long,
+        original: EventForm,
+        updated: EventForm,
+    ): Long {
+        writeError?.let { throw it }
+        updatedFromOccurrences += Triple(eventId, beginMillis, updated)
+        return nextInsertId
+    }
+
+    override fun deleteEventFromOccurrence(eventId: Long, beginMillis: Long) {
+        writeError?.let { throw it }
+        deletedFromOccurrences += eventId to beginMillis
     }
 
     override fun deleteEvent(eventId: Long) {

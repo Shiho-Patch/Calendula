@@ -199,6 +199,43 @@ class CalendarRepositoryImplTest {
     }
 
     @Test
+    fun `updateEvent forwards id and both forms`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource()
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val original = EventForm(
+            calendarId = 1L,
+            title = "Stand-up",
+            start = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(9, 15)),
+        )
+        val updated = original.copy(title = "Daily")
+
+        repo.updateEvent(eventId = 42L, original = original, updated = updated)
+
+        assertThat(fake.updatedEvents).containsExactly(Triple(42L, original, updated))
+    }
+
+    @Test
+    fun `updateEvent propagates write failures`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource().apply {
+            writeError = WriteFailedException("update event id=42")
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val form = EventForm(
+            calendarId = 1L,
+            start = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(10, 0)),
+        )
+
+        try {
+            repo.updateEvent(eventId = 42L, original = form, updated = form.copy(title = "X"))
+            error("Expected WriteFailedException")
+        } catch (expected: WriteFailedException) {
+            assertThat(expected.message).contains("42")
+        }
+    }
+
+    @Test
     fun `deleteEvent delegates to the data source`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource()
         val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
@@ -218,6 +255,61 @@ class CalendarRepositoryImplTest {
 
         assertThat(fake.deletedOccurrences).containsExactly(42L to 1_000L)
         assertThat(fake.deletedEventIds).isEmpty()
+    }
+
+    @Test
+    fun `deleteEventFromOccurrence forwards event id and begin time`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource()
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+
+        repo.deleteEventFromOccurrence(eventId = 42L, beginMillis = 1_000L)
+
+        assertThat(fake.deletedFromOccurrences).containsExactly(42L to 1_000L)
+        assertThat(fake.deletedEventIds).isEmpty()
+        assertThat(fake.deletedOccurrences).isEmpty()
+    }
+
+    @Test
+    fun `updateOccurrence forwards target and form, returns the exception id`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource().apply { nextInsertId = 88L }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val form = EventForm(
+            calendarId = 1L,
+            title = "Moved",
+            start = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(10, 0)),
+        )
+
+        val id = repo.updateOccurrence(eventId = 42L, beginMillis = 1_000L, form = form)
+
+        assertThat(id).isEqualTo(88L)
+        assertThat(fake.updatedOccurrences).containsExactly(Triple(42L, 1_000L, form))
+        assertThat(fake.updatedEvents).isEmpty()
+    }
+
+    @Test
+    fun `updateEventFromOccurrence forwards target and forms, returns the new id`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource().apply { nextInsertId = 99L }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val original = EventForm(
+            calendarId = 1L,
+            title = "Weekly",
+            start = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(10, 0)),
+            rrule = "FREQ=WEEKLY",
+        )
+        val updated = original.copy(title = "Weekly, renamed")
+
+        val id = repo.updateEventFromOccurrence(
+            eventId = 42L,
+            beginMillis = 1_000L,
+            original = original,
+            updated = updated,
+        )
+
+        assertThat(id).isEqualTo(99L)
+        assertThat(fake.updatedFromOccurrences).containsExactly(Triple(42L, 1_000L, updated))
+        assertThat(fake.updatedEvents).isEmpty()
     }
 
     @Test

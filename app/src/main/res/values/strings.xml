@@ -46,12 +46,15 @@
 
     <!-- Event detail screen (S4) -->
     <string name="event_detail_back">Back</string>
+    <string name="event_detail_edit">Edit</string>
     <string name="event_detail_delete">Delete</string>
     <string name="event_delete_title">Delete event?</string>
     <string name="event_delete_body">The event is removed from your calendar and from every device it syncs to.</string>
     <string name="event_delete_recurring_title">Delete recurring event</string>
     <string name="event_delete_option_occurrence">Only this event</string>
+    <string name="event_delete_option_following">This and all following events</string>
     <string name="event_delete_option_series">All events in the series</string>
+    <string name="event_edit_recurring_title">Edit recurring event</string>
     <string name="event_delete_failed">Couldn\'t delete the event</string>
     <string name="event_delete_write_denied">Calendula needs write access to delete events</string>
     <string name="dialog_cancel">Cancel</string>
@@ -79,6 +82,21 @@
     <string name="reminder_unit_weeks">weeks</string>
     <string name="event_edit_availability">Availability</string>
     <string name="event_edit_visibility">Visibility</string>
+
+    <!-- Event form — recurrence picker (v1.3) -->
+    <string name="event_edit_recurrence_none">Does not repeat</string>
+    <string name="event_edit_recurrence_custom">Custom</string>
+    <string name="event_edit_recurrence_every">Every</string>
+    <string name="recurrence_unit_days">days</string>
+    <string name="recurrence_unit_weeks">weeks</string>
+    <string name="recurrence_unit_months">months</string>
+    <string name="recurrence_unit_years">years</string>
+    <string name="event_edit_recurrence_ends">Ends</string>
+    <string name="event_edit_recurrence_end_never">Never</string>
+    <string name="event_edit_recurrence_end_until">On a date</string>
+    <string name="event_edit_recurrence_end_count">After a number of times</string>
+    <string name="event_edit_recurrence_times">times</string>
+    <string name="event_edit_error_recurrence_ends_before_start">Repeats end before the event starts</string>
     <string name="event_availability_busy">Busy</string>
     <string name="event_access_default">Default</string>
     <string name="event_access_public">Public</string>

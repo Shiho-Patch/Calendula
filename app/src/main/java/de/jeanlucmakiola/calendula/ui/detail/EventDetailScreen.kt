@@ -5,7 +5,6 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.icu.text.ListFormatter
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -35,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Place
@@ -74,7 +74,6 @@ import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
@@ -90,13 +89,14 @@ import de.jeanlucmakiola.calendula.domain.AttendeeType
 import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.EventStatus
+import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.Reminder
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.OptionCard
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.pastelize
+import de.jeanlucmakiola.calendula.ui.common.recurrenceText
 import kotlinx.datetime.TimeZone
-import java.time.DayOfWeek
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -109,7 +109,9 @@ import kotlin.time.Instant
  * Full-screen event detail (spec S4, realised as a navigation destination
  * rather than a bottom sheet — MD3 list→detail pattern). Back gesture and the
  * top-bar arrow both return to the calendar. Events in writable calendars can
- * be deleted from here (v1.1); edit follows in v1.3.
+ * be deleted (v1.1) and edited (v1.3) from here; [onEdit] opens the shared
+ * event form for this occurrence — for recurring events the form asks how
+ * far the change reaches when saving.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,6 +120,7 @@ fun EventDetailScreen(
     beginMillis: Long,
     endMillis: Long,
     onBack: () -> Unit,
+    onEdit: () -> Unit,
     viewModel: EventDetailViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(eventId, beginMillis, endMillis) {
@@ -133,20 +136,35 @@ fun EventDetailScreen(
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
 
     // v1.0 installs only hold READ_CALENDAR; the first write asks for the
-    // upgrade in place. Granting continues straight into the confirm dialog.
+    // upgrade in place. Granting continues straight into the tapped action.
+    var pendingEdit by remember { mutableStateOf(false) }
     val writePermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        if (granted) showDeleteDialog = true
+        if (granted) {
+            if (pendingEdit) onEdit() else showDeleteDialog = true
+        }
+        pendingEdit = false
     }
-    val onDeleteClick = {
-        val granted = ContextCompat.checkSelfPermission(
+    val hasWritePermission = {
+        ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.WRITE_CALENDAR,
         ) == PackageManager.PERMISSION_GRANTED
-        if (granted) {
+    }
+    val onDeleteClick = {
+        if (hasWritePermission()) {
             showDeleteDialog = true
         } else {
+            pendingEdit = false
+            writePermissionLauncher.launch(Manifest.permission.WRITE_CALENDAR)
+        }
+    }
+    val onEditClick = {
+        if (hasWritePermission()) {
+            onEdit()
+        } else {
+            pendingEdit = true
             writePermissionLauncher.launch(Manifest.permission.WRITE_CALENDAR)
         }
     }
@@ -190,6 +208,15 @@ fun EventDetailScreen(
                     val s = state
                     if (s is EventDetailUiState.Success && s.canModify) {
                         IconButton(
+                            onClick = onEditClick,
+                            enabled = deleteState != DeleteUiState.Deleting,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = stringResource(R.string.event_detail_edit),
+                            )
+                        }
+                        IconButton(
                             onClick = onDeleteClick,
                             enabled = deleteState != DeleteUiState.Deleting,
                         ) {
@@ -223,9 +250,9 @@ fun EventDetailScreen(
     if (showDeleteDialog && loaded is EventDetailUiState.Success) {
         DeleteEventDialog(
             isRecurring = !loaded.detail.rrule.isNullOrBlank(),
-            onConfirm = { wholeSeries ->
+            onConfirm = { scope ->
                 showDeleteDialog = false
-                viewModel.delete(wholeSeries)
+                viewModel.delete(scope)
             },
             onDismiss = { showDeleteDialog = false },
         )
@@ -234,15 +261,16 @@ fun EventDetailScreen(
 
 /**
  * Delete confirmation. Recurring events choose between cancelling just the
- * tapped occurrence (default) and removing the whole series.
+ * tapped occurrence (default), truncating the series from it onwards, and
+ * removing the whole series.
  */
 @Composable
 private fun DeleteEventDialog(
     isRecurring: Boolean,
-    onConfirm: (wholeSeries: Boolean) -> Unit,
+    onConfirm: (RecurringWriteScope) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var wholeSeries by rememberSaveable { mutableStateOf(false) }
+    var scope by rememberSaveable { mutableStateOf(RecurringWriteScope.ThisEvent) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -258,13 +286,18 @@ private fun DeleteEventDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OptionCard(
                         label = stringResource(R.string.event_delete_option_occurrence),
-                        onClick = { wholeSeries = false },
-                        selected = !wholeSeries,
+                        onClick = { scope = RecurringWriteScope.ThisEvent },
+                        selected = scope == RecurringWriteScope.ThisEvent,
+                    )
+                    OptionCard(
+                        label = stringResource(R.string.event_delete_option_following),
+                        onClick = { scope = RecurringWriteScope.ThisAndFollowing },
+                        selected = scope == RecurringWriteScope.ThisAndFollowing,
                     )
                     OptionCard(
                         label = stringResource(R.string.event_delete_option_series),
-                        onClick = { wholeSeries = true },
-                        selected = wholeSeries,
+                        onClick = { scope = RecurringWriteScope.AllEvents },
+                        selected = scope == RecurringWriteScope.AllEvents,
                     )
                 }
             } else {
@@ -272,7 +305,9 @@ private fun DeleteEventDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(if (isRecurring) wholeSeries else true) }) {
+            TextButton(
+                onClick = { onConfirm(if (isRecurring) scope else RecurringWriteScope.AllEvents) },
+            ) {
                 Text(
                     text = stringResource(R.string.event_detail_delete),
                     color = MaterialTheme.colorScheme.error,
@@ -704,116 +739,6 @@ private fun linkifyUrls(text: String, linkColor: Color): AnnotatedString = remem
             val end = match.range.first + url.length
             addLink(LinkAnnotation.Url(url, styles), match.range.first, end)
         }
-    }
-}
-
-/**
- * Humanise an RFC 5545 RRULE into a localized phrase, e.g.
- * "Every week on Tue and Thu until 31 Dec 2026" or "Every day, 10 times".
- * Falls back to a generic label for rules we don't render in full (ordinal
- * monthly/yearly BYDAY, etc.).
- */
-@Composable
-private fun recurrenceText(rrule: String, locale: Locale): AnnotatedString {
-    val parts = rrule.removePrefix("RRULE:").split(';').mapNotNull { token ->
-        val eq = token.indexOf('=')
-        if (eq <= 0) null else token.substring(0, eq).uppercase() to token.substring(eq + 1)
-    }.toMap()
-
-    val freq = parts["FREQ"]?.uppercase()
-    val interval = parts["INTERVAL"]?.toIntOrNull() ?: 1
-    val base = when (freq) {
-        "DAILY" -> if (interval == 1) stringResource(R.string.recurrence_daily)
-        else stringResource(R.string.recurrence_every_n_days, interval)
-        "WEEKLY" -> if (interval == 1) stringResource(R.string.recurrence_weekly)
-        else stringResource(R.string.recurrence_every_n_weeks, interval)
-        "MONTHLY" -> if (interval == 1) stringResource(R.string.recurrence_monthly)
-        else stringResource(R.string.recurrence_every_n_months, interval)
-        "YEARLY" -> if (interval == 1) stringResource(R.string.recurrence_yearly)
-        else stringResource(R.string.recurrence_every_n_years, interval)
-        else -> return AnnotatedString(stringResource(R.string.event_detail_recurring))
-    }
-
-    // Weekly + BYDAY → "<base> on <days>"; other BYDAY forms keep just the base.
-    // The day names + their joined block are tracked so only the names (not the
-    // commas/conjunction) can be italicised in the final string.
-    val byDay = parts["BYDAY"]
-    var dayNames: List<String>? = null
-    var joinedDays: String? = null
-    val main = if (freq == "WEEKLY" && !byDay.isNullOrBlank()) {
-        val days = byDay.split(',').mapNotNull { rruleDayName(it.trim(), locale) }
-        if (days.isNotEmpty()) {
-            val joined = ListFormatter.getInstance(locale).format(days)
-            dayNames = days
-            joinedDays = joined
-            stringResource(R.string.recurrence_on_days, base, joined)
-        } else {
-            base
-        }
-    } else {
-        base
-    }
-
-    // End bound: UNTIL (a date) takes precedence over COUNT (a number of times).
-    val until = parts["UNTIL"]?.let { parseUntilDate(it, locale) }
-    val count = parts["COUNT"]?.toIntOrNull()
-    val full = when {
-        until != null -> stringResource(R.string.recurrence_with_until, main, until)
-        count != null -> stringResource(R.string.recurrence_with_count, main, count)
-        else -> main
-    }
-
-    return buildAnnotatedString {
-        append(full)
-        val names = dayNames
-        val joined = joinedDays
-        if (names != null && joined != null) {
-            // Italicise each day name within the joined block only — leaving the
-            // separators and conjunction ("und"/"and") in the regular style.
-            val regionStart = full.indexOf(joined)
-            if (regionStart >= 0) {
-                val regionEnd = regionStart + joined.length
-                var cursor = regionStart
-                for (name in names) {
-                    val at = full.indexOf(name, cursor)
-                    if (at in regionStart until regionEnd) {
-                        addStyle(SpanStyle(fontStyle = FontStyle.Italic), at, at + name.length)
-                        cursor = at + name.length
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** Map an RRULE BYDAY token (e.g. "TU" or "2TH") to a localized short weekday name. */
-private fun rruleDayName(token: String, locale: Locale): String? {
-    val dow = when (token.takeLast(2).uppercase()) {
-        "MO" -> DayOfWeek.MONDAY
-        "TU" -> DayOfWeek.TUESDAY
-        "WE" -> DayOfWeek.WEDNESDAY
-        "TH" -> DayOfWeek.THURSDAY
-        "FR" -> DayOfWeek.FRIDAY
-        "SA" -> DayOfWeek.SATURDAY
-        "SU" -> DayOfWeek.SUNDAY
-        else -> return null
-    }
-    return dow.getDisplayName(JavaTextStyle.SHORT, locale)
-}
-
-/** Parse an RRULE UNTIL value ("20261231" or "20261231T235959Z") to a localized date. */
-private fun parseUntilDate(raw: String, locale: Locale): String? {
-    val digits = raw.takeWhile { it.isDigit() }
-    if (digits.length < 8) return null
-    return try {
-        val date = java.time.LocalDate.of(
-            digits.substring(0, 4).toInt(),
-            digits.substring(4, 6).toInt(),
-            digits.substring(6, 8).toInt(),
-        )
-        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).format(date)
-    } catch (e: Exception) {
-        null
     }
 }
 

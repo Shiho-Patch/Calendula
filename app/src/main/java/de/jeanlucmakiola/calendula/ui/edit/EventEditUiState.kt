@@ -19,13 +19,26 @@ data class EventEditUiState(
     val saveState: SaveUiState,
     /** Optional sections currently rendered (settings defaults ∪ revealed). */
     val visibleFields: Set<EventFormField> = emptySet(),
-    /** True while at least one optional section hides behind "more fields". */
-    val hasHiddenFields: Boolean = false,
+    /**
+     * Optional sections behind "more fields". Sections the current mode can't
+     * offer at all (recurrence while editing a single occurrence) appear in
+     * neither list.
+     */
+    val hiddenFields: List<EventFormField> = emptyList(),
+    /** True while editing an existing event (the calendar is then fixed). */
+    val isEditing: Boolean = false,
+    /**
+     * True while an edit changed the recurrence rule — the save-scope dialog
+     * then drops "only this event" (an exception row can't carry a rule).
+     */
+    val recurrenceChanged: Boolean = false,
 )
 
 /** One-shot state of a save request, mirroring DeleteUiState on the detail screen. */
 sealed interface SaveUiState {
     data object Idle : SaveUiState
+    /** A dirty recurring event waits for the user to pick the write scope. */
+    data object AwaitingScope : SaveUiState
     data object Saving : SaveUiState
     data object Saved : SaveUiState
     /** WRITE_CALENDAR was revoked between the tap and the provider call. */

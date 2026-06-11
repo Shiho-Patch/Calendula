@@ -12,9 +12,13 @@ import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
+import de.jeanlucmakiola.calendula.domain.populatedFields
 import de.jeanlucmakiola.calendula.domain.problems
+import de.jeanlucmakiola.calendula.domain.toEditForm
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -54,13 +58,32 @@ class EventEditViewModel @Inject constructor(
     // form isn't already shouting errors.
     private val _showProblems = MutableStateFlow(false)
     // Fields added through the "more fields" picker; folds back on reset().
+    // openForEdit seeds it with the sections that already hold values.
     private val _revealed = MutableStateFlow<Set<EventFormField>>(emptySet())
+    // Set while the form edits an existing event instead of composing a new one.
+    private val _editTarget = MutableStateFlow<EditTarget?>(null)
+    private val _loadFailed = MutableStateFlow(false)
+
+    /** True when the event to edit couldn't be loaded; the screen closes itself. */
+    val loadFailed: StateFlow<Boolean> = _loadFailed.asStateFlow()
+
+    /**
+     * The event being edited plus the form exactly as it was prefilled.
+     * For recurring events the write scope is chosen at save time; the
+     * tapped occurrence's [beginMillis] anchors occurrence-level writes.
+     */
+    private data class EditTarget(
+        val eventId: Long,
+        val original: EventForm,
+        val beginMillis: Long,
+    )
 
     private data class LocalInputs(
         val form: EventForm?,
         val saveState: SaveUiState,
         val showProblems: Boolean,
         val revealed: Set<EventFormField>,
+        val editTarget: EditTarget?,
     )
 
     private data class ExternalInputs(
@@ -70,7 +93,7 @@ class EventEditViewModel @Inject constructor(
     )
 
     val state: StateFlow<EventEditUiState?> = combine(
-        combine(_form, _saveState, _showProblems, _revealed, ::LocalInputs),
+        combine(_form, _saveState, _showProblems, _revealed, _editTarget, ::LocalInputs),
         combine(
             repository.calendars()
                 .map { calendars -> calendars.filter { it.canModifyContents } }
@@ -92,7 +115,12 @@ class EventEditViewModel @Inject constructor(
             problems = if (local.showProblems) resolved.problems() else emptySet(),
             saveState = local.saveState,
             visibleFields = visibleFields,
-            hasHiddenFields = visibleFields.size < EventFormField.entries.size,
+            hiddenFields = (EventFormField.entries.toSet() - visibleFields).sorted(),
+            isEditing = local.editTarget != null,
+            // A modified-occurrence exception can't carry its own rule, so
+            // the scope dialog drops "only this event" after a rule change.
+            recurrenceChanged = local.editTarget != null &&
+                resolved.rrule != local.editTarget.original.rrule,
         )
     }
         .flowOn(io)
@@ -123,12 +151,38 @@ class EventEditViewModel @Inject constructor(
         _form.value = EventForm(calendarId = null, start = start, end = end)
     }
 
-    /** Forget the open form; the next [openNew] starts clean. */
+    /**
+     * Load an existing event into the form. [beginMillis]/[endMillis] are the
+     * tapped occurrence's own times, like on the detail screen. No-op while a
+     * form is open, so user edits survive configuration changes.
+     */
+    fun openForEdit(eventId: Long, beginMillis: Long, endMillis: Long) {
+        if (_form.value != null || _editTarget.value != null) return
+        viewModelScope.launch {
+            val detail = try {
+                repository.eventDetail(eventId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _loadFailed.value = true
+                return@launch
+            }
+            val original = detail.toEditForm(beginMillis, endMillis, TimeZone.currentSystemDefault())
+            _editTarget.value = EditTarget(eventId, original, beginMillis)
+            // Sections holding data must show even when not in the defaults.
+            _revealed.value = original.populatedFields()
+            _form.value = original
+        }
+    }
+
+    /** Forget the open form; the next [openNew]/[openForEdit] starts clean. */
     fun reset() {
         _form.value = null
         _saveState.value = SaveUiState.Idle
         _showProblems.value = false
         _revealed.value = emptySet()
+        _editTarget.value = null
+        _loadFailed.value = false
     }
 
     /** Unfold one optional field, picked in the "more fields" dialog. */
@@ -144,6 +198,9 @@ class EventEditViewModel @Inject constructor(
     fun setAvailability(value: Availability) = update { it.copy(availability = value) }
     fun setAccessLevel(value: AccessLevel) = update { it.copy(accessLevel = value) }
 
+    /** Bare RRULE value from the recurrence picker; null = does not repeat. */
+    fun setRecurrence(rrule: String?) = update { it.copy(rrule = rrule) }
+
     fun addReminder(minutes: Int) = update {
         it.copy(reminders = (it.reminders + minutes).distinct().sorted())
     }
@@ -158,7 +215,12 @@ class EventEditViewModel @Inject constructor(
     fun setEndDate(date: LocalDate) = update { it.copy(end = LocalDateTime(date, it.end.time)) }
     fun setEndTime(time: LocalTime) = update { it.copy(end = LocalDateTime(it.end.date, time)) }
 
-    /** Validate and write. Terminal results land in [saveState]. */
+    /**
+     * Validate and write. Saving a dirty recurring event pauses in
+     * [SaveUiState.AwaitingScope] until the screen answers via
+     * [saveWithScope]; everything else writes directly. Terminal results
+     * land in [saveState].
+     */
     fun save() {
         val current = state.value ?: return
         if (current.saveState == SaveUiState.Saving) return
@@ -167,11 +229,49 @@ class EventEditViewModel @Inject constructor(
             _showProblems.value = true
             return
         }
+        val target = _editTarget.value
+        if (target != null && form == target.original) {
+            // A pristine form saves as a no-op instead of a write.
+            _saveState.value = SaveUiState.Saved
+            return
+        }
+        if (target != null && target.original.rrule != null) {
+            _saveState.value = SaveUiState.AwaitingScope
+            return
+        }
+        performSave(form, RecurringWriteScope.AllEvents)
+    }
+
+    /** Finish a save parked in [SaveUiState.AwaitingScope]. */
+    fun saveWithScope(scope: RecurringWriteScope) {
+        val current = state.value ?: return
+        if (current.saveState != SaveUiState.AwaitingScope) return
+        performSave(current.form, scope)
+    }
+
+    private fun performSave(form: EventForm, scope: RecurringWriteScope) {
+        val target = _editTarget.value
         viewModelScope.launch {
             _saveState.value = SaveUiState.Saving
             _saveState.value = try {
-                repository.createEvent(form)
-                prefs.setLastUsedCalendarId(requireNotNull(form.calendarId))
+                if (target == null) {
+                    repository.createEvent(form)
+                    prefs.setLastUsedCalendarId(requireNotNull(form.calendarId))
+                } else {
+                    when (scope) {
+                        RecurringWriteScope.ThisEvent ->
+                            repository.updateOccurrence(target.eventId, target.beginMillis, form)
+                        RecurringWriteScope.ThisAndFollowing ->
+                            repository.updateEventFromOccurrence(
+                                eventId = target.eventId,
+                                beginMillis = target.beginMillis,
+                                original = target.original,
+                                updated = form,
+                            )
+                        RecurringWriteScope.AllEvents ->
+                            repository.updateEvent(target.eventId, target.original, form)
+                    }
+                }
                 SaveUiState.Saved
             } catch (e: CancellationException) {
                 throw e

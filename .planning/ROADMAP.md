@@ -64,8 +64,34 @@ guide here, not a contract — scope per slice is decided as we go.
 | v1.1 | Write foundation — `WRITE_CALENDAR`, read-only-calendar detection, delete (series + single occurrence) | complete (shipped 2026-06-11) |
 | v1.2 | Create event — form, FAB, last-used-calendar preselect | complete (shipped 2026-06-11) |
 | v1.2.1 | Form polish after on-device review — card design system, optional fields + settings defaults, OptionCard dialogs, expressive motion | complete (shipped 2026-06-11) |
-| v1.3 | Edit event — shared form, series edit, reminders, simple recurrence picker | planned |
+| v1.3 | Edit event — shared form, scoped recurring writes (this / following / all), recurrence picker | complete (shipped 2026-06-11) |
+| v1.4 | Reminder notifications — see below | planned |
 | v2.0 | Quick-add, occurrence edit, conflict dialog, polish, release | planned |
+
+## v1.4 — Reminder Notifications
+
+**Essential**, not nice-to-have: Calendula targets users for whom it is their
+*only* calendar app, so reminder delivery can't be delegated to Google/OEM
+Calendar. The calendar provider schedules reminders and broadcasts
+`android.intent.action.EVENT_REMINDER`, but it does **not** post the visible
+notification — a calendar app must. We become that app (the Etar model).
+
+Scope:
+- Manifest-registered `BroadcastReceiver` for `EVENT_REMINDER`
+  (data scheme `content://com.android.calendar`) — wakes us at reminder time,
+  no foreground service.
+- Read `CalendarContract.CalendarAlerts` / `Reminders`, filter to
+  `METHOD_ALERT` / `METHOD_DEFAULT` (skip `METHOD_EMAIL`); post on a dedicated
+  notification channel; tap opens event detail.
+- `POST_NOTIFICATIONS` runtime permission (API 33+) — requested in onboarding.
+- Onboarding step: (a) request `POST_NOTIFICATIONS`, (b) in-app reminders
+  toggle, **default ON**, with copy warning that a second calendar app with
+  notifications on will cause duplicate reminders. Mirrored into Settings
+  (reversible).
+
+Deliberately deferred (add only if needed):
+- Snooze / dismiss notification actions (Etar has them)
+- Battery-optimization exemption prompt for delivery reliability
 
 ## v3.0 — Power-User Features
 

@@ -6,6 +6,7 @@ import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.EventForm
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toJavaLocalDateTime
+import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 
@@ -36,6 +37,118 @@ internal fun EventForm.toWriteTimes(zone: ZoneId): EventWriteTimes = if (isAllDa
         timezone = zone.id,
     )
 }
+
+/**
+ * RFC 2445 duration for a recurring event's row (the provider requires
+ * DURATION instead of DTEND when an RRULE is set): whole days for all-day
+ * events, seconds otherwise.
+ */
+internal fun EventWriteTimes.toRfc2445Duration(isAllDay: Boolean): String = if (isAllDay) {
+    "P${(dtEndMillis - dtStartMillis) / MILLIS_PER_DAY}D"
+} else {
+    "P${(dtEndMillis - dtStartMillis) / 1_000L}S"
+}
+
+/**
+ * Dirty-checked column values for updating an existing Events row: only what
+ * the user actually changed is written, so untouched fields can't stomp
+ * concurrent external edits. Keys are `CalendarContract.Events` columns; a
+ * null value means "set the column to NULL". An empty map means nothing on
+ * the row changed.
+ *
+ * Time fields travel together (the provider validates them as a unit):
+ * - unchanged times, all-day flag and rrule → no time columns at all;
+ * - non-recurring result → DTSTART/DTEND, DURATION and RRULE cleared;
+ * - recurring result → the *series* DTSTART moves by the same delta the user
+ *   applied to the displayed occurrence ([seriesDtStartMillis] is the row's
+ *   current DTSTART), DURATION replaces DTEND, RRULE is written. This keeps
+ *   past occurrences intact when someone edits a later occurrence's time.
+ */
+internal fun buildEventUpdateValues(
+    original: EventForm,
+    updated: EventForm,
+    seriesDtStartMillis: Long,
+    zone: ZoneId,
+): Map<String, Any?> = buildMap {
+    if (updated.title.trim() != original.title.trim()) {
+        put(CalendarContract.Events.TITLE, updated.title.trim())
+    }
+    if (updated.location.trim() != original.location.trim()) {
+        put(CalendarContract.Events.EVENT_LOCATION, updated.location.trim().ifEmpty { null })
+    }
+    if (updated.description.trim() != original.description.trim()) {
+        put(CalendarContract.Events.DESCRIPTION, updated.description.trim().ifEmpty { null })
+    }
+    if (updated.availability != original.availability) {
+        put(CalendarContract.Events.AVAILABILITY, updated.availability.toProviderValue())
+    }
+    if (updated.accessLevel != original.accessLevel) {
+        put(CalendarContract.Events.ACCESS_LEVEL, updated.accessLevel.toProviderValue())
+    }
+
+    val timesChanged = updated.start != original.start ||
+        updated.end != original.end ||
+        updated.isAllDay != original.isAllDay ||
+        updated.rrule != original.rrule
+    if (!timesChanged) return@buildMap
+
+    val newTimes = updated.toWriteTimes(zone)
+    put(CalendarContract.Events.ALL_DAY, if (updated.isAllDay) 1 else 0)
+    put(CalendarContract.Events.EVENT_TIMEZONE, newTimes.timezone)
+    if (updated.rrule == null) {
+        put(CalendarContract.Events.DTSTART, newTimes.dtStartMillis)
+        put(CalendarContract.Events.DTEND, newTimes.dtEndMillis)
+        put(CalendarContract.Events.RRULE, null)
+        put(CalendarContract.Events.DURATION, null)
+    } else {
+        val startDelta = newTimes.dtStartMillis - original.toWriteTimes(zone).dtStartMillis
+        put(CalendarContract.Events.DTSTART, seriesDtStartMillis + startDelta)
+        put(CalendarContract.Events.DTEND, null)
+        put(CalendarContract.Events.RRULE, updated.rrule)
+        put(CalendarContract.Events.DURATION, newTimes.toRfc2445Duration(updated.isAllDay))
+    }
+}
+
+/**
+ * Column values for a modified-occurrence exception row ("edit only this
+ * event"): inserting them at `Events.CONTENT_EXCEPTION_URI/<id>` makes the
+ * provider clone the series row and apply these on top. Unlike the series
+ * update there is no dirty check — the exception is a fresh row, so every
+ * form-backed column is written (empty optionals as explicit NULLs, since the
+ * clone starts from the parent's values). An exception is a single event:
+ * DTEND, never RRULE/DURATION.
+ */
+internal fun buildOccurrenceExceptionValues(
+    form: EventForm,
+    originalInstanceMillis: Long,
+    zone: ZoneId,
+): Map<String, Any?> = buildMap {
+    val times = form.toWriteTimes(zone)
+    put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, originalInstanceMillis)
+    put(CalendarContract.Events.TITLE, form.title.trim())
+    put(CalendarContract.Events.ALL_DAY, if (form.isAllDay) 1 else 0)
+    put(CalendarContract.Events.DTSTART, times.dtStartMillis)
+    put(CalendarContract.Events.DTEND, times.dtEndMillis)
+    put(CalendarContract.Events.EVENT_TIMEZONE, times.timezone)
+    put(CalendarContract.Events.AVAILABILITY, form.availability.toProviderValue())
+    put(CalendarContract.Events.ACCESS_LEVEL, form.accessLevel.toProviderValue())
+    put(CalendarContract.Events.EVENT_LOCATION, form.location.trim().ifEmpty { null })
+    put(CalendarContract.Events.DESCRIPTION, form.description.trim().ifEmpty { null })
+}
+
+/**
+ * UTC millis of the last second of the local day *before* the occurrence at
+ * [beginMillis] in [zone] — the cutoff for truncating a series with UNTIL.
+ * The provider's recurrence engine applies UNTIL coarsely (observed on a
+ * Pixel: an occurrence one second *after* UNTIL was still generated), so the
+ * series must end on the previous day, not one second before the occurrence.
+ * With no sub-daily frequencies that is semantically the same cut.
+ */
+internal fun previousLocalDayEndUtcMillis(beginMillis: Long, zone: ZoneId): Long =
+    Instant.ofEpochMilli(beginMillis).atZone(zone).toLocalDate()
+        .atStartOfDay(zone).toInstant().toEpochMilli() - 1_000L
+
+private const val MILLIS_PER_DAY = 86_400_000L
 
 internal fun Availability.toProviderValue(): Int = when (this) {
     Availability.Busy -> CalendarContract.Events.AVAILABILITY_BUSY

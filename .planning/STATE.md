@@ -5,11 +5,12 @@
 ## Status
 
 **Milestone:** v2.0 — Write support (milestone 2, in progress)
-**Phase:** v1.2.1 shipped 2026-06-11 — the create-form polish pass after
-Jean-Luc's on-device review (v1.2.0 and v1.1.0 shipped the same day).
-Milestone 2 runs in four slices
-(`docs/superpowers/plans/2026-06-11-03-write-support.md`); next up is v1.3
-(edit event). Note: UI slices now hold release until his explicit approval.
+**Phase:** v1.3.0 (edit event) shipped 2026-06-11 after four on-device
+review rounds (BYDAY toggles, scoped recurring writes, scope-at-save flip,
+stale-instances split bugfix). Milestone 2 runs in four slices
+(`docs/superpowers/plans/2026-06-11-03-write-support.md`); v2.0 (quick-add,
+conflict dialog, polish) is the remaining slice, v1.4 (reminder
+notifications) comes first.
 
 ## Progress
 
@@ -44,8 +45,27 @@ Milestone 2 runs in four slices
   with provider-correct all-day normalisation (UTC midnights, exclusive end),
   domain/mapper/repository tests
 
+- [x] v1.3 edit event (shipped 2026-06-11) — `EventEditScreen` reused for
+  edit (detail-screen Edit action, `canModify`-gated, contextual WRITE
+  upgrade), dirty-checked partial `update` on the Events row (recurring:
+  series DTSTART moves by the user's delta, DURATION instead of DTEND),
+  reminder diff by minutes (kept rows keep their method), simple recurrence
+  picker (FREQ/INTERVAL/UNTIL/COUNT; complex RRULEs preserved verbatim and
+  shown humanized), `EventFormField.Recurrence` incl. settings default,
+  recurrence also available on create; domain/mapper/repository tests.
+  Review round 1: weekly BYDAY day-toggles in the custom picker ("every week
+  on Mon+Fri"). Review rounds 2–4: occurrence edit pulled forward from v2.0
+  and made three-way like delete ("this" = exception row via
+  `CONTENT_EXCEPTION_URI`, "this and following" = series split, "all" =
+  series update); delete equally three-way (truncation via RRULE UNTIL);
+  the edit-scope question moved to save time (Google model) — dirty
+  recurring saves park in `SaveUiState.AwaitingScope`, a changed rule drops
+  the "only this event" option
+
 ## Next
 
-1. v1.3 — edit event: reuse the form, series edit, reminder edit, simple
-   recurrence picker
-2. Monitor the F-Droid build/publish for v1.1.0 / v1.2.0
+1. v1.4 — reminder notifications (essential for sole-app use): `EVENT_REMINDER`
+   receiver + notification channel, `POST_NOTIFICATIONS`, onboarding step with
+   default-on toggle + duplicate-reminder warning (Etar model)
+2. v2.0 — quick-add sheet, conflict dialog, polish pass, milestone release
+3. Monitor the F-Droid build/publish for v1.1.0 – v1.3.0

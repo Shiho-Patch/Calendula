@@ -89,6 +89,12 @@ class EventDetailMapperTest {
     }
 
     @Test
+    fun `missing title stays raw so the edit form does not inherit a placeholder`() {
+        assertThat(detailReader(title = null).toDetail()!!.instance.title).isEmpty()
+        assertThat(detailReader(title = "").toDetail()!!.instance.title).isEmpty()
+    }
+
+    @Test
     fun `event color falls back to calendar color when null`() {
         val detail = detailReader(eventColor = null, calendarColor = 0xFF112233.toInt())
             .toDetail()

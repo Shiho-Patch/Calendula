@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -42,6 +43,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -88,6 +90,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -101,48 +104,81 @@ import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.EventFormProblem
+import de.jeanlucmakiola.calendula.domain.RecurrenceEnd
+import de.jeanlucmakiola.calendula.domain.RecurrenceFreq
+import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
+import de.jeanlucmakiola.calendula.domain.SimpleRecurrence
+import de.jeanlucmakiola.calendula.domain.parseSimpleRecurrence
+import de.jeanlucmakiola.calendula.domain.toRRule
 import de.jeanlucmakiola.calendula.ui.common.OptionCard
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.pastelize
+import de.jeanlucmakiola.calendula.ui.common.recurrenceText
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.toJavaDayOfWeek
 import kotlinx.datetime.toJavaLocalDate
+import kotlinx.datetime.toKotlinDayOfWeek
 import kotlinx.datetime.toJavaLocalTime
 import kotlinx.datetime.toLocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.time.format.TextStyle as JavaTextStyle
+import java.time.temporal.WeekFields
 import java.util.Locale
 import kotlin.time.Clock
 
 /**
- * Full-screen event form (v1.2: create only). Opens prefilled from the FAB's
- * anchor date; Save validates, writes via the repository, and closes. The
- * calendar picker offers only writable calendars.
+ * Full-screen event form: create (v1.2, from the FAB's anchor date) and edit
+ * (v1.3, [editKey] = eventId + the tapped occurrence's begin/end millis).
+ * Save validates and writes via the repository — a dirty recurring event
+ * first asks how far the change reaches (this occurrence / this and
+ * following / whole series) — then closes. The calendar picker offers only
+ * writable calendars; when editing, the calendar is fixed.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventEditScreen(
     initialDateIso: String?,
     onClose: () -> Unit,
+    onSaved: () -> Unit,
+    editKey: LongArray? = null,
     viewModel: EventEditViewModel = hiltViewModel(),
 ) {
-    LaunchedEffect(initialDateIso) {
-        val date = initialDateIso?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-            ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
-        viewModel.openNew(date)
+    LaunchedEffect(initialDateIso, editKey) {
+        if (editKey != null) {
+            viewModel.openForEdit(
+                eventId = editKey[0],
+                beginMillis = editKey[1],
+                endMillis = editKey[2],
+            )
+        } else {
+            val date = initialDateIso?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+            viewModel.openNew(date)
+        }
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val loadFailed by viewModel.loadFailed.collectAsStateWithLifecycle()
 
     // The form is intentionally forgotten on every close (cancel or save) so
-    // the next FAB tap starts clean; it survives rotation because openNew
-    // no-ops while a form is set.
+    // the next open starts clean; it survives rotation because openNew /
+    // openForEdit no-op while a form is set.
     val close = {
         viewModel.reset()
         onClose()
     }
     BackHandler(onBack = close)
+
+    // The event vanished between the detail screen and the edit tap — fall
+    // back to the detail screen, which shows its own failure state.
+    LaunchedEffect(loadFailed) {
+        if (loadFailed) close()
+    }
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -169,7 +205,10 @@ fun EventEditScreen(
     val writeDeniedMessage = stringResource(R.string.event_edit_write_denied)
     LaunchedEffect(state?.saveState) {
         when (state?.saveState) {
-            SaveUiState.Saved -> close()
+            SaveUiState.Saved -> {
+                viewModel.reset()
+                onSaved()
+            }
             SaveUiState.Failed -> {
                 viewModel.consumeSaveResult()
                 snackbarHostState.showSnackbar(saveFailedMessage)
@@ -178,7 +217,7 @@ fun EventEditScreen(
                 viewModel.consumeSaveResult()
                 snackbarHostState.showSnackbar(writeDeniedMessage)
             }
-            SaveUiState.Idle, SaveUiState.Saving, null -> Unit
+            SaveUiState.Idle, SaveUiState.AwaitingScope, SaveUiState.Saving, null -> Unit
         }
     }
 
@@ -222,6 +261,53 @@ fun EventEditScreen(
             )
         }
     }
+
+    if (state?.saveState == SaveUiState.AwaitingScope) {
+        SaveScopeDialog(
+            recurrenceChanged = state?.recurrenceChanged == true,
+            onSelect = viewModel::saveWithScope,
+            onDismiss = viewModel::consumeSaveResult,
+        )
+    }
+}
+
+/**
+ * Scope choice when saving a dirty recurring event: one tap writes just the
+ * tapped occurrence, it and everything after (series split), or the whole
+ * series. A changed recurrence rule rules out the single occurrence — an
+ * exception row can't carry its own rule.
+ */
+@Composable
+private fun SaveScopeDialog(
+    recurrenceChanged: Boolean,
+    onSelect: (RecurringWriteScope) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.event_edit_recurring_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!recurrenceChanged) {
+                    OptionCard(
+                        label = stringResource(R.string.event_delete_option_occurrence),
+                        onClick = { onSelect(RecurringWriteScope.ThisEvent) },
+                    )
+                }
+                OptionCard(
+                    label = stringResource(R.string.event_delete_option_following),
+                    onClick = { onSelect(RecurringWriteScope.ThisAndFollowing) },
+                )
+                OptionCard(
+                    label = stringResource(R.string.event_delete_option_series),
+                    onClick = { onSelect(RecurringWriteScope.AllEvents) },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
+        },
+    )
 }
 
 private enum class PickerTarget { StartDate, StartTime, EndDate, EndTime }
@@ -261,6 +347,7 @@ private fun EventEditContent(
     var picker by remember { mutableStateOf<PickerTarget?>(null) }
     var showCalendarPicker by rememberSaveable { mutableStateOf(false) }
     var showReminderPicker by rememberSaveable { mutableStateOf(false) }
+    var showRecurrencePicker by rememberSaveable { mutableStateOf(false) }
     var showVisibilityPicker by rememberSaveable { mutableStateOf(false) }
     var showFieldPicker by rememberSaveable { mutableStateOf(false) }
 
@@ -348,12 +435,15 @@ private fun EventEditContent(
 
         Spacer(Modifier.height(gap))
 
-        // Calendar card — tap anywhere to pick the target calendar.
+        // Calendar card — tap anywhere to pick the target calendar. Editing
+        // keeps the owning calendar (moving events between calendars is a
+        // sync-adapter minefield; every stock calendar app locks it too).
         EditCard(
             icon = Icons.Default.CalendarMonth,
             iconContentDescription = stringResource(R.string.event_detail_calendar),
             iconTint = accent,
-            onClick = { showCalendarPicker = true }.takeIf { state.calendars.isNotEmpty() },
+            onClick = { showCalendarPicker = true }
+                .takeIf { state.calendars.isNotEmpty() && !state.isEditing },
         ) {
             Text(
                 text = selectedCalendar?.displayName
@@ -438,6 +528,46 @@ private fun EventEditContent(
             }
         }
 
+        OptionalFormSection(visible = EventFormField.Recurrence in state.visibleFields) {
+            Spacer(Modifier.height(gap))
+            EditCard(
+                icon = Icons.Default.Repeat,
+                iconContentDescription = null,
+                onClick = { showRecurrencePicker = true },
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = form.rrule?.let { recurrenceText(it, locale) }
+                                ?: AnnotatedString(stringResource(R.string.event_edit_recurrence_none)),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = stringResource(R.string.event_detail_recurrence),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (EventFormProblem.RecurrenceEndsBeforeStart in state.problems) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.event_edit_error_recurrence_ends_before_start),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        }
+
         OptionalFormSection(visible = EventFormField.Availability in state.visibleFields) {
             Spacer(Modifier.height(gap))
             EditCard(
@@ -497,7 +627,7 @@ private fun EventEditContent(
             }
         }
 
-        OptionalFormSection(visible = state.hasHiddenFields) {
+        OptionalFormSection(visible = state.hiddenFields.isNotEmpty()) {
             Spacer(Modifier.height(20.dp))
             TextButton(
                 onClick = { showFieldPicker = true },
@@ -561,6 +691,18 @@ private fun EventEditContent(
         )
     }
 
+    if (showRecurrencePicker) {
+        RecurrencePickerDialog(
+            current = form.rrule,
+            startDay = form.start.date.dayOfWeek,
+            onSelect = { rrule ->
+                viewModel.setRecurrence(rrule)
+                showRecurrencePicker = false
+            },
+            onDismiss = { showRecurrencePicker = false },
+        )
+    }
+
     if (showVisibilityPicker) {
         VisibilityPickerDialog(
             selected = form.accessLevel,
@@ -574,7 +716,7 @@ private fun EventEditContent(
 
     if (showFieldPicker) {
         FieldPickerDialog(
-            hiddenFields = EventFormField.entries.filterNot { it in state.visibleFields },
+            hiddenFields = state.hiddenFields,
             onSelect = { field ->
                 viewModel.revealField(field)
                 showFieldPicker = false
@@ -660,71 +802,17 @@ private fun ReminderPickerDialog(
                 }
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // surfaceContainerHighest — the dialog itself sits on
-                    // surfaceContainerHigh, so anything lower vanishes.
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        shape = RoundedCornerShape(12.dp),
-                    ) {
-                        InlineField(
-                            value = amountText,
-                            onValueChange = { text ->
-                                if (text.length <= 3 && text.all(Char::isDigit)) {
-                                    amountText = text
-                                }
-                            },
-                            placeholder = "10",
-                            textStyle = MaterialTheme.typography.titleMedium,
-                            keyboardType = KeyboardType.Number,
-                            modifier = Modifier
-                                .width(72.dp)
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                        )
-                    }
+                    DialogAmountField(
+                        value = amountText,
+                        onValueChange = { amountText = it },
+                        placeholder = "10",
+                    )
                     Spacer(Modifier.width(12.dp))
-                    var unitMenuOpen by remember { mutableStateOf(false) }
-                    Box {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            shape = RoundedCornerShape(12.dp),
-                            onClick = { unitMenuOpen = true },
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(
-                                    start = 14.dp,
-                                    end = 8.dp,
-                                    top = 12.dp,
-                                    bottom = 12.dp,
-                                ),
-                            ) {
-                                Text(
-                                    text = stringResource(reminderUnitLabel(unit)),
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                        DropdownMenu(
-                            expanded = unitMenuOpen,
-                            onDismissRequest = { unitMenuOpen = false },
-                        ) {
-                            ReminderUnit.entries.forEach { entry ->
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(reminderUnitLabel(entry))) },
-                                    onClick = {
-                                        unit = entry
-                                        unitMenuOpen = false
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    DialogUnitDropdown(
+                        label = stringResource(reminderUnitLabel(unit)),
+                        entries = ReminderUnit.entries.map { stringResource(reminderUnitLabel(it)) },
+                        onPick = { unit = ReminderUnit.entries[it] },
+                    )
                 }
             }
         },
@@ -741,6 +829,351 @@ private fun ReminderPickerDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
         },
     )
+}
+
+/** How a custom recurrence ends; mirrors [RecurrenceEnd] in saveable form. */
+private enum class RecurrenceEndMode { Never, Until, Count }
+
+/**
+ * Recurrence picker, two steps like the reminder picker: the plain
+ * frequencies as a tappable list (one tap applies and closes), with "Custom"
+ * switching to an interval-plus-unit editor, weekday toggles (weekly only)
+ * and an end condition — only that step needs an OK button. A rule the
+ * simple shape can't express (ordinal BYDAY etc.) stays untouched unless the
+ * user picks something here.
+ */
+@Composable
+private fun RecurrencePickerDialog(
+    current: String?,
+    startDay: DayOfWeek,
+    onSelect: (String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val parsed = remember(current) { current?.let(::parseSimpleRecurrence) }
+    val isPlainPreset = parsed != null && parsed.interval == 1 &&
+        parsed.end == RecurrenceEnd.Never && parsed.byDays.isEmpty()
+    var customMode by rememberSaveable { mutableStateOf(false) }
+    var intervalText by rememberSaveable { mutableStateOf((parsed?.interval ?: 1).toString()) }
+    var freq by rememberSaveable { mutableStateOf(parsed?.freq ?: RecurrenceFreq.Weekly) }
+    // The event's start weekday stands in until the user picks days herself.
+    var daysMask by rememberSaveable {
+        mutableStateOf(
+            (parsed?.byDays?.takeIf { it.isNotEmpty() } ?: setOf(startDay)).toMask(),
+        )
+    }
+    var endMode by rememberSaveable {
+        mutableStateOf(
+            when (parsed?.end) {
+                is RecurrenceEnd.Until -> RecurrenceEndMode.Until
+                is RecurrenceEnd.Count -> RecurrenceEndMode.Count
+                else -> RecurrenceEndMode.Never
+            },
+        )
+    }
+    var untilIso by rememberSaveable {
+        mutableStateOf((parsed?.end as? RecurrenceEnd.Until)?.date?.toString())
+    }
+    var countText by rememberSaveable {
+        mutableStateOf(((parsed?.end as? RecurrenceEnd.Count)?.times ?: 10).toString())
+    }
+    var showUntilPicker by rememberSaveable { mutableStateOf(false) }
+
+    val locale = currentLocale()
+    val untilDate = untilIso?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+    val interval = intervalText.toIntOrNull()?.takeIf { it in 1..999 }
+    val count = countText.toIntOrNull()?.takeIf { it in 1..999 }
+    val customEnd: RecurrenceEnd? = when (endMode) {
+        RecurrenceEndMode.Never -> RecurrenceEnd.Never
+        RecurrenceEndMode.Until -> untilDate?.let { RecurrenceEnd.Until(it) }
+        RecurrenceEndMode.Count -> count?.let { RecurrenceEnd.Count(it) }
+    }
+    val customResult: String? = if (interval != null && customEnd != null) {
+        SimpleRecurrence(
+            freq = freq,
+            interval = interval,
+            end = customEnd,
+            byDays = if (freq == RecurrenceFreq.Weekly) daysMask.toDaySet() else emptySet(),
+        ).toRRule()
+    } else {
+        null
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.event_detail_recurrence)) },
+        text = {
+            if (!customMode) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OptionCard(
+                        label = stringResource(R.string.event_edit_recurrence_none),
+                        onClick = { onSelect(null) },
+                        selected = current == null,
+                    )
+                    RecurrenceFreq.entries.forEach { entry ->
+                        OptionCard(
+                            label = stringResource(recurrencePresetLabel(entry)),
+                            onClick = { onSelect(SimpleRecurrence(entry).toRRule()) },
+                            selected = isPlainPreset && parsed?.freq == entry,
+                        )
+                    }
+                    OptionCard(
+                        label = stringResource(R.string.event_edit_recurrence_custom),
+                        onClick = { customMode = true },
+                        selected = current != null && !isPlainPreset,
+                        labelColor = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(R.string.event_edit_recurrence_every),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        DialogAmountField(
+                            value = intervalText,
+                            onValueChange = { intervalText = it },
+                            placeholder = "1",
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        DialogUnitDropdown(
+                            label = stringResource(recurrenceUnitLabel(freq)),
+                            entries = RecurrenceFreq.entries.map {
+                                stringResource(recurrenceUnitLabel(it))
+                            },
+                            onPick = { freq = RecurrenceFreq.entries[it] },
+                        )
+                    }
+                    if (freq == RecurrenceFreq.Weekly) {
+                        Spacer(Modifier.height(4.dp))
+                        WeekdayToggleRow(
+                            selected = daysMask.toDaySet(),
+                            onToggle = { day -> daysMask = daysMask xor day.toMaskBit() },
+                            locale = locale,
+                        )
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.event_edit_recurrence_ends),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    OptionCard(
+                        label = stringResource(R.string.event_edit_recurrence_end_never),
+                        onClick = { endMode = RecurrenceEndMode.Never },
+                        selected = endMode == RecurrenceEndMode.Never,
+                    )
+                    OptionCard(
+                        label = stringResource(R.string.event_edit_recurrence_end_until),
+                        onClick = {
+                            endMode = RecurrenceEndMode.Until
+                            showUntilPicker = true
+                        },
+                        supportingText = untilDate?.let {
+                            remember(it, locale) {
+                                DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+                                    .withLocale(locale).format(it.toJavaLocalDate())
+                            }
+                        },
+                        selected = endMode == RecurrenceEndMode.Until,
+                    )
+                    OptionCard(
+                        label = stringResource(R.string.event_edit_recurrence_end_count),
+                        onClick = { endMode = RecurrenceEndMode.Count },
+                        selected = endMode == RecurrenceEndMode.Count,
+                    )
+                    if (endMode == RecurrenceEndMode.Count) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            DialogAmountField(
+                                value = countText,
+                                onValueChange = { countText = it },
+                                placeholder = "10",
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = stringResource(R.string.event_edit_recurrence_times),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            // The preset list applies on tap; only the custom step needs OK.
+            if (customMode) {
+                TextButton(
+                    enabled = customResult != null,
+                    onClick = { customResult?.let(onSelect) },
+                ) { Text(stringResource(R.string.dialog_ok)) }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
+        },
+    )
+
+    if (showUntilPicker) {
+        DatePickerAlert(
+            initial = untilDate ?: LocalDate.fromEpochDays(
+                (Clock.System.now().toEpochMilliseconds() / MILLIS_PER_DAY).toInt(),
+            ),
+            onConfirm = {
+                untilIso = it.toString()
+                showUntilPicker = false
+            },
+            onDismiss = { showUntilPicker = false },
+        )
+    }
+}
+
+/**
+ * One tappable circle per weekday (locale week order), multi-select — the
+ * BYDAY picks of a weekly rule. Deselecting every day is allowed; the rule
+ * then falls back to the event's start weekday (provider behaviour).
+ */
+@Composable
+private fun WeekdayToggleRow(
+    selected: Set<DayOfWeek>,
+    onToggle: (DayOfWeek) -> Unit,
+    locale: Locale,
+) {
+    val days = remember(locale) {
+        val first = WeekFields.of(locale).firstDayOfWeek.toKotlinDayOfWeek()
+        (0 until 7).map { DayOfWeek(((first.isoDayNumber - 1 + it) % 7) + 1) }
+    }
+    Row(
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        days.forEach { day ->
+            val isSelected = day in selected
+            Surface(
+                onClick = { onToggle(day) },
+                shape = CircleShape,
+                color = if (isSelected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                },
+                contentColor = if (isSelected) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                modifier = Modifier.size(36.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = day.toJavaDayOfWeek().getDisplayName(JavaTextStyle.NARROW, locale),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Weekday sets travel through rememberSaveable as an ISO-day bitmask. */
+private fun DayOfWeek.toMaskBit(): Int = 1 shl (isoDayNumber - 1)
+
+private fun Set<DayOfWeek>.toMask(): Int = fold(0) { acc, day -> acc or day.toMaskBit() }
+
+private fun Int.toDaySet(): Set<DayOfWeek> =
+    DayOfWeek.entries.filter { this and it.toMaskBit() != 0 }.toSet()
+
+/** Tonal 3-digit number input shared by the custom reminder/recurrence steps. */
+@Composable
+private fun DialogAmountField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+) {
+    // surfaceContainerHighest — the dialog itself sits on
+    // surfaceContainerHigh, so anything lower vanishes.
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        InlineField(
+            value = value,
+            onValueChange = { text ->
+                if (text.length <= 3 && text.all(Char::isDigit)) {
+                    onValueChange(text)
+                }
+            },
+            placeholder = placeholder,
+            textStyle = MaterialTheme.typography.titleMedium,
+            keyboardType = KeyboardType.Number,
+            modifier = Modifier
+                .width(72.dp)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+        )
+    }
+}
+
+/** Tonal dropdown trigger + menu shared by the custom reminder/recurrence steps. */
+@Composable
+private fun DialogUnitDropdown(
+    label: String,
+    entries: List<String>,
+    onPick: (Int) -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            shape = RoundedCornerShape(12.dp),
+            onClick = { open = true },
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(
+                    start = 14.dp,
+                    end = 8.dp,
+                    top = 12.dp,
+                    bottom = 12.dp,
+                ),
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            entries.forEachIndexed { index, entry ->
+                DropdownMenuItem(
+                    text = { Text(entry) },
+                    onClick = {
+                        onPick(index)
+                        open = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+private fun recurrencePresetLabel(freq: RecurrenceFreq): Int = when (freq) {
+    RecurrenceFreq.Daily -> R.string.recurrence_daily
+    RecurrenceFreq.Weekly -> R.string.recurrence_weekly
+    RecurrenceFreq.Monthly -> R.string.recurrence_monthly
+    RecurrenceFreq.Yearly -> R.string.recurrence_yearly
+}
+
+private fun recurrenceUnitLabel(freq: RecurrenceFreq): Int = when (freq) {
+    RecurrenceFreq.Daily -> R.string.recurrence_unit_days
+    RecurrenceFreq.Weekly -> R.string.recurrence_unit_weeks
+    RecurrenceFreq.Monthly -> R.string.recurrence_unit_months
+    RecurrenceFreq.Yearly -> R.string.recurrence_unit_years
 }
 
 /** One chosen reminder: humanised lead time, remove pinned to the right edge. */
@@ -793,6 +1226,7 @@ private fun fieldLabel(field: EventFormField): Int = when (field) {
     EventFormField.Location -> R.string.event_detail_location
     EventFormField.Description -> R.string.event_detail_description
     EventFormField.Reminders -> R.string.event_detail_reminders
+    EventFormField.Recurrence -> R.string.event_detail_recurrence
     EventFormField.Availability -> R.string.event_edit_availability
     EventFormField.Visibility -> R.string.event_edit_visibility
 }
@@ -801,6 +1235,7 @@ private fun fieldIcon(field: EventFormField): ImageVector = when (field) {
     EventFormField.Location -> Icons.Default.Place
     EventFormField.Description -> Icons.AutoMirrored.Filled.Notes
     EventFormField.Reminders -> Icons.Default.Notifications
+    EventFormField.Recurrence -> Icons.Default.Repeat
     EventFormField.Availability -> Icons.Default.EventAvailable
     EventFormField.Visibility -> Icons.Default.Lock
 }

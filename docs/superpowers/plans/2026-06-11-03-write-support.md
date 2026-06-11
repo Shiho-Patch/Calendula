@@ -47,7 +47,7 @@ Domain bleibt pure Kotlin.
 |---|---|---|
 | v1.1 | Write-Fundament: `WRITE_CALENDAR`, `canModifyContents`, Delete (Serie + einzelnes Vorkommen) | ausgeliefert (v1.1.0, 2026-06-11) |
 | v1.2 | Create: Event-Formular (Titel, Kalender, ganztägig, Start/Ende, Ort, Beschreibung), FAB, Default-Kalender-Pref | ausgeliefert (v1.2.0, 2026-06-11) |
-| v1.3 | Edit: Formular wiederverwendet, Serien-Edit, Reminder-Edit, einfacher Recurrence-Picker | offen |
+| v1.3 | Edit: Formular wiederverwendet, Serien-Edit, Reminder-Edit, einfacher Recurrence-Picker | implementiert (Release wartet auf On-Device-Review) |
 | v2.0 | Quick-Add, Occurrence-Edit, Konflikt-Dialog, Polish-Pass, Release | offen |
 
 ## v1.1 — Write-Fundament + Delete
@@ -95,11 +95,90 @@ Domain bleibt pure Kotlin.
 - [x] `insertEvent(form): Long` im DataSource; `EventWriteMapper` (JVM-testbar)
       normalisiert all-day auf UTC-Mitternächte mit exklusivem DTEND
 
-## v1.3 — Edit (Skizze)
+## v1.3 — Edit
 
-- Formular lädt `EventDetail`, Dirty-Check, `update` auf Events-Row
-- Reminder hinzufügen/entfernen (`Reminders`-Insert/Delete)
-- Einfacher Recurrence-Picker (FREQ + INTERVAL + UNTIL/COUNT)
+**Domain:**
+- [x] `EventForm.rrule` (roher RRULE-Wert, null = einmalig); komplexe Regeln
+      (ordinales BYDAY wie "2TH", BYMONTHDAY etc.) bleiben verbatim erhalten,
+      solange der Picker sie nicht ersetzt
+- [x] `SimpleRecurrence` (FREQ + INTERVAL + UNTIL/COUNT + wöchentliches
+      BYDAY — Review-Feedback: "jede Woche Mo+Fr" muss gehen) mit
+      `parseSimpleRecurrence`/`toRRule` (Recurrence.kt, JVM-getestet)
+- [x] `EventDetail.toEditForm(begin, end, zone)` — Prefill inkl. all-day-
+      Rückrechnung (exklusives DTEND → letzter abgedeckter Tag)
+- [x] Validierung: `RecurrenceEndsBeforeStart` (UNTIL vor erstem Tag hieße
+      null Vorkommen — Event würde unsichtbar)
+
+**Data layer:**
+- [x] `buildEventUpdateValues(original, updated, seriesDtStart, zone)` —
+      Dirty-Check, nur geänderte Spalten; Zeitfelder als Einheit:
+      einmalig → DTSTART/DTEND (RRULE/DURATION genullt), wiederkehrend →
+      Serien-DTSTART verschiebt sich um das User-Delta, DURATION statt DTEND
+- [x] `CalendarDataSource.updateEvent(eventId, original, updated)` — Events-Row-
+      Update + Reminder-Diff nach Minuten (unberührte Rows behalten ihre Methode)
+- [x] `insertEvent` versteht RRULE (RRULE+DURATION statt DTEND — Provider-Invariante)
+- [x] `CalendarRepository(+Impl).updateEvent` durchgereicht, auf `io`
+- [x] `EventDetailMapper`: Titel bleibt roh (kein "(Ohne Titel)"-Fallback mehr —
+      der Detail-Screen ersetzt selbst lokalisiert, das Formular braucht den Rohwert)
+
+**UI:**
+- [x] `EventEditViewModel.openForEdit` (lädt Detail, merkt Original für
+      Dirty-Check; unverändertes Formular speichert als No-Op); Felder mit
+      Werten werden unabhängig vom Settings-Default eingeblendet
+- [x] `EventEditScreen`: `editKey`-Parameter, Kalender im Edit-Modus fixiert,
+      Repeat-Karte + `RecurrencePickerDialog` (Presets per Tap, Custom-Schritt
+      mit Intervall/Einheit + Wochentags-Toggles bei "Wochen" (Wochenstart
+      nach Locale, Start-Wochentag vorausgewählt) + Ende nie/Datum/Anzahl,
+      OptionCard-Stil)
+- [x] Recurrence-Humanizer nach `ui/common/RecurrenceText.kt` (Detail + Formular)
+- [x] `EventDetailScreen`: Edit-Action (nur `canModify`, kontextueller
+      WRITE-Request wie Delete); Save schließt Formular **und** Detail (die
+      getappte Occurrence existiert danach evtl. nicht mehr)
+- [x] **Occurrence-Edit (aus v2.0 vorgezogen, Review-Feedback):** Die
+      Scope-Frage kommt **beim Speichern** (Google-Modell, Review-Feedback):
+      ein dirty wiederkehrender Termin parkt in `SaveUiState.AwaitingScope`,
+      der Dialog bietet "Nur dieser Termin / Dieser und alle folgenden /
+      Ganze Serie"; bei geänderter Wiederholungsregel entfällt "nur dieser"
+      (eine Exception-Row trägt keine eigene Regel). "Nur dieser" schreibt
+      eine Modified-Occurrence-Exception (`CONTENT_EXCEPTION_URI`, alle
+      Formularwerte, leere Optionals als explizite NULLs weil der Provider
+      die Serien-Row klont), Reminder werden gegen die tatsächlichen
+      Provider-Rows abgeglichen. "Dieser und folgende" = Serien-Split:
+      neues Event mit den Formularwerten (insert zuerst — schlägt es fehl,
+      bleibt das Original unberührt), dann Original-RRULE per UNTIL gekappt;
+      ab der ersten Occurrence = normales Serien-Update. Ein mitgenommenes
+      COUNT zählt in der neuen Serie neu (kein Rest-COUNT-Rechnen wie AOSP)
+- [x] **Delete dreistufig (Review-Feedback):** "Nur dieser Termin" /
+      "Dieser und alle folgenden" (RRULE-Truncation via `rruleTruncatedAt`)
+      / "Alle Termine der Serie"; ab der ersten Occurrence = ganze Serie
+      löschen
+- [x] **Split-Duplikat-Bugfix (On-Device-Review):** Nach dem Serien-Split
+      blieb die getappte Occurrence doppelt sichtbar. Root cause (per
+      adb-Probe verifiziert): der Provider regeneriert die Instances eines
+      Events nur aus den **Values des Updates selbst** — ein RRULE-only-
+      Update lässt die alten Instances stehen, und ein Teilset (nur DTSTART)
+      erzeugt kaputte Nulllängen-Instanzen. Truncation-Updates schicken
+      deshalb das komplette Zeit-Set (DTSTART/DURATION/RRULE/ALL_DAY/
+      EVENT_TIMEZONE) zusammen (`truncateSeries`), wie AOSPs
+      EditEventHelper. Zusätzlich (Robustheit, Google-Modell): Cutoff =
+      Ende des Vortags in der Event-Zeitzone (`previousLocalDayEndUtcMillis`)
+      statt Occurrence−1s, und der Recurrence-Picker rendert UNTIL als
+      lokales Tagesende in UTC (`toRRule(zone)`) statt pauschal `T235959Z`
+      (sonst kann bei UTC+x ein Extra-Tag hineinrutschen)
+- [x] `CalendarHost`: Edit-Overlay mit Held-Key-Pattern
+- [x] `EventFormField.Recurrence` (Formular, "Mehr Felder", Settings-Default)
+- [x] Strings DE+EN
+
+**Tests:**
+- [x] `RecurrenceTest` (Parse/Render/Roundtrip, Ablehnung komplexer Regeln)
+- [x] `EventFormTest`: Prefill (timed/all-day), `populatedFields`, UNTIL-Validierung
+- [x] `EventWriteMapperTest`: Duration-Format, Dirty-Check-Pfade (Text-only,
+      Zeit einmalig/wiederkehrend, Recurrence an/aus, Reminder-only)
+- [x] `CalendarRepositoryImplTest` + `FakeCalendarDataSource`: update-Pfade
+- [x] `EventDetailMapperTest`: roher Titel
+
+Bewusst nicht in v1.3 (→ v2.0): Konflikt-Dialog, Kalender-Wechsel beim
+Bearbeiten (Sync-Adapter-Minenfeld, sperren auch alle Stock-Apps).
 
 ## v2.0 — Abschluss (Skizze)
 

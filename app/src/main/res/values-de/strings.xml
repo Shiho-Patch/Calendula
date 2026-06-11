@@ -45,12 +45,15 @@
 
     <!-- Event-Detail-Screen (S4) -->
     <string name="event_detail_back">Zurück</string>
+    <string name="event_detail_edit">Bearbeiten</string>
     <string name="event_detail_delete">Löschen</string>
     <string name="event_delete_title">Termin löschen?</string>
     <string name="event_delete_body">Der Termin wird aus deinem Kalender und von allen synchronisierten Geräten entfernt.</string>
     <string name="event_delete_recurring_title">Wiederkehrenden Termin löschen</string>
     <string name="event_delete_option_occurrence">Nur dieser Termin</string>
+    <string name="event_delete_option_following">Dieser und alle folgenden Termine</string>
     <string name="event_delete_option_series">Alle Termine der Serie</string>
+    <string name="event_edit_recurring_title">Wiederkehrenden Termin bearbeiten</string>
     <string name="event_delete_failed">Termin konnte nicht gelöscht werden</string>
     <string name="event_delete_write_denied">Calendula braucht Schreibzugriff, um Termine zu löschen</string>
     <string name="dialog_cancel">Abbrechen</string>
@@ -78,6 +81,21 @@
     <string name="reminder_unit_weeks">Wochen</string>
     <string name="event_edit_availability">Verfügbarkeit</string>
     <string name="event_edit_visibility">Sichtbarkeit</string>
+
+    <!-- Termin-Formular — Wiederholungs-Picker (v1.3) -->
+    <string name="event_edit_recurrence_none">Wiederholt sich nicht</string>
+    <string name="event_edit_recurrence_custom">Benutzerdefiniert</string>
+    <string name="event_edit_recurrence_every">Alle</string>
+    <string name="recurrence_unit_days">Tage</string>
+    <string name="recurrence_unit_weeks">Wochen</string>
+    <string name="recurrence_unit_months">Monate</string>
+    <string name="recurrence_unit_years">Jahre</string>
+    <string name="event_edit_recurrence_ends">Endet</string>
+    <string name="event_edit_recurrence_end_never">Nie</string>
+    <string name="event_edit_recurrence_end_until">An einem Datum</string>
+    <string name="event_edit_recurrence_end_count">Nach einer Anzahl</string>
+    <string name="event_edit_recurrence_times">Mal</string>
+    <string name="event_edit_error_recurrence_ends_before_start">Wiederholung endet vor dem Beginn</string>
     <string name="event_availability_busy">Beschäftigt</string>
     <string name="event_access_default">Standard</string>
     <string name="event_access_public">Öffentlich</string>

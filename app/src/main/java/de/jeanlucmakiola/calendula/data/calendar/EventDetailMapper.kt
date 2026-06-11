@@ -42,8 +42,9 @@ internal fun ColumnReader.toEventDetailCore(
         rawEnd
     }
 
-    val rawTitle = getString(EventDetailProjection.IDX_TITLE)
-    val title = if (rawTitle.isNullOrEmpty()) Fallbacks.UNTITLED_EVENT else rawTitle
+    // Kept raw (no untitled fallback): the detail screen substitutes its own
+    // localized placeholder, and the edit form must prefill the true value.
+    val title = getString(EventDetailProjection.IDX_TITLE).orEmpty()
 
     val color = if (isNull(EventDetailProjection.IDX_EVENT_COLOR)) {
         getInt(EventDetailProjection.IDX_CALENDAR_COLOR)

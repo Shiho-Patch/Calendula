@@ -74,12 +74,44 @@ class CalendarRepositoryImpl @Inject constructor(
         dataSource.insertEvent(form)
     }
 
+    override suspend fun updateEvent(
+        eventId: Long,
+        original: EventForm,
+        updated: EventForm,
+    ) = withContext(io) {
+        dataSource.updateEvent(eventId, original, updated)
+    }
+
     override suspend fun deleteEvent(eventId: Long) = withContext(io) {
         dataSource.deleteEvent(eventId)
     }
 
+    override suspend fun updateOccurrence(
+        eventId: Long,
+        beginMillis: Long,
+        form: EventForm,
+    ): Long = withContext(io) {
+        dataSource.updateOccurrence(eventId, beginMillis, form)
+    }
+
+    override suspend fun updateEventFromOccurrence(
+        eventId: Long,
+        beginMillis: Long,
+        original: EventForm,
+        updated: EventForm,
+    ): Long = withContext(io) {
+        dataSource.updateEventFromOccurrence(eventId, beginMillis, original, updated)
+    }
+
     override suspend fun deleteOccurrence(eventId: Long, beginMillis: Long) = withContext(io) {
         dataSource.deleteOccurrence(eventId, beginMillis)
+    }
+
+    override suspend fun deleteEventFromOccurrence(
+        eventId: Long,
+        beginMillis: Long,
+    ) = withContext(io) {
+        dataSource.deleteEventFromOccurrence(eventId, beginMillis)
     }
 }
 
