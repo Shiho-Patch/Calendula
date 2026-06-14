@@ -77,12 +77,12 @@ is built, signed, and published there automatically.
    *Settings → Repositories → Add*:
 
    ```
-   https://apps.dev.jeanlucmakiola.de/dev/fdroid/repo?fingerprint=968F796B05DF622BBE18AD6FC1D1EF788D5A6DA1FF05BBEC6B7043BF10A09465
+   https://apps.dev.jeanlucmakiola.de/dev/fdroid/repo?fingerprint=C2C0640402BF458FC0ED957AF0B37AA4C14022E72F89CE90B5965B458CF73425
    ```
 
    <sub>Repo: `https://apps.dev.jeanlucmakiola.de/dev/fdroid/repo` ·
    fingerprint (SHA-256):
-   `968F 796B 05DF 622B BE18 AD6F C1D1 EF78 8D5A 6DA1 FF05 BBEC 6B70 43BF 10A0 9465`</sub>
+   `C2C0 6404 02BF 458F C0ED 957A F0B3 7AA4 C140 22E7 2F89 CE90 B596 5B45 8CF7 3425`</sub>
 
 3. Refresh, search for **Calendula**, install. Updates arrive like any
    other F-Droid app.

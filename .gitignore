@@ -40,6 +40,7 @@ captures/
 # Keystore files
 *.jks
 *.keystore
+*.p12
 /key.properties
 
 # Google Services (e.g. APIs or Firebase)
@@ -50,8 +51,7 @@ google-services.json
 Thumbs.db
 
 # F-Droid local artifacts (the pipeline generates them in CI)
-fdroid/repo/
-fdroid/keystore.p12
+/fdroid/
 
 # KSP
 .ksp/

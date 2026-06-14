@@ -165,27 +165,45 @@ jobs:
           $SUDO apt-get install -y sshpass python3-pip
           pip3 install --break-system-packages --upgrade fdroidserver
 
-      - name: Initialize or fetch F-Droid Repository
+      - name: Fetch existing F-Droid repo from Hetzner
         env:
           HOST: ${{ secrets.HETZNER_HOST }}
           USER: ${{ secrets.HETZNER_USER }}
           PASS: ${{ secrets.HETZNER_PASS }}
         run: |
+          set -euo pipefail
+          SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=20"
           mkdir -p fdroid
-          sshpass -p "$PASS" sftp -o StrictHostKeyChecking=no "$USER@$HOST" <<'SFTP'
-          -mkdir dev
-          -mkdir dev/fdroid
-          -mkdir dev/fdroid/repo
-          SFTP
-          sshpass -p "$PASS" scp -o StrictHostKeyChecking=no -r "$USER@$HOST:dev/fdroid/." fdroid/ || (cd fdroid && fdroid init)
+          # Pull only the published repo/ (all apps' APKs), any per-app
+          # metadata, and the repo icon — enough to rebuild the index without
+          # dropping the other apps. The signing key is deliberately NOT pulled
+          # from the box; it comes from CI secrets in the next step so it never
+          # has to live in the web-served tree.
+          sshpass -p "$PASS" scp $SSH_OPTS -r "$USER@$HOST:dev/fdroid/repo" fdroid/ 2>/dev/null || true
+          sshpass -p "$PASS" scp $SSH_OPTS -r "$USER@$HOST:dev/fdroid/metadata" fdroid/ 2>/dev/null || true
+          sshpass -p "$PASS" scp $SSH_OPTS "$USER@$HOST:dev/fdroid/icon.png" fdroid/ 2>/dev/null || true
+          mkdir -p fdroid/repo fdroid/metadata
 
-      - name: Ensure F-Droid repo signing key and icon
+      - name: Restore F-Droid signing key and config from secrets
+        env:
+          FDROID_KEYSTORE_BASE64: ${{ secrets.FDROID_KEYSTORE_BASE64 }}
+          FDROID_CONFIG_BASE64: ${{ secrets.FDROID_CONFIG_BASE64 }}
         run: |
-          cd fdroid
-          mkdir -p repo/icons
-          if [ ! -f keystore.p12 ]; then
-            fdroid update --create-key
+          set -euo pipefail
+          # Fail loudly if the repo key is not configured. NEVER auto-generate
+          # one: a fresh key changes the repo fingerprint and breaks every
+          # user's pinned repo. (Replaces the old `fdroid update --create-key`
+          # path, which silently rotated the key on a wiped server.)
+          if [ -z "${FDROID_KEYSTORE_BASE64:-}" ] || [ -z "${FDROID_CONFIG_BASE64:-}" ]; then
+            echo "ERROR: FDROID_KEYSTORE_BASE64 / FDROID_CONFIG_BASE64 secrets are not set." >&2
+            echo "Refusing to continue — will not auto-generate a new repo key." >&2
+            exit 1
           fi
+          echo "$FDROID_KEYSTORE_BASE64" | base64 --decode > fdroid/keystore.p12
+          echo "$FDROID_CONFIG_BASE64"   | base64 --decode > fdroid/config.yml
+          test -s fdroid/keystore.p12
+          test -s fdroid/config.yml
+          mkdir -p fdroid/repo/icons
 
       - name: Copy new APK to repo
         run: |
@@ -208,7 +226,7 @@ jobs:
           cd fdroid
           fdroid update -c
 
-      - name: Upload Repo to Hetzner
+      - name: Upload repo/ to Hetzner
         env:
           HOST: ${{ secrets.HETZNER_HOST }}
           USER: ${{ secrets.HETZNER_USER }}
@@ -219,9 +237,10 @@ jobs:
           sshpass -p "$PASS" sftp $SSH_OPTS "$USER@$HOST" <<'SFTP'
           -mkdir dev
           -mkdir dev/fdroid
-          -mkdir dev/fdroid/repo
           SFTP
-          sshpass -p "$PASS" scp $SSH_OPTS -r fdroid/. "$USER@$HOST:dev/fdroid/"
+          # Publish ONLY the signed repo/. keystore.p12 and config.yml never
+          # leave CI, so they can no longer end up in the web-served tree.
+          sshpass -p "$PASS" scp $SSH_OPTS -r fdroid/repo "$USER@$HOST:dev/fdroid/"
 
   # A Gitea release per tag, carrying the tag's CHANGELOG section as its
   # notes. Deliberately no APK assets — distribution stays with the F-Droid
