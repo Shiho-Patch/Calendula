@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Typing in the event title, location, and description fields no longer
+  makes the cursor jump around: the form state's round-trip to the UI was
+  hopping to a background dispatcher, so the text field saw a lagging value
+  while typing. Only the calendar/preferences reads stay off the main
+  thread now; the keystroke path is synchronous again
+
 ## [2.0.0] — 2026-06-11
 
 ### Added

@@ -109,7 +109,7 @@ class EventEditViewModel @Inject constructor(
             prefs.lastUsedCalendarId,
             settingsPrefs.defaultFormFields,
             ::ExternalInputs,
-        ),
+        ).flowOn(io),
     ) { local, external ->
         val form = local.form ?: return@combine null
         val resolvedId = form.calendarId
@@ -131,7 +131,6 @@ class EventEditViewModel @Inject constructor(
                 resolved.rrule != local.editTarget.original.rrule,
         )
     }
-        .flowOn(io)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
