@@ -130,8 +130,9 @@ fun MonthScreen(
         gesturesEnabled = drawerState.isOpen,
         drawerContent = {
             CalendarDrawer(
-                onToday = {
-                    jumpToToday()
+                currentView = selectedView,
+                onSelectView = { view ->
+                    onSelectView(view)
                     scope.launch { drawerState.close() }
                 },
                 onSettings = {

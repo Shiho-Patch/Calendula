@@ -188,6 +188,7 @@
     <string name="view_month">Month</string>
     <string name="view_week">Week</string>
     <string name="view_day">Day</string>
+    <string name="view_section">View</string>
 
     <!-- Calendar filter (M3) -->
     <string name="filter_title">Calendars</string>

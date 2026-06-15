@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The slide-out panel now has a "View" section to switch between Month,
+  Week, and Day, mirroring the top-bar switcher pill — tapping a view
+  selects it and closes the drawer. The current view is highlighted
+
 ### Fixed
 - Typing in the event title, location, and description fields no longer
   makes the cursor jump around: the form state's round-trip to the UI was

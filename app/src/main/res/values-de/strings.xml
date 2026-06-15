@@ -187,6 +187,7 @@
     <string name="view_month">Monat</string>
     <string name="view_week">Woche</string>
     <string name="view_day">Tag</string>
+    <string name="view_section">Ansicht</string>
 
     <!-- Kalender-Filter (M3) -->
     <string name="filter_title">Kalender</string>

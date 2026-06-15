@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -27,16 +26,19 @@ import de.jeanlucmakiola.calendula.ui.filter.CalendarFilterList
  * Visual language (kept deliberately small so sizes don't drift):
  *  - Drawer title — `titleLarge`
  *  - Section headers (e.g. "Calendars") — `titleSmall`, primary, text only
- *  - Nav items (Today / Settings) — Material `NavigationDrawerItem`
+ *  - Nav items (the views, Today / Settings) — Material `NavigationDrawerItem`
  *    (`labelLarge` label + a single 24dp leading icon)
  *
- * Hosts the per-calendar visibility filter (M3) inline — the calendar list with
- * its checkboxes lives here rather than in a separate sheet — plus the "today"
- * jump and a Settings entry (M4). The host screen owns the drawer state.
+ * The "View" section mirrors the top-bar switcher pill: tapping a view here
+ * selects it (and closes the drawer) rather than cycling. Also hosts the
+ * per-calendar visibility filter (M3) inline — the calendar list with its
+ * checkboxes lives here rather than in a separate sheet — plus a Settings
+ * entry (M4). The host screen owns the drawer state.
  */
 @Composable
 fun CalendarDrawer(
-    onToday: () -> Unit,
+    currentView: CalendarView,
+    onSelectView: (CalendarView) -> Unit,
     onSettings: () -> Unit,
 ) {
     ModalDrawerSheet {
@@ -47,14 +49,17 @@ fun CalendarDrawer(
                 modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
             )
             HorizontalDivider()
-            Spacer(Modifier.height(8.dp))
-            NavigationDrawerItem(
-                icon = { Icon(Icons.Filled.Today, contentDescription = null) },
-                label = { Text(stringResource(R.string.month_today_action)) },
-                selected = false,
-                onClick = onToday,
-                modifier = Modifier.padding(horizontal = 12.dp),
-            )
+
+            DrawerSectionHeader(stringResource(R.string.view_section))
+            IMPLEMENTED_VIEWS.forEach { view ->
+                NavigationDrawerItem(
+                    icon = { Icon(view.icon, contentDescription = null) },
+                    label = { Text(stringResource(view.labelRes)) },
+                    selected = view == currentView,
+                    onClick = { onSelectView(view) },
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                )
+            }
             Spacer(Modifier.height(8.dp))
             HorizontalDivider()
 

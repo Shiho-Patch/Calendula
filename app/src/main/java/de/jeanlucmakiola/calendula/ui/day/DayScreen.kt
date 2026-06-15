@@ -157,7 +157,11 @@ fun DayScreen(
         gesturesEnabled = drawerState.isOpen,
         drawerContent = {
             CalendarDrawer(
-                onToday = { jumpToToday(); scope.launch { drawerState.close() } },
+                currentView = selectedView,
+                onSelectView = { view ->
+                    onSelectView(view)
+                    scope.launch { drawerState.close() }
+                },
                 onSettings = {
                     onOpenSettings()
                     scope.launch { drawerState.close() }
