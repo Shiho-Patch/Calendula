@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-06-15
+
 ### Added
 - The month view now shows real events in each day instead of coloured
   dots: all-day and multi-day events render as continuous bars at the top
