@@ -10,6 +10,8 @@ import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
+import de.jeanlucmakiola.calendula.ui.week.coversDay
+import de.jeanlucmakiola.calendula.ui.week.layoutAllDay
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -71,7 +73,7 @@ class MonthViewModel @Inject constructor(
                     repository.calendars(),
                     repository.instances(range),
                 ) { calendars, instances ->
-                    buildState(ym, calendars, instances)
+                    buildState(ym, ws, calendars, instances)
                 }
             }
             .catch { emit(MonthUiState.Failure(FailureReason.ProviderUnavailable)) }
@@ -96,24 +98,63 @@ class MonthViewModel @Inject constructor(
 
     private fun buildState(
         ym: YearMonth,
+        weekStart: DayOfWeek,
         calendars: List<CalendarSource>,
         instances: List<EventInstance>,
     ): MonthUiState {
         if (calendars.isEmpty()) {
             return MonthUiState.Failure(FailureReason.NoCalendarsConfigured)
         }
-        val byDay = instances.groupBy { it.start.toLocalDateTime(zone).date }
-            .mapValues { (_, evs) ->
-                DayCellData(
-                    count = evs.size,
-                    swatches = evs.map { it.color }.distinct().take(3),
-                )
-            }
         return MonthUiState.Success(
             month = ym,
             today = todayDate,
-            cells = byDay,
+            weeks = layoutMonth(ym, weekStart, instances),
         )
+    }
+
+    /**
+     * Split the grid into week rows and resolve each row's events. An event is a
+     * spanning bar when it's all-day or touches more than one of the row's days;
+     * everything else is a single-day timed pill. Bars get lanes from the shared
+     * [layoutAllDay] so a multi-day event stays on one row across the week.
+     */
+    private fun layoutMonth(
+        ym: YearMonth,
+        weekStart: DayOfWeek,
+        instances: List<EventInstance>,
+    ): List<MonthWeek> {
+        val firstOfMonth = LocalDate(ym.year, ym.month, 1)
+        val gridStart = firstOfMonth.startOfGridWeek(weekStart)
+        val leadOffset = ((firstOfMonth.dayOfWeek.ordinal - weekStart.ordinal) + 7) % 7
+        val daysInMonth =
+            java.time.YearMonth.of(ym.year, ym.month.ordinal + 1).lengthOfMonth()
+        val weekCount = (leadOffset + daysInMonth + 6) / 7
+
+        return (0 until weekCount).map { row ->
+            val days = (0 until 7).map { gridStart.plus(row * 7 + it, DateTimeUnit.DAY) }
+            val weekEvents = instances.filter { ev -> days.any { ev.coversDay(it, zone) } }
+            val (bars, singles) = weekEvents.partition { ev ->
+                ev.isAllDay || days.count { ev.coversDay(it, zone) } > 1
+            }
+            val spans = layoutAllDay(bars, days, zone).map { s ->
+                MonthSpan(
+                    event = s.event,
+                    startCol = s.startCol,
+                    endCol = s.endCol,
+                    lane = s.lane,
+                    continuesLeft = s.event.coversDay(days.first().minus(1, DateTimeUnit.DAY), zone),
+                    continuesRight = s.event.coversDay(days.last().plus(1, DateTimeUnit.DAY), zone),
+                )
+            }
+            MonthWeek(
+                days = days,
+                spans = spans,
+                timedByDay = days.associateWith { d ->
+                    singles.filter { it.coversDay(d, zone) }.sortedBy { it.start }
+                },
+                countByDay = days.associateWith { d -> weekEvents.count { it.coversDay(d, zone) } },
+            )
+        }
     }
 }
 

@@ -1,30 +1,30 @@
 package de.jeanlucmakiola.calendula.ui.month
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,7 +43,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -52,6 +54,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -67,12 +70,10 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import kotlinx.coroutines.launch
-import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.YearMonth
-import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import java.time.format.TextStyle as JavaTextStyle
@@ -178,7 +179,6 @@ fun MonthScreen(
                 WeekdayHeader(weekStart = weekStart)
                 MonthContent(
                     state = state,
-                    weekStart = weekStart,
                     slideDir = slideDir,
                     onSwipeNext = goNext,
                     onSwipePrev = goPrev,
@@ -193,7 +193,6 @@ fun MonthScreen(
 @Composable
 private fun MonthContent(
     state: MonthUiState,
-    weekStart: DayOfWeek,
     slideDir: Int,
     onSwipeNext: () -> Unit,
     onSwipePrev: () -> Unit,
@@ -238,7 +237,6 @@ private fun MonthContent(
             is MonthUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
             is MonthUiState.Success -> MonthGrid(
                 state = s,
-                weekStart = weekStart,
                 onOpenDay = onOpenDay,
             )
         }
@@ -308,140 +306,279 @@ private fun WeekdayHeader(weekStart: DayOfWeek) {
     }
 }
 
+private val EVENT_ROW_HEIGHT = 20.dp
+private val DAY_NUMBER_HEIGHT = 22.dp
+private val DAY_NUMBER_GAP = 4.dp
+private val CELL_TOP_PADDING = 6.dp
+private val CELL_GAP = 2.dp
+private val CELL_SHAPE = RoundedCornerShape(12.dp)
+private const val MAX_EVENT_ROWS = 3
+
 @Composable
 private fun MonthGrid(
     state: MonthUiState.Success,
-    weekStart: DayOfWeek,
     onOpenDay: (LocalDate) -> Unit,
 ) {
-    val firstOfMonth = LocalDate(state.month.year, state.month.month, 1)
-    val gridStart = firstOfMonth.startOfGridWeek(weekStart)
-
-    // Show only the weeks the current month actually touches; leading/trailing
-    // days of neighbouring months are left blank rather than rendered.
-    val leadOffset = ((firstOfMonth.dayOfWeek.ordinal - weekStart.ordinal) + 7) % 7
-    val daysInMonth =
-        java.time.YearMonth.of(state.month.year, state.month.month.ordinal + 1).lengthOfMonth()
-    val weeks = (leadOffset + daysInMonth + 6) / 7
-
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        repeat(weeks) { row ->
-            Row(
+        state.weeks.forEach { week ->
+            MonthWeekRow(
+                week = week,
+                today = state.today,
+                month = state.month,
+                onOpenDay = onOpenDay,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            )
+        }
+    }
+}
+
+/**
+ * One week of the grid. Bars (all-day / multi-day) are positioned absolutely so
+ * a multi-day event is one connected bar across the columns; single-day timed
+ * events sit beneath them as filled pills in their own cell. The cap is
+ * [MAX_EVENT_ROWS] rows of bars+pills, then a "+N" dot indicator per day.
+ * A transparent per-day layer on top turns a tap into "open that day".
+ */
+@Composable
+private fun MonthWeekRow(
+    week: MonthWeek,
+    today: LocalDate,
+    month: YearMonth,
+    onOpenDay: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val dark = isSystemInDarkTheme()
+    val laneCount = (week.spans.maxOfOrNull { it.lane } ?: -1) + 1
+    val shownLanes = laneCount.coerceAtMost(MAX_EVENT_ROWS)
+
+    BoxWithConstraints(modifier) {
+        val colW = maxWidth / 7
+
+        // Per-day background pills — same surfaceContainer rounded surface the
+        // week/day views use, so the three views share one visual language.
+        // Spanning bars draw on top of these, bridging cells, so they still read
+        // as one continuous event.
+        Row(Modifier.matchParentSize()) {
+            week.days.forEach { d ->
+                val inMonth = d.month == month.month && d.year == month.year
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(horizontal = CELL_GAP, vertical = 1.dp)
+                        .background(
+                            color = if (inMonth) MaterialTheme.colorScheme.surfaceContainer
+                            else MaterialTheme.colorScheme.surfaceContainerLow,
+                            shape = CELL_SHAPE,
+                        ),
+                )
+            }
+        }
+
+        Column(Modifier.fillMaxSize().padding(top = CELL_TOP_PADDING)) {
+            Row(Modifier.fillMaxWidth()) {
+                week.days.forEach { d ->
+                    DayNumberCell(
+                        date = d,
+                        isToday = d == today,
+                        inMonth = d.month == month.month && d.year == month.year,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+            // Breathing room between the day number (and today's circle) and the
+            // first event row.
+            Spacer(Modifier.height(DAY_NUMBER_GAP))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .clipToBounds(),
             ) {
-                repeat(7) { col ->
-                    val date = gridStart.plus(row * 7 + col, DateTimeUnit.DAY)
-                    val inMonth =
-                        date.month == state.month.month && date.year == state.month.year
-                    if (inMonth) {
-                        DayCard(
-                            date = date,
-                            isToday = date == state.today,
-                            data = state.cells[date],
-                            onClick = { onOpenDay(date) },
-                            modifier = Modifier.weight(1f),
+                // Spanning bars on their shared lanes.
+                week.spans.filter { it.lane < shownLanes }.forEach { span ->
+                    val cols = span.endCol - span.startCol + 1
+                    MonthBar(
+                        event = span.event,
+                        dark = dark,
+                        continuesLeft = span.continuesLeft,
+                        continuesRight = span.continuesRight,
+                        modifier = Modifier
+                            .offset(
+                                x = colW * span.startCol,
+                                y = EVENT_ROW_HEIGHT * span.lane,
+                            )
+                            .width(colW * cols)
+                            .height(EVENT_ROW_HEIGHT)
+                            .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
+                    )
+                }
+                // Single-day timed pills + overflow, per column. Pills fill the
+                // lane slots no bar occupies on THIS day (top-most first), so a
+                // bar-free day isn't pushed down by a multi-day event that only
+                // sits on other days of the week.
+                week.days.forEachIndexed { col, d ->
+                    val timed = week.timedByDay[d].orEmpty()
+                    val occupied = week.spans
+                        .filter { it.lane < shownLanes && col in it.startCol..it.endCol }
+                        .map { it.lane }
+                        .toSet()
+                    val freeSlots = (0 until MAX_EVENT_ROWS).filter { it !in occupied }
+                    val pillsShown = timed.take(freeSlots.size)
+                    pillsShown.forEachIndexed { i, ev ->
+                        MonthBar(
+                            event = ev,
+                            dark = dark,
+                            continuesLeft = false,
+                            continuesRight = false,
+                            modifier = Modifier
+                                .offset(
+                                    x = colW * col,
+                                    y = EVENT_ROW_HEIGHT * freeSlots[i],
+                                )
+                                .width(colW)
+                                .height(EVENT_ROW_HEIGHT)
+                                .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
                         )
-                    } else {
-                        Spacer(Modifier.weight(1f))
+                    }
+                    val hidden = (week.countByDay[d] ?: 0) - occupied.size - pillsShown.size
+                    if (hidden > 0) {
+                        val hiddenColors = buildList {
+                            week.spans
+                                .filter { it.lane >= shownLanes && col in it.startCol..it.endCol }
+                                .forEach { add(it.event.color) }
+                            timed.drop(pillsShown.size).forEach { add(it.color) }
+                        }.distinct().take(3)
+                        OverflowDots(
+                            colors = hiddenColors,
+                            extra = hidden - hiddenColors.size,
+                            dark = dark,
+                            modifier = Modifier
+                                .offset(x = colW * col, y = EVENT_ROW_HEIGHT * MAX_EVENT_ROWS)
+                                .width(colW)
+                                .padding(horizontal = 3.dp),
+                        )
                     }
                 }
             }
         }
-    }
-}
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-private fun DayCard(
-    date: LocalDate,
-    isToday: Boolean,
-    data: DayCellData?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val todayPrefix = stringResource(R.string.month_a11y_today_prefix)
-    val cellLabel = buildString {
-        if (isToday) append(todayPrefix).append(", ")
-        append(date.year).append('-')
-        append((date.month.ordinal + 1).toString().padStart(2, '0')).append('-')
-        append(date.day.toString().padStart(2, '0'))
-        data?.let { append(", ").append(it.count).append(" Events") }
-    }
-
-    // M3 Expressive press feedback: a spatial spring from the active motion
-    // scheme drives a subtle scale, instead of a fixed easing curve.
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.94f else 1f,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-        label = "day-card-press",
-    )
-
-    Card(
-        onClick = onClick,
-        interactionSource = interactionSource,
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(
-            containerColor = if (isToday) MaterialTheme.colorScheme.primaryContainer
-            else MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = if (isToday) MaterialTheme.colorScheme.onPrimaryContainer
-            else MaterialTheme.colorScheme.onSurface,
-        ),
-        modifier = modifier
-            .fillMaxSize()
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
+        // Tap layer: in month view a tap on any day opens that day. Padded and
+        // clipped to the background pill so the ripple matches it.
+        Row(Modifier.matchParentSize()) {
+            week.days.forEach { d ->
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .padding(horizontal = CELL_GAP, vertical = 1.dp)
+                        .clip(CELL_SHAPE)
+                        .clickable { onOpenDay(d) },
+                )
             }
-            .semantics { contentDescription = cellLabel },
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 4.dp, bottom = 2.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = date.day.toString(),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-            )
-            Spacer(Modifier.height(2.dp))
-            EventDotRow(data)
         }
     }
 }
 
 @Composable
-private fun EventDotRow(data: DayCellData?) {
-    if (data == null || data.swatches.isEmpty()) {
-        Spacer(Modifier.height(6.dp))
-        return
+private fun DayNumberCell(
+    date: LocalDate,
+    isToday: Boolean,
+    inMonth: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.height(DAY_NUMBER_HEIGHT),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (isToday) {
+            Box(
+                modifier = Modifier
+                    .size(DAY_NUMBER_HEIGHT)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = date.day.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+            }
+        } else {
+            Text(
+                text = date.day.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (inMonth) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+            )
+        }
     }
-    val dark = isSystemInDarkTheme()
+}
+
+/** A filled event pill/bar — pastelized fill, title clipped to one line. */
+@Composable
+private fun MonthBar(
+    event: de.jeanlucmakiola.calendula.domain.EventInstance,
+    dark: Boolean,
+    continuesLeft: Boolean,
+    continuesRight: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
+    val shape = RoundedCornerShape(
+        topStart = if (continuesLeft) 0.dp else 4.dp,
+        bottomStart = if (continuesLeft) 0.dp else 4.dp,
+        topEnd = if (continuesRight) 0.dp else 4.dp,
+        bottomEnd = if (continuesRight) 0.dp else 4.dp,
+    )
+    Box(
+        modifier = modifier
+            .background(pastelize(event.color, dark), shape)
+            .padding(horizontal = 4.dp)
+            .semantics { contentDescription = title },
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = Color.Black.copy(alpha = 0.8f),
+        )
+    }
+}
+
+/** Overflow row: a dot per hidden event (up to three) plus "+N" for the rest. */
+@Composable
+private fun OverflowDots(
+    colors: List<Int>,
+    extra: Int,
+    dark: Boolean,
+    modifier: Modifier = Modifier,
+) {
     Row(
+        modifier = modifier.height(EVENT_ROW_HEIGHT),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        data.swatches.forEach { argb ->
+        colors.forEach { argb ->
             Box(
                 modifier = Modifier
                     .size(6.dp)
                     .background(pastelize(argb, dark), CircleShape),
             )
         }
-        if (data.count > data.swatches.size) {
+        if (extra > 0) {
             Text(
-                text = "+${data.count - data.swatches.size}",
+                text = "+$extra",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- The month view now shows real events in each day instead of coloured
+  dots: all-day and multi-day events render as continuous bars at the top
+  (a multi-day event is one connected bar across the days it spans, not a
+  chip per day), with single-day timed events as filled pills beneath.
+  Up to three rows show per day, then a "+N" dot indicator for the rest.
+  Each day keeps a rounded surface background, matching the week and day
+  views; today is marked with a filled circle on its number
 - The slide-out panel now has a "View" section to switch between Month,
   Week, and Day, mirroring the top-bar switcher pill — tapping a view
   selects it and closes the drawer. The current view is highlighted
