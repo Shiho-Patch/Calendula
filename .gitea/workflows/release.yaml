@@ -140,6 +140,9 @@ jobs:
           sed -i "s/versionName = \".*\"/versionName = \"$VERSION\"/" app/build.gradle.kts
           sed -i "s/versionCode = .*/versionCode = $VERSION_CODE/" app/build.gradle.kts
           grep -E 'versionName|versionCode' app/build.gradle.kts
+          # Export for later steps (F-Droid changelog, mapping asset name).
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
 
       - name: Setup Android Keystore
         if: startsWith(github.ref, 'refs/tags/')
@@ -229,6 +232,27 @@ jobs:
           mkdir -p fdroid/metadata
           cp -r fdroid-metadata/* fdroid/metadata/
 
+      # Per-version "What's New" for F-Droid clients: the tag's CHANGELOG
+      # section written to changelogs/<versionCode>.txt (same extraction as the
+      # Gitea release notes). en-US only — F-Droid falls back to it for locales
+      # without their own changelog. fdroid update bakes this into the index.
+      - name: Generate F-Droid changelog for this version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -e
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { flag = 1; next }
+            /^## \[/ { flag = 0 }
+            flag' CHANGELOG.md > /tmp/changelog.txt
+          sed -i -e '/./,$!d' /tmp/changelog.txt
+          if [ ! -s /tmp/changelog.txt ]; then
+            echo "See CHANGELOG.md for $VERSION." > /tmp/changelog.txt
+          fi
+          CL_DIR="fdroid/metadata/de.jeanlucmakiola.calendula/en-US/changelogs"
+          mkdir -p "$CL_DIR"
+          cp /tmp/changelog.txt "$CL_DIR/${VERSION_CODE}.txt"
+          echo "Wrote $CL_DIR/${VERSION_CODE}.txt"
+
       - name: Generate F-Droid Index
         run: |
           cd fdroid
@@ -246,9 +270,45 @@ jobs:
           -mkdir dev
           -mkdir dev/fdroid
           SFTP
-          # Publish ONLY the signed repo/. keystore.p12 and config.yml never
-          # leave CI, so they can no longer end up in the web-served tree.
-          sshpass -p "$PASS" scp $SSH_OPTS -r fdroid/repo "$USER@$HOST:dev/fdroid/"
+          # Publish the signed repo/ plus metadata/ (descriptions, screenshots,
+          # per-version changelogs) so changelog history survives across
+          # releases. keystore.p12 and config.yml are NEVER uploaded, so they
+          # can't re-enter the web-served tree; nginx serves only repo/ anyway.
+          sshpass -p "$PASS" scp $SSH_OPTS -r fdroid/repo fdroid/metadata "$USER@$HOST:dev/fdroid/"
+
+      # Archive the R8 mapping so user crash stacktraces stay deobfuscatable.
+      # Attached to the Gitea release (it's not an APK, so it fits the
+      # no-binaries rule). Best-effort: never fail a release over it.
+      - name: Attach R8 mapping to Gitea release
+        if: startsWith(github.ref, 'refs/tags/')
+        continue-on-error: true
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}
+        run: |
+          set -e
+          MAP="app/build/outputs/mapping/release/mapping.txt"
+          if [ ! -f "$MAP" ]; then echo "No mapping.txt (R8 off?) — skipping."; exit 0; fi
+          TAG="${GITHUB_REF_NAME:-${GITHUB_REF##*/}}"
+          ASSET="mapping-${VERSION:-$TAG}.txt.gz"
+          gzip -c "$MAP" > "/tmp/$ASSET"
+          # The release is created by the gitea-release job; ensure it exists
+          # (idempotent) so this job doesn't race it to a 404.
+          ID=$(curl -s -H "Authorization: token $TOKEN" "$API/releases/tags/$TAG" | jq -r '.id // empty')
+          if [ -z "$ID" ]; then
+            ID=$(curl -s -X POST -H "Authorization: token $TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"tag_name\":\"$TAG\",\"name\":\"$TAG\"}" \
+              "$API/releases" | jq -r '.id // empty')
+          fi
+          if [ -z "$ID" ]; then echo "Could not resolve release id — skipping."; exit 0; fi
+          # Replace any prior asset of the same name (re-run safe).
+          OLD=$(curl -s -H "Authorization: token $TOKEN" "$API/releases/$ID/assets" \
+            | jq -r --arg n "$ASSET" '.[] | select(.name==$n) | .id')
+          [ -n "$OLD" ] && curl -s -X DELETE -H "Authorization: token $TOKEN" "$API/releases/$ID/assets/$OLD" >/dev/null || true
+          curl -s -X POST -H "Authorization: token $TOKEN" \
+            -F "attachment=@/tmp/$ASSET" \
+            "$API/releases/$ID/assets?name=$ASSET" -o /dev/null -w "asset upload HTTP %{http_code}\n"
 
   # A Gitea release per tag, carrying the tag's CHANGELOG section as its
   # notes. Deliberately no APK assets — distribution stays with the F-Droid
@@ -288,13 +348,6 @@ jobs:
         run: |
           set -e
           TAG="${GITHUB_REF_NAME:-${GITHUB_REF##*/}}"
-          # Re-runs must not fail on an already-published release.
-          STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
-            -H "Authorization: token $TOKEN" "$API/releases/tags/$TAG")
-          if [ "$STATUS" = "200" ]; then
-            echo "Release for $TAG already exists — skipping."
-            exit 0
-          fi
           python3 - "$TAG" <<'PY' > payload.json
           import json, sys
           print(json.dumps({
@@ -305,12 +358,24 @@ jobs:
               "prerelease": False,
           }))
           PY
-          CODE=$(curl -s -o response.json -w '%{http_code}' -X POST \
-            -H "Authorization: token $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d @payload.json "$API/releases")
+          # Upsert: the build-and-deploy job may have created a bare release
+          # first (to attach the mapping asset), so PATCH the notes if it
+          # exists, otherwise POST a new one. Both paths are re-run safe.
+          curl -s -H "Authorization: token $TOKEN" "$API/releases/tags/$TAG" > existing.json
+          ID=$(python3 -c "import json,sys; d=json.load(open('existing.json')); print(d.get('id',''))" 2>/dev/null || true)
+          if [ -n "$ID" ]; then
+            CODE=$(curl -s -o response.json -w '%{http_code}' -X PATCH \
+              -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
+              -d @payload.json "$API/releases/$ID")
+            OK=200
+          else
+            CODE=$(curl -s -o response.json -w '%{http_code}' -X POST \
+              -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
+              -d @payload.json "$API/releases")
+            OK=201
+          fi
           cat response.json
-          if [ "$CODE" != "201" ]; then
-            echo "Release creation failed with HTTP $CODE"
+          if [ "$CODE" != "$OK" ]; then
+            echo "Release upsert failed with HTTP $CODE (expected $OK)"
             exit 1
           fi

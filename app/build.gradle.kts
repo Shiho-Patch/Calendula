@@ -23,7 +23,12 @@ android {
         applicationId = "de.jeanlucmakiola.calendula"
         minSdk = 29
         targetSdk = 36
-        versionCode = 13
+        // The git tag is the single source of truth for released builds: at
+        // release time .gitea/workflows/release.yaml derives both fields from
+        // the tag, with versionCode = MAJOR*10000 + MINOR*100 + PATCH
+        // (e.g. v2.0.0 -> 20000). These committed values are the dev/local
+        // default; keep them matching the latest released tag. See docs/RELEASING.md.
+        versionCode = 20000
         versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
