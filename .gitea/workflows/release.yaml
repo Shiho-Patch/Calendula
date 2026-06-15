@@ -121,7 +121,12 @@ jobs:
             $SUDO apk add --no-cache jq
           fi
 
+      # Tag-only build steps. On a manual workflow_dispatch (ref = a branch,
+      # not a tag) these are skipped: the job then just re-signs the existing
+      # index with the configured repo key and re-uploads — used for key
+      # rotation / repo recovery without publishing a new APK.
       - name: Set version from git tag
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           set -e
           RAW_TAG="${GITHUB_REF_NAME:-${GITHUB_REF##*/}}"
@@ -137,6 +142,7 @@ jobs:
           grep -E 'versionName|versionCode' app/build.gradle.kts
 
       - name: Setup Android Keystore
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
@@ -155,6 +161,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build release APK
+        if: startsWith(github.ref, 'refs/tags/')
         run: ./gradlew assembleRelease
 
       - name: Setup F-Droid Server Tools
@@ -206,6 +213,7 @@ jobs:
           mkdir -p fdroid/repo/icons
 
       - name: Copy new APK to repo
+        if: startsWith(github.ref, 'refs/tags/')
         run: |
           set -e
           mkdir -p fdroid/repo
