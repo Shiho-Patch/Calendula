@@ -14,6 +14,7 @@ class CalendarMapperTest {
         color: Int = 0,
         visible: Int = 1,
         accessLevel: Int = CalendarContract.Calendars.CAL_ACCESS_OWNER,
+        description: String? = null,
     ): MapColumnReader = MapColumnReader(
         CalendarProjection.IDX_ID to id,
         CalendarProjection.IDX_DISPLAY_NAME to displayName,
@@ -22,6 +23,7 @@ class CalendarMapperTest {
         CalendarProjection.IDX_COLOR to color,
         CalendarProjection.IDX_VISIBLE to visible,
         CalendarProjection.IDX_ACCESS_LEVEL to accessLevel,
+        CalendarProjection.IDX_DESCRIPTION to description,
     )
 
     @Test
@@ -89,5 +91,36 @@ class CalendarMapperTest {
         // WebCal subscriptions on some providers report level 0 (CAL_ACCESS_NONE).
         val src = reader(accessLevel = CalendarContract.Calendars.CAL_ACCESS_NONE)
         assertThat(src.toCalendarSource().canModifyContents).isFalse()
+    }
+
+    @Test
+    fun `local account type marks the calendar as app-owned`() {
+        val src = reader(accountType = CalendarContract.ACCOUNT_TYPE_LOCAL).toCalendarSource()
+        assertThat(src.isLocal).isTrue()
+    }
+
+    @Test
+    fun `synced account type is not local`() {
+        val src = reader(accountType = "com.google").toCalendarSource()
+        assertThat(src.isLocal).isFalse()
+    }
+
+    @Test
+    fun `local calendar exposes its CAL_SYNC1 description`() {
+        val src = reader(
+            accountType = CalendarContract.ACCOUNT_TYPE_LOCAL,
+            description = "House stuff",
+        ).toCalendarSource()
+        assertThat(src.description).isEqualTo("House stuff")
+    }
+
+    @Test
+    fun `synced calendar never exposes CAL_SYNC1 as a description`() {
+        // CAL_SYNC1 holds the sync token for synced rows — it must not leak as a note.
+        val src = reader(
+            accountType = "com.google",
+            description = """{"type":"SYNC_TOKEN","value":"…"}""",
+        ).toCalendarSource()
+        assertThat(src.description).isNull()
     }
 }

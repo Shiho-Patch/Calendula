@@ -1,13 +1,14 @@
 # Calendula — Current State
 
-*Last updated: 2026-06-11*
+*Last updated: 2026-06-16*
 
 ## Status
 
-**Milestone:** 2 (write support) **complete** — v2.0.0 shipped 2026-06-11.
-**Phase:** between milestones. Next: v3.0 (power-user features) and the
-go/no-go on the "Locations & People" idea backlog (`ROADMAP.md`). Docs
-pass done (ARCHITECTURE.md, README overhaul, planning docs refreshed).
+**Milestone:** 2 (write support) **complete** — v2.0.0 shipped 2026-06-11;
+v2.1.0 (month event grid, drawer view tabs, cursor fix) shipped 2026-06-15.
+**Phase:** post-2.1 backlog work. v2.2.0 (tap-to-create in day/week + local
+calendar management with per-calendar "manage in source app" deep-links)
+shipped 2026-06-16. The backlog is now organised by theme in `ROADMAP.md`.
 
 ## Progress
 
@@ -71,10 +72,32 @@ pass done (ARCHITECTURE.md, README overhaul, planning docs refreshed).
   quick-add cut, calendar-switch → v3 backlog; F-Droid/README copy
   refreshed, fastlane screenshots DE+EN captured on-device
 
+- [x] v2.1 (shipped 2026-06-15) — month grid shows real events as
+  continuous multi-day bars; navigation-drawer View section
+  (Month/Week/Day); cursor-jump fix in event text fields
+
+- [x] v2.2 (shipped 2026-06-16) — tap an empty slot in day/week to create
+  (prefilled with that day + tapped hour, snapped to the hour); local
+  calendar management in a full-screen editor from Settings →
+  Calendars: create/rename/recolor/delete device-only calendars
+  (`ACCOUNT_TYPE_LOCAL`, sync-adapter insert) with name, pastel-previewed
+  colour, and description (stored in `CAL_SYNC1`); synced calendars listed
+  read-only grouped by account with a per-account "manage in source app"
+  deep-link (resolved from the account's authenticator: DAVx5/ICSx5/…) and
+  an add-account shortcut. Shared `InlineTextField` extracted to `ui.common`
+
 ## Next
 
-1. Decide the "Locations & People" go/no-go (INTERNET permission question)
-   — see `ROADMAP.md` idea backlog
-2. v3.0 scoping: widget, full-text search, tablet layouts, ICS import,
-   calendar-move
-3. Monitor the F-Droid build/publish for the v1.4.0 / v2.0.0 tags
+1. Monitor the F-Droid build/publish for the v2.2.0 tag
+2. Decide the "Locations & People" and "remote calendar create/edit"
+   go/no-go calls (both hinge on the INTERNET permission) — see `ROADMAP.md`
+3. **Settings redesign & restructure** is the agreed high-prio next item
+   (2026-06-16) — group into M3 cards / sub-screens, and migrate the
+   theme/week-start/language `DropdownMenu` selectors to the OptionCard modal
+   default (current dropdowns violate `option-card-modal-style-default`).
+   Structure + style pass only, no new settings features.
+4. **Per-event color** follows — reuses the color picker + palette plumbing
+   from local calendar management; finishes the create/edit theme.
+5. Then agenda view (strategic, backs a future widget); jump-to-date and
+   duplicate event remain cheap follow-ups. Full ranked sequence in
+   `ROADMAP.md` → "Near-term sequence".

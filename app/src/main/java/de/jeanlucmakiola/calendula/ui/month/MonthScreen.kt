@@ -86,7 +86,7 @@ fun MonthScreen(
     onSelectView: (CalendarView) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     onOpenSettings: () -> Unit,
-    onCreateEvent: (LocalDate) -> Unit,
+    onCreateEvent: (LocalDate, Int?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MonthViewModel = hiltViewModel(),
 ) {
@@ -166,6 +166,7 @@ fun MonthScreen(
                         onCreateEvent(
                             if (isOnCurrentMonth) today
                             else LocalDate(month.year, month.month, 1),
+                            null,
                         )
                     },
                 )

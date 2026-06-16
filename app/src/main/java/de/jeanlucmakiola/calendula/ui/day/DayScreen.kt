@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -104,7 +105,7 @@ fun DayScreen(
     onSelectView: (CalendarView) -> Unit,
     onEventClick: (EventInstance) -> Unit,
     onOpenSettings: () -> Unit,
-    onCreateEvent: (LocalDate) -> Unit,
+    onCreateEvent: (LocalDate, Int?) -> Unit,
     modifier: Modifier = Modifier,
     initialDateIso: String? = null,
     viewModel: DayViewModel = hiltViewModel(),
@@ -185,7 +186,7 @@ fun DayScreen(
                     todayVisible = !isOnToday,
                     todayText = stringResource(R.string.day_today_action),
                     onToday = jumpToToday,
-                    onCreate = { onCreateEvent(date) },
+                    onCreate = { onCreateEvent(date, null) },
                 )
             },
         ) { innerPadding ->
@@ -197,6 +198,7 @@ fun DayScreen(
                 onSwipePrev = goPrev,
                 onRetry = jumpToToday,
                 onEventClick = onEventClick,
+                onCreateAt = { d, minutes -> onCreateEvent(d, minutes) },
                 modifier = Modifier
                     .padding(innerPadding)
                     .fillMaxSize(),
@@ -214,6 +216,7 @@ private fun DayContent(
     onSwipePrev: () -> Unit,
     onRetry: () -> Unit,
     onEventClick: (EventInstance) -> Unit,
+    onCreateAt: (LocalDate, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -282,6 +285,7 @@ private fun DayContent(
                 scrollState = scrollState,
                 allDayHeight = allDayHeight,
                 onEventClick = onEventClick,
+                onCreateAt = onCreateAt,
             )
         }
     }
@@ -294,6 +298,7 @@ private fun DaySuccess(
     scrollState: ScrollState,
     allDayHeight: Dp,
     onEventClick: (EventInstance) -> Unit,
+    onCreateAt: (LocalDate, Int) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         // All-day strip collapses to nothing when the day has no all-day events,
@@ -309,7 +314,12 @@ private fun DaySuccess(
         // Breathing room between the (colour-shifting) top section and the
         // scrolling timeline below.
         Spacer(Modifier.height(8.dp))
-        Timeline(state = state, scrollState = scrollState, onEventClick = onEventClick)
+        Timeline(
+            state = state,
+            scrollState = scrollState,
+            onEventClick = onEventClick,
+            onCreateAt = onCreateAt,
+        )
     }
 }
 
@@ -427,6 +437,7 @@ private fun Timeline(
     state: DayUiState.Success,
     scrollState: ScrollState,
     onEventClick: (EventInstance) -> Unit,
+    onCreateAt: (LocalDate, Int) -> Unit,
 ) {
     val totalHeight = HOUR_HEIGHT * 24
     val dark = isSystemInDarkTheme()
@@ -474,7 +485,9 @@ private fun Timeline(
                 DayColumnCard(
                     blocks = state.timed,
                     dark = dark,
+                    date = state.date,
                     onEventClick = onEventClick,
+                    onCreateAt = onCreateAt,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(totalHeight),
@@ -488,9 +501,12 @@ private fun Timeline(
 private fun DayColumnCard(
     blocks: List<TimedBlock>,
     dark: Boolean,
+    date: LocalDate,
     onEventClick: (EventInstance) -> Unit,
+    onCreateAt: (LocalDate, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val hourPx = with(LocalDensity.current) { HOUR_HEIGHT.toPx() }
     Card(
         // Plain rectangular column — the soft corners come from the outer
         // rounded scroll viewport, so inner rounding would look odd at the edges.
@@ -500,7 +516,19 @@ private fun DayColumnCard(
         ),
         modifier = modifier,
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                // Tap an empty slot to create an event there. Taps on event
+                // blocks are consumed by their own click handler first, so this
+                // only fires on the column background. Snaps to the tapped hour.
+                .pointerInput(date) {
+                    detectTapGestures { offset ->
+                        val hour = (offset.y / hourPx).toInt().coerceIn(0, 23)
+                        onCreateAt(date, hour * 60)
+                    }
+                },
+        ) {
             val colWidth = maxWidth
             blocks.forEach { block ->
                 val laneWidth = colWidth / block.laneCount

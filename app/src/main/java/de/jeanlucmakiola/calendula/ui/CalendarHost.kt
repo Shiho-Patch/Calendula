@@ -16,6 +16,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.calendars.CalendarsScreen
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.day.DayScreen
@@ -86,13 +87,23 @@ fun CalendarHost(
     var showSettings by rememberSaveable { mutableStateOf(false) }
     val onOpenSettings = { showSettings = true }
 
+    // Calendar manager (reached from Settings) — its own overlay so it slides
+    // over Settings and survives view switches.
+    var showCalendars by rememberSaveable { mutableStateOf(false) }
+
     // Event form (v1.2 create) — same held-key pattern as the detail screen:
     // [heldCreateIso] keeps the prefill date alive through the slide-out.
+    // [createStartMinutes] is the tapped slot's start (minutes from midnight)
+    // when the form is opened from a day/week grid tap; null from the FAB.
     var createDateIso by rememberSaveable { mutableStateOf<String?>(null) }
     var heldCreateIso by remember { mutableStateOf<String?>(null) }
-    val onCreateEvent: (LocalDate) -> Unit = { date ->
+    var createStartMinutes by rememberSaveable { mutableStateOf<Int?>(null) }
+    var heldCreateMinutes by remember { mutableStateOf<Int?>(null) }
+    val onCreateEvent: (LocalDate, Int?) -> Unit = { date, startMinutes ->
         heldCreateIso = date.toString()
         createDateIso = date.toString()
+        heldCreateMinutes = startMinutes
+        createStartMinutes = startMinutes
     }
 
     // Edit form (v1.3) — reuses the detail screen's occurrence key; for
@@ -162,6 +173,7 @@ fun CalendarHost(
             (createDateIso ?: heldCreateIso)?.let { iso ->
                 EventEditScreen(
                     initialDateIso = iso,
+                    initialStartMinutes = createStartMinutes ?: heldCreateMinutes,
                     onClose = { createDateIso = null },
                     onSaved = { createDateIso = null },
                 )
@@ -193,7 +205,19 @@ fun CalendarHost(
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
             exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
         ) {
-            SettingsScreen(onBack = { showSettings = false })
+            SettingsScreen(
+                onBack = { showSettings = false },
+                onManageCalendars = { showCalendars = true },
+            )
+        }
+
+        // Calendar manager — slides over Settings.
+        AnimatedVisibility(
+            visible = showCalendars,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            CalendarsScreen(onBack = { showCalendars = false })
         }
     }
 }

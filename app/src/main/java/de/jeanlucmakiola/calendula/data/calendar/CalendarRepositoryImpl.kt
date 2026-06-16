@@ -70,6 +70,24 @@ class CalendarRepositoryImpl @Inject constructor(
         dataSource.eventDetail(eventId) ?: throw NoSuchEventException(eventId)
     }
 
+    override suspend fun createLocalCalendar(
+        displayName: String,
+        color: Int,
+        description: String?,
+    ): Long = withContext(io) {
+        dataSource.createLocalCalendar(displayName, color, description)
+    }
+
+    override suspend fun updateCalendar(
+        id: Long,
+        displayName: String,
+        color: Int,
+        description: String?,
+    ) = withContext(io) { dataSource.updateCalendar(id, displayName, color, description) }
+
+    override suspend fun deleteCalendar(id: Long) =
+        withContext(io) { dataSource.deleteCalendar(id) }
+
     override suspend fun createEvent(form: EventForm): Long = withContext(io) {
         dataSource.insertEvent(form)
     }

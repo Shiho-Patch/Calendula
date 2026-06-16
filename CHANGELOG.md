@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-06-16
+
+### Added
+- Tap an empty slot in the day or week view to create an event there: the
+  create form opens prefilled with that day and the tapped hour (snapped to
+  the hour, one hour long). Tapping an existing event still opens it
+- Local calendars: create and manage device-only calendars that live
+  entirely on this phone — no account, no sync — from a new "Calendars"
+  screen in Settings. Give each a name, a colour, and an optional
+  description; rename, recolour, or delete them later. Useful when you want
+  a calendar without setting up an account
+- The Calendars screen also lists your synced calendars (DAVx5, ICSx5, …)
+  grouped by account, each with a "Manage" button that opens the app the
+  calendar actually comes from, plus an "Add account" shortcut to the
+  system account settings. Calendula never touches a synced calendar's
+  server itself — that stays with its own app
+
+### Changed
+- Colour swatches in the calendar editor now preview the soft, pastel tone
+  a calendar is actually drawn with, instead of a bright raw colour
+- The calendar editor reuses the event form's field and button styling for
+  a consistent look
+
 ## [2.1.0] — 2026-06-15
 
 ### Added

@@ -212,6 +212,9 @@
     <string name="settings_section_notifications">Notifications</string>
     <string name="settings_reminders">Event reminders</string>
     <string name="settings_reminders_hint">Seeing reminders twice? Another calendar app is posting them too — turn them off in one of the two.</string>
+    <string name="settings_section_calendars">Calendars</string>
+    <string name="settings_manage_calendars">Manage calendars</string>
+    <string name="settings_manage_calendars_hint">Create local calendars; manage synced ones</string>
     <string name="settings_section_language">Language</string>
     <string name="settings_language">App language</string>
     <string name="settings_language_auto">System default</string>
@@ -223,5 +226,23 @@
     <string name="settings_license_value">MIT</string>
     <string name="settings_source">Source code</string>
     <string name="settings_source_open">Open</string>
+
+    <!-- Calendar manager -->
+    <string name="calendars_title">Calendars</string>
+    <string name="calendars_local_header">Your calendars</string>
+    <string name="calendars_local_empty">No local calendars yet. Create one to keep events on this device only.</string>
+    <string name="calendars_add">Add calendar</string>
+    <string name="calendars_synced_header">Synced calendars</string>
+    <string name="calendars_synced_hint">These come from accounts on your device. Create and edit them in their own app.</string>
+    <string name="calendars_manage_in_app">Manage</string>
+    <string name="calendars_add_account">Add account</string>
+    <string name="calendars_new_title">New calendar</string>
+    <string name="calendars_edit_title">Edit calendar</string>
+    <string name="calendars_name_label">Name</string>
+    <string name="calendars_color_label">Color</string>
+    <string name="calendars_description_hint">Add a description</string>
+    <string name="calendars_delete_confirm_title">Delete calendar?</string>
+    <string name="calendars_delete_confirm_message">\"%1$s\" and all of its events will be permanently removed from this device.</string>
+    <string name="calendars_write_error">Couldn\'t save the change.</string>
     <string name="about_source_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula</string>
 </resources>

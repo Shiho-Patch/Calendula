@@ -107,43 +107,185 @@ Deliberately deferred (add only if needed):
 - Snooze / dismiss notification actions (Etar has them)
 - Battery-optimization exemption prompt for delivery reliability
 
-## v3.0 — Power-User Features
+## v2.1 — Month event grid + drawer view tabs (shipped 2026-06-15)
 
-- Home-screen widget
-- Full-text search
-- Tablet / foldable layouts
-- Optional: ICS file import (drag-and-drop)
-- Optional: move event to another calendar (copy+delete model with a
-  consequences warning — deferred from v2.0, see above)
+- Month grid shows real events as continuous multi-day bars (not just dots)
+- View section in the navigation drawer to switch Month / Week / Day
+- Fix: text cursor no longer jumps in event text fields
 
-Order is indicative — community feedback after V1 may re-prioritize.
+## v2.2 — Tap-to-create + local calendar management (shipped 2026-06-16)
 
-## Idea backlog — Daily-driver polish (captured 2026-06-11, all approved as ideas, unscheduled)
+- Tap an empty slot in day/week → create form prefilled with that day + the
+  tapped hour (snapped to the hour, 1 h long)
+- Local (device-only) calendar management in a full-screen editor from
+  Settings → Calendars: create / rename / recolor / delete, with name,
+  pastel-previewed colour, and description (stored in `CAL_SYNC1`)
+- Synced calendars listed read-only, grouped by account, each with a
+  per-account "manage in source app" deep-link (resolved from the account's
+  authenticator — DAVx5/ICSx5/…) + an add-account shortcut
+- Shared `InlineTextField` extracted to `ui.common` (event form + calendar
+  editor share one input style)
 
-Interaction:
-- Tap/long-press an empty slot in day/week → create form prefilled with that time
-- Drag & drop rescheduling in day/week (recurring drops reuse the scope dialog) — big-ticket, own slice
-- Agenda view (fourth view: upcoming events grouped by day; natural widget data source)
+---
+
+# Backlog (theme-based, post-v2.1)
+
+The old v3.0 / "daily-driver polish" / "Locations & People" lists are
+consolidated here by theme. Within a group, **(in progress)** /
+**(next)** mark what is being or about to be worked; everything else is an
+approved-but-unscheduled idea unless tagged **(idea)** /
+**(go/no-go)** / **(rejected)**. Order across groups is not a commitment.
+
+## Near-term sequence (ranked, 2026-06-16)
+
+The theme groups below are the full menu; this is the committed *order* for
+the next stretch. Ranking favours finishing the current create/edit + calendar
+arc before opening new fronts, then cheap-relative-to-value items and ones that
+unblock a later item. Order is a plan, not a contract — revisit after each lands.
+
+**Tier 1 — finish the current arc (create/edit + calendars)**
+1. Tap-to-create in day/week *(shipped v2.2.0)* — prefilled create from an empty slot
+2. Local calendar management + "manage in source app" deep-links *(shipped v2.2.0)*
+3. **Settings redesign & restructure** *(next, high prio)* — see scope below
+4. Per-event color — reuses the calendar color picker/palette; closes the create/edit theme
+5. Duplicate event — detail action → prefilled create form; near-free on the tap-to-create prefill infra
+
+(Tier 2+ numbering below shifts accordingly; ranking unchanged.)
+
+### Settings redesign & restructure *(next, high prio)*
+
+The settings screen has grown into a flat vertical scroll of divider-separated
+sections (Appearance, Event form, Notifications, Calendars, Language, About) and
+will keep accreting rows (per-event-color defaults, default reminder, more
+calendar entries are all queued). It needs structure before it gets unwieldy.
+
+**Decided (2026-06-16): sub-screens**, not flat-but-carded. The top level
+becomes a category list; each category opens its own destination. More
+M3-idiomatic for a settings surface that will keep growing, and it mirrors the
+existing Calendars row, which already navigates out to its own screen.
+
+Structure — top-level settings list → category destinations:
+- **Appearance** → theme, dynamic colour, week start
+- **Event form** → the 6 default-field toggles + the hint text
+- **Notifications** → reminders toggle (POST_NOTIFICATIONS flow stays)
+- **Calendars** → already its own screen (`CalendarsScreen`); just becomes a
+  peer category row, no change to that screen
+- **Language** → single control; keep as a top-level row that opens an
+  OptionCard directly (a whole sub-screen for one choice is overkill)
+- **About** → kept inline on the top-level list as a card (read-only info,
+  not worth a navigation hop). Card layout, top → bottom:
+  - **Identity** — app logo + name "Calendula", with "by Jean-Luc Makiola"
+    as a subtitle beneath the name
+  - **Action buttons** (small, button-styled, sit in a row):
+    - **Source** — Gitea logo, opens the repo (`about_source_url`)
+    - **License** — opens the LICENSE file on Gitea
+    - **Donate** *(tentative)* — sits next to Source; target TBD (decide
+      before building: Liberapay / Ko-fi / Gitea sponsor / etc.)
+  - **Version** — small version number at the bottom of the card
+
+Scope:
+- **Navigation** — add the settings sub-screen destinations alongside the
+  existing settings/calendars routes in `CalendarHost`; back pops to the
+  settings list (mind the existing `BackHandler` that guards against falling
+  through to the activity).
+- **Fix the dialog-pattern violation** — theme, week-start and language use
+  `DropdownMenu`; the project default is the full-width tonal OptionCard modal
+  (radio/dropdown/text-list dialogs are banned, see
+  `option-card-modal-style-default`). Migrate these selectors to OptionCard.
+- **Visual pass** — top-level category rows with leading icons; consistent
+  spacing and row affordances aligned with the event-form card design system.
+
+Out of scope (no new settings *features* here) — this is a structure + style
+pass on the existing controls; new toggles ride in with their own features.
+
+**Tier 2 — navigation & daily-driver completeness**
+5. Jump-to-date — drawer date picker (un-cut from V1); cheap, fills the nav gap
+6. Agenda view — the missing 4th view; serves daily-driver users *and* becomes the data source for the widget
+
+**Tier 3 — platform reach (depends on Tier 2)**
+7. Home-screen widget — built on the agenda data source from #6
+8. App shortcuts (launcher long-press → New event); cheap, optional quick-settings tile
+
+**Tier 4 — interop & bigger-ticket**
+9. Share event as .ics + receive/open .ics into a prefilled create form
+10. Default reminder applied to new events; then snooze/dismiss notification actions
+11. Drag & drop rescheduling in day/week — big-ticket, own slice (recurring drops reuse the scope dialog)
+
+**Gated — explicit go/no-go before any work (mostly INTERNET-permission calls)**
+- Remote calendar create/edit (re-implements DAVx5; INTERNET + credential storage)
+- Locations & People — contact address picker (no-permission, one-shot) is the safe entry; OSM autocomplete needs INTERNET
+- Move event to another calendar — sync-adapter minefield (copy+delete model)
+
+**Unranked / fill-in** — pinch-to-zoom time scale, tablet/foldable layouts,
+full-text search, ICS file import. Pulled in opportunistically, not sequenced.
+
+Debatable calls worth a second look: widget (#7) vs .ics interop (#9) ordering;
+whether drag-drop (#11) jumps ahead given its daily-driver impact.
+
+## Navigation & views
+
+- ~~Tap an empty slot in day/week → create form prefilled with that
+  date+time, snapped to the hour~~ **shipped v2.2.0** (long-press variant
+  not added — single tap covers it)
+- Agenda view (fourth view: upcoming events grouped by day; also the
+  natural data source for a future widget)
+- Jump to date — drawer date picker (un-cut from V1)
 - Pinch-to-zoom time scale in day/week
+- Tablet / foldable layouts *(was v3.0)*
+- Full-text search *(was v3.0)*
 
-Reminders, round two:
-- Snooze + dismiss actions on the notification (snooze needs an exact-alarm/WorkManager decision)
+## Event editing & creation
+
+- Drag & drop rescheduling in day/week (recurring drops reuse the scope
+  dialog) — big-ticket, own slice
+- Duplicate event (detail action → prefilled create form)
+- **Per-event color** (`Events.EVENT_COLOR`, OptionCard picker in the form)
+  *(next)* — chosen to follow the in-progress tap-to-create + calendar
+  management work: reuses the color-picker component and palette plumbing
+  being built for local calendar management, and finishes the create/edit
+  theme. `EVENT_COLOR` / `EVENT_COLOR_KEY` from the calendar's color list
+  (`Colors` table, `TYPE_EVENT`); falls back to the calendar color when unset.
+
+## Calendars & accounts
+
+- ~~Create / manage local (device-only) calendars~~ **shipped v2.2.0** —
+  name + color + description; rename / recolor / delete the calendars the app
+  owns. Inserted under `ACCOUNT_TYPE_LOCAL` as a sync adapter; description in
+  `CAL_SYNC1`. Full-screen "Calendars" editor reached from Settings.
+- ~~Per-calendar "manage in source app" deep-link~~ **shipped v2.2.0** — for
+  synced calendars, open the app the calendar actually came from based on
+  its `ACCOUNT_TYPE` (DAVx5 `bitfire.at.davdroid`, Google `com.google`,
+  …); fall back to system account/sync settings. Plus an "add account"
+  entry into system Accounts. Honest boundary for remote calendars.
+- **Remote calendar create/edit** *(go/no-go)* — creating a CalDAV
+  collection (`MKCALENDAR`) or a Google calendar means an in-app sync
+  client: **INTERNET permission, credential storage, the full server
+  round-trip** — i.e. re-implementing DAVx5. DAVx5 exposes no public
+  intent to delegate the create to it. Cosmetic local edits (color/name)
+  to an existing synced row are possible but don't propagate to the server
+  and may be overwritten on next sync — not promised. Same explicit
+  go/no-go gate as the OSM/INTERNET item below.
+- Move event to another calendar (copy+delete model with a consequences
+  warning — deferred from v2.0; `CALENDAR_ID` is sync-adapter-owned) *(was v3.0)*
+
+## Reminders, round two
+
+- Snooze + dismiss actions on the notification (snooze needs an
+  exact-alarm / WorkManager decision)
 - Settings default reminder applied to new events
 
-Event niceties:
-- Duplicate event (detail action → prefilled create form)
-- Per-event color (`Events.EVENT_COLOR`, OptionCard picker in the form)
-- Share event as .ics + open/receive .ics into a prefilled create form (front-runs v3 ICS import)
+## Sharing & interop
 
-Small delights:
+- Share event as .ics + open/receive .ics into a prefilled create form
+  (front-runs the import below)
+- ICS file import (drag-and-drop) *(was v3.0, optional)*
+
+## Platform & launchers
+
+- Home-screen widget *(was v3.0)*
 - App shortcuts (launcher long-press → New event), maybe a quick-settings tile
-- Jump to date (un-cut from V1 — drawer date picker)
 
-Consciously rejected: travel time / weather / smart suggestions (network,
-core-promise conflict), natural-language quick entry (high effort,
-locale-fragile, prefilled form already covers fast entry).
-
-## Idea backlog — Locations & People (captured 2026-06-11, undecided)
+## Locations & People *(go/no-go, captured 2026-06-11)*
 
 Beyond classic calendar-client scope; discussed, deliberately not planned
 in detail yet:
@@ -163,3 +305,10 @@ in detail yet:
 - **Attendee editing / invites from contacts** — own milestone; writing
   `Attendees` rows touches sync-adapter invitation behavior (Google vs
   DAVx5 differ).
+
+## Consciously rejected
+
+- Travel time / weather / smart suggestions (network, core-promise conflict)
+- Natural-language quick entry (high effort, locale-fragile; the prefilled
+  form already covers fast entry)
+- Quick-add sheet (the prefilled full form already covers it — cut in v2.0)

@@ -12,6 +12,15 @@ interface CalendarRepository {
     fun instances(range: ClosedRange<Instant>): Flow<List<EventInstance>>
     suspend fun eventDetail(eventId: Long): EventDetail
 
+    /** Create a device-only (LOCAL) calendar the app owns; returns its id. */
+    suspend fun createLocalCalendar(displayName: String, color: Int, description: String?): Long
+
+    /** Update name, color and description of a local calendar the app owns. */
+    suspend fun updateCalendar(id: Long, displayName: String, color: Int, description: String?)
+
+    /** Permanently delete a local calendar the app owns, with all its events. */
+    suspend fun deleteCalendar(id: Long)
+
     /** Create a new event from a validated form; returns the new `Events._ID`. */
     suspend fun createEvent(form: EventForm): Long
 

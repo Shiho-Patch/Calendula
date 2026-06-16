@@ -110,6 +110,7 @@ import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.SimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.parseSimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.toRRule
+import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.OptionCard
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.pastelize
@@ -147,6 +148,7 @@ fun EventEditScreen(
     onClose: () -> Unit,
     onSaved: () -> Unit,
     editKey: LongArray? = null,
+    initialStartMinutes: Int? = null,
     viewModel: EventEditViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(initialDateIso, editKey) {
@@ -159,7 +161,7 @@ fun EventEditScreen(
         } else {
             val date = initialDateIso?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
                 ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
-            viewModel.openNew(date)
+            viewModel.openNew(date, initialStartMinutes)
         }
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -1436,8 +1438,9 @@ private fun EditCard(
 }
 
 /**
- * Borderless text input used inside the cards (and as the headline title) —
- * no underline, no outline, just the card's tonal surface behind it.
+ * Borderless text input used inside the cards (and as the headline title).
+ * Thin wrapper over the shared [InlineTextField] so the form and the rest of
+ * the app share one input style.
  */
 @Composable
 private fun InlineField(
@@ -1452,36 +1455,15 @@ private fun InlineField(
         .fillMaxWidth()
         .padding(vertical = 4.dp),
 ) {
-    val resolvedStyle = textStyle.copy(
-        color = if (textStyle.color.isSpecified) {
-            textStyle.color
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        },
-    )
-    BasicTextField(
+    InlineTextField(
         value = value,
         onValueChange = onValueChange,
-        textStyle = resolvedStyle,
+        placeholder = placeholder,
+        modifier = modifier,
+        textStyle = textStyle,
         singleLine = singleLine,
         minLines = minLines,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-        decorationBox = { innerTextField ->
-            Box {
-                if (value.isEmpty()) {
-                    // Clearly fainter than typed text, so a hint (e.g. the
-                    // "10" in the reminder amount) never reads as prefilled.
-                    Text(
-                        text = placeholder,
-                        style = resolvedStyle,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                    )
-                }
-                innerTextField()
-            }
-        },
-        modifier = modifier,
+        keyboardType = keyboardType,
     )
 }
 

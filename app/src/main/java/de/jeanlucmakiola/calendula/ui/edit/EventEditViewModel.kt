@@ -138,21 +138,26 @@ class EventEditViewModel @Inject constructor(
         )
 
     /**
-     * Initialise a fresh form for a new event on [date]. No-op when a form is
-     * already open, so user input survives configuration changes; [reset]
-     * clears it when the screen closes.
+     * Initialise a fresh form for a new event on [date]. [startMinutes] (minutes
+     * from midnight) anchors the start when the form is opened by tapping a slot
+     * in the day/week grid; without it the default is the next full hour (today)
+     * or 09:00 (any other day). No-op when a form is already open, so user input
+     * survives configuration changes; [reset] clears it when the screen closes.
      */
-    fun openNew(date: LocalDate) {
+    fun openNew(date: LocalDate, startMinutes: Int? = null) {
         if (_form.value != null) return
         val zone = TimeZone.currentSystemDefault()
         val now = Clock.System.now()
-        val start = if (date == now.toLocalDateTime(zone).date) {
-            // Today: the next full hour (may roll into tomorrow before midnight).
-            val hourMillis = 3_600_000L
-            val rounded = (now.toEpochMilliseconds() / hourMillis + 1) * hourMillis
-            Instant.fromEpochMilliseconds(rounded).toLocalDateTime(zone)
-        } else {
-            LocalDateTime(date, LocalTime(9, 0))
+        val start = when {
+            startMinutes != null ->
+                LocalDateTime(date, LocalTime(startMinutes / 60, startMinutes % 60))
+            date == now.toLocalDateTime(zone).date -> {
+                // Today: the next full hour (may roll into tomorrow before midnight).
+                val hourMillis = 3_600_000L
+                val rounded = (now.toEpochMilliseconds() / hourMillis + 1) * hourMillis
+                Instant.fromEpochMilliseconds(rounded).toLocalDateTime(zone)
+            }
+            else -> LocalDateTime(date, LocalTime(9, 0))
         }
         val end = (start.toInstant(zone) + 1.hours).toLocalDateTime(zone)
         _form.value = EventForm(calendarId = null, start = start, end = end)

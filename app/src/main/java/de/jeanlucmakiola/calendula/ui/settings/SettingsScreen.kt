@@ -63,6 +63,7 @@ import de.jeanlucmakiola.calendula.domain.EventFormField
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onManageCalendars: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -139,6 +140,14 @@ fun SettingsScreen(
             RemindersRow(
                 checked = state.remindersEnabled,
                 onCheckedChange = viewModel::setRemindersEnabled,
+            )
+
+            HorizontalDivider(Modifier.padding(vertical = 8.dp))
+            SectionHeader(stringResource(R.string.settings_section_calendars))
+            NavigationRow(
+                title = stringResource(R.string.settings_manage_calendars),
+                subtitle = stringResource(R.string.settings_manage_calendars_hint),
+                onClick = onManageCalendars,
             )
 
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
@@ -374,6 +383,26 @@ private fun AboutRow(title: String, value: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.width(8.dp))
+    }
+}
+
+@Composable
+private fun NavigationRow(title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 24.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

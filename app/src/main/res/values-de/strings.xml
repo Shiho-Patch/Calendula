@@ -211,6 +211,9 @@
     <string name="settings_section_notifications">Benachrichtigungen</string>
     <string name="settings_reminders">Termin-Erinnerungen</string>
     <string name="settings_reminders_hint">Erinnerungen doppelt? Eine andere Kalender-App zeigt sie ebenfalls — schalte sie in einer der beiden ab.</string>
+    <string name="settings_section_calendars">Kalender</string>
+    <string name="settings_manage_calendars">Kalender verwalten</string>
+    <string name="settings_manage_calendars_hint">Lokale Kalender anlegen, synchronisierte verwalten</string>
     <string name="settings_section_language">Sprache</string>
     <string name="settings_language">App-Sprache</string>
     <string name="settings_language_auto">Systemstandard</string>
@@ -222,4 +225,22 @@
     <string name="settings_license_value">MIT</string>
     <string name="settings_source">Quellcode</string>
     <string name="settings_source_open">Öffnen</string>
+
+    <!-- Calendar manager -->
+    <string name="calendars_title">Kalender</string>
+    <string name="calendars_local_header">Deine Kalender</string>
+    <string name="calendars_local_empty">Noch keine lokalen Kalender. Lege einen an, um Termine nur auf diesem Gerät zu speichern.</string>
+    <string name="calendars_add">Kalender hinzufügen</string>
+    <string name="calendars_synced_header">Synchronisierte Kalender</string>
+    <string name="calendars_synced_hint">Diese stammen von Konten auf deinem Gerät. Erstelle und bearbeite sie in der jeweiligen App.</string>
+    <string name="calendars_manage_in_app">Verwalten</string>
+    <string name="calendars_add_account">Konto hinzufügen</string>
+    <string name="calendars_new_title">Neuer Kalender</string>
+    <string name="calendars_edit_title">Kalender bearbeiten</string>
+    <string name="calendars_name_label">Name</string>
+    <string name="calendars_color_label">Farbe</string>
+    <string name="calendars_description_hint">Beschreibung hinzufügen</string>
+    <string name="calendars_delete_confirm_title">Kalender löschen?</string>
+    <string name="calendars_delete_confirm_message">\"%1$s\" und alle zugehörigen Termine werden dauerhaft von diesem Gerät entfernt.</string>
+    <string name="calendars_write_error">Änderung konnte nicht gespeichert werden.</string>
 </resources>

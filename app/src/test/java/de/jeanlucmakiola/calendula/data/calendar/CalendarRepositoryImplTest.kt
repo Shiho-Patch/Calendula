@@ -328,6 +328,65 @@ class CalendarRepositoryImplTest {
     }
 
     @Test
+    fun `createLocalCalendar delegates and returns the new id`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource().apply { nextCalendarId = 501L }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+
+        val id = repo.createLocalCalendar(
+            displayName = "Home",
+            color = 0xFF33B679.toInt(),
+            description = "House stuff",
+        )
+
+        assertThat(id).isEqualTo(501L)
+        assertThat(fake.createdCalendars).containsExactly(
+            FakeCalendarDataSource.CreatedCalendar("Home", 0xFF33B679.toInt(), "House stuff"),
+        )
+    }
+
+    @Test
+    fun `updateCalendar forwards id, name, color and description`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource()
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+
+        repo.updateCalendar(
+            id = 5L,
+            displayName = "Renamed",
+            color = 0xFF039BE5.toInt(),
+            description = null,
+        )
+
+        assertThat(fake.updatedCalendars).containsExactly(
+            FakeCalendarDataSource.UpdatedCalendar(5L, "Renamed", 0xFF039BE5.toInt(), null),
+        )
+    }
+
+    @Test
+    fun `deleteCalendar delegates to the data source`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource()
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+
+        repo.deleteCalendar(id = 7L)
+
+        assertThat(fake.deletedCalendarIds).containsExactly(7L)
+    }
+
+    @Test
+    fun `createLocalCalendar propagates write failures`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource().apply {
+            writeError = WriteFailedException("create local calendar 'Home'")
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+
+        try {
+            repo.createLocalCalendar(displayName = "Home", color = 0, description = null)
+            error("Expected WriteFailedException")
+        } catch (expected: WriteFailedException) {
+            assertThat(expected.message).contains("Home")
+        }
+    }
+
+    @Test
     fun `eventDetail throws NoSuchEventException when data source returns null`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource().apply {
             eventDetailResult = { null }

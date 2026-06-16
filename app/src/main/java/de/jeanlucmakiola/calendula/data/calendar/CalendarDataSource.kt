@@ -6,6 +6,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.ContentObserver
 import android.database.Cursor
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.CalendarContract
@@ -35,6 +36,19 @@ interface CalendarDataSource {
     fun calendars(): List<CalendarSource>
     fun instances(beginMillis: Long, endMillis: Long): List<EventInstance>
     fun eventDetail(eventId: Long): EventDetail?
+
+    /**
+     * Create a new device-only (`ACCOUNT_TYPE_LOCAL`) calendar the app owns;
+     * returns its `Calendars._ID`. Inserted through the sync-adapter URI so the
+     * provider keeps the row (a plain insert is rejected for the LOCAL account).
+     */
+    fun createLocalCalendar(displayName: String, color: Int, description: String?): Long
+
+    /** Update name, color and description of a local calendar the app owns. */
+    fun updateCalendar(id: Long, displayName: String, color: Int, description: String?)
+
+    /** Permanently delete a local calendar the app owns, with all its events. */
+    fun deleteCalendar(id: Long)
 
     /** Insert a new event; returns the new `Events._ID`. */
     fun insertEvent(form: EventForm): Long
@@ -104,6 +118,76 @@ class AndroidCalendarDataSource @Inject constructor(
         null, null,
         CalendarContract.Calendars.CALENDAR_DISPLAY_NAME + " ASC",
     )?.use { it.mapAll(::toCalendarSource) } ?: emptyList()
+
+    /**
+     * Calendar-row writes must address the provider as a sync adapter and name
+     * the account in the URI; otherwise inserts/deletes for the LOCAL account
+     * are silently dropped or only soft-deleted.
+     */
+    private fun localCalendarsUri(): Uri = CalendarContract.Calendars.CONTENT_URI.buildUpon()
+        .appendQueryParameter(CalendarContract.CALLER_IS_SYNCADAPTER, "true")
+        .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_NAME, LOCAL_ACCOUNT_NAME)
+        .appendQueryParameter(
+            CalendarContract.Calendars.ACCOUNT_TYPE,
+            CalendarContract.ACCOUNT_TYPE_LOCAL,
+        )
+        .build()
+
+    override fun createLocalCalendar(displayName: String, color: Int, description: String?): Long {
+        val name = displayName.trim().ifEmpty { Fallbacks.UNNAMED_CALENDAR }
+        val values = ContentValues().apply {
+            put(CalendarContract.Calendars.ACCOUNT_NAME, LOCAL_ACCOUNT_NAME)
+            put(CalendarContract.Calendars.ACCOUNT_TYPE, CalendarContract.ACCOUNT_TYPE_LOCAL)
+            put(CalendarContract.Calendars.OWNER_ACCOUNT, LOCAL_ACCOUNT_NAME)
+            // NAME is the sync-adapter id; DISPLAY_NAME is what the user sees.
+            put(CalendarContract.Calendars.NAME, name)
+            put(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, name)
+            put(CalendarContract.Calendars.CALENDAR_COLOR, color)
+            put(
+                CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL,
+                CalendarContract.Calendars.CAL_ACCESS_OWNER,
+            )
+            put(CalendarContract.Calendars.VISIBLE, 1)
+            put(CalendarContract.Calendars.SYNC_EVENTS, 1)
+            putDescription(description)
+        }
+        val uri = resolver.insert(localCalendarsUri(), values)
+            ?: throw WriteFailedException("create local calendar '$name'")
+        return ContentUris.parseId(uri)
+    }
+
+    override fun updateCalendar(id: Long, displayName: String, color: Int, description: String?) {
+        val name = displayName.trim().ifEmpty { Fallbacks.UNNAMED_CALENDAR }
+        val values = ContentValues().apply {
+            put(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, name)
+            put(CalendarContract.Calendars.NAME, name)
+            put(CalendarContract.Calendars.CALENDAR_COLOR, color)
+            putDescription(description)
+        }
+        val rows = resolver.update(
+            ContentUris.withAppendedId(localCalendarsUri(), id),
+            values, null, null,
+        )
+        if (rows == 0) throw WriteFailedException("update calendar id=$id")
+    }
+
+    /** Store the description in CAL_SYNC1, or clear it when blank/absent. */
+    private fun ContentValues.putDescription(description: String?) {
+        val text = description?.trim().orEmpty()
+        if (text.isEmpty()) {
+            putNull(CalendarProjection.DESCRIPTION_COLUMN)
+        } else {
+            put(CalendarProjection.DESCRIPTION_COLUMN, text)
+        }
+    }
+
+    override fun deleteCalendar(id: Long) {
+        val deleted = resolver.delete(
+            ContentUris.withAppendedId(localCalendarsUri(), id),
+            null, null,
+        )
+        if (deleted == 0) throw WriteFailedException("delete calendar id=$id")
+    }
 
     override fun instances(beginMillis: Long, endMillis: Long): List<EventInstance> {
         val uri = CalendarContract.Instances.CONTENT_URI.buildUpon().apply {
@@ -425,5 +509,11 @@ class AndroidCalendarDataSource @Inject constructor(
 
     private companion object {
         const val TAG = "CalendarDataSource"
+
+        /**
+         * Shared account for every app-created local calendar, so they group
+         * together (by account) in the filter sheet and calendar manager.
+         */
+        const val LOCAL_ACCOUNT_NAME = "Calendula"
     }
 }

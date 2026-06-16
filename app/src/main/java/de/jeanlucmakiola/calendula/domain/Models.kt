@@ -15,6 +15,17 @@ data class CalendarSource(
      * subscriptions, birthday calendars and other read-only sources.
      */
     val canModifyContents: Boolean = false,
+    /**
+     * A device-only calendar the app itself owns (`ACCOUNT_TYPE_LOCAL`): it has
+     * no sync backend, so the app can rename / recolor / delete it. Synced
+     * calendars (Google, DAVx5, …) are managed in their own source app instead.
+     */
+    val isLocal: Boolean = false,
+    /**
+     * Free-text note for a local calendar (stored in `CAL_SYNC1`, which the app
+     * owns for its own calendars). Always null for synced calendars.
+     */
+    val description: String? = null,
 )
 
 data class EventInstance(

@@ -26,6 +26,18 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     val deletedEventIds = mutableListOf<Long>()
     val deletedOccurrences = mutableListOf<Pair<Long, Long>>()
     val deletedFromOccurrences = mutableListOf<Pair<Long, Long>>()
+    /** Id returned by the next [createLocalCalendar]. */
+    var nextCalendarId: Long = 500L
+    data class CreatedCalendar(val displayName: String, val color: Int, val description: String?)
+    data class UpdatedCalendar(
+        val id: Long,
+        val displayName: String,
+        val color: Int,
+        val description: String?,
+    )
+    val createdCalendars = mutableListOf<CreatedCalendar>()
+    val updatedCalendars = mutableListOf<UpdatedCalendar>()
+    val deletedCalendarIds = mutableListOf<Long>()
 
     private val listeners = mutableListOf<() -> Unit>()
 
@@ -33,6 +45,22 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     override fun instances(beginMillis: Long, endMillis: Long): List<EventInstance> =
         instancesResult(beginMillis, endMillis)
     override fun eventDetail(eventId: Long): EventDetail? = eventDetailResult(eventId)
+
+    override fun createLocalCalendar(displayName: String, color: Int, description: String?): Long {
+        writeError?.let { throw it }
+        createdCalendars += CreatedCalendar(displayName, color, description)
+        return nextCalendarId
+    }
+
+    override fun updateCalendar(id: Long, displayName: String, color: Int, description: String?) {
+        writeError?.let { throw it }
+        updatedCalendars += UpdatedCalendar(id, displayName, color, description)
+    }
+
+    override fun deleteCalendar(id: Long) {
+        writeError?.let { throw it }
+        deletedCalendarIds += id
+    }
 
     override fun insertEvent(form: EventForm): Long {
         writeError?.let { throw it }

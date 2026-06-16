@@ -11,7 +11,13 @@ internal object CalendarProjection {
         CalendarContract.Calendars.CALENDAR_COLOR,
         CalendarContract.Calendars.VISIBLE,
         CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL,
+        // CalendarContract has no description column; for the local calendars we
+        // own we stash one in CAL_SYNC1 (synced rows put their sync token here,
+        // so the mapper only reads it for local calendars).
+        DESCRIPTION_COLUMN,
     )
+
+    const val DESCRIPTION_COLUMN: String = CalendarContract.Calendars.CAL_SYNC1
 
     const val IDX_ID = 0
     const val IDX_DISPLAY_NAME = 1
@@ -20,6 +26,7 @@ internal object CalendarProjection {
     const val IDX_COLOR = 4
     const val IDX_VISIBLE = 5
     const val IDX_ACCESS_LEVEL = 6
+    const val IDX_DESCRIPTION = 7
 }
 
 internal object InstanceProjection {
