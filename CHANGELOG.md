@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] — 2026-06-16
+
+### Changed
+- Redesigned Settings around the Material 3 grouped-list pattern: a large
+  title that collapses into the toolbar as you scroll, category cards on the
+  main screen, and dedicated sub-pages for Appearance, the new-event form, and
+  Notifications. The theme, week-start and language pickers now use the app's
+  standard option-card dialogs instead of dropdown menus
+- About moved to the top of Settings as a card — app icon, author, and quick
+  links to the source code and licence — with the version shown plainly at the
+  foot of the list
+- The Calendars screen now uses the same grouped-card layout and collapsing
+  title, and each calendar shows a soft pastel-tinted calendar glyph rather
+  than a plain colour swatch
+- Redesigned the navigation drawer to match: a branded header, the
+  Month / Week / Day switch and your calendars as grouped cards (with the
+  active view highlighted), and the whole drawer now scrolls as one
+
 ## [2.2.0] — 2026-06-16
 
 ### Added

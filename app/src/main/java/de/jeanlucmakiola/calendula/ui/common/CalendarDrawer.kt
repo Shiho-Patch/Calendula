@@ -1,20 +1,33 @@
 package de.jeanlucmakiola.calendula.ui.common
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
@@ -23,17 +36,12 @@ import de.jeanlucmakiola.calendula.ui.filter.CalendarFilterList
 /**
  * Navigation drawer shared by every top-level calendar screen.
  *
- * Visual language (kept deliberately small so sizes don't drift):
- *  - Drawer title — `titleLarge`
- *  - Section headers (e.g. "Calendars") — `titleSmall`, primary, text only
- *  - Nav items (the views, Today / Settings) — Material `NavigationDrawerItem`
- *    (`labelLarge` label + a single 24dp leading icon)
- *
- * The "View" section mirrors the top-bar switcher pill: tapping a view here
- * selects it (and closes the drawer) rather than cycling. Also hosts the
- * per-calendar visibility filter (M3) inline — the calendar list with its
- * checkboxes lives here rather than in a separate sheet — plus a Settings
- * entry (M4). The host screen owns the drawer state.
+ * Uses the app's grouped-card design system (see [GroupedRow]): a branded
+ * header, the View switcher as a grouped card (the active view highlighted),
+ * the per-calendar visibility filter (M3) inline, and a pinned Settings row.
+ * The "View" section mirrors the top-bar switcher pill — tapping a view here
+ * selects it (and closes the drawer) rather than cycling. The host screen owns
+ * the drawer state.
  */
 @Composable
 fun CalendarDrawer(
@@ -42,43 +50,72 @@ fun CalendarDrawer(
     onSettings: () -> Unit,
 ) {
     ModalDrawerSheet {
-        Column(Modifier.fillMaxHeight()) {
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
-            )
-            HorizontalDivider()
+        // The whole sidebar scrolls as one — header, views, the calendar filter
+        // and Settings all flow in a single scroll container.
+        Column(
+            Modifier
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState()),
+        ) {
+            DrawerHeader()
 
             DrawerSectionHeader(stringResource(R.string.view_section))
-            IMPLEMENTED_VIEWS.forEach { view ->
-                NavigationDrawerItem(
-                    icon = { Icon(view.icon, contentDescription = null) },
-                    label = { Text(stringResource(view.labelRes)) },
+            IMPLEMENTED_VIEWS.forEachIndexed { index, view ->
+                GroupedRow(
+                    title = stringResource(view.labelRes),
+                    position = positionOf(index, IMPLEMENTED_VIEWS.size),
                     selected = view == currentView,
+                    minHeight = 56.dp,
+                    leading = { Icon(view.icon, contentDescription = null) },
                     onClick = { onSelectView(view) },
-                    modifier = Modifier.padding(horizontal = 12.dp),
                 )
             }
-            Spacer(Modifier.height(8.dp))
-            HorizontalDivider()
 
-            // Calendars (M3) — visibility checkboxes, scrollable, takes the slack
-            // between the top actions and the pinned Settings entry.
+            Spacer(Modifier.height(16.dp))
+
             DrawerSectionHeader(stringResource(R.string.filter_title))
-            CalendarFilterList(modifier = Modifier.weight(1f))
+            CalendarFilterList()
 
-            HorizontalDivider()
-            Spacer(Modifier.height(8.dp))
-            NavigationDrawerItem(
-                icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
-                label = { Text(stringResource(R.string.month_action_settings)) },
-                selected = false,
+            Spacer(Modifier.height(16.dp))
+            GroupedRow(
+                title = stringResource(R.string.month_action_settings),
+                position = Position.Alone,
+                minHeight = 56.dp,
+                leading = { Icon(Icons.Filled.Settings, contentDescription = null) },
                 onClick = onSettings,
-                modifier = Modifier.padding(horizontal = 12.dp),
             )
             Spacer(Modifier.height(8.dp))
         }
+    }
+}
+
+/** Branded header: the app-icon chip beside the app name. */
+@Composable
+private fun DrawerHeader() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 28.dp, end = 28.dp, top = 24.dp, bottom = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(colorResource(R.color.ic_launcher_background)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = null,
+                modifier = Modifier.requiredSize(66.dp),
+            )
+        }
+        Spacer(Modifier.width(16.dp))
+        Text(
+            text = stringResource(R.string.app_name),
+            style = MaterialTheme.typography.titleLarge,
+        )
     }
 }
 

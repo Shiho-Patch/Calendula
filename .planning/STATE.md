@@ -7,8 +7,9 @@
 **Milestone:** 2 (write support) **complete** — v2.0.0 shipped 2026-06-11;
 v2.1.0 (month event grid, drawer view tabs, cursor fix) shipped 2026-06-15.
 **Phase:** post-2.1 backlog work. v2.2.0 (tap-to-create in day/week + local
-calendar management with per-calendar "manage in source app" deep-links)
-shipped 2026-06-16. The backlog is now organised by theme in `ROADMAP.md`.
+calendar management) and v2.3.0 (Material 3 grouped-list redesign of Settings,
+the calendar manager and the navigation drawer) both shipped 2026-06-16. The
+backlog is now organised by theme in `ROADMAP.md`.
 
 ## Progress
 
@@ -86,18 +87,31 @@ shipped 2026-06-16. The backlog is now organised by theme in `ROADMAP.md`.
   deep-link (resolved from the account's authenticator: DAVx5/ICSx5/…) and
   an add-account shortcut. Shared `InlineTextField` extracted to `ui.common`
 
+- [x] v2.3 settings/calendars/drawer redesign (shipped 2026-06-16) — adopted a
+  shared Material 3 grouped-list blueprint, modelled on the ReFra gallery app
+  and extracted to `ui/common/GroupedList.kt` (`CollapsingScaffold` with a
+  `LargeTopAppBar` exit-until-collapsed title; `GroupedRow` with Position-based
+  corner grouping, press-animated corners, `selected` + `minHeight` knobs).
+    - Settings: category hub (About card on top → version mark at the foot) with
+      sliding sub-pages (Appearance / New event form / Notifications); token-
+      based icon chips; theme/week-start/language pickers migrated from
+      `DropdownMenu` to OptionCard dialogs. New `ic_gitea.xml` (Simple Icons,
+      verbatim path) for the About "Source" button; en+de strings.
+    - Calendar manager: same collapsing scaffold + grouped rows; shared
+      `CalendarColorChip` (neutral chip, pastelised calendar glyph).
+    - Navigation drawer: branded header, grouped View switcher (active view
+      highlighted via `secondaryContainer`), the filter list restyled to
+      grouped rows with a trailing checkbox; the whole drawer scrolls as one.
+    - Cards use `surfaceContainerHigh` for readable contrast against `surface`.
+    - Donate button on the About card deferred (target still TBD).
+
 ## Next
 
-1. Monitor the F-Droid build/publish for the v2.2.0 tag
+1. Monitor the F-Droid build/publish for the v2.3.0 tag
 2. Decide the "Locations & People" and "remote calendar create/edit"
    go/no-go calls (both hinge on the INTERNET permission) — see `ROADMAP.md`
-3. **Settings redesign & restructure** is the agreed high-prio next item
-   (2026-06-16) — group into M3 cards / sub-screens, and migrate the
-   theme/week-start/language `DropdownMenu` selectors to the OptionCard modal
-   default (current dropdowns violate `option-card-modal-style-default`).
-   Structure + style pass only, no new settings features.
-4. **Per-event color** follows — reuses the color picker + palette plumbing
+3. **Per-event color** is next — reuses the color picker + palette plumbing
    from local calendar management; finishes the create/edit theme.
-5. Then agenda view (strategic, backs a future widget); jump-to-date and
+4. Then agenda view (strategic, backs a future widget); jump-to-date and
    duplicate event remain cheap follow-ups. Full ranked sequence in
    `ROADMAP.md` → "Near-term sequence".

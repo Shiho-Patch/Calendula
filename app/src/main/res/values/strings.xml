@@ -220,12 +220,17 @@
     <string name="settings_language_auto">System default</string>
     <string name="settings_language_german">Deutsch</string>
     <string name="settings_language_english">English</string>
+    <!-- Hub category subtitles -->
+    <string name="settings_appearance_subtitle">Theme, dynamic colour, week start</string>
+    <string name="settings_event_form_subtitle">Default fields for new events</string>
+    <string name="settings_notifications_subtitle">Event reminders</string>
     <string name="settings_section_about">About</string>
-    <string name="settings_version">Version</string>
     <string name="settings_license">License</string>
     <string name="settings_license_value">MIT</string>
-    <string name="settings_source">Source code</string>
-    <string name="settings_source_open">Open</string>
+    <string name="settings_about_author">by Jean-Luc Makiola</string>
+    <string name="settings_about_source">Source</string>
+    <string name="settings_about_version">Version %1$s</string>
+    <string name="settings_about_logo_desc">Calendula app icon</string>
 
     <!-- Calendar manager -->
     <string name="calendars_title">Calendars</string>
@@ -245,4 +250,5 @@
     <string name="calendars_delete_confirm_message">\"%1$s\" and all of its events will be permanently removed from this device.</string>
     <string name="calendars_write_error">Couldn\'t save the change.</string>
     <string name="about_source_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula</string>
+    <string name="about_license_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula/src/branch/main/LICENSE</string>
 </resources>

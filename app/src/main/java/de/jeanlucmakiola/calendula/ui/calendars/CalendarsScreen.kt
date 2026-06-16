@@ -40,8 +40,6 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -70,14 +68,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
+import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.InlineTextField
+import de.jeanlucmakiola.calendula.ui.common.Position
 import de.jeanlucmakiola.calendula.ui.common.pastelize
+import de.jeanlucmakiola.calendula.ui.common.positionOf
 
 /** Sentinel [editorId] meaning "the editor is composing a new calendar". */
 private const val NEW_CALENDAR_ID = Long.MIN_VALUE
@@ -139,7 +141,6 @@ fun CalendarsScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CalendarsList(
     local: List<CalendarSource>,
@@ -150,11 +151,10 @@ private fun CalendarsList(
     onAdd: () -> Unit,
     onEdit: (CalendarSource) -> Unit,
 ) {
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val writeErrorText = stringResource(R.string.calendars_write_error)
-    val dark = isSystemInDarkTheme()
 
-    BackHandler(onBack = onBack)
     LaunchedEffect(error) {
         if (error) {
             snackbarHostState.showSnackbar(writeErrorText)
@@ -162,79 +162,69 @@ private fun CalendarsList(
         }
     }
 
-    Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface),
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.calendars_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.settings_back),
-                        )
-                    }
-                },
-            )
-        },
+    CollapsingScaffold(
+        title = stringResource(R.string.calendars_title),
+        onBack = onBack,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-        ) {
-            SectionHeader(stringResource(R.string.calendars_local_header))
-            if (local.isEmpty()) {
-                HintText(stringResource(R.string.calendars_local_empty))
-            } else {
-                local.forEach { calendar ->
-                    CalendarRow(
-                        name = calendar.displayName,
-                        color = calendar.color,
-                        dark = dark,
-                        subtitle = calendar.description,
-                        onClick = { onEdit(calendar) },
-                        trailing = {
-                            Icon(
-                                Icons.Default.Edit,
-                                contentDescription = stringResource(R.string.calendars_edit_title),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        },
-                    )
-                }
-            }
-            FilledTonalButton(
-                onClick = onAdd,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.calendars_add))
-            }
-
-            HorizontalDivider(Modifier.padding(vertical = 8.dp))
-
-            SectionHeader(stringResource(R.string.calendars_synced_header))
-            HintText(stringResource(R.string.calendars_synced_hint))
-            synced
-                .groupBy { it.accountName.ifBlank { it.accountType } }
-                .forEach { (account, cals) ->
-                    SyncedAccountGroup(
-                        account = account,
-                        accountType = cals.first().accountType,
-                        calendars = cals,
-                        dark = dark,
-                    )
-                }
-            AddAccountButton()
-            Spacer(Modifier.height(24.dp))
+    ) {
+        // Local (device-only) calendars — the calendars the app owns. The
+        // "Add calendar" entry closes the group as its final row.
+        SectionHeader(stringResource(R.string.calendars_local_header))
+        if (local.isEmpty()) {
+            HintText(stringResource(R.string.calendars_local_empty))
         }
+        val localCount = local.size + 1
+        local.forEachIndexed { index, calendar ->
+            GroupedRow(
+                title = calendar.displayName,
+                summary = calendar.description,
+                position = positionOf(index, localCount),
+                leading = { CalendarColorChip(calendar.color) },
+                trailing = {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = stringResource(R.string.calendars_edit_title),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                },
+                onClick = { onEdit(calendar) },
+            )
+        }
+        GroupedRow(
+            title = stringResource(R.string.calendars_add),
+            position = positionOf(local.size, localCount),
+            leading = { AddAvatar() },
+            onClick = onAdd,
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Synced calendars — read-only, grouped by account, each with a
+        // per-account "manage in source app" link.
+        SectionHeader(stringResource(R.string.calendars_synced_header))
+        HintText(stringResource(R.string.calendars_synced_hint))
+        synced
+            .groupBy { it.accountName.ifBlank { it.accountType } }
+            .forEach { (account, cals) ->
+                AccountHeader(account = account, accountType = cals.first().accountType)
+                cals.forEachIndexed { index, calendar ->
+                    GroupedRow(
+                        title = calendar.displayName,
+                        position = positionOf(index, cals.size),
+                        leading = { CalendarColorChip(calendar.color) },
+                    )
+                }
+            }
+        Spacer(Modifier.height(8.dp))
+        GroupedRow(
+            title = stringResource(R.string.calendars_add_account),
+            position = Position.Alone,
+            leading = { AddAvatar() },
+            onClick = {
+                runCatching { context.startActivity(Intent(Settings.ACTION_ADD_ACCOUNT)) }
+            },
+        )
     }
 }
 
@@ -449,17 +439,12 @@ private fun ColorPalette(selected: Int, onSelect: (Int) -> Unit, dark: Boolean) 
 }
 
 @Composable
-private fun SyncedAccountGroup(
-    account: String,
-    accountType: String,
-    calendars: List<CalendarSource>,
-    dark: Boolean,
-) {
+private fun AccountHeader(account: String, accountType: String) {
     val context = LocalContext.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 24.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+            .padding(start = 28.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -476,65 +461,24 @@ private fun SyncedAccountGroup(
             Text(stringResource(R.string.calendars_manage_in_app))
         }
     }
-    calendars.forEach { calendar ->
-        CalendarRow(name = calendar.displayName, color = calendar.color, dark = dark)
-    }
 }
 
+/** Neutral circular chip with a "+" — the leading icon for add-actions. */
 @Composable
-private fun AddAccountButton() {
-    val context = LocalContext.current
-    FilledTonalButton(
-        onClick = {
-            runCatching { context.startActivity(Intent(Settings.ACTION_ADD_ACCOUNT)) }
-        },
-        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-    ) {
-        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(stringResource(R.string.calendars_add_account))
-    }
-}
-
-@Composable
-private fun CalendarRow(
-    name: String,
-    color: Int,
-    dark: Boolean,
-    subtitle: String? = null,
-    onClick: (() -> Unit)? = null,
-    trailing: @Composable (() -> Unit)? = null,
-) {
-    Row(
+private fun AddAvatar() {
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 24.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(16.dp)
-                .clip(CircleShape)
-                .background(pastelize(color, dark)),
+        Icon(
+            Icons.Default.Add,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(22.dp),
         )
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = name, style = MaterialTheme.typography.bodyLarge)
-            if (!subtitle.isNullOrBlank()) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        if (trailing != null) {
-            Spacer(Modifier.width(8.dp))
-            trailing()
-        }
     }
 }
 

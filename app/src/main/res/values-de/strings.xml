@@ -219,12 +219,17 @@
     <string name="settings_language_auto">Systemstandard</string>
     <string name="settings_language_german">Deutsch</string>
     <string name="settings_language_english">English</string>
+    <!-- Hub category subtitles -->
+    <string name="settings_appearance_subtitle">Design, dynamische Farben, Wochenstart</string>
+    <string name="settings_event_form_subtitle">Standardfelder für neue Termine</string>
+    <string name="settings_notifications_subtitle">Termin-Erinnerungen</string>
     <string name="settings_section_about">Über</string>
-    <string name="settings_version">Version</string>
     <string name="settings_license">Lizenz</string>
     <string name="settings_license_value">MIT</string>
-    <string name="settings_source">Quellcode</string>
-    <string name="settings_source_open">Öffnen</string>
+    <string name="settings_about_author">von Jean-Luc Makiola</string>
+    <string name="settings_about_source">Quellcode</string>
+    <string name="settings_about_version">Version %1$s</string>
+    <string name="settings_about_logo_desc">Calendula-App-Symbol</string>
 
     <!-- Calendar manager -->
     <string name="calendars_title">Kalender</string>

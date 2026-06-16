@@ -1,25 +1,17 @@
 package de.jeanlucmakiola.calendula.ui.filter
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -28,7 +20,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.FailureReason
-import de.jeanlucmakiola.calendula.ui.common.pastelize
+import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.GroupedRow
+import de.jeanlucmakiola.calendula.ui.common.positionOf
 
 /**
  * Calendar-visibility filter (M3), rendered inline in the navigation drawer.
@@ -53,64 +47,41 @@ fun CalendarFilterList(
     }
 }
 
+/**
+ * Renders as a plain (non-scrolling) [Column] so it flows inside the drawer's
+ * single scroll container — the whole sidebar scrolls as one. Calendar counts
+ * are small, so a lazy list isn't needed.
+ */
 @Composable
 private fun FilterList(
     groups: List<AccountGroup>,
     onSetVisible: (Long, Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val dark = isSystemInDarkTheme()
-    LazyColumn(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(vertical = 4.dp),
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
         groups.forEach { group ->
-            item(key = "header-${group.account}") {
-                Text(
-                    text = group.account,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 12.dp, bottom = 4.dp),
-                )
-            }
-            items(group.calendars, key = { it.id }) { cal ->
-                CalendarToggleRow(
-                    row = cal,
-                    dark = dark,
-                    onCheckedChange = { onSetVisible(cal.id, it) },
+            Text(
+                text = group.account,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 12.dp, bottom = 4.dp),
+            )
+            group.calendars.forEachIndexed { index, cal ->
+                GroupedRow(
+                    title = cal.displayName,
+                    position = positionOf(index, group.calendars.size),
+                    minHeight = 56.dp,
+                    leading = { CalendarColorChip(cal.color) },
+                    trailing = {
+                        Checkbox(
+                            checked = cal.visible,
+                            onCheckedChange = { onSetVisible(cal.id, it) },
+                        )
+                    },
+                    onClick = { onSetVisible(cal.id, !cal.visible) },
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun CalendarToggleRow(
-    row: CalendarRow,
-    dark: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 28.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(14.dp)
-                .background(pastelize(row.color, dark), CircleShape),
-        )
-        Text(
-            text = row.displayName,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-        )
-        Checkbox(
-            checked = row.visible,
-            onCheckedChange = onCheckedChange,
-        )
     }
 }
 

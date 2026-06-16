@@ -126,6 +126,23 @@ Deliberately deferred (add only if needed):
 - Shared `InlineTextField` extracted to `ui.common` (event form + calendar
   editor share one input style)
 
+## v2.3 — Material 3 grouped-list redesign (shipped 2026-06-16)
+
+A structural + visual pass adopting one shared blueprint (modelled on the ReFra
+gallery app) across Settings, the calendar manager and the navigation drawer.
+
+- Shared `ui/common/GroupedList.kt`: `CollapsingScaffold` (a `LargeTopAppBar`
+  whose title collapses on scroll) + `GroupedRow` (Position-based corner
+  grouping, press-animated corners, `selected` + `minHeight` knobs).
+- Settings: category hub with About card on top and sliding sub-pages
+  (Appearance / New event form / Notifications); theme/week-start/language
+  pickers moved from `DropdownMenu` to OptionCard dialogs; token-based icon
+  chips; `ic_gitea.xml` for the About "Source" button.
+- Calendar manager + drawer restyled to match; shared `CalendarColorChip`;
+  drawer scrolls as one with the active view highlighted.
+- Cards use `surfaceContainerHigh` for readable contrast.
+- Donate button on the About card deferred (target TBD).
+
 ---
 
 # Backlog (theme-based, post-v2.1)
@@ -146,13 +163,18 @@ unblock a later item. Order is a plan, not a contract — revisit after each lan
 **Tier 1 — finish the current arc (create/edit + calendars)**
 1. Tap-to-create in day/week *(shipped v2.2.0)* — prefilled create from an empty slot
 2. Local calendar management + "manage in source app" deep-links *(shipped v2.2.0)*
-3. **Settings redesign & restructure** *(next, high prio)* — see scope below
-4. Per-event color — reuses the calendar color picker/palette; closes the create/edit theme
+3. ~~Settings redesign & restructure~~ *(shipped v2.3.0 — grew into the full
+   grouped-list blueprint across Settings + calendars + drawer; see "v2.3"
+   above)*
+4. **Per-event color** *(next)* — reuses the calendar color picker/palette; closes the create/edit theme
 5. Duplicate event — detail action → prefilled create form; near-free on the tap-to-create prefill infra
 
 (Tier 2+ numbering below shifts accordingly; ranking unchanged.)
 
-### Settings redesign & restructure *(next, high prio)*
+### Settings redesign & restructure *(shipped v2.3.0)*
+
+The original scope below is kept as a record; the implementation expanded from a
+sub-screen restructure into the shared grouped-list blueprint (see "v2.3" above).
 
 The settings screen has grown into a flat vertical scroll of divider-separated
 sections (Appearance, Event form, Notifications, Calendars, Language, About) and
