@@ -431,6 +431,27 @@ private fun EventFormScreen(
                 onClick = { viewModel.setFormFieldDefault(field, !checked) },
             )
         }
+
+        // Per-event colour on calendars that publish no colour set (some
+        // CalDAV) — off by default, with the honest caveat that the colour may
+        // not survive their next sync. Local and palette calendars ignore it.
+        Spacer(Modifier.height(24.dp))
+        GroupedRow(
+            title = stringResource(R.string.settings_color_unsupported),
+            summary = stringResource(R.string.settings_color_unsupported_hint),
+            position = Position.Alone,
+            trailing = {
+                Switch(
+                    checked = state.allowColorOnUnsupportedCalendars,
+                    onCheckedChange = { viewModel.setAllowColorOnUnsupportedCalendars(it) },
+                )
+            },
+            onClick = {
+                viewModel.setAllowColorOnUnsupportedCalendars(
+                    !state.allowColorOnUnsupportedCalendars,
+                )
+            },
+        )
     }
 }
 
@@ -555,6 +576,7 @@ private fun formFieldLabel(field: EventFormField): Int = when (field) {
     EventFormField.Recurrence -> R.string.event_detail_recurrence
     EventFormField.Availability -> R.string.event_edit_availability
     EventFormField.Visibility -> R.string.event_edit_visibility
+    EventFormField.Color -> R.string.event_edit_color
 }
 
 @Composable

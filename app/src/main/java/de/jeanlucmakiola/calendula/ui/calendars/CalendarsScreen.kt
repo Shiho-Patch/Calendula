@@ -6,14 +6,10 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,7 +27,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -73,8 +68,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.ui.common.CALENDAR_COLOR_PALETTE
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
+import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.Position
@@ -325,7 +322,12 @@ private fun CalendarEditor(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(12.dp))
-                ColorPalette(selected = color, onSelect = { color = it }, dark = dark)
+                ColorSwatchRow(
+                    colors = CALENDAR_COLOR_PALETTE,
+                    selected = color,
+                    onSelect = { color = it },
+                    dark = dark,
+                )
             }
             EditorCard(
                 icon = Icons.AutoMirrored.Filled.Notes,
@@ -398,42 +400,6 @@ private fun EditorCard(
             )
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) { content() }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ColorPalette(selected: Int, onSelect: (Int) -> Unit, dark: Boolean) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        CALENDAR_COLOR_PALETTE.forEach { argb ->
-            val isSelected = argb == selected
-            // Show the pastel the calendar will actually render as, not the raw hue.
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .padding(vertical = 4.dp)
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(pastelize(argb, dark))
-                    .then(
-                        if (isSelected) {
-                            Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                        } else {
-                            Modifier
-                        },
-                    )
-                    .clickable { onSelect(argb) },
-            ) {
-                if (isSelected) {
-                    Icon(
-                        Icons.Default.Check,
-                        contentDescription = null,
-                        tint = Color.Black.copy(alpha = 0.7f),
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
         }
     }
 }
@@ -532,15 +498,3 @@ private fun curatedSourcePackage(accountType: String): String? = when {
     else -> null
 }
 
-/** Google-Calendar-style palette; values are ARGB ints for `Calendars.CALENDAR_COLOR`. */
-internal val CALENDAR_COLOR_PALETTE: List<Int> = listOf(
-    0xFFD50000, // red
-    0xFFE67C00, // orange
-    0xFFF6BF26, // amber
-    0xFF33B679, // green
-    0xFF0B8043, // dark green
-    0xFF039BE5, // blue
-    0xFF3F51B5, // indigo
-    0xFF8E24AA, // purple
-    0xFF616161, // graphite
-).map { it.toInt() }

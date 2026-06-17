@@ -115,6 +115,8 @@ class EventFormTest {
         rowStart: Long = 0L,
         rowEnd: Long = 0L,
         attendees: List<Attendee> = emptyList(),
+        eventColor: Int? = null,
+        eventColorKey: String? = null,
     ): EventDetail = EventDetail(
         instance = EventInstance(
             instanceId = 1L,
@@ -134,6 +136,8 @@ class EventFormTest {
         reminders = reminders,
         availability = availability,
         accessLevel = accessLevel,
+        eventColor = eventColor,
+        eventColorKey = eventColorKey,
     )
 
     @Test
@@ -227,6 +231,7 @@ class EventFormTest {
             rrule = "FREQ=DAILY",
             availability = Availability.Free,
             accessLevel = AccessLevel.Private,
+            color = 0xFFD50000.toInt(),
         )
         assertThat(full.populatedFields()).containsExactly(
             EventFormField.Location,
@@ -235,6 +240,33 @@ class EventFormTest {
             EventFormField.Recurrence,
             EventFormField.Availability,
             EventFormField.Visibility,
+            EventFormField.Color,
         )
+    }
+
+    @Test
+    fun `toEditForm carries a palette colour as key plus swatch`() {
+        val prefilled = detail(eventColor = 0xFF33B679.toInt(), eventColorKey = "5")
+            .toEditForm(beginMillis = 0L, endMillis = 3_600_000L, zone = berlin)
+        assertThat(prefilled.colorKey).isEqualTo("5")
+        assertThat(prefilled.color).isEqualTo(0xFF33B679.toInt())
+        assertThat(prefilled.populatedFields()).contains(EventFormField.Color)
+    }
+
+    @Test
+    fun `toEditForm carries a raw colour with no key`() {
+        val prefilled = detail(eventColor = 0xFF8E24AA.toInt())
+            .toEditForm(beginMillis = 0L, endMillis = 3_600_000L, zone = berlin)
+        assertThat(prefilled.colorKey).isNull()
+        assertThat(prefilled.color).isEqualTo(0xFF8E24AA.toInt())
+    }
+
+    @Test
+    fun `toEditForm leaves an inheriting event without a colour`() {
+        val prefilled = detail()
+            .toEditForm(beginMillis = 0L, endMillis = 3_600_000L, zone = berlin)
+        assertThat(prefilled.colorKey).isNull()
+        assertThat(prefilled.color).isNull()
+        assertThat(prefilled.populatedFields()).doesNotContain(EventFormField.Color)
     }
 }

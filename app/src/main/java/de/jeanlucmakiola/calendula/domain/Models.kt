@@ -58,7 +58,24 @@ data class EventDetail(
     val eventTimezone: String? = null,
     /** This device user's own response (`Events.SELF_ATTENDEE_STATUS`). */
     val selfStatus: AttendeeStatus = AttendeeStatus.Unknown,
+    /**
+     * The event's own raw colour (`Events.EVENT_COLOR`), null when the event
+     * inherits its calendar's colour. Unlike [EventInstance.color] (which
+     * already folds in the calendar fallback for display) this stays null so
+     * the edit form can tell "has own colour" from "inherits".
+     */
+    val eventColor: Int? = null,
+    /** The event's `Events.EVENT_COLOR_KEY` (a calendar-palette key), or null. */
+    val eventColorKey: String? = null,
 )
+
+/**
+ * One selectable event colour published by a calendar's account
+ * (`CalendarContract.Colors`, `TYPE_EVENT`): [key] is the account-scoped
+ * `COLOR_KEY` written as `EVENT_COLOR_KEY` (so the colour survives sync),
+ * [argb] is the swatch it renders as.
+ */
+data class EventColorOption(val key: String, val argb: Int)
 
 data class Attendee(
     val name: String,

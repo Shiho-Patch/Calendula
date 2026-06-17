@@ -85,6 +85,9 @@ internal fun buildEventUpdateValues(
     if (updated.accessLevel != original.accessLevel) {
         put(CalendarContract.Events.ACCESS_LEVEL, updated.accessLevel.toProviderValue())
     }
+    if (updated.colorKey != original.colorKey || updated.color != original.color) {
+        putAll(eventColorColumns(updated.colorKey, updated.color))
+    }
 
     val timesChanged = updated.start != original.start ||
         updated.end != original.end ||
@@ -134,6 +137,28 @@ internal fun buildOccurrenceExceptionValues(
     put(CalendarContract.Events.ACCESS_LEVEL, form.accessLevel.toProviderValue())
     put(CalendarContract.Events.EVENT_LOCATION, form.location.trim().ifEmpty { null })
     put(CalendarContract.Events.DESCRIPTION, form.description.trim().ifEmpty { null })
+    putAll(eventColorColumns(form.colorKey, form.color))
+}
+
+/**
+ * The `EVENT_COLOR` / `EVENT_COLOR_KEY` columns for a colour selection. A
+ * [colorKey] writes the key alone (the provider derives `EVENT_COLOR` from the
+ * account's palette, so the colour round-trips through sync); a raw [color]
+ * writes `EVENT_COLOR` and clears any key; "no colour" clears both so the event
+ * falls back to its calendar's colour. The two are never written together —
+ * the provider rejects a raw colour on a calendar that publishes a palette,
+ * which is exactly why palette calendars only ever go through the key.
+ */
+internal fun eventColorColumns(colorKey: String?, color: Int?): Map<String, Any?> = when {
+    colorKey != null -> mapOf(CalendarContract.Events.EVENT_COLOR_KEY to colorKey)
+    color != null -> mapOf(
+        CalendarContract.Events.EVENT_COLOR_KEY to null,
+        CalendarContract.Events.EVENT_COLOR to color,
+    )
+    else -> mapOf(
+        CalendarContract.Events.EVENT_COLOR_KEY to null,
+        CalendarContract.Events.EVENT_COLOR to null,
+    )
 }
 
 /**

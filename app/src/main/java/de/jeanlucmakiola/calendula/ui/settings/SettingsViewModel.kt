@@ -24,20 +24,27 @@ class SettingsViewModel @Inject constructor(
 
     val state: StateFlow<SettingsUiState> =
         combine(
-            prefs.themeMode,
-            prefs.dynamicColor,
-            prefs.weekStart,
-            prefs.defaultFormFields,
-            prefs.remindersEnabled,
-        ) { theme, dynamic, weekStart, formFields, reminders ->
-            SettingsUiState(
-                themeMode = theme,
-                dynamicColor = dynamic && dynamicColorAvailable,
-                dynamicColorAvailable = dynamicColorAvailable,
-                weekStart = weekStart,
-                defaultFormFields = formFields,
-                remindersEnabled = reminders,
-            )
+            // combine() only types up to five flows, so the sixth pref folds
+            // into the assembled state in an outer combine.
+            combine(
+                prefs.themeMode,
+                prefs.dynamicColor,
+                prefs.weekStart,
+                prefs.defaultFormFields,
+                prefs.remindersEnabled,
+            ) { theme, dynamic, weekStart, formFields, reminders ->
+                SettingsUiState(
+                    themeMode = theme,
+                    dynamicColor = dynamic && dynamicColorAvailable,
+                    dynamicColorAvailable = dynamicColorAvailable,
+                    weekStart = weekStart,
+                    defaultFormFields = formFields,
+                    remindersEnabled = reminders,
+                )
+            },
+            prefs.allowColorOnUnsupportedCalendars,
+        ) { base, allowColor ->
+            base.copy(allowColorOnUnsupportedCalendars = allowColor)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
@@ -62,5 +69,9 @@ class SettingsViewModel @Inject constructor(
 
     fun setRemindersEnabled(enabled: Boolean) {
         viewModelScope.launch { prefs.setRemindersEnabled(enabled) }
+    }
+
+    fun setAllowColorOnUnsupportedCalendars(enabled: Boolean) {
+        viewModelScope.launch { prefs.setAllowColorOnUnsupportedCalendars(enabled) }
     }
 }

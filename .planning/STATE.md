@@ -1,6 +1,6 @@
 # Calendula — Current State
 
-*Last updated: 2026-06-16*
+*Last updated: 2026-06-17*
 
 ## Status
 
@@ -105,13 +105,24 @@ backlog is now organised by theme in `ROADMAP.md`.
     - Cards use `surfaceContainerHigh` for readable contrast against `surface`.
     - Donate button on the About card deferred (target still TBD).
 
+- [x] v2.4 per-event color (shipped 2026-06-17) — an optional "Color" field in
+  the event form. Read/render already resolved `EVENT_COLOR` with a calendar
+  fallback; this adds the write side and the picker. Palette-backed calendars
+  (Google, some CalDAV) pick from the account's `Colors` (`TYPE_EVENT`) and
+  write `EVENT_COLOR_KEY` so the color round-trips through sync; local
+  calendars write a raw `EVENT_COLOR` from the shared `CALENDAR_COLOR_PALETTE`
+  (extracted with the swatch row to `ui/common/ColorSwatchRow.kt`). Switching
+  calendars resets the choice (a key is account-scoped). A settings toggle
+  ("Allow colors on unsupported calendars", off by default) extends the raw
+  path to synced calendars with no palette, with an honest "may not survive
+  sync" warning on the picker and in Settings. Color writes flow through
+  insert / dirty-checked update / occurrence-exception; mapper + form tests.
+
 ## Next
 
-1. Monitor the F-Droid build/publish for the v2.3.0 tag
+1. Monitor the F-Droid build/publish for the v2.4.0 tag
 2. Decide the "Locations & People" and "remote calendar create/edit"
    go/no-go calls (both hinge on the INTERNET permission) — see `ROADMAP.md`
-3. **Per-event color** is next — reuses the color picker + palette plumbing
-   from local calendar management; finishes the create/edit theme.
-4. Then agenda view (strategic, backs a future widget); jump-to-date and
-   duplicate event remain cheap follow-ups. Full ranked sequence in
+3. **Duplicate event** and **jump-to-date** are the cheap follow-ups; then
+   agenda view (strategic, backs a future widget). Full ranked sequence in
    `ROADMAP.md` → "Near-term sequence".

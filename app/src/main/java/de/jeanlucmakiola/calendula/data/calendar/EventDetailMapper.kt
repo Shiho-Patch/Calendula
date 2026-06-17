@@ -46,11 +46,16 @@ internal fun ColumnReader.toEventDetailCore(
     // localized placeholder, and the edit form must prefill the true value.
     val title = getString(EventDetailProjection.IDX_TITLE).orEmpty()
 
-    val color = if (isNull(EventDetailProjection.IDX_EVENT_COLOR)) {
-        getInt(EventDetailProjection.IDX_CALENDAR_COLOR)
+    // The event's own colour (null = inherits the calendar's) is kept apart
+    // from the resolved display colour: the edit form needs to tell the two
+    // cases apart, while the instance carries the calendar fallback for display.
+    val eventColor = if (isNull(EventDetailProjection.IDX_EVENT_COLOR)) {
+        null
     } else {
         getInt(EventDetailProjection.IDX_EVENT_COLOR)
     }
+    val eventColorKey = getString(EventDetailProjection.IDX_EVENT_COLOR_KEY)
+    val color = eventColor ?: getInt(EventDetailProjection.IDX_CALENDAR_COLOR)
 
     val eventId = getLong(EventDetailProjection.IDX_EVENT_ID)
     val instance = EventInstance(
@@ -87,6 +92,8 @@ internal fun ColumnReader.toEventDetailCore(
         accessLevel = mapAccessLevel(getInt(EventDetailProjection.IDX_ACCESS_LEVEL)),
         eventTimezone = getString(EventDetailProjection.IDX_EVENT_TIMEZONE),
         selfStatus = mapAttendeeStatus(getInt(EventDetailProjection.IDX_SELF_ATTENDEE_STATUS)),
+        eventColor = eventColor,
+        eventColorKey = eventColorKey,
     )
 }
 

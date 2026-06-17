@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] — 2026-06-17
+
+### Added
+- Per-event colors: give a single event its own color, instead of always
+  inheriting its calendar's. Add the new "Color" field from "More fields" in
+  the event form. On calendars that publish their own color set — such as
+  Google — you pick from that calendar's palette, so the color is stored
+  with the event and shows correctly on every synced device. On local
+  calendars you pick from Calendula's palette. "Reset" returns an event to
+  its calendar's color
+- A new "Allow colors on unsupported calendars" setting (New event form,
+  off by default) extends per-event colors to calendars that publish no
+  color set of their own (some CalDAV). Such a color is kept on the device
+  and may be dropped or overwritten on that calendar's next sync — a
+  limitation of those calendars, called out plainly in the setting and on
+  the color picker
+
 ## [2.3.0] — 2026-06-16
 
 ### Changed

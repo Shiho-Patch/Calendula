@@ -20,6 +20,7 @@ class EventDetailMapperTest {
         organizer: String? = "x@y",
         rrule: String? = null,
         eventColor: Any? = null,
+        eventColorKey: String? = null,
         calendarColor: Int = 0xFFAABBCC.toInt(),
         dtstart: Long = 1_000_000_000L,
         dtend: Long = 1_000_003_600L,
@@ -49,6 +50,7 @@ class EventDetailMapperTest {
         EventDetailProjection.IDX_ACCESS_LEVEL to accessLevel,
         EventDetailProjection.IDX_EVENT_TIMEZONE to timezone,
         EventDetailProjection.IDX_SELF_ATTENDEE_STATUS to selfStatus,
+        EventDetailProjection.IDX_EVENT_COLOR_KEY to eventColorKey,
     )
 
     private fun attendeeReader(
@@ -99,6 +101,22 @@ class EventDetailMapperTest {
         val detail = detailReader(eventColor = null, calendarColor = 0xFF112233.toInt())
             .toDetail()
         assertThat(detail!!.instance.color).isEqualTo(0xFF112233.toInt())
+        // No own colour: the edit form must see this as "inherits".
+        assertThat(detail.eventColor).isNull()
+        assertThat(detail.eventColorKey).isNull()
+    }
+
+    @Test
+    fun `own event color and key are surfaced apart from the resolved color`() {
+        val detail = detailReader(
+            eventColor = 0xFF33B679.toInt(),
+            eventColorKey = "5",
+            calendarColor = 0xFF112233.toInt(),
+        ).toDetail()
+        // Resolved display colour is the event's own, not the calendar fallback.
+        assertThat(detail!!.instance.color).isEqualTo(0xFF33B679.toInt())
+        assertThat(detail.eventColor).isEqualTo(0xFF33B679.toInt())
+        assertThat(detail.eventColorKey).isEqualTo("5")
     }
 
     @Test

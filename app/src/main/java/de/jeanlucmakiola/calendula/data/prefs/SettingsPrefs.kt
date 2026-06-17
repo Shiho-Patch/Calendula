@@ -100,6 +100,22 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * Whether to offer a custom event colour even on calendars that publish no
+     * colour palette (most local calendars handle it fine; synced calendars
+     * without a palette — some CalDAV — may drop or overwrite a raw colour on
+     * their next sync). Defaults to OFF: such calendars hide the colour picker
+     * until the user opts in, accepting the limitation. Local calendars and
+     * palette-backed calendars (Google, …) are unaffected by this flag.
+     */
+    val allowColorOnUnsupportedCalendars: Flow<Boolean> = store.data.map { prefs ->
+        prefs[ALLOW_COLOR_UNSUPPORTED_KEY] ?: false
+    }
+
+    suspend fun setAllowColorOnUnsupportedCalendars(enabled: Boolean) {
+        store.edit { it[ALLOW_COLOR_UNSUPPORTED_KEY] = enabled }
+    }
+
+    /**
      * Whether the one-time reminder onboarding step (after the calendar
      * grant) has been shown — also true for users who tapped "not now".
      */
@@ -125,6 +141,8 @@ class SettingsPrefs @Inject constructor(
         internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
         internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")
         internal val REMINDER_ONBOARDING_KEY = booleanPreferencesKey("reminder_onboarding_done")
+        internal val ALLOW_COLOR_UNSUPPORTED_KEY =
+            booleanPreferencesKey("allow_color_unsupported_calendars")
         internal val DEFAULT_FORM_FIELDS =
             setOf(EventFormField.Location, EventFormField.Description)
     }

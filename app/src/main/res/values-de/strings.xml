@@ -82,6 +82,15 @@
     <string name="event_edit_availability">Verfügbarkeit</string>
     <string name="event_edit_visibility">Sichtbarkeit</string>
 
+    <!-- Termin-Formular — eigene Terminfarbe -->
+    <string name="event_edit_color">Farbe</string>
+    <string name="event_edit_color_default">Kalenderfarbe</string>
+    <string name="event_edit_color_custom">Eigene Farbe</string>
+    <string name="event_edit_color_reset">Zurücksetzen</string>
+    <string name="event_edit_color_unsupported">Für diesen Kalender nicht verfügbar</string>
+    <string name="event_edit_color_unsupported_hint">Dieser Kalender stellt keine Farbpalette bereit. Du kannst eigene Farben für solche Kalender in den Einstellungen aktivieren.</string>
+    <string name="event_edit_color_sync_warning">Dieser Kalender verwirft oder überschreibt die Farbe unter Umständen bei der nächsten Synchronisierung.</string>
+
     <!-- Termin-Formular — Speicher-Konflikt (v2.0) -->
     <string name="event_edit_conflict_title">Termin wurde extern geändert</string>
     <string name="event_edit_conflict_body">Während du bearbeitet hast, wurde dieser Termin anderswo geändert — durch Synchronisierung oder eine andere App. Was soll mit deinen Änderungen passieren?</string>
@@ -208,6 +217,8 @@
     <string name="settings_week_start_sunday">Sonntag</string>
     <string name="settings_section_event_form">Termin-Formular</string>
     <string name="settings_form_fields_hint">Standardmäßig angezeigte Felder — alles Weitere liegt hinter \"Weitere Felder\"</string>
+    <string name="settings_color_unsupported">Farben auf nicht unterstützten Kalendern erlauben</string>
+    <string name="settings_color_unsupported_hint">Manche Kalender (z. B. bestimmte CalDAV) stellen keine Farbpalette bereit; eine eigene Terminfarbe wird dort bei der nächsten Synchronisierung unter Umständen verworfen oder überschrieben. Das ist eine Einschränkung dieser Kalender und kann von Calendula nicht behoben werden.</string>
     <string name="settings_section_notifications">Benachrichtigungen</string>
     <string name="settings_reminders">Termin-Erinnerungen</string>
     <string name="settings_reminders_hint">Erinnerungen doppelt? Eine andere Kalender-App zeigt sie ebenfalls — schalte sie in einer der beiden ab.</string>

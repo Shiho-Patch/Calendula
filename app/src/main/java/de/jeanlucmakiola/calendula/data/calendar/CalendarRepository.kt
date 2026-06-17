@@ -1,6 +1,7 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
@@ -11,6 +12,12 @@ interface CalendarRepository {
     fun calendars(): Flow<List<CalendarSource>>
     fun instances(range: ClosedRange<Instant>): Flow<List<EventInstance>>
     suspend fun eventDetail(eventId: Long): EventDetail
+
+    /**
+     * The event-colour palette a calendar's account publishes; empty when it
+     * exposes none (see [CalendarDataSource.eventColorPalette]).
+     */
+    suspend fun eventColorPalette(calendarId: Long): List<EventColorOption>
 
     /** Create a device-only (LOCAL) calendar the app owns; returns its id. */
     suspend fun createLocalCalendar(displayName: String, color: Int, description: String?): Long

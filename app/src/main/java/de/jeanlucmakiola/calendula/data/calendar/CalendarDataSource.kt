@@ -14,6 +14,7 @@ import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.domain.Attendee
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
@@ -36,6 +37,15 @@ interface CalendarDataSource {
     fun calendars(): List<CalendarSource>
     fun instances(beginMillis: Long, endMillis: Long): List<EventInstance>
     fun eventDetail(eventId: Long): EventDetail?
+
+    /**
+     * The event-colour palette the calendar's account publishes
+     * (`CalendarContract.Colors`, `TYPE_EVENT`), sorted by key. Empty when the
+     * account exposes no palette (most local calendars, some CalDAV) — the
+     * signal that a custom colour can only be written as a raw `EVENT_COLOR`,
+     * which a synced calendar may drop on its next sync.
+     */
+    fun eventColorPalette(calendarId: Long): List<EventColorOption>
 
     /**
      * Create a new device-only (`ACCOUNT_TYPE_LOCAL`) calendar the app owns;
@@ -215,6 +225,46 @@ class AndroidCalendarDataSource @Inject constructor(
         }
     }
 
+    override fun eventColorPalette(calendarId: Long): List<EventColorOption> {
+        val account = calendarAccount(calendarId) ?: return emptyList()
+        return resolver.query(
+            CalendarContract.Colors.CONTENT_URI,
+            arrayOf(CalendarContract.Colors.COLOR_KEY, CalendarContract.Colors.COLOR),
+            CalendarContract.Colors.ACCOUNT_NAME + " = ? AND " +
+                CalendarContract.Colors.ACCOUNT_TYPE + " = ? AND " +
+                CalendarContract.Colors.COLOR_TYPE + " = ?",
+            arrayOf(
+                account.name,
+                account.type,
+                CalendarContract.Colors.TYPE_EVENT.toString(),
+            ),
+            null,
+        )?.use { c ->
+            c.mapAll { EventColorOption(key = it.getString(0).orEmpty(), argb = it.getInt(1)) }
+        }
+            ?.filter { it.key.isNotEmpty() }
+            ?.sortedBy { it.key }
+            ?: emptyList()
+    }
+
+    /** The account a calendar belongs to, for scoping a `Colors` lookup. */
+    private fun calendarAccount(calendarId: Long): CalendarAccount? = resolver.query(
+        ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, calendarId),
+        arrayOf(
+            CalendarContract.Calendars.ACCOUNT_NAME,
+            CalendarContract.Calendars.ACCOUNT_TYPE,
+        ),
+        null, null, null,
+    )?.use { c ->
+        if (c.moveToFirst()) {
+            CalendarAccount(name = c.getString(0).orEmpty(), type = c.getString(1).orEmpty())
+        } else {
+            null
+        }
+    }
+
+    private data class CalendarAccount(val name: String, val type: String)
+
     override fun insertEvent(form: EventForm): Long {
         val times = form.toWriteTimes(ZoneId.systemDefault())
         val values = ContentValues().apply {
@@ -240,6 +290,13 @@ class AndroidCalendarDataSource @Inject constructor(
                 ?.let { put(CalendarContract.Events.EVENT_LOCATION, it) }
             form.description.trim().takeIf { it.isNotEmpty() }
                 ?.let { put(CalendarContract.Events.DESCRIPTION, it) }
+            // A null colour just leaves both columns unset (the event inherits
+            // its calendar's colour), so only the key/raw cases are written.
+            when {
+                form.colorKey != null ->
+                    put(CalendarContract.Events.EVENT_COLOR_KEY, form.colorKey)
+                form.color != null -> put(CalendarContract.Events.EVENT_COLOR, form.color)
+            }
         }
         val uri = resolver.insert(CalendarContract.Events.CONTENT_URI, values)
             ?: throw WriteFailedException("insert event into calendar id=${form.calendarId}")

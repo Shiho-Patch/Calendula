@@ -12,6 +12,7 @@ import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EditSnapshot
+import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
@@ -19,12 +20,17 @@ import de.jeanlucmakiola.calendula.domain.populatedFields
 import de.jeanlucmakiola.calendula.domain.problems
 import de.jeanlucmakiola.calendula.domain.toEditSnapshot
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -98,19 +104,44 @@ class EventEditViewModel @Inject constructor(
         val writable: List<CalendarSource>,
         val lastUsed: Long?,
         val defaultFields: Set<EventFormField>,
+        val allowColorOnUnsupported: Boolean,
     )
+
+    /** Writable calendars — the only valid event targets. */
+    private val writableCalendars: Flow<List<CalendarSource>> = repository.calendars()
+        .map { calendars -> calendars.filter { it.canModifyContents } }
+        .catch { emit(emptyList()) }
+
+    /** The target calendar id, resolved exactly as the form shows it. */
+    private val resolvedCalendarId: Flow<Long?> = combine(
+        _form.map { it?.calendarId },
+        writableCalendars,
+        prefs.lastUsedCalendarId,
+    ) { picked, writable, lastUsed ->
+        picked
+            ?: lastUsed?.takeIf { id -> writable.any { it.id == id } }
+            ?: writable.firstOrNull()?.id
+    }.distinctUntilChanged()
+
+    /** The resolved calendar's published event palette, refetched when it changes. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val colorPalette: Flow<List<EventColorOption>> = resolvedCalendarId
+        .flatMapLatest { id ->
+            flow { emit(id?.let { repository.eventColorPalette(it) }.orEmpty()) }
+        }
+        .flowOn(io)
 
     val state: StateFlow<EventEditUiState?> = combine(
         combine(_form, _saveState, _showProblems, _revealed, _editTarget, ::LocalInputs),
         combine(
-            repository.calendars()
-                .map { calendars -> calendars.filter { it.canModifyContents } }
-                .catch { emit(emptyList()) },
+            writableCalendars,
             prefs.lastUsedCalendarId,
             settingsPrefs.defaultFormFields,
+            settingsPrefs.allowColorOnUnsupportedCalendars,
             ::ExternalInputs,
         ).flowOn(io),
-    ) { local, external ->
+        colorPalette,
+    ) { local, external, palette ->
         val form = local.form ?: return@combine null
         val resolvedId = form.calendarId
             ?: external.lastUsed?.takeIf { id -> external.writable.any { it.id == id } }
@@ -129,6 +160,8 @@ class EventEditViewModel @Inject constructor(
             // the scope dialog drops "only this event" after a rule change.
             recurrenceChanged = local.editTarget != null &&
                 resolved.rrule != local.editTarget.original.rrule,
+            colorPalette = palette,
+            allowColorOnUnsupportedCalendars = external.allowColorOnUnsupported,
         )
     }
         .stateIn(
@@ -207,9 +240,24 @@ class EventEditViewModel @Inject constructor(
     fun setLocation(value: String) = update { it.copy(location = value) }
     fun setDescription(value: String) = update { it.copy(description = value) }
     fun setAllDay(value: Boolean) = update { it.copy(isAllDay = value) }
-    fun setCalendar(id: Long) = update { it.copy(calendarId = id) }
+
+    /**
+     * Switching calendars drops any chosen colour: a palette key is
+     * account-scoped, and a raw colour may be invalid on the new calendar.
+     * The event falls back to the new calendar's colour until re-picked.
+     */
+    fun setCalendar(id: Long) = update { it.copy(calendarId = id, colorKey = null, color = null) }
     fun setAvailability(value: Availability) = update { it.copy(availability = value) }
     fun setAccessLevel(value: AccessLevel) = update { it.copy(accessLevel = value) }
+
+    /** Pick a palette colour (round-trips via its key); [argb] is its swatch. */
+    fun setColorKey(key: String, argb: Int) = update { it.copy(colorKey = key, color = argb) }
+
+    /** Pick a raw colour (local / opted-in calendars), clearing any palette key. */
+    fun setColorRaw(argb: Int) = update { it.copy(colorKey = null, color = argb) }
+
+    /** Clear the colour so the event inherits its calendar's. */
+    fun clearColor() = update { it.copy(colorKey = null, color = null) }
 
     /** Bare RRULE value from the recurrence picker; null = does not repeat. */
     fun setRecurrence(rrule: String?) = update { it.copy(rrule = rrule) }

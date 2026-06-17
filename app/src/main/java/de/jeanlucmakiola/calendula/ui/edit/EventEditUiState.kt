@@ -1,6 +1,7 @@
 package de.jeanlucmakiola.calendula.ui.edit
 
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.EventFormProblem
@@ -33,6 +34,18 @@ data class EventEditUiState(
      * then drops "only this event" (an exception row can't carry a rule).
      */
     val recurrenceChanged: Boolean = false,
+    /**
+     * The event-colour palette the resolved target calendar publishes; empty
+     * when it exposes none. Non-empty → the colour picker offers these swatches
+     * (written as a key, sync-safe); empty → see [colorMode].
+     */
+    val colorPalette: List<EventColorOption> = emptyList(),
+    /**
+     * Whether the user has opted into custom colours on calendars that publish
+     * no palette (a synced one may then drop the colour on sync). Mirrors the
+     * settings flag; ignored for local and palette-backed calendars.
+     */
+    val allowColorOnUnsupportedCalendars: Boolean = false,
 )
 
 /** One-shot state of a save request, mirroring DeleteUiState on the detail screen. */

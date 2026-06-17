@@ -20,4 +20,9 @@ data class SettingsUiState(
     val defaultFormFields: Set<EventFormField> = SettingsPrefs.DEFAULT_FORM_FIELDS,
     /** Whether Calendula posts reminder notifications (v1.4). */
     val remindersEnabled: Boolean = true,
+    /**
+     * Whether the event-colour picker is offered on calendars that publish no
+     * colour palette (the colour may then not survive their next sync).
+     */
+    val allowColorOnUnsupportedCalendars: Boolean = false,
 )

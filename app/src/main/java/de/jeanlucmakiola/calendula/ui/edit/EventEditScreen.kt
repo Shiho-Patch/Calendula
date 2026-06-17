@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Repeat
@@ -102,6 +103,7 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.EventFormProblem
 import de.jeanlucmakiola.calendula.domain.RecurrenceEnd
@@ -110,6 +112,8 @@ import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.SimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.parseSimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.toRRule
+import de.jeanlucmakiola.calendula.ui.common.CALENDAR_COLOR_PALETTE
+import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
 import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.OptionCard
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
@@ -414,6 +418,7 @@ private fun EventEditContent(
     var showReminderPicker by rememberSaveable { mutableStateOf(false) }
     var showRecurrencePicker by rememberSaveable { mutableStateOf(false) }
     var showVisibilityPicker by rememberSaveable { mutableStateOf(false) }
+    var showColorPicker by rememberSaveable { mutableStateOf(false) }
     var showFieldPicker by rememberSaveable { mutableStateOf(false) }
 
     val selectedCalendar = state.calendars.firstOrNull { it.id == form.calendarId }
@@ -422,6 +427,16 @@ private fun EventEditContent(
     val accent = selectedCalendar?.let { pastelize(it.color, dark) }
         ?: MaterialTheme.colorScheme.primary
     val gap = 12.dp
+
+    // Per-event colour applicability for the resolved calendar:
+    //  - palette calendars (Google, …) and local calendars always support it;
+    //  - synced calendars with no palette only when the user opted in, and even
+    //    then the colour may not survive the calendar's next sync (the warning).
+    val isLocalCalendar = selectedCalendar?.isLocal == true
+    val colorSupported = state.colorPalette.isNotEmpty() || isLocalCalendar ||
+        state.allowColorOnUnsupportedCalendars
+    val colorSyncRisk = state.colorPalette.isEmpty() && !isLocalCalendar &&
+        state.allowColorOnUnsupportedCalendars
 
     Column(
         modifier = modifier
@@ -692,6 +707,67 @@ private fun EventEditContent(
             }
         }
 
+        OptionalFormSection(visible = EventFormField.Color in state.visibleFields) {
+            Spacer(Modifier.height(gap))
+            // The swatch the event will paint with: its own colour, else the
+            // calendar's. The Palette icon takes that colour as a preview.
+            val swatch = form.color ?: selectedCalendar?.color
+            EditCard(
+                icon = Icons.Default.Palette,
+                iconContentDescription = stringResource(R.string.event_edit_color),
+                iconTint = if (colorSupported && swatch != null) {
+                    pastelize(swatch, dark)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                onClick = { showColorPicker = true }.takeIf { colorSupported },
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(
+                                when {
+                                    !colorSupported -> R.string.event_edit_color_unsupported
+                                    form.color != null -> R.string.event_edit_color_custom
+                                    else -> R.string.event_edit_color_default
+                                },
+                            ),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = stringResource(
+                                if (colorSupported) {
+                                    R.string.event_edit_color
+                                } else {
+                                    R.string.event_edit_color_unsupported_hint
+                                },
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (colorSyncRisk) {
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = stringResource(R.string.event_edit_color_sync_warning),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    if (colorSupported) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+
         OptionalFormSection(visible = state.hiddenFields.isNotEmpty()) {
             Spacer(Modifier.height(20.dp))
             TextButton(
@@ -776,6 +852,28 @@ private fun EventEditContent(
                 showVisibilityPicker = false
             },
             onDismiss = { showVisibilityPicker = false },
+        )
+    }
+
+    if (showColorPicker) {
+        ColorPickerDialog(
+            palette = state.colorPalette,
+            selected = form.color,
+            hasExplicitColor = form.color != null,
+            syncWarning = colorSyncRisk,
+            onPickKey = { key, argb ->
+                viewModel.setColorKey(key, argb)
+                showColorPicker = false
+            },
+            onPickRaw = { argb ->
+                viewModel.setColorRaw(argb)
+                showColorPicker = false
+            },
+            onClear = {
+                viewModel.clearColor()
+                showColorPicker = false
+            },
+            onDismiss = { showColorPicker = false },
         )
     }
 
@@ -1294,6 +1392,7 @@ private fun fieldLabel(field: EventFormField): Int = when (field) {
     EventFormField.Recurrence -> R.string.event_detail_recurrence
     EventFormField.Availability -> R.string.event_edit_availability
     EventFormField.Visibility -> R.string.event_edit_visibility
+    EventFormField.Color -> R.string.event_edit_color
 }
 
 private fun fieldIcon(field: EventFormField): ImageVector = when (field) {
@@ -1303,6 +1402,7 @@ private fun fieldIcon(field: EventFormField): ImageVector = when (field) {
     EventFormField.Recurrence -> Icons.Default.Repeat
     EventFormField.Availability -> Icons.Default.EventAvailable
     EventFormField.Visibility -> Icons.Default.Lock
+    EventFormField.Color -> Icons.Default.Palette
 }
 
 /**
@@ -1332,6 +1432,72 @@ private fun VisibilityPickerDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
+        },
+    )
+}
+
+/**
+ * Event-colour picker: just the swatches. A non-empty [palette] (the calendar
+ * account's published colours) picks by key so the colour round-trips through
+ * sync; otherwise the app's own palette writes a raw colour, with a
+ * [syncWarning] when that calendar may not keep it. The "Reset" button (shown
+ * only once a colour is set) drops back to the calendar's own colour.
+ */
+@Composable
+private fun ColorPickerDialog(
+    palette: List<EventColorOption>,
+    selected: Int?,
+    hasExplicitColor: Boolean,
+    syncWarning: Boolean,
+    onPickKey: (String, Int) -> Unit,
+    onPickRaw: (Int) -> Unit,
+    onClear: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val dark = isSystemInDarkTheme()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.event_edit_color)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (palette.isNotEmpty()) {
+                    ColorSwatchRow(
+                        colors = palette.map { it.argb },
+                        selected = selected,
+                        onSelect = { argb ->
+                            palette.firstOrNull { it.argb == argb }
+                                ?.let { onPickKey(it.key, it.argb) }
+                        },
+                        dark = dark,
+                    )
+                } else {
+                    ColorSwatchRow(
+                        colors = CALENDAR_COLOR_PALETTE,
+                        selected = selected,
+                        onSelect = onPickRaw,
+                        dark = dark,
+                    )
+                    if (syncWarning) {
+                        Text(
+                            text = stringResource(R.string.event_edit_color_sync_warning),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
+        },
+        dismissButton = if (hasExplicitColor) {
+            {
+                TextButton(onClick = onClear) {
+                    Text(stringResource(R.string.event_edit_color_reset))
+                }
+            }
+        } else {
+            null
         },
     )
 }

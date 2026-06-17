@@ -3,6 +3,7 @@ package de.jeanlucmakiola.calendula.data.calendar
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
@@ -69,6 +70,9 @@ class CalendarRepositoryImpl @Inject constructor(
     override suspend fun eventDetail(eventId: Long): EventDetail = withContext(io) {
         dataSource.eventDetail(eventId) ?: throw NoSuchEventException(eventId)
     }
+
+    override suspend fun eventColorPalette(calendarId: Long): List<EventColorOption> =
+        withContext(io) { dataSource.eventColorPalette(calendarId) }
 
     override suspend fun createLocalCalendar(
         displayName: String,

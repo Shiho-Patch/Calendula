@@ -7,6 +7,7 @@ import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import kotlinx.coroutines.Dispatchers
@@ -399,5 +400,21 @@ class CalendarRepositoryImplTest {
         } catch (expected: NoSuchEventException) {
             assertThat(expected.message).contains("999")
         }
+    }
+
+    @Test
+    fun `eventColorPalette delegates to the data source for the given calendar`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val fake = FakeCalendarDataSource().apply {
+            eventColorPaletteResult = { id ->
+                if (id == 7L) listOf(EventColorOption("5", 0xFF33B679.toInt())) else emptyList()
+            }
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+
+        assertThat(repo.eventColorPalette(7L))
+            .containsExactly(EventColorOption("5", 0xFF33B679.toInt()))
+        assertThat(repo.eventColorPalette(8L)).isEmpty()
     }
 }

@@ -83,6 +83,15 @@
     <string name="event_edit_availability">Availability</string>
     <string name="event_edit_visibility">Visibility</string>
 
+    <!-- Event form — per-event color -->
+    <string name="event_edit_color">Color</string>
+    <string name="event_edit_color_default">Calendar color</string>
+    <string name="event_edit_color_custom">Custom color</string>
+    <string name="event_edit_color_reset">Reset</string>
+    <string name="event_edit_color_unsupported">Not available for this calendar</string>
+    <string name="event_edit_color_unsupported_hint">This calendar publishes no color set. You can allow custom colors for such calendars in Settings.</string>
+    <string name="event_edit_color_sync_warning">This calendar may drop or overwrite the color on its next sync.</string>
+
     <!-- Event form — save conflict (v2.0) -->
     <string name="event_edit_conflict_title">Event changed elsewhere</string>
     <string name="event_edit_conflict_body">While you were editing, this event was changed — by sync or another app. What should happen to your changes?</string>
@@ -209,6 +218,8 @@
     <string name="settings_week_start_sunday">Sunday</string>
     <string name="settings_section_event_form">New event form</string>
     <string name="settings_form_fields_hint">Fields shown by default — everything else sits behind \"More fields\"</string>
+    <string name="settings_color_unsupported">Allow colors on unsupported calendars</string>
+    <string name="settings_color_unsupported_hint">Some calendars (e.g. certain CalDAV) publish no color set; a custom event color may be dropped or overwritten on their next sync. That\'s a limitation of those calendars, not something Calendula can fix.</string>
     <string name="settings_section_notifications">Notifications</string>
     <string name="settings_reminders">Event reminders</string>
     <string name="settings_reminders_hint">Seeing reminders twice? Another calendar app is posting them too — turn them off in one of the two.</string>

@@ -166,8 +166,10 @@ unblock a later item. Order is a plan, not a contract — revisit after each lan
 3. ~~Settings redesign & restructure~~ *(shipped v2.3.0 — grew into the full
    grouped-list blueprint across Settings + calendars + drawer; see "v2.3"
    above)*
-4. **Per-event color** *(next)* — reuses the calendar color picker/palette; closes the create/edit theme
-5. Duplicate event — detail action → prefilled create form; near-free on the tap-to-create prefill infra
+4. ~~Per-event color~~ *(shipped v2.4.0)* — palette calendars write
+   `EVENT_COLOR_KEY` (sync-safe); local/opted-in calendars write a raw
+   `EVENT_COLOR`; off-by-default setting for no-palette synced calendars
+5. **Duplicate event** *(next)* — detail action → prefilled create form; near-free on the tap-to-create prefill infra
 
 (Tier 2+ numbering below shifts accordingly; ranking unchanged.)
 

@@ -1,6 +1,7 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
@@ -14,6 +15,7 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     var calendarsResult: List<CalendarSource> = emptyList()
     var instancesResult: (Long, Long) -> List<EventInstance> = { _, _ -> emptyList() }
     var eventDetailResult: (Long) -> EventDetail? = { null }
+    var eventColorPaletteResult: (Long) -> List<EventColorOption> = { emptyList() }
     /** Set to make the next write call throw. */
     var writeError: Exception? = null
     /** Id returned by the next [insertEvent]. */
@@ -45,6 +47,8 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     override fun instances(beginMillis: Long, endMillis: Long): List<EventInstance> =
         instancesResult(beginMillis, endMillis)
     override fun eventDetail(eventId: Long): EventDetail? = eventDetailResult(eventId)
+    override fun eventColorPalette(calendarId: Long): List<EventColorOption> =
+        eventColorPaletteResult(calendarId)
 
     override fun createLocalCalendar(displayName: String, color: Int, description: String?): Long {
         writeError?.let { throw it }

@@ -74,6 +74,7 @@ internal object EventDetailProjection {
         CalendarContract.Events.ACCESS_LEVEL,
         CalendarContract.Events.EVENT_TIMEZONE,
         CalendarContract.Events.SELF_ATTENDEE_STATUS,
+        CalendarContract.Events.EVENT_COLOR_KEY,
     )
 
     const val IDX_EVENT_ID = 0
@@ -93,6 +94,7 @@ internal object EventDetailProjection {
     const val IDX_ACCESS_LEVEL = 14
     const val IDX_EVENT_TIMEZONE = 15
     const val IDX_SELF_ATTENDEE_STATUS = 16
+    const val IDX_EVENT_COLOR_KEY = 17
 }
 
 internal object AttendeeProjection {

@@ -218,4 +218,83 @@ class EventWriteMapperTest {
         assertThat(values).containsEntry(CalendarContract.Events.EVENT_LOCATION, null)
         assertThat(values).containsEntry(CalendarContract.Events.DESCRIPTION, null)
     }
+
+    // --- per-event colour ---
+
+    @Test
+    fun `palette colour writes only the key, never a raw colour`() {
+        assertThat(eventColorColumns(colorKey = "5", color = 0xFF33B679.toInt()))
+            .containsExactly(CalendarContract.Events.EVENT_COLOR_KEY, "5")
+    }
+
+    @Test
+    fun `raw colour writes the colour and clears any key`() {
+        assertThat(eventColorColumns(colorKey = null, color = 0xFF8E24AA.toInt()))
+            .containsExactly(
+                CalendarContract.Events.EVENT_COLOR_KEY, null,
+                CalendarContract.Events.EVENT_COLOR, 0xFF8E24AA.toInt(),
+            )
+    }
+
+    @Test
+    fun `no colour clears both columns so the event inherits its calendar`() {
+        assertThat(eventColorColumns(colorKey = null, color = null))
+            .containsExactly(
+                CalendarContract.Events.EVENT_COLOR_KEY, null,
+                CalendarContract.Events.EVENT_COLOR, null,
+            )
+    }
+
+    @Test
+    fun `setting a palette colour on update writes just the key`() {
+        val original = form()
+        val values = update(original, original.copy(colorKey = "3", color = 0xFFF6BF26.toInt()))
+        assertThat(values).containsExactly(CalendarContract.Events.EVENT_COLOR_KEY, "3")
+    }
+
+    @Test
+    fun `setting a raw colour on update writes the colour and a null key`() {
+        val original = form()
+        val values = update(original, original.copy(color = 0xFF039BE5.toInt()))
+        assertThat(values).containsEntry(CalendarContract.Events.EVENT_COLOR, 0xFF039BE5.toInt())
+        assertThat(values).containsEntry(CalendarContract.Events.EVENT_COLOR_KEY, null)
+    }
+
+    @Test
+    fun `clearing a colour on update writes explicit nulls`() {
+        val original = form().copy(color = 0xFFD50000.toInt())
+        val values = update(original, original.copy(color = null))
+        assertThat(values).containsEntry(CalendarContract.Events.EVENT_COLOR, null)
+        assertThat(values).containsEntry(CalendarContract.Events.EVENT_COLOR_KEY, null)
+    }
+
+    @Test
+    fun `unchanged colour writes no colour columns`() {
+        val original = form().copy(colorKey = "7", color = 0xFF3F51B5.toInt())
+        val values = update(original, original.copy(title = "Renamed"))
+        assertThat(values).doesNotContainKey(CalendarContract.Events.EVENT_COLOR_KEY)
+        assertThat(values).doesNotContainKey(CalendarContract.Events.EVENT_COLOR)
+    }
+
+    @Test
+    fun `occurrence exception carries the palette key`() {
+        val values = buildOccurrenceExceptionValues(
+            form = form().copy(colorKey = "2", color = 0xFFE67C00.toInt()),
+            originalInstanceMillis = 0L,
+            zone = berlin,
+        )
+        assertThat(values).containsEntry(CalendarContract.Events.EVENT_COLOR_KEY, "2")
+        assertThat(values).doesNotContainKey(CalendarContract.Events.EVENT_COLOR)
+    }
+
+    @Test
+    fun `occurrence exception with no colour clears both columns`() {
+        val values = buildOccurrenceExceptionValues(
+            form = form(),
+            originalInstanceMillis = 0L,
+            zone = berlin,
+        )
+        assertThat(values).containsEntry(CalendarContract.Events.EVENT_COLOR, null)
+        assertThat(values).containsEntry(CalendarContract.Events.EVENT_COLOR_KEY, null)
+    }
 }

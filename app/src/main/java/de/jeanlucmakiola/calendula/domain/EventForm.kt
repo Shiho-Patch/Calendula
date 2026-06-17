@@ -30,6 +30,17 @@ data class EventForm(
      * those are kept verbatim until the user picks something else.
      */
     val rrule: String? = null,
+    /**
+     * The event's own colour, or null to inherit the calendar's colour.
+     * [colorKey] is a `Colors.COLOR_KEY` from the calendar account's published
+     * event palette (Google, some CalDAV) — written as `EVENT_COLOR_KEY` so it
+     * round-trips through sync. When it is null but [color] is set, [color] is
+     * a raw ARGB written as `EVENT_COLOR` (local calendars, or synced ones the
+     * user opted into despite no palette). [color] mirrors the key's swatch when
+     * [colorKey] is set, so the picker can highlight it.
+     */
+    val colorKey: String? = null,
+    val color: Int? = null,
 )
 
 /**
@@ -43,6 +54,7 @@ enum class EventFormField {
     Recurrence,
     Availability,
     Visibility,
+    Color,
 }
 
 enum class EventFormProblem {
@@ -91,6 +103,11 @@ fun EventDetail.toEditForm(beginMillis: Long, endMillis: Long, zone: TimeZone): 
         availability = availability,
         accessLevel = accessLevel,
         rrule = rrule?.removePrefix("RRULE:")?.takeIf { it.isNotBlank() },
+        // The provider fills EVENT_COLOR from the key, so [color] is the
+        // swatch either way; a null colour means the event inherits its
+        // calendar's colour.
+        colorKey = eventColorKey,
+        color = eventColor,
     )
 }
 
@@ -130,6 +147,7 @@ fun EventForm.populatedFields(): Set<EventFormField> = buildSet {
     if (rrule != null) add(EventFormField.Recurrence)
     if (availability != Availability.Busy) add(EventFormField.Availability)
     if (accessLevel != AccessLevel.Default) add(EventFormField.Visibility)
+    if (colorKey != null || color != null) add(EventFormField.Color)
 }
 
 fun EventForm.problems(): Set<EventFormProblem> = buildSet {
