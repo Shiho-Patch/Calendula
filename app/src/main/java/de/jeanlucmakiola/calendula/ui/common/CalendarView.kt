@@ -5,17 +5,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarViewDay
 import androidx.compose.material.icons.filled.CalendarViewMonth
 import androidx.compose.material.icons.filled.CalendarViewWeek
+import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.ui.graphics.vector.ImageVector
 import de.jeanlucmakiola.calendula.R
 
-/**
- * The top-level calendar views the user can switch between (spec M1).
- * Day is declared but not yet implemented (v0.5) — see [IMPLEMENTED_VIEWS].
- */
+/** The top-level calendar views the user can switch between (spec M1). */
 enum class CalendarView {
     Month,
     Week,
     Day,
+    Agenda,
 }
 
 /** Switcher label, shared by the top-bar pill and the drawer's View section. */
@@ -25,6 +24,7 @@ val CalendarView.labelRes: Int
         CalendarView.Month -> R.string.view_month
         CalendarView.Week -> R.string.view_week
         CalendarView.Day -> R.string.view_day
+        CalendarView.Agenda -> R.string.view_agenda
     }
 
 /** Leading icon for the view in the drawer's View section. */
@@ -33,6 +33,7 @@ val CalendarView.icon: ImageVector
         CalendarView.Month -> Icons.Filled.CalendarViewMonth
         CalendarView.Week -> Icons.Filled.CalendarViewWeek
         CalendarView.Day -> Icons.Filled.CalendarViewDay
+        CalendarView.Agenda -> Icons.Filled.ViewAgenda
     }
 
 /**
@@ -40,7 +41,7 @@ val CalendarView.icon: ImageVector
  * through these in order.
  */
 val IMPLEMENTED_VIEWS: List<CalendarView> =
-    listOf(CalendarView.Month, CalendarView.Week, CalendarView.Day)
+    listOf(CalendarView.Month, CalendarView.Week, CalendarView.Day, CalendarView.Agenda)
 
 /** Next view in [available], wrapping around. Falls back to Month if absent. */
 fun CalendarView.next(available: List<CalendarView> = IMPLEMENTED_VIEWS): CalendarView {

@@ -1,0 +1,344 @@
+package de.jeanlucmakiola.calendula.ui.agenda
+
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EventAvailable
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
+import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
+import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
+import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.GroupedRow
+import de.jeanlucmakiola.calendula.ui.common.Position
+import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
+import de.jeanlucmakiola.calendula.ui.common.next
+import de.jeanlucmakiola.calendula.ui.common.pastelize
+import de.jeanlucmakiola.calendula.ui.common.positionOf
+import kotlinx.coroutines.launch
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
+import java.time.format.TextStyle as JavaTextStyle
+import java.util.Locale
+
+private val zone = TimeZone.currentSystemDefault()
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AgendaScreen(
+    selectedView: CalendarView,
+    onSelectView: (CalendarView) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
+    onOpenSettings: () -> Unit,
+    onCreateEvent: (LocalDate, Int?) -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: AgendaViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val anchor by viewModel.anchor.collectAsStateWithLifecycle()
+
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
+    val isOnToday = when (val s = state) {
+        is AgendaUiState.Success -> s.anchor == s.today
+        else -> true
+    }
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            CalendarDrawer(
+                currentView = selectedView,
+                currentDate = anchor,
+                onSelectView = { view ->
+                    onSelectView(view)
+                    scope.launch { drawerState.close() }
+                },
+                onJumpToDate = { target ->
+                    viewModel.goToDate(target)
+                    scope.launch { drawerState.close() }
+                },
+                onSettings = {
+                    onOpenSettings()
+                    scope.launch { drawerState.close() }
+                },
+            )
+        },
+    ) {
+        Scaffold(
+            modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            topBar = {
+                AgendaTopBar(
+                    selectedView = selectedView,
+                    onCycleView = { onSelectView(selectedView.next()) },
+                    onOpenDrawer = { scope.launch { drawerState.open() } },
+                    scrollBehavior = scrollBehavior,
+                )
+            },
+            floatingActionButton = {
+                CalendarFabColumn(
+                    todayVisible = !isOnToday,
+                    todayText = stringResource(R.string.agenda_today_action),
+                    onToday = viewModel::goToToday,
+                    onCreate = { onCreateEvent(anchor, null) },
+                )
+            },
+        ) { innerPadding ->
+            AgendaContent(
+                state = state,
+                onRetry = viewModel::goToToday,
+                onEventClick = onEventClick,
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AgendaContent(
+    state: AgendaUiState,
+    onRetry: () -> Unit,
+    onEventClick: (EventInstance) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when (state) {
+        AgendaUiState.Loading -> Box(modifier)
+        is AgendaUiState.Failure -> Box(modifier) {
+            CalendarFailure(reason = state.reason, onRetry = onRetry)
+        }
+        is AgendaUiState.Success ->
+            if (state.days.isEmpty()) {
+                AgendaEmpty(modifier)
+            } else {
+                AgendaList(state = state, onEventClick = onEventClick, modifier = modifier)
+            }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun AgendaList(
+    state: AgendaUiState.Success,
+    onEventClick: (EventInstance) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        modifier = modifier,
+        // Bottom inset clears the FAB stack so the last row stays tappable.
+        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
+    ) {
+        state.days.forEach { day ->
+            stickyHeader(key = "header-${day.date}") {
+                AgendaDayHeader(date = day.date, today = state.today)
+            }
+            itemsIndexed(
+                items = day.events,
+                key = { _, event -> event.instanceId },
+            ) { index, event ->
+                AgendaEventRow(
+                    event = event,
+                    position = positionOf(index, day.events.size),
+                    onClick = { onEventClick(event) },
+                )
+            }
+            item(key = "gap-${day.date}") { Spacer(Modifier.height(8.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun AgendaDayHeader(date: LocalDate, today: LocalDate) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = agendaDayLabel(date, today),
+            style = MaterialTheme.typography.titleSmall,
+            color = if (date == today) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 16.dp, bottom = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun AgendaEventRow(
+    event: EventInstance,
+    position: Position,
+    onClick: () -> Unit,
+) {
+    val dark = isSystemInDarkTheme()
+    val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
+    GroupedRow(
+        title = title,
+        summary = agendaTimeSummary(event),
+        position = position,
+        minHeight = 64.dp,
+        leading = {
+            Box(
+                modifier = Modifier
+                    .size(width = 6.dp, height = 36.dp)
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(pastelize(event.color, dark)),
+            )
+        },
+        onClick = onClick,
+    )
+}
+
+@Composable
+private fun AgendaEmpty(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.padding(32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.EventAvailable,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(48.dp),
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.agenda_empty_title),
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.agenda_empty_subtitle),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AgendaTopBar(
+    selectedView: CalendarView,
+    onCycleView: () -> Unit,
+    onOpenDrawer: () -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior,
+) {
+    TopAppBar(
+        title = {
+            Text(
+                text = stringResource(R.string.view_agenda),
+                style = MaterialTheme.typography.titleLarge,
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onOpenDrawer) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = stringResource(R.string.month_open_menu),
+                )
+            }
+        },
+        actions = {
+            ViewSwitcherPill(
+                current = selectedView,
+                onCycle = onCycleView,
+                modifier = Modifier.padding(end = 8.dp),
+            )
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+        scrollBehavior = scrollBehavior,
+    )
+}
+
+/** "Today · Wed, 17. Jun 2026" — relative word for today/tomorrow, else the date. */
+@Composable
+private fun agendaDayLabel(date: LocalDate, today: LocalDate): String {
+    val relative = when (date) {
+        today -> stringResource(R.string.agenda_header_today)
+        today.plus(1, DateTimeUnit.DAY) -> stringResource(R.string.agenda_header_tomorrow)
+        else -> null
+    }
+    val formatted = formatAgendaDate(date)
+    return if (relative != null) "$relative · $formatted" else formatted
+}
+
+/** Time line under the title: "09:00 – 10:00 · Location", "All day", etc. */
+@Composable
+private fun agendaTimeSummary(event: EventInstance): String {
+    val time = if (event.isAllDay) {
+        stringResource(R.string.event_detail_all_day)
+    } else {
+        "${formatTime(event.start)} – ${formatTime(event.end)}"
+    }
+    val location = event.location?.takeIf { it.isNotBlank() }
+    return if (location != null) "$time · $location" else time
+}
+
+private fun formatTime(instant: Instant): String {
+    val t = instant.toLocalDateTime(zone).time
+    return "%02d:%02d".format(t.hour, t.minute)
+}
+
+private fun formatAgendaDate(date: LocalDate): String {
+    val locale = Locale.getDefault()
+    val java = java.time.LocalDate.of(date.year, date.month.ordinal + 1, date.day)
+    val weekday = java.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, locale)
+    val monthName = java.month.getDisplayName(JavaTextStyle.SHORT, locale)
+    return "$weekday, ${date.day}. $monthName ${date.year}"
+}
