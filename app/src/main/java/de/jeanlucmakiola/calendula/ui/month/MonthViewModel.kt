@@ -96,6 +96,11 @@ class MonthViewModel @Inject constructor(
         _month.value = YearMonth(todayDate.year, todayDate.month)
     }
 
+    /** Jump to the month containing [date] (drawer jump-to-date). */
+    fun goToDate(date: LocalDate) {
+        _month.value = YearMonth(date.year, date.month)
+    }
+
     private fun buildState(
         ym: YearMonth,
         weekStart: DayOfWeek,

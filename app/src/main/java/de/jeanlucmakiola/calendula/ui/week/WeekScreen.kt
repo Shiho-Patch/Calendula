@@ -156,6 +156,11 @@ fun WeekScreen(
         }
         viewModel.goToToday()
     }
+    // Drawer jump-to-date: slide from the side the target week lies on.
+    val jumpToDate: (LocalDate) -> Unit = { target ->
+        slideDir = if (target < weekStart) -1 else 1
+        viewModel.goToDate(target)
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -164,8 +169,13 @@ fun WeekScreen(
         drawerContent = {
             CalendarDrawer(
                 currentView = selectedView,
+                currentDate = weekStart,
                 onSelectView = { view ->
                     onSelectView(view)
+                    scope.launch { drawerState.close() }
+                },
+                onJumpToDate = { target ->
+                    jumpToDate(target)
                     scope.launch { drawerState.close() }
                 },
                 onSettings = {

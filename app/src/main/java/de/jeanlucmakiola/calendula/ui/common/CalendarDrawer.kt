@@ -17,12 +17,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,23 +37,31 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.ui.filter.CalendarFilterList
+import kotlinx.datetime.LocalDate
 
 /**
  * Navigation drawer shared by every top-level calendar screen.
  *
  * Uses the app's grouped-card design system (see [GroupedRow]): a branded
  * header, the View switcher as a grouped card (the active view highlighted),
- * the per-calendar visibility filter (M3) inline, and a pinned Settings row.
- * The "View" section mirrors the top-bar switcher pill — tapping a view here
- * selects it (and closes the drawer) rather than cycling. The host screen owns
- * the drawer state.
+ * a jump-to-date action, the per-calendar visibility filter (M3) inline, and a
+ * pinned Settings row. The "View" section mirrors the top-bar switcher pill —
+ * tapping a view here selects it (and closes the drawer) rather than cycling.
+ * The host screen owns the drawer state.
+ *
+ * [currentDate] seeds the jump-to-date picker (the visible day/week-start/month
+ * anchor); [onJumpToDate] navigates the active view to the chosen day.
  */
 @Composable
 fun CalendarDrawer(
     currentView: CalendarView,
+    currentDate: LocalDate,
     onSelectView: (CalendarView) -> Unit,
+    onJumpToDate: (LocalDate) -> Unit,
     onSettings: () -> Unit,
 ) {
+    var showDatePicker by remember { mutableStateOf(false) }
+
     ModalDrawerSheet {
         // The whole sidebar scrolls as one — header, views, the calendar filter
         // and Settings all flow in a single scroll container.
@@ -72,6 +85,15 @@ fun CalendarDrawer(
             }
 
             Spacer(Modifier.height(16.dp))
+            GroupedRow(
+                title = stringResource(R.string.drawer_jump_to_date),
+                position = Position.Alone,
+                minHeight = 56.dp,
+                leading = { Icon(Icons.Filled.DateRange, contentDescription = null) },
+                onClick = { showDatePicker = true },
+            )
+
+            Spacer(Modifier.height(16.dp))
 
             DrawerSectionHeader(stringResource(R.string.filter_title))
             CalendarFilterList()
@@ -86,6 +108,17 @@ fun CalendarDrawer(
             )
             Spacer(Modifier.height(8.dp))
         }
+    }
+
+    if (showDatePicker) {
+        CalendarDatePickerDialog(
+            initial = currentDate,
+            onConfirm = {
+                showDatePicker = false
+                onJumpToDate(it)
+            },
+            onDismiss = { showDatePicker = false },
+        )
     }
 }
 

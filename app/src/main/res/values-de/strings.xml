@@ -198,6 +198,9 @@
     <string name="view_day">Tag</string>
     <string name="view_section">Ansicht</string>
 
+    <!-- Zu Datum springen (Navigationsleiste) -->
+    <string name="drawer_jump_to_date">Zu Datum springen</string>
+
     <!-- Kalender-Filter (M3) -->
     <string name="filter_title">Kalender</string>
 

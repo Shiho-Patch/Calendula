@@ -169,7 +169,9 @@ unblock a later item. Order is a plan, not a contract — revisit after each lan
 4. ~~Per-event color~~ *(shipped v2.4.0)* — palette calendars write
    `EVENT_COLOR_KEY` (sync-safe); local/opted-in calendars write a raw
    `EVENT_COLOR`; off-by-default setting for no-palette synced calendars
-5. **Duplicate event** *(next)* — detail action → prefilled create form; near-free on the tap-to-create prefill infra
+Tier 1's create/edit + calendars arc is effectively closed. **Duplicate event**
+was deprioritised (2026-06-17) as low-importance and dropped to the bottom of
+the sequence; the next item is now **Jump-to-date** (formerly Tier 2).
 
 (Tier 2+ numbering below shifts accordingly; ranking unchanged.)
 
@@ -223,7 +225,7 @@ Out of scope (no new settings *features* here) — this is a structure + style
 pass on the existing controls; new toggles ride in with their own features.
 
 **Tier 2 — navigation & daily-driver completeness**
-5. Jump-to-date — drawer date picker (un-cut from V1); cheap, fills the nav gap
+5. Jump-to-date — drawer date picker (un-cut from V1); cheap, fills the nav gap *(next)*
 6. Agenda view — the missing 4th view; serves daily-driver users *and* becomes the data source for the widget
 
 **Tier 3 — platform reach (depends on Tier 2)**
@@ -239,6 +241,10 @@ pass on the existing controls; new toggles ride in with their own features.
 - Remote calendar create/edit (re-implements DAVx5; INTERNET + credential storage)
 - Locations & People — contact address picker (no-permission, one-shot) is the safe entry; OSM autocomplete needs INTERNET
 - Move event to another calendar — sync-adapter minefield (copy+delete model)
+
+**Bottom — deprioritised, not important**
+- Duplicate event (detail action → prefilled create form) — moved here
+  2026-06-17; cheap but low value, pick up only if asked
 
 **Unranked / fill-in** — pinch-to-zoom time scale, tablet/foldable layouts,
 full-text search, ICS file import. Pulled in opportunistically, not sequenced.
