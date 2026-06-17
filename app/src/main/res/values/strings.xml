@@ -251,8 +251,6 @@
     <string name="settings_section_language">Language</string>
     <string name="settings_language">App language</string>
     <string name="settings_language_auto">System default</string>
-    <string name="settings_language_german">Deutsch</string>
-    <string name="settings_language_english">English</string>
     <!-- Hub category subtitles -->
     <string name="settings_appearance_subtitle">Theme, dynamic colour, week start</string>
     <string name="settings_event_form_subtitle">Default fields for new events</string>

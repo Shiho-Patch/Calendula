@@ -188,10 +188,14 @@ private fun SettingsHub(
 
 @Composable
 private fun LanguageRow(position: Position) {
+    val context = LocalContext.current
     // Setting a locale recreates the activity; mirror the choice locally so the
     // row updates instantly even before the recreation lands.
-    var current by remember { mutableStateOf(AppLanguage.current()) }
+    var current by remember { mutableStateOf(AppLanguage.currentTag()) }
     var showDialog by remember { mutableStateOf(false) }
+
+    // null = follow the system; the rest are BCP-47 tags from locales_config.xml.
+    val options = remember { listOf<String?>(null) + AppLanguage.supportedTags(context) }
 
     GroupedRow(
         title = stringResource(R.string.settings_language),
@@ -204,7 +208,7 @@ private fun LanguageRow(position: Position) {
     if (showDialog) {
         OptionPickerDialog(
             title = stringResource(R.string.settings_language),
-            options = LanguagePref.entries,
+            options = options,
             selected = current,
             label = { languageLabel(it) },
             onSelect = {
@@ -598,10 +602,5 @@ private fun weekStartLabel(pref: WeekStartPref): String = stringResource(
 )
 
 @Composable
-private fun languageLabel(pref: LanguagePref): String = stringResource(
-    when (pref) {
-        LanguagePref.AUTO -> R.string.settings_language_auto
-        LanguagePref.GERMAN -> R.string.settings_language_german
-        LanguagePref.ENGLISH -> R.string.settings_language_english
-    },
-)
+private fun languageLabel(tag: String?): String =
+    if (tag == null) stringResource(R.string.settings_language_auto) else AppLanguage.displayName(tag)
