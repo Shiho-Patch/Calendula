@@ -51,8 +51,6 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -73,7 +71,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -113,7 +110,9 @@ import de.jeanlucmakiola.calendula.domain.SimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.parseSimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.toRRule
 import de.jeanlucmakiola.calendula.ui.common.CALENDAR_COLOR_PALETTE
+import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
+import de.jeanlucmakiola.calendula.ui.common.MILLIS_PER_DAY
 import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.OptionCard
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
@@ -786,12 +785,12 @@ private fun EventEditContent(
     }
 
     when (picker) {
-        PickerTarget.StartDate -> DatePickerAlert(
+        PickerTarget.StartDate -> CalendarDatePickerDialog(
             initial = form.start.date,
             onConfirm = { viewModel.setStartDate(it); picker = null },
             onDismiss = { picker = null },
         )
-        PickerTarget.EndDate -> DatePickerAlert(
+        PickerTarget.EndDate -> CalendarDatePickerDialog(
             initial = form.end.date,
             onConfirm = { viewModel.setEndDate(it); picker = null },
             onDismiss = { picker = null },
@@ -1178,7 +1177,7 @@ private fun RecurrencePickerDialog(
     )
 
     if (showUntilPicker) {
-        DatePickerAlert(
+        CalendarDatePickerDialog(
             initial = untilDate ?: LocalDate.fromEpochDays(
                 (Clock.System.now().toEpochMilliseconds() / MILLIS_PER_DAY).toInt(),
             ),
@@ -1690,37 +1689,6 @@ private fun ScheduleRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DatePickerAlert(
-    initial: LocalDate,
-    onConfirm: (LocalDate) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    // DatePicker speaks UTC-midnight millis; epoch-day arithmetic keeps the
-    // conversion zone-proof in both directions.
-    val state = rememberDatePickerState(
-        initialSelectedDateMillis = initial.toEpochDays() * MILLIS_PER_DAY,
-    )
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    state.selectedDateMillis?.let { millis ->
-                        onConfirm(LocalDate.fromEpochDays((millis / MILLIS_PER_DAY).toInt()))
-                    }
-                },
-            ) { Text(stringResource(R.string.dialog_ok)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
-        },
-    ) {
-        DatePicker(state = state)
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
 private fun TimePickerAlert(
     initial: LocalTime,
     onConfirm: (LocalTime) -> Unit,
@@ -1775,5 +1743,3 @@ private fun CalendarPickerDialog(
         },
     )
 }
-
-private const val MILLIS_PER_DAY = 86_400_000L

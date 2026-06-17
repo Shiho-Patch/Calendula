@@ -124,6 +124,11 @@ fun MonthScreen(
         }
         viewModel.goToToday()
     }
+    // Drawer jump-to-date: slide from the side the target month lies on.
+    val jumpToDate: (LocalDate) -> Unit = { target ->
+        slideDir = if (YearMonth(target.year, target.month) < month) -1 else 1
+        viewModel.goToDate(target)
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -132,8 +137,13 @@ fun MonthScreen(
         drawerContent = {
             CalendarDrawer(
                 currentView = selectedView,
+                currentDate = LocalDate(month.year, month.month, 1),
                 onSelectView = { view ->
                     onSelectView(view)
+                    scope.launch { drawerState.close() }
+                },
+                onJumpToDate = { target ->
+                    jumpToDate(target)
                     scope.launch { drawerState.close() }
                 },
                 onSettings = {

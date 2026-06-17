@@ -199,6 +199,9 @@
     <string name="view_day">Day</string>
     <string name="view_section">View</string>
 
+    <!-- Jump to date (drawer) -->
+    <string name="drawer_jump_to_date">Jump to date</string>
+
     <!-- Calendar filter (M3) -->
     <string name="filter_title">Calendars</string>
 

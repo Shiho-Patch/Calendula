@@ -151,6 +151,11 @@ fun DayScreen(
         }
         viewModel.goToToday()
     }
+    // Drawer jump-to-date: slide from the side the target lies on.
+    val jumpToDate: (LocalDate) -> Unit = { target ->
+        slideDir = if (target < date) -1 else 1
+        viewModel.goToDate(target)
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -159,8 +164,13 @@ fun DayScreen(
         drawerContent = {
             CalendarDrawer(
                 currentView = selectedView,
+                currentDate = date,
                 onSelectView = { view ->
                     onSelectView(view)
+                    scope.launch { drawerState.close() }
+                },
+                onJumpToDate = { target ->
+                    jumpToDate(target)
                     scope.launch { drawerState.close() }
                 },
                 onSettings = {

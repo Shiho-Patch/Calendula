@@ -107,6 +107,11 @@ class WeekViewModel @Inject constructor(
         _anchor.value = todayDate
     }
 
+    /** Jump to the week containing [date] (drawer jump-to-date). */
+    fun goToDate(date: LocalDate) {
+        _anchor.value = date
+    }
+
     private fun buildState(
         start: LocalDate,
         calendars: List<CalendarSource>,
