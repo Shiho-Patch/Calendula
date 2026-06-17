@@ -28,8 +28,8 @@ android {
         // the tag, with versionCode = MAJOR*10000 + MINOR*100 + PATCH
         // (e.g. v2.0.0 -> 20000). These committed values are the dev/local
         // default; keep them matching the latest released tag. See docs/RELEASING.md.
-        versionCode = 20400
-        versionName = "2.4.0"
+        versionCode = 20500
+        versionName = "2.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -112,6 +112,9 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(libs.androidx.datastore.preferences)
+
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
 
     implementation(libs.kotlinx.datetime)
     implementation(libs.kotlinx.coroutines.core)

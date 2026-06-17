@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] — 2026-06-17
+
+### Added
+- Home-screen widgets (two of them): an "Upcoming" agenda widget — a scrolling
+  list of the next month of events grouped under day headers, with refresh and
+  "New event" buttons — and a month-grid widget showing the full month with
+  today highlighted, connected multi-day event bars, and prev/next/today
+  navigation. Both reuse the in-app grouping and layout so they match the app
+  exactly, respect your hidden-calendar choices, and refresh automatically when
+  the calendar changes or the day rolls over. Tapping a day opens that day;
+  tapping an event opens its details
+- App shortcut: long-press the Calendula icon for a "New event" action that
+  jumps straight into the create-event form
+- Agenda view — a fourth top-level view alongside Month/Week/Day: a
+  forward-looking list of upcoming events grouped under "Today"/"Tomorrow"/date
+  headers, reachable from the view switcher
+- Jump to date — a "Jump to date" row in the navigation drawer opens a date
+  picker and moves the active view (Month/Week/Day/Agenda) to the chosen day
+
 ## [2.4.0] — 2026-06-17
 
 ### Added

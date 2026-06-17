@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher long-press shortcut icon ("New event"): a brand-coloured circle
+     with a white calendar+plus glyph, as one scalable vector. Self-contained so
+     it stays visible on any launcher surface (shortcut icons aren't tinted, so a
+     bare white glyph would vanish on a light sheet). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#3B5364"
+        android:pathData="M0,12 a12,12 0 1,0 24,0 a12,12 0 1,0 -24,0 Z" />
+    <group
+        android:scaleX="0.58"
+        android:scaleY="0.58"
+        android:translateX="5"
+        android:translateY="5">
+        <path
+            android:fillColor="@android:color/white"
+            android:pathData="M19,3h-1V1h-2v2H8V1H6v2H5C3.89,3 3.01,3.9 3.01,5L3,19c0,1.1 0.89,2 2,2h14c1.1,0 2,-0.9 2,-2V5C21,3.9 20.1,3 19,3zM19,19H5V8h14V19z" />
+        <path
+            android:fillColor="@android:color/white"
+            android:pathData="M11.5,10.5h1v2h2v1h-2v2h-1v-2h-2v-1h2z" />
+    </group>
+</vector>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher long-press shortcuts. The intent fires a custom action that
+     MainActivity (singleTop) consumes to open the create-event form on today;
+     see MainActivity.ACTION_NEW_EVENT. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="new_event"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_new_event"
+        android:shortcutShortLabel="@string/shortcut_new_event_short"
+        android:shortcutLongLabel="@string/shortcut_new_event_long">
+        <intent
+            android:action="de.jeanlucmakiola.calendula.action.NEW_EVENT"
+            android:targetPackage="de.jeanlucmakiola.calendula"
+            android:targetClass="de.jeanlucmakiola.calendula.MainActivity" />
+    </shortcut>
+</shortcuts>

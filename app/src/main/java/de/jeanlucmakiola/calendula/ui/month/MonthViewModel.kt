@@ -113,53 +113,57 @@ class MonthViewModel @Inject constructor(
         return MonthUiState.Success(
             month = ym,
             today = todayDate,
-            weeks = layoutMonth(ym, weekStart, instances),
+            weeks = layoutMonthWeeks(ym, weekStart, instances, zone),
         )
     }
+}
 
-    /**
-     * Split the grid into week rows and resolve each row's events. An event is a
-     * spanning bar when it's all-day or touches more than one of the row's days;
-     * everything else is a single-day timed pill. Bars get lanes from the shared
-     * [layoutAllDay] so a multi-day event stays on one row across the week.
-     */
-    private fun layoutMonth(
-        ym: YearMonth,
-        weekStart: DayOfWeek,
-        instances: List<EventInstance>,
-    ): List<MonthWeek> {
-        val firstOfMonth = LocalDate(ym.year, ym.month, 1)
-        val gridStart = firstOfMonth.startOfGridWeek(weekStart)
-        val leadOffset = ((firstOfMonth.dayOfWeek.ordinal - weekStart.ordinal) + 7) % 7
-        val daysInMonth =
-            java.time.YearMonth.of(ym.year, ym.month.ordinal + 1).lengthOfMonth()
-        val weekCount = (leadOffset + daysInMonth + 6) / 7
+/**
+ * Split the month grid into week rows and resolve each row's events. An event is
+ * a spanning bar when it's all-day or touches more than one of the row's days;
+ * everything else is a single-day timed pill. Bars get lanes from the shared
+ * [layoutAllDay] so a multi-day event stays on one row across the week.
+ *
+ * Shared by the Month screen and the month home-screen widget so both lay out
+ * spans, lanes and per-day counts identically.
+ */
+internal fun layoutMonthWeeks(
+    ym: YearMonth,
+    weekStart: DayOfWeek,
+    instances: List<EventInstance>,
+    zone: TimeZone,
+): List<MonthWeek> {
+    val firstOfMonth = LocalDate(ym.year, ym.month, 1)
+    val gridStart = firstOfMonth.startOfGridWeek(weekStart)
+    val leadOffset = ((firstOfMonth.dayOfWeek.ordinal - weekStart.ordinal) + 7) % 7
+    val daysInMonth =
+        java.time.YearMonth.of(ym.year, ym.month.ordinal + 1).lengthOfMonth()
+    val weekCount = (leadOffset + daysInMonth + 6) / 7
 
-        return (0 until weekCount).map { row ->
-            val days = (0 until 7).map { gridStart.plus(row * 7 + it, DateTimeUnit.DAY) }
-            val weekEvents = instances.filter { ev -> days.any { ev.coversDay(it, zone) } }
-            val (bars, singles) = weekEvents.partition { ev ->
-                ev.isAllDay || days.count { ev.coversDay(it, zone) } > 1
-            }
-            val spans = layoutAllDay(bars, days, zone).map { s ->
-                MonthSpan(
-                    event = s.event,
-                    startCol = s.startCol,
-                    endCol = s.endCol,
-                    lane = s.lane,
-                    continuesLeft = s.event.coversDay(days.first().minus(1, DateTimeUnit.DAY), zone),
-                    continuesRight = s.event.coversDay(days.last().plus(1, DateTimeUnit.DAY), zone),
-                )
-            }
-            MonthWeek(
-                days = days,
-                spans = spans,
-                timedByDay = days.associateWith { d ->
-                    singles.filter { it.coversDay(d, zone) }.sortedBy { it.start }
-                },
-                countByDay = days.associateWith { d -> weekEvents.count { it.coversDay(d, zone) } },
+    return (0 until weekCount).map { row ->
+        val days = (0 until 7).map { gridStart.plus(row * 7 + it, DateTimeUnit.DAY) }
+        val weekEvents = instances.filter { ev -> days.any { ev.coversDay(it, zone) } }
+        val (bars, singles) = weekEvents.partition { ev ->
+            ev.isAllDay || days.count { ev.coversDay(it, zone) } > 1
+        }
+        val spans = layoutAllDay(bars, days, zone).map { s ->
+            MonthSpan(
+                event = s.event,
+                startCol = s.startCol,
+                endCol = s.endCol,
+                lane = s.lane,
+                continuesLeft = s.event.coversDay(days.first().minus(1, DateTimeUnit.DAY), zone),
+                continuesRight = s.event.coversDay(days.last().plus(1, DateTimeUnit.DAY), zone),
             )
         }
+        MonthWeek(
+            days = days,
+            spans = spans,
+            timedByDay = days.associateWith { d ->
+                singles.filter { it.coversDay(d, zone) }.sortedBy { it.start }
+            },
+            countByDay = days.associateWith { d -> weekEvents.count { it.coversDay(d, zone) } },
+        )
     }
 }
 

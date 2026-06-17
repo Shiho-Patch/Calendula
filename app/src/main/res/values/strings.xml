@@ -210,6 +210,17 @@
     <string name="agenda_empty_title">Nothing scheduled</string>
     <string name="agenda_empty_subtitle">Upcoming events will show up here.</string>
 
+    <!-- Home-screen widgets -->
+    <string name="widget_agenda_title">Upcoming</string>
+    <string name="widget_agenda_label">Calendula agenda</string>
+    <string name="widget_month_label">Calendula month</string>
+    <string name="widget_refresh">Refresh</string>
+    <string name="widget_new_event">New event</string>
+    <string name="widget_needs_permission">Open Calendula to grant calendar access</string>
+    <string name="widget_prev_month">Previous month</string>
+    <string name="widget_next_month">Next month</string>
+    <string name="widget_today">Today</string>
+
     <!-- Calendar filter (M3) -->
     <string name="filter_title">Calendars</string>
 
@@ -271,6 +282,10 @@
     <string name="calendars_delete_confirm_title">Delete calendar?</string>
     <string name="calendars_delete_confirm_message">\"%1$s\" and all of its events will be permanently removed from this device.</string>
     <string name="calendars_write_error">Couldn\'t save the change.</string>
+    <!-- Launcher long-press shortcuts -->
+    <string name="shortcut_new_event_short">New event</string>
+    <string name="shortcut_new_event_long">Create a new event</string>
+
     <string name="about_source_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula</string>
     <string name="about_license_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula/src/branch/main/LICENSE</string>
 </resources>

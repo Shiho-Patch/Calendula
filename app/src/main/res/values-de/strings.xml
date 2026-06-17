@@ -209,6 +209,21 @@
     <string name="agenda_empty_title">Nichts geplant</string>
     <string name="agenda_empty_subtitle">Anstehende Termine erscheinen hier.</string>
 
+    <!-- Startbildschirm-Widgets -->
+    <string name="widget_agenda_title">Anstehend</string>
+    <string name="widget_agenda_label">Calendula Agenda</string>
+    <string name="widget_month_label">Calendula Monat</string>
+    <string name="widget_refresh">Aktualisieren</string>
+    <string name="widget_new_event">Neuer Termin</string>
+    <string name="widget_needs_permission">Öffne Calendula, um Kalenderzugriff zu erlauben</string>
+    <string name="widget_prev_month">Vorheriger Monat</string>
+    <string name="widget_next_month">Nächster Monat</string>
+    <string name="widget_today">Heute</string>
+
+    <!-- Verknüpfungen (Long-Press auf das App-Symbol) -->
+    <string name="shortcut_new_event_short">Neuer Termin</string>
+    <string name="shortcut_new_event_long">Neuen Termin erstellen</string>
+
     <!-- Kalender-Filter (M3) -->
     <string name="filter_title">Kalender</string>
 

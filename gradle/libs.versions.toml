@@ -24,6 +24,8 @@ turbine = "1.2.0"
 hiltNavigationCompose = "1.3.0"
 lifecycleCompose = "2.10.0"
 androidxTestRules = "1.7.0"
+# Glance: 1.1.1 is the latest stable (1.2.0 is still rc, 1.3.0 alpha).
+glance = "1.1.1"
 
 [libraries]
 # AndroidX core
@@ -78,6 +80,10 @@ androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navig
 
 # Lifecycle compose (for collectAsStateWithLifecycle)
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleCompose" }
+
+# Glance — Jetpack home-screen widgets (Compose-like RemoteViews)
+androidx-glance-appwidget = { group = "androidx.glance", name = "glance-appwidget", version.ref = "glance" }
+androidx-glance-material3 = { group = "androidx.glance", name = "glance-material3", version.ref = "glance" }
 
 # Android tests - GrantPermissionRule
 androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidxTestRules" }

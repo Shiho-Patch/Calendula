@@ -25,6 +25,8 @@ fun RootScreen(
     modifier: Modifier = Modifier,
     requestedDetailKey: LongArray? = null,
     onDetailKeyConsumed: () -> Unit = {},
+    widgetNavRequest: WidgetNavRequest? = null,
+    onWidgetNavConsumed: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var hasPermission by remember {
@@ -58,6 +60,8 @@ fun RootScreen(
                 modifier = modifier,
                 requestedDetailKey = requestedDetailKey,
                 onDetailKeyConsumed = onDetailKeyConsumed,
+                widgetNavRequest = widgetNavRequest,
+                onWidgetNavConsumed = onWidgetNavConsumed,
             )
             false -> ReminderOnboardingScreen(
                 onFinished = reminderOnboarding::finish,

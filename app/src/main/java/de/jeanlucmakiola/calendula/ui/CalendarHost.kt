@@ -27,6 +27,9 @@ import de.jeanlucmakiola.calendula.ui.month.MonthScreen
 import de.jeanlucmakiola.calendula.ui.settings.SettingsScreen
 import de.jeanlucmakiola.calendula.ui.week.WeekScreen
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 
 /**
  * Holds the active top-level view (spec M1) and swaps between the calendar
@@ -43,6 +46,8 @@ fun CalendarHost(
     modifier: Modifier = Modifier,
     requestedDetailKey: LongArray? = null,
     onDetailKeyConsumed: () -> Unit = {},
+    widgetNavRequest: WidgetNavRequest? = null,
+    onWidgetNavConsumed: () -> Unit = {},
 ) {
     var view by rememberSaveable { mutableStateOf(CalendarView.Week) }
     val onSelectView: (CalendarView) -> Unit = { view = it }
@@ -115,6 +120,28 @@ fun CalendarHost(
     // destination.
     var editKey by rememberSaveable { mutableStateOf<LongArray?>(null) }
     var heldEditKey by remember { mutableStateOf<LongArray?>(null) }
+
+    // A home-screen widget launch asks to open a date (→ day view) or start a
+    // create. Handled once and cleared, mirroring [requestedDetailKey].
+    LaunchedEffect(widgetNavRequest) {
+        when (val req = widgetNavRequest) {
+            is WidgetNavRequest.OpenDate -> {
+                pendingDayIso = req.dateIso
+                view = CalendarView.Day
+                onWidgetNavConsumed()
+            }
+            is WidgetNavRequest.Create -> {
+                val iso = req.dateIso ?: Clock.System.now()
+                    .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
+                heldCreateIso = iso
+                createDateIso = iso
+                heldCreateMinutes = null
+                createStartMinutes = null
+                onWidgetNavConsumed()
+            }
+            null -> {}
+        }
+    }
 
     val slideSpec = rememberCalendarSlideSpec()
 

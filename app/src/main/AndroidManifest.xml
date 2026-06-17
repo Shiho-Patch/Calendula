@@ -38,6 +38,11 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Launcher long-press shortcuts (e.g. "New event"). -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <!-- The provider broadcasts EVENT_REMINDER at reminder time but posts
@@ -51,6 +56,51 @@
                 <data
                     android:host="com.android.calendar"
                     android:scheme="content" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Home-screen widgets (Glance). Exported: the launcher/host binds them. -->
+        <receiver
+            android:name=".widget.agenda.AgendaWidgetReceiver"
+            android:label="@string/widget_agenda_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/appwidget_info_agenda" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.month.MonthWidgetReceiver"
+            android:label="@string/widget_month_label"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/appwidget_info_month" />
+        </receiver>
+
+        <!-- Keeps both widgets fresh: the calendar provider broadcasts
+             PROVIDER_CHANGED on any data change (our writes and external sync),
+             and the system broadcasts the date/time ones at midnight / clock
+             changes so "today" highlighting rolls over. -->
+        <receiver
+            android:name=".widget.WidgetUpdateReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.PROVIDER_CHANGED" />
+                <data
+                    android:host="com.android.calendar"
+                    android:scheme="content" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
 

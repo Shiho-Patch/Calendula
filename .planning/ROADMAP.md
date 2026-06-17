@@ -225,12 +225,12 @@ Out of scope (no new settings *features* here) — this is a structure + style
 pass on the existing controls; new toggles ride in with their own features.
 
 **Tier 2 — navigation & daily-driver completeness**
-5. Jump-to-date — drawer date picker (un-cut from V1); cheap, fills the nav gap *(next)*
-6. Agenda view — the missing 4th view; serves daily-driver users *and* becomes the data source for the widget
+5. ~~Jump-to-date — drawer date picker (un-cut from V1); cheap, fills the nav gap~~ *(done, v2.5.0)*
+6. ~~Agenda view — the missing 4th view; serves daily-driver users *and* becomes the data source for the widget~~ *(done, v2.5.0)*
 
 **Tier 3 — platform reach (depends on Tier 2)**
-7. Home-screen widget — built on the agenda data source from #6
-8. App shortcuts (launcher long-press → New event); cheap, optional quick-settings tile
+7. ~~Home-screen widget — built on the agenda data source from #6~~ *(done, v2.5.0 — agenda + month widgets)*
+8. App shortcuts: ~~launcher long-press → New event~~ *(done, v2.5.0)*; optional quick-settings tile still open
 
 **Tier 4 — interop & bigger-ticket**
 9. Share event as .ics + receive/open .ics into a prefilled create form

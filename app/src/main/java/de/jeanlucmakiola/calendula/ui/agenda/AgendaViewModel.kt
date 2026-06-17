@@ -83,21 +83,7 @@ class AgendaViewModel @Inject constructor(
         if (calendars.isEmpty()) {
             return AgendaUiState.Failure(FailureReason.NoCalendarsConfigured)
         }
-        val days = instances
-            // An event that began before the window (ongoing/multi-day) still
-            // overlaps it; clamp its day to the anchor so it surfaces on top.
-            .groupBy { it.start.toLocalDateTime(zone).date.coerceAtLeast(anchor) }
-            .toSortedMap()
-            .map { (date, dayEvents) ->
-                AgendaDay(
-                    date = date,
-                    events = dayEvents.sortedWith(
-                        compareByDescending<EventInstance> { it.isAllDay }
-                            .thenBy { it.start }
-                            .thenBy { it.title },
-                    ),
-                )
-            }
+        val days = groupAgendaDays(anchor, instances, zone)
         return AgendaUiState.Success(anchor = anchor, today = todayDate, days = days)
     }
 }

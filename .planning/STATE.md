@@ -8,8 +8,10 @@
 v2.1.0 (month event grid, drawer view tabs, cursor fix) shipped 2026-06-15.
 **Phase:** post-2.1 backlog work. v2.2.0 (tap-to-create in day/week + local
 calendar management) and v2.3.0 (Material 3 grouped-list redesign of Settings,
-the calendar manager and the navigation drawer) both shipped 2026-06-16. The
-backlog is now organised by theme in `ROADMAP.md`.
+the calendar manager and the navigation drawer) both shipped 2026-06-16;
+v2.4.0 (per-event colors) and v2.5.0 (jump-to-date, Agenda view, home-screen
+agenda + month widgets, and a "New event" launcher shortcut) shipped
+2026-06-17. The backlog is now organised by theme in `ROADMAP.md`.
 
 ## Progress
 
