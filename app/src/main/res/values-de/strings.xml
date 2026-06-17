@@ -196,10 +196,18 @@
     <string name="view_month">Monat</string>
     <string name="view_week">Woche</string>
     <string name="view_day">Tag</string>
+    <string name="view_agenda">Agenda</string>
     <string name="view_section">Ansicht</string>
 
     <!-- Zu Datum springen (Navigationsleiste) -->
     <string name="drawer_jump_to_date">Zu Datum springen</string>
+
+    <!-- Agenda-Ansicht -->
+    <string name="agenda_today_action">Heute</string>
+    <string name="agenda_header_today">Heute</string>
+    <string name="agenda_header_tomorrow">Morgen</string>
+    <string name="agenda_empty_title">Nichts geplant</string>
+    <string name="agenda_empty_subtitle">Anstehende Termine erscheinen hier.</string>
 
     <!-- Kalender-Filter (M3) -->
     <string name="filter_title">Kalender</string>

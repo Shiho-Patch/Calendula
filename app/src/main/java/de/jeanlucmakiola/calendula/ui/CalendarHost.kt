@@ -16,6 +16,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaScreen
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarsScreen
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
@@ -138,6 +139,13 @@ fun CalendarHost(
                 selectedView = view,
                 onSelectView = onSelectView,
                 onOpenDay = onOpenDay,
+                onOpenSettings = onOpenSettings,
+                onCreateEvent = onCreateEvent,
+            )
+            CalendarView.Agenda -> AgendaScreen(
+                selectedView = view,
+                onSelectView = onSelectView,
+                onEventClick = onEventClick,
                 onOpenSettings = onOpenSettings,
                 onCreateEvent = onCreateEvent,
             )
