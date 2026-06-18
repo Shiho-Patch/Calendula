@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] — 2026-06-18
+
 ### Added
 - Share a single event as an `.ics` file from the event detail screen — hands a
   standard calendar file to any app via the system share sheet.
@@ -21,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lists) is reported rather than silently dropped.
 
 ### Fixed
+- All-day events that cover a single day (e.g. a birthday) no longer show up on
+  the following day as well — in the day, week and month views or on the event
+  detail screen. The extra day came from interpreting the all-day date range in
+  the device's time zone instead of UTC.
 - Fixed the app crashing immediately on every launch in the optimized release
   build: release code-shrinking (R8) was stripping a database class the
   home-screen widget framework needs, so the app died at startup before showing
