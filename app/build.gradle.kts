@@ -78,6 +78,15 @@ android {
         }
     }
 
+    lint {
+        // Community translations are expected to be partial — a missing string
+        // falls back to the English base at runtime — so don't fail the build on
+        // it. Stale/extra keys (ExtraTranslation) stay fatal; scripts/
+        // check_translations.py guards the same invariants with clearer,
+        // translator-facing messages.
+        informational += "MissingTranslation"
+    }
+
     testOptions {
         unitTests {
             all { it.useJUnitPlatform() }
