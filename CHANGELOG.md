@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.1] — 2026-06-18
+
+### Added
+- Crash reporting you control. If Calendula closes unexpectedly, it now captures
+  a technical report and, on the next launch, offers to send it as an issue on
+  the project's tracker. Nothing is uploaded automatically — the report stays on
+  your device until you choose to share it, it contains no personal data or
+  calendar content (only the app, Android and device versions plus the stack
+  trace), and you see the full text before sending. There's also a "Report a
+  problem" entry in Settings, and if the app ever fails to start repeatedly, a
+  minimal recovery screen still lets you send the report.
+
 ## [2.7.0] — 2026-06-18
 
 ### Added
