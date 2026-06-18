@@ -68,6 +68,15 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
+        <!-- Standalone surface for a captured crash report. MainActivity routes
+             here on a startup crash-loop, so it stays clear of the app's Hilt
+             graph and Compose content. Not exported: launched only by us. -->
+        <activity
+            android:name=".ui.crash.CrashReportActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask" />
+
         <!-- The provider broadcasts EVENT_REMINDER at reminder time but posts
              no notification itself — a calendar app must (v1.4, Etar model).
              Exported: the broadcast arrives from the provider's process. -->
