@@ -204,7 +204,8 @@ class AndroidCalendarDataSource @Inject constructor(
             putDescription(description)
         }
         val uri = resolver.insert(localCalendarsUri(), values)
-            ?: throw WriteFailedException("create local calendar '$name'")
+            // No calendar name in the message — it can reach a crash report.
+            ?: throw WriteFailedException("create local calendar")
         return ContentUris.parseId(uri)
     }
 
@@ -685,7 +686,8 @@ class AndroidCalendarDataSource @Inject constructor(
                     is String -> cv.put(column, value)
                     is Long -> cv.put(column, value)
                     is Int -> cv.put(column, value)
-                    else -> error("Unsupported value for $column: $value")
+                    // Only the type, never the value — a cell value can be event content.
+                    else -> error("Unsupported value type for column '$column': ${value::class.simpleName}")
                 }
             }
         }
