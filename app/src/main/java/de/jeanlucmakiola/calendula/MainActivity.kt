@@ -3,9 +3,9 @@ package de.jeanlucmakiola.calendula
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
@@ -24,7 +24,7 @@ import de.jeanlucmakiola.calendula.ui.theme.CalendulaTheme
 import kotlinx.datetime.LocalDate
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     // The occurrence a reminder notification was tapped for (eventId, begin,
     // end — the detail screen's key shape). singleTop + onNewIntent route a
