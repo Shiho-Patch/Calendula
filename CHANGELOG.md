@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] — 2026-06-18
+
+### Added
+- App language can now be set from Android's system per-app language settings
+  (Android 13+), in addition to the in-app picker in Settings — and the app is
+  set up so further languages can be added by community translators
+
+### Fixed
+- Changing the app language in Settings now takes effect immediately; the
+  picker previously had no effect
+
 ## [2.5.0] — 2026-06-17
 
 ### Added
