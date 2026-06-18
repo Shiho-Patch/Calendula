@@ -8,6 +8,7 @@ import de.jeanlucmakiola.calendula.data.calendar.NoSuchEventException
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
+import de.jeanlucmakiola.calendula.data.prefs.resolveDefaultReminder
 import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.CalendarSource
@@ -29,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -71,6 +73,10 @@ class EventEditViewModel @Inject constructor(
     // Set while the form edits an existing event instead of composing a new one.
     private val _editTarget = MutableStateFlow<EditTarget?>(null)
     private val _loadFailed = MutableStateFlow(false)
+    // True once the user has hand-edited the reminders on a new event, which
+    // freezes the auto-applied default: switching calendars no longer overwrites
+    // their choice. Reset with the form.
+    private val _remindersTouched = MutableStateFlow(false)
 
     /** True when the event to edit couldn't be loaded; the screen closes itself. */
     val loadFailed: StateFlow<Boolean> = _loadFailed.asStateFlow()
@@ -98,6 +104,13 @@ class EventEditViewModel @Inject constructor(
         val showProblems: Boolean,
         val revealed: Set<EventFormField>,
         val editTarget: EditTarget?,
+    )
+
+    private data class ReminderDefaults(
+        val timed: Int?,
+        val allDay: Int?,
+        val timedOverrides: Map<Long, Int?>,
+        val allDayOverrides: Map<Long, Int?>,
     )
 
     private data class ExternalInputs(
@@ -194,6 +207,48 @@ class EventEditViewModel @Inject constructor(
         }
         val end = (start.toInstant(zone) + 1.hours).toLocalDateTime(zone)
         _form.value = EventForm(calendarId = null, start = start, end = end)
+        applyDefaultReminder()
+    }
+
+    /**
+     * Prefill a new event's reminders from the settings default — the all-day
+     * default for all-day events, otherwise the resolved calendar's per-calendar
+     * override or the global timed default. No-op while editing an existing event
+     * or once the user has hand-edited the reminders, so the auto-default never
+     * clobbers a manual choice. [calendarId] short-circuits the resolution after a
+     * calendar switch; null resolves it as the form does.
+     */
+    private fun applyDefaultReminder(calendarId: Long? = null) {
+        if (_editTarget.value != null || _remindersTouched.value) return
+        viewModelScope.launch {
+            val defaults = combine(
+                settingsPrefs.defaultReminderMinutes,
+                settingsPrefs.defaultAllDayReminderMinutes,
+                settingsPrefs.perCalendarReminderOverride,
+                settingsPrefs.perCalendarAllDayReminderOverride,
+            ) { timed, allDay, timedOv, allDayOv ->
+                ReminderDefaults(timed, allDay, timedOv, allDayOv)
+            }.first()
+            val targetId = calendarId ?: resolvedCalendarId.first()
+            // Re-check after suspending: bail if the form closed or the user edited.
+            val form = _form.value ?: return@launch
+            if (_editTarget.value != null || _remindersTouched.value) return@launch
+            val default = resolveDefaultReminder(
+                timedGlobal = defaults.timed,
+                allDayGlobal = defaults.allDay,
+                timedOverrides = defaults.timedOverrides,
+                allDayOverrides = defaults.allDayOverrides,
+                calendarId = targetId,
+                isAllDay = form.isAllDay,
+            )
+            val reminders = listOfNotNull(default)
+            _form.value = form.copy(reminders = reminders)
+            // Surface the section so an auto-applied default is visible and
+            // removable, even when Reminders isn't a default-shown field.
+            if (reminders.isNotEmpty()) {
+                _revealed.value = _revealed.value + EventFormField.Reminders
+            }
+        }
     }
 
     /**
@@ -229,6 +284,7 @@ class EventEditViewModel @Inject constructor(
         _revealed.value = emptySet()
         _editTarget.value = null
         _loadFailed.value = false
+        _remindersTouched.value = false
     }
 
     /** Unfold one optional field, picked in the "more fields" dialog. */
@@ -239,14 +295,24 @@ class EventEditViewModel @Inject constructor(
     fun setTitle(value: String) = update { it.copy(title = value) }
     fun setLocation(value: String) = update { it.copy(location = value) }
     fun setDescription(value: String) = update { it.copy(description = value) }
-    fun setAllDay(value: Boolean) = update { it.copy(isAllDay = value) }
+    fun setAllDay(value: Boolean) {
+        update { it.copy(isAllDay = value) }
+        // The default reminder differs for all-day vs timed; re-apply the
+        // type-appropriate default unless the user has hand-edited it (guarded).
+        applyDefaultReminder()
+    }
 
     /**
      * Switching calendars drops any chosen colour: a palette key is
      * account-scoped, and a raw colour may be invalid on the new calendar.
      * The event falls back to the new calendar's colour until re-picked.
      */
-    fun setCalendar(id: Long) = update { it.copy(calendarId = id, colorKey = null, color = null) }
+    fun setCalendar(id: Long) {
+        update { it.copy(calendarId = id, colorKey = null, color = null) }
+        // A fresh event re-inherits the new calendar's default reminder unless
+        // the user has already hand-edited it (guarded inside).
+        applyDefaultReminder(id)
+    }
     fun setAvailability(value: Availability) = update { it.copy(availability = value) }
     fun setAccessLevel(value: AccessLevel) = update { it.copy(accessLevel = value) }
 
@@ -262,12 +328,14 @@ class EventEditViewModel @Inject constructor(
     /** Bare RRULE value from the recurrence picker; null = does not repeat. */
     fun setRecurrence(rrule: String?) = update { it.copy(rrule = rrule) }
 
-    fun addReminder(minutes: Int) = update {
-        it.copy(reminders = (it.reminders + minutes).distinct().sorted())
+    fun addReminder(minutes: Int) {
+        _remindersTouched.value = true
+        update { it.copy(reminders = (it.reminders + minutes).distinct().sorted()) }
     }
 
-    fun removeReminder(minutes: Int) = update {
-        it.copy(reminders = it.reminders - minutes)
+    fun removeReminder(minutes: Int) {
+        _remindersTouched.value = true
+        update { it.copy(reminders = it.reminders - minutes) }
     }
 
     /** Moving the start drags the end along, preserving the duration. */

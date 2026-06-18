@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -102,7 +104,19 @@ fun CollapsingScaffold(
         Column(
             modifier = Modifier
                 .padding(innerPadding)
+                // Mark the scaffold's system-bar insets as consumed so the
+                // imePadding below adds only the keyboard height beyond them
+                // (max, not sum) — otherwise the nav-bar inset double-counts and
+                // leaves an empty strip above the keyboard.
+                .consumeWindowInsets(innerPadding)
                 .fillMaxSize()
+                // Paint the surface across the full area before imePadding carves
+                // into it, so any sliver above the keyboard reads as surface — not
+                // the dialog window's black — during the IME animation.
+                .background(MaterialTheme.colorScheme.surface)
+                // Shrink the scroll viewport by the keyboard inset so a focused
+                // field (e.g. the custom-reminder amount) can scroll into view.
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(top = 8.dp, bottom = 24.dp),
             content = content,

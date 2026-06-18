@@ -5,6 +5,13 @@
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!--
+      Lets the "Reliable delivery" setting open the direct system dialog to
+      exempt Calendula from battery optimisation (so reminder broadcasts aren't
+      delayed by Doze). Used only to launch that dialog; falls back to the
+      battery-optimisation list if the OS declines the direct intent.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- Package visibility (Android 11+): without this, getLaunchIntentForPackage
          returns null and the calendar manager's per-account "manage" button can't
