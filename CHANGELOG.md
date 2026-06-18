@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   anything Calendula can't represent (changed recurring occurrences, guest
   lists) is reported rather than silently dropped.
 
+### Fixed
+- Fixed the app crashing immediately on every launch in the optimized release
+  build: release code-shrinking (R8) was stripping a database class the
+  home-screen widget framework needs, so the app died at startup before showing
+  anything. Added the missing keep rule.
+
 ## [2.6.0] — 2026-06-18
 
 ### Added
