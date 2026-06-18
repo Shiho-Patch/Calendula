@@ -181,6 +181,18 @@ internal fun weekRange(start: LocalDate, zone: TimeZone): ClosedRange<Instant> {
 
 /** True if this event overlaps the calendar [day] in [zone] (any portion). */
 internal fun EventInstance.coversDay(day: LocalDate, zone: TimeZone): Boolean {
+    if (isAllDay) {
+        // All-day events live at UTC midnights with an exclusive end. Compare
+        // calendar dates in UTC and step the exclusive end back to the last
+        // covered day (mirroring the detail/edit views), so a one-day event
+        // covers exactly its single date. Slicing the day in the device zone
+        // would push the exclusive end a few hours into the next local day
+        // east of UTC, making the event leak onto day + 1.
+        val startDate = start.toLocalDateTime(TimeZone.UTC).date
+        val endExclusive = end.toLocalDateTime(TimeZone.UTC).date
+        val lastDay = maxOf(startDate, endExclusive.minus(1, DateTimeUnit.DAY))
+        return day in startDate..lastDay
+    }
     val dayStart = day.atStartOfDayIn(zone)
     val dayEnd = day.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone)
     return start < dayEnd && end > dayStart
