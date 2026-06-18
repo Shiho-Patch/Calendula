@@ -99,6 +99,8 @@ class CalendarRepositoryImpl @Inject constructor(
     override suspend fun deleteCalendar(id: Long) =
         withContext(io) { dataSource.deleteCalendar(id) }
 
+    override suspend fun exportEvents() = withContext(io) { dataSource.exportableEvents() }
+
     override suspend fun createEvent(form: EventForm): Long = withContext(io) {
         dataSource.insertEvent(form, allDayReminderTimeMinutes())
     }

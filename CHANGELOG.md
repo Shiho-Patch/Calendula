@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Share a single event as an `.ics` file from the event detail screen — hands a
+  standard calendar file to any app via the system share sheet.
+- Back up your local (device-only) calendars: Settings → Calendars → Export as
+  `.ics` file writes every event of your on-device calendars to a file you
+  choose. Local calendars aren't synced anywhere, so this is their only backup.
+  (Importing `.ics` files back in lands in the next update.)
+
+_Note: new events now carry a unique identifier so a future `.ics` import can
+recognise them and avoid duplicates._
+
 ## [2.6.0] — 2026-06-18
 
 ### Added
