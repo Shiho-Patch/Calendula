@@ -776,14 +776,19 @@ private fun formatWhen(
     val allDayLabel = stringResource(R.string.event_detail_all_day)
 
     if (instance.isAllDay) {
-        // All-day end is the exclusive next midnight; step back to the last
-        // covered day so a one-day event reads as a single date.
-        val lastLdt = (instance.end - 1.seconds).toJavaLocalDateTime(zid)
-        return if (startLdt.toLocalDate() == lastLdt.toLocalDate()) {
-            allDayLabel to dateFull.format(startLdt.toLocalDate())
+        // All-day events live at UTC midnights with an exclusive end. Resolve
+        // the covered dates in UTC — not the device zone, which would shift the
+        // midnight boundaries off the intended date (east of UTC pushes the
+        // end past the last day; west of UTC pulls the start back) — and step
+        // the end back to the last covered day so a one-day event reads as a
+        // single date.
+        val utc = ZoneId.of("UTC")
+        val startDate = instance.start.toJavaLocalDateTime(utc).toLocalDate()
+        val lastDate = (instance.end - 1.seconds).toJavaLocalDateTime(utc).toLocalDate()
+        return if (startDate == lastDate) {
+            allDayLabel to dateFull.format(startDate)
         } else {
-            allDayLabel to
-                "${dateMedium.format(startLdt.toLocalDate())} – ${dateMedium.format(lastLdt.toLocalDate())}"
+            allDayLabel to "${dateMedium.format(startDate)} – ${dateMedium.format(lastDate)}"
         }
     }
 

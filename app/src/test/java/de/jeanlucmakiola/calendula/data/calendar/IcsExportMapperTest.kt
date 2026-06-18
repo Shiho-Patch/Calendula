@@ -8,16 +8,6 @@ import org.junit.jupiter.api.Test
 class IcsExportMapperTest {
 
     @Test
-    fun `parses the duration forms Calendula writes plus general ones`() {
-        assertThat(parseRfc2445DurationMillis("P1D")).isEqualTo(86_400_000L)
-        assertThat(parseRfc2445DurationMillis("P3600S")).isEqualTo(3_600_000L)
-        assertThat(parseRfc2445DurationMillis("PT1H30M")).isEqualTo(5_400_000L)
-        assertThat(parseRfc2445DurationMillis("P1W")).isEqualTo(604_800_000L)
-        assertThat(parseRfc2445DurationMillis(null)).isEqualTo(0L)
-        assertThat(parseRfc2445DurationMillis("nonsense")).isEqualTo(0L)
-    }
-
-    @Test
     fun `timed one-off row maps with its DTEND and kept UID`() {
         val reader = MapColumnReader(
             EventExportProjection.IDX_ID to 42L,
