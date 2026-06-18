@@ -13,10 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Back up your local (device-only) calendars: Settings → Calendars → Export as
   `.ics` file writes every event of your on-device calendars to a file you
   choose. Local calendars aren't synced anywhere, so this is their only backup.
-  (Importing `.ics` files back in lands in the next update.)
-
-_Note: new events now carry a unique identifier so a future `.ics` import can
-recognise them and avoid duplicates._
+- Open or share an `.ics` file into Calendula: a single event opens the create
+  form prefilled for review, while a file with many events (e.g. a backup) opens
+  a bulk import — pick a calendar and import them all. Re-importing a backup
+  won't create duplicates (events are matched by their unique identifier), and
+  anything Calendula can't represent (changed recurring occurrences, guest
+  lists) is reported rather than silently dropped.
 
 ## [2.6.0] — 2026-06-18
 

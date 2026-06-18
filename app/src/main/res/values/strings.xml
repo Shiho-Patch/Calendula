@@ -306,6 +306,34 @@
         <item quantity="one">Exported %d event.</item>
         <item quantity="other">Exported %d events.</item>
     </plurals>
+    <!-- Import (.ics) -->
+    <string name="import_title">Import events</string>
+    <string name="import_target_header">Add to calendar</string>
+    <string name="import_empty">No events found in this file.</string>
+    <string name="import_failed">Couldn\'t read this file.</string>
+    <string name="import_no_calendar">No writable calendar to import into. Create a local calendar first.</string>
+    <string name="import_done_title">Import complete</string>
+    <string name="import_close">Close</string>
+    <string name="import_warning_recurrence">Some changed occurrences of recurring events were skipped.</string>
+    <string name="import_warning_no_start">An event without a start time was skipped.</string>
+    <string name="import_warning_attendees">Guest lists weren\'t imported.</string>
+    <string name="import_warning_timezone">An unknown time zone fell back to your device\'s.</string>
+    <plurals name="import_event_count">
+        <item quantity="one">%d event in this file.</item>
+        <item quantity="other">%d events in this file.</item>
+    </plurals>
+    <plurals name="import_action">
+        <item quantity="one">Import %d event</item>
+        <item quantity="other">Import %d events</item>
+    </plurals>
+    <plurals name="import_done_imported">
+        <item quantity="one">Imported %d event.</item>
+        <item quantity="other">Imported %d events.</item>
+    </plurals>
+    <plurals name="import_done_skipped">
+        <item quantity="one">Skipped %d already in this calendar.</item>
+        <item quantity="other">Skipped %d already in this calendar.</item>
+    </plurals>
     <!-- Launcher long-press shortcuts -->
     <string name="shortcut_new_event_short">New event</string>
     <string name="shortcut_new_event_long">Create a new event</string>

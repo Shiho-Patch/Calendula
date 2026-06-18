@@ -47,6 +47,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Open a .ics file (file manager / email attachment / browser). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" android:mimeType="text/calendar" />
+                <data android:scheme="file" android:mimeType="text/calendar" />
+            </intent-filter>
+            <!-- Receive a .ics shared from another app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/calendar" />
+            </intent-filter>
+
             <!-- Launcher long-press shortcuts (e.g. "New event"). -->
             <meta-data
                 android:name="android.app.shortcuts"

@@ -309,4 +309,32 @@
         <item quantity="one">%d Termin exportiert.</item>
         <item quantity="other">%d Termine exportiert.</item>
     </plurals>
+    <!-- Import (.ics) -->
+    <string name="import_title">Termine importieren</string>
+    <string name="import_target_header">Zu Kalender hinzufügen</string>
+    <string name="import_empty">In dieser Datei wurden keine Termine gefunden.</string>
+    <string name="import_failed">Datei konnte nicht gelesen werden.</string>
+    <string name="import_no_calendar">Kein beschreibbarer Kalender zum Importieren. Lege zuerst einen lokalen Kalender an.</string>
+    <string name="import_done_title">Import abgeschlossen</string>
+    <string name="import_close">Schließen</string>
+    <string name="import_warning_recurrence">Einige geänderte Einzeltermine wiederkehrender Termine wurden übersprungen.</string>
+    <string name="import_warning_no_start">Ein Termin ohne Startzeit wurde übersprungen.</string>
+    <string name="import_warning_attendees">Gästelisten wurden nicht importiert.</string>
+    <string name="import_warning_timezone">Eine unbekannte Zeitzone wurde durch die deines Geräts ersetzt.</string>
+    <plurals name="import_event_count">
+        <item quantity="one">%d Termin in dieser Datei.</item>
+        <item quantity="other">%d Termine in dieser Datei.</item>
+    </plurals>
+    <plurals name="import_action">
+        <item quantity="one">%d Termin importieren</item>
+        <item quantity="other">%d Termine importieren</item>
+    </plurals>
+    <plurals name="import_done_imported">
+        <item quantity="one">%d Termin importiert.</item>
+        <item quantity="other">%d Termine importiert.</item>
+    </plurals>
+    <plurals name="import_done_skipped">
+        <item quantity="one">%d bereits in diesem Kalender übersprungen.</item>
+        <item quantity="other">%d bereits in diesem Kalender übersprungen.</item>
+    </plurals>
 </resources>

@@ -211,6 +211,21 @@ class EventEditViewModel @Inject constructor(
     }
 
     /**
+     * Seed a fresh event from a parsed `.ics` file (the single-event "open into
+     * the create form" path). [form] already carries the file's fields; its
+     * [EventForm.calendarId] is null so the calendar still resolves to the
+     * last-used/first-writable one, and reminders are frozen as touched so the
+     * settings default never overwrites what the file specified. No-op when a
+     * form is already open, so the prefill survives configuration changes.
+     */
+    fun openImported(form: EventForm) {
+        if (_form.value != null || _editTarget.value != null) return
+        _remindersTouched.value = true
+        _revealed.value = form.populatedFields()
+        _form.value = form
+    }
+
+    /**
      * Prefill a new event's reminders from the settings default — the all-day
      * default for all-day events, otherwise the resolved calendar's per-calendar
      * override or the global timed default. No-op while editing an existing event
