@@ -18,11 +18,15 @@ import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.EventStatus
 import de.jeanlucmakiola.calendula.domain.Reminder
+import de.jeanlucmakiola.calendula.domain.ics.IcsEvent
+import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
 import de.jeanlucmakiola.calendula.domain.rruleTruncatedAt
 import kotlinx.datetime.toJavaLocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -47,6 +51,26 @@ interface CalendarDataSource {
      * which a synced calendar may drop on its next sync.
      */
     fun eventColorPalette(calendarId: Long): List<EventColorOption>
+
+    /**
+     * Every master/one-off event of the writable local calendars, mapped for a
+     * whole-calendar `.ics` backup. Modified-occurrence and cancelled-exception
+     * rows are excluded (see [EventExportProjection]).
+     */
+    fun exportableEvents(): List<IcsEvent>
+
+    /**
+     * The non-empty `Events.UID_2445` values present in [calendarId] — used to
+     * dedup an `.ics` import so re-importing a backup doesn't double events.
+     */
+    fun existingUids(calendarId: Long): Set<String>
+
+    /**
+     * Insert a parsed `.ics` event into [calendarId], preserving its UID (or
+     * minting one when absent); returns the new `Events._ID`. Reminders are
+     * written as the file's raw lead minutes (METHOD_ALERT).
+     */
+    fun insertImportedEvent(event: ParsedIcsEvent, calendarId: Long): Long
 
     /**
      * Create a new device-only (`ACCOUNT_TYPE_LOCAL`) calendar the app owns;
@@ -265,6 +289,112 @@ class AndroidCalendarDataSource @Inject constructor(
             ?: emptyList()
     }
 
+    override fun exportableEvents(): List<IcsEvent> {
+        // Only the local calendars the app owns and can write — synced calendars
+        // already have a backup (their server). Map id → display name for the
+        // X-CALENDULA-CALENDAR tag a restore uses to fan back out.
+        val names = calendars()
+            .filter { it.isLocal && it.canModifyContents }
+            .associate { it.id to it.displayName }
+        if (names.isEmpty()) return emptyList()
+
+        val idList = names.keys.joinToString(",")
+        return resolver.query(
+            CalendarContract.Events.CONTENT_URI,
+            EventExportProjection.COLUMNS,
+            // Skip soft-deleted rows and exception rows (modified occurrences /
+            // cancellations) — v1 exports masters + one-offs only.
+            "${CalendarContract.Events.CALENDAR_ID} IN ($idList) AND " +
+                "${CalendarContract.Events.DELETED} = 0 AND " +
+                "${CalendarContract.Events.ORIGINAL_ID} IS NULL",
+            null,
+            CalendarContract.Events.DTSTART + " ASC",
+        )?.use { c ->
+            c.mapAll {
+                val reader = CursorColumnReader(c)
+                val eventId = reader.getLong(EventExportProjection.IDX_ID)
+                val calendarId = reader.getLong(EventExportProjection.IDX_CALENDAR_ID)
+                reader.toIcsEvent(
+                    reminderMinutes = queryReminders(eventId).map { it.minutes },
+                    calendarName = names[calendarId],
+                )
+            }
+        } ?: emptyList()
+    }
+
+    override fun existingUids(calendarId: Long): Set<String> = resolver.query(
+        CalendarContract.Events.CONTENT_URI,
+        arrayOf(CalendarContract.Events.UID_2445),
+        "${CalendarContract.Events.CALENDAR_ID} = ? AND " +
+            "${CalendarContract.Events.UID_2445} IS NOT NULL",
+        arrayOf(calendarId.toString()),
+        null,
+    )?.use { c ->
+        buildSet { while (c.moveToNext()) c.getString(0)?.takeIf { it.isNotEmpty() }?.let(::add) }
+    } ?: emptySet()
+
+    override fun insertImportedEvent(event: ParsedIcsEvent, calendarId: Long): Long {
+        val startMillis = event.start.toEpochMillis()
+        val endMillis = event.end.toEpochMillis()
+        val values = ContentValues().apply {
+            put(CalendarContract.Events.CALENDAR_ID, calendarId)
+            // Preserve the file's UID so a re-import dedups against it; mint one
+            // only when the source event carried none.
+            put(
+                CalendarContract.Events.UID_2445,
+                event.uid?.takeIf { it.isNotBlank() } ?: "${UUID.randomUUID()}@calendula",
+            )
+            put(CalendarContract.Events.TITLE, event.summary.trim())
+            put(CalendarContract.Events.ALL_DAY, if (event.isAllDay) 1 else 0)
+            put(CalendarContract.Events.DTSTART, startMillis)
+            if (event.recurrenceRule == null) {
+                put(CalendarContract.Events.DTEND, endMillis)
+            } else {
+                put(CalendarContract.Events.RRULE, event.recurrenceRule)
+                put(
+                    CalendarContract.Events.DURATION,
+                    importDuration(startMillis, endMillis, event.isAllDay),
+                )
+            }
+            // All-day rows live at UTC midnights (the file already encodes them so);
+            // timed rows keep the event's own zone.
+            put(CalendarContract.Events.EVENT_TIMEZONE, if (event.isAllDay) "UTC" else event.zoneId)
+            put(CalendarContract.Events.AVAILABILITY, event.availability.toProviderValue())
+            put(CalendarContract.Events.STATUS, event.status.toProviderStatus())
+            event.location?.trim()?.takeIf { it.isNotEmpty() }
+                ?.let { put(CalendarContract.Events.EVENT_LOCATION, it) }
+            event.description?.trim()?.takeIf { it.isNotEmpty() }
+                ?.let { put(CalendarContract.Events.DESCRIPTION, it) }
+        }
+        val uri = resolver.insert(CalendarContract.Events.CONTENT_URI, values)
+            ?: throw WriteFailedException("import event into calendar id=$calendarId")
+        val eventId = ContentUris.parseId(uri)
+        // Raw lead minutes straight from the file's VALARMs (best-effort, like insertEvent).
+        event.reminderMinutes.distinct().filter { it >= 0 }.forEach { minutes ->
+            val reminder = ContentValues().apply {
+                put(CalendarContract.Reminders.EVENT_ID, eventId)
+                put(CalendarContract.Reminders.MINUTES, minutes)
+                put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+            }
+            if (resolver.insert(CalendarContract.Reminders.CONTENT_URI, reminder) == null) {
+                Log.w(TAG, "Failed to attach reminder ($minutes min) to imported event $eventId")
+            }
+        }
+        return eventId
+    }
+
+    /** Provider DURATION for an imported recurring row: whole days / seconds. */
+    private fun importDuration(startMillis: Long, endMillis: Long, isAllDay: Boolean): String {
+        val span = (endMillis - startMillis).coerceAtLeast(0)
+        return if (isAllDay) "P${span / 86_400_000L}D" else "P${span / 1_000L}S"
+    }
+
+    private fun EventStatus.toProviderStatus(): Int = when (this) {
+        EventStatus.Confirmed -> CalendarContract.Events.STATUS_CONFIRMED
+        EventStatus.Tentative -> CalendarContract.Events.STATUS_TENTATIVE
+        EventStatus.Cancelled -> CalendarContract.Events.STATUS_CANCELED
+    }
+
     /** The account a calendar belongs to, for scoping a `Colors` lookup. */
     private fun calendarAccount(calendarId: Long): CalendarAccount? = resolver.query(
         ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, calendarId),
@@ -316,6 +446,11 @@ class AndroidCalendarDataSource @Inject constructor(
                 CalendarContract.Events.CALENDAR_ID,
                 requireNotNull(form.calendarId) { "EventForm.calendarId is required" },
             )
+            // A globally-unique UID so a later .ics backup/restore can identify
+            // the event and not duplicate it on re-import (the provider leaves
+            // this null for events it didn't sync). Older rows without one fall
+            // back to a stable synthesised UID at export time (deriveIcsUid).
+            put(CalendarContract.Events.UID_2445, "${UUID.randomUUID()}@calendula")
             put(CalendarContract.Events.TITLE, form.title.trim())
             put(CalendarContract.Events.ALL_DAY, if (form.isAllDay) 1 else 0)
             put(CalendarContract.Events.DTSTART, times.dtStartMillis)

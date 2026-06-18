@@ -47,6 +47,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Open a .ics file (file manager / email attachment / browser). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" android:mimeType="text/calendar" />
+                <data android:scheme="file" android:mimeType="text/calendar" />
+            </intent-filter>
+            <!-- Receive a .ics shared from another app. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/calendar" />
+            </intent-filter>
+
             <!-- Launcher long-press shortcuts (e.g. "New event"). -->
             <meta-data
                 android:name="android.app.shortcuts"
@@ -111,6 +126,19 @@
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
+
+        <!-- Hands .ics files we stage in the cache to other apps via a content
+             Uri (single-event share). Authority tracks applicationId so the
+             debug suffix doesn't break getUriForFile. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- Persists the per-app language (M4) on API < 33, where the platform
              per-app-languages API is unavailable. On 33+ this is a no-op. -->

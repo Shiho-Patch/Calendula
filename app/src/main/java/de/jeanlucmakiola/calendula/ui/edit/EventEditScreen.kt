@@ -98,6 +98,7 @@ import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventColorOption
+import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.EventFormProblem
 import de.jeanlucmakiola.calendula.domain.RecurrenceEnd
@@ -156,19 +157,23 @@ fun EventEditScreen(
     onSaved: () -> Unit,
     editKey: LongArray? = null,
     initialStartMinutes: Int? = null,
+    initialForm: EventForm? = null,
     viewModel: EventEditViewModel = hiltViewModel(),
 ) {
-    LaunchedEffect(initialDateIso, editKey) {
-        if (editKey != null) {
-            viewModel.openForEdit(
+    LaunchedEffect(initialDateIso, editKey, initialForm) {
+        when {
+            // Single-event .ics open: the form arrives prefilled for review.
+            initialForm != null -> viewModel.openImported(initialForm)
+            editKey != null -> viewModel.openForEdit(
                 eventId = editKey[0],
                 beginMillis = editKey[1],
                 endMillis = editKey[2],
             )
-        } else {
-            val date = initialDateIso?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-                ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
-            viewModel.openNew(date, initialStartMinutes)
+            else -> {
+                val date = initialDateIso?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                    ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+                viewModel.openNew(date, initialStartMinutes)
+            }
         }
     }
     val state by viewModel.state.collectAsStateWithLifecycle()

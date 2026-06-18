@@ -2,6 +2,7 @@ package de.jeanlucmakiola.calendula
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.core.content.IntentCompat
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -35,11 +37,16 @@ class MainActivity : AppCompatActivity() {
     // create). Consumed once by CalendarHost, same pattern as the detail key.
     private var requestedNav by mutableStateOf<WidgetNavRequest?>(null)
 
+    // An .ics file opened/shared into the app (ACTION_VIEW/SEND). Consumed once
+    // by CalendarHost's import flow.
+    private var requestedImportUri by mutableStateOf<Uri?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestedDetailKey = intent.detailKeyOrNull()
         requestedNav = intent.navRequestOrNull()
+        requestedImportUri = intent.importUriOrNull()
         setContent {
             // One activity-scoped SettingsViewModel drives both the theme here
             // and the Settings screen, so a theme change applies app-wide at once.
@@ -60,6 +67,8 @@ class MainActivity : AppCompatActivity() {
                     onDetailKeyConsumed = { requestedDetailKey = null },
                     widgetNavRequest = requestedNav,
                     onWidgetNavConsumed = { requestedNav = null },
+                    requestedImportUri = requestedImportUri,
+                    onImportConsumed = { requestedImportUri = null },
                 )
             }
         }
@@ -69,6 +78,21 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         intent.detailKeyOrNull()?.let { requestedDetailKey = it }
         intent.navRequestOrNull()?.let { requestedNav = it }
+        intent.importUriOrNull()?.let { requestedImportUri = it }
+    }
+
+    /**
+     * The `.ics` Uri an external app asked us to open (file manager `ACTION_VIEW`)
+     * or share into us (`ACTION_SEND`). Restricted to content/file schemes so the
+     * app's own `calendula://` deep-links never match.
+     */
+    private fun Intent.importUriOrNull(): Uri? {
+        val uri = when (action) {
+            Intent.ACTION_VIEW -> data
+            Intent.ACTION_SEND -> IntentCompat.getParcelableExtra(this, Intent.EXTRA_STREAM, Uri::class.java)
+            else -> null
+        } ?: return null
+        return uri.takeIf { it.scheme == "content" || it.scheme == "file" }
     }
 
     private fun Intent.navRequestOrNull(): WidgetNavRequest? = when {

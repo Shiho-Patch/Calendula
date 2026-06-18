@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -59,6 +60,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -96,6 +98,7 @@ import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.ui.common.recurrenceText
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
+import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -132,8 +135,29 @@ fun EventDetailScreen(
     BackHandler(onBack = onBack)
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+
+    // Sharing is read-only, so it needs no WRITE_CALENDAR upgrade. The VM stages
+    // an .ics in the cache and hands back a content Uri for the chooser.
+    val shareFailedMessage = stringResource(R.string.event_share_failed)
+    val shareChooserTitle = stringResource(R.string.event_share_chooser_title)
+    val onShareClick = {
+        scope.launch {
+            val uri = viewModel.shareUri()
+            val sent = uri != null && runCatching {
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/calendar"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                context.startActivity(Intent.createChooser(send, shareChooserTitle))
+            }.isSuccess
+            if (!sent) snackbarHostState.showSnackbar(shareFailedMessage)
+        }
+        Unit
+    }
 
     // v1.0 installs only hold READ_CALENDAR; the first write asks for the
     // upgrade in place. Granting continues straight into the tapped action.
@@ -203,9 +227,18 @@ fun EventDetailScreen(
                     }
                 },
                 actions = {
-                    // Only writable calendars get actions — WebCal subscriptions,
-                    // birthday calendars etc. are read-only at the provider level.
                     val s = state
+                    // Share works for any loaded event — it only reads the event.
+                    if (s is EventDetailUiState.Success) {
+                        IconButton(onClick = onShareClick) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = stringResource(R.string.event_detail_share),
+                            )
+                        }
+                    }
+                    // Edit/delete need a writable calendar — WebCal subscriptions,
+                    // birthday calendars etc. are read-only at the provider level.
                     if (s is EventDetailUiState.Success && s.canModify) {
                         IconButton(
                             onClick = onEditClick,
@@ -743,14 +776,19 @@ private fun formatWhen(
     val allDayLabel = stringResource(R.string.event_detail_all_day)
 
     if (instance.isAllDay) {
-        // All-day end is the exclusive next midnight; step back to the last
-        // covered day so a one-day event reads as a single date.
-        val lastLdt = (instance.end - 1.seconds).toJavaLocalDateTime(zid)
-        return if (startLdt.toLocalDate() == lastLdt.toLocalDate()) {
-            allDayLabel to dateFull.format(startLdt.toLocalDate())
+        // All-day events live at UTC midnights with an exclusive end. Resolve
+        // the covered dates in UTC — not the device zone, which would shift the
+        // midnight boundaries off the intended date (east of UTC pushes the
+        // end past the last day; west of UTC pulls the start back) — and step
+        // the end back to the last covered day so a one-day event reads as a
+        // single date.
+        val utc = ZoneId.of("UTC")
+        val startDate = instance.start.toJavaLocalDateTime(utc).toLocalDate()
+        val lastDate = (instance.end - 1.seconds).toJavaLocalDateTime(utc).toLocalDate()
+        return if (startDate == lastDate) {
+            allDayLabel to dateFull.format(startDate)
         } else {
-            allDayLabel to
-                "${dateMedium.format(startLdt.toLocalDate())} – ${dateMedium.format(lastLdt.toLocalDate())}"
+            allDayLabel to "${dateMedium.format(startDate)} – ${dateMedium.format(lastDate)}"
         }
     }
 

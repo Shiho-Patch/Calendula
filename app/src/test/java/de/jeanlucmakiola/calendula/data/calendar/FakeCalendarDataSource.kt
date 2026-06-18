@@ -5,6 +5,8 @@ import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.ics.IcsEvent
+import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
 
 /**
  * Test-only fake. Tunable via the three `var` properties; `tick()` simulates
@@ -16,6 +18,9 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     var instancesResult: (Long, Long) -> List<EventInstance> = { _, _ -> emptyList() }
     var eventDetailResult: (Long) -> EventDetail? = { null }
     var eventColorPaletteResult: (Long) -> List<EventColorOption> = { emptyList() }
+    var exportableEventsResult: List<IcsEvent> = emptyList()
+    /** UIDs the target calendar already holds, for import dedup. */
+    var existingUidsResult: Set<String> = emptySet()
     /** Set to make the next write call throw. */
     var writeError: Exception? = null
     /** Id returned by the next [insertEvent]. */
@@ -49,6 +54,18 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     override fun eventDetail(eventId: Long): EventDetail? = eventDetailResult(eventId)
     override fun eventColorPalette(calendarId: Long): List<EventColorOption> =
         eventColorPaletteResult(calendarId)
+    override fun exportableEvents(): List<IcsEvent> = exportableEventsResult
+
+    override fun existingUids(calendarId: Long): Set<String> = existingUidsResult
+
+    /** (event, targetCalendarId) pairs passed to [insertImportedEvent]. */
+    val importedEvents = mutableListOf<Pair<ParsedIcsEvent, Long>>()
+
+    override fun insertImportedEvent(event: ParsedIcsEvent, calendarId: Long): Long {
+        writeError?.let { throw it }
+        importedEvents += event to calendarId
+        return nextInsertId
+    }
 
     override fun createLocalCalendar(displayName: String, color: Int, description: String?): Long {
         writeError?.let { throw it }

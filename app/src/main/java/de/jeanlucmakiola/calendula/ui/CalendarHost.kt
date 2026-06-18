@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaScreen
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarsScreen
@@ -23,6 +24,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.day.DayScreen
 import de.jeanlucmakiola.calendula.ui.detail.EventDetailScreen
 import de.jeanlucmakiola.calendula.ui.edit.EventEditScreen
+import de.jeanlucmakiola.calendula.ui.imports.ImportScreen
 import de.jeanlucmakiola.calendula.ui.month.MonthScreen
 import de.jeanlucmakiola.calendula.ui.settings.SettingsScreen
 import de.jeanlucmakiola.calendula.ui.week.WeekScreen
@@ -48,6 +50,8 @@ fun CalendarHost(
     onDetailKeyConsumed: () -> Unit = {},
     widgetNavRequest: WidgetNavRequest? = null,
     onWidgetNavConsumed: () -> Unit = {},
+    requestedImportUri: android.net.Uri? = null,
+    onImportConsumed: () -> Unit = {},
 ) {
     var view by rememberSaveable { mutableStateOf(CalendarView.Week) }
     val onSelectView: (CalendarView) -> Unit = { view = it }
@@ -120,6 +124,18 @@ fun CalendarHost(
     // destination.
     var editKey by rememberSaveable { mutableStateOf<LongArray?>(null) }
     var heldEditKey by remember { mutableStateOf<LongArray?>(null) }
+
+    // An opened/received .ics file. [ImportScreen] parses it and either opens
+    // the prefilled create form (one event → [importForm]) or its own bulk
+    // picker (many). A plain conditional overlay (no slide) — it's transient.
+    var importUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var importForm by remember { mutableStateOf<EventForm?>(null) }
+    LaunchedEffect(requestedImportUri) {
+        if (requestedImportUri != null) {
+            importUri = requestedImportUri
+            onImportConsumed()
+        }
+    }
 
     // A home-screen widget launch asks to open a date (→ day view) or start a
     // create. Handled once and cleared, mirroring [requestedDetailKey].
@@ -253,6 +269,27 @@ fun CalendarHost(
             exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
         ) {
             CalendarsScreen(onBack = { showCalendars = false })
+        }
+
+        // Import flow for an opened/received .ics file. A single event routes
+        // into the create form (prefilled, for review); many open the picker.
+        importUri?.let { uri ->
+            ImportScreen(
+                uri = uri,
+                onClose = { importUri = null },
+                onOpenSingle = { form ->
+                    importUri = null
+                    importForm = form
+                },
+            )
+        }
+        importForm?.let { form ->
+            EventEditScreen(
+                initialDateIso = null,
+                initialForm = form,
+                onClose = { importForm = null },
+                onSaved = { importForm = null },
+            )
         }
     }
 }

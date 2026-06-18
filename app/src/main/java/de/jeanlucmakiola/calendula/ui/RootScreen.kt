@@ -27,6 +27,8 @@ fun RootScreen(
     onDetailKeyConsumed: () -> Unit = {},
     widgetNavRequest: WidgetNavRequest? = null,
     onWidgetNavConsumed: () -> Unit = {},
+    requestedImportUri: android.net.Uri? = null,
+    onImportConsumed: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var hasPermission by remember {
@@ -62,6 +64,8 @@ fun RootScreen(
                 onDetailKeyConsumed = onDetailKeyConsumed,
                 widgetNavRequest = widgetNavRequest,
                 onWidgetNavConsumed = onWidgetNavConsumed,
+                requestedImportUri = requestedImportUri,
+                onImportConsumed = onImportConsumed,
             )
             false -> ReminderOnboardingScreen(
                 onFinished = reminderOnboarding::finish,

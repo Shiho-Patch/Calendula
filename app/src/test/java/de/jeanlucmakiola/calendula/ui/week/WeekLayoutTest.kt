@@ -62,11 +62,26 @@ class WeekLayoutTest {
         assertThat(ev.coversDay(wed, zone)).isTrue()
         assertThat(ev.coversDay(mon, zone)).isFalse()
 
-        val multiDay = event(at(mon, 22), at(wed, 2), allDay = true)
+        // All-day: UTC midnights, end exclusive. Mon..Tue covers Mon and Tue
+        // but not Wed (the Wed-midnight end is exclusive).
+        val multiDay = event(at(mon, 0), at(wed, 0), allDay = true)
         assertThat(multiDay.coversDay(mon, zone)).isTrue()
         assertThat(multiDay.coversDay(LocalDate(2026, 6, 9), zone)).isTrue()
-        assertThat(multiDay.coversDay(wed, zone)).isTrue()
+        assertThat(multiDay.coversDay(wed, zone)).isFalse()
         assertThat(multiDay.coversDay(LocalDate(2026, 6, 12), zone)).isFalse()
+    }
+
+    @Test
+    fun `single-day all-day event does not leak into the next day east of UTC`() {
+        // A birthday on Wed: the provider stores UTC midnights with an exclusive
+        // end (Thu 00:00 UTC). In a zone east of UTC the device-local day must
+        // still resolve to Wed only — never Thu. Regression for the all-day
+        // event appearing on two days in the views.
+        val berlin = TimeZone.of("Europe/Berlin") // UTC+2 in June
+        val ev = event(at(wed, 0), at(wed.plusDays(1), 0), allDay = true)
+        assertThat(ev.coversDay(wed, berlin)).isTrue()
+        assertThat(ev.coversDay(wed.plusDays(1), berlin)).isFalse()
+        assertThat(ev.coversDay(wed.plusDays(-1), berlin)).isFalse()
     }
 
     @Test

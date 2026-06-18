@@ -48,6 +48,9 @@
     <string name="event_detail_back">Back</string>
     <string name="event_detail_edit">Edit</string>
     <string name="event_detail_delete">Delete</string>
+    <string name="event_detail_share">Share</string>
+    <string name="event_share_chooser_title">Share event</string>
+    <string name="event_share_failed">Couldn\'t share this event.</string>
     <string name="event_delete_title">Delete event?</string>
     <string name="event_delete_body">The event is removed from your calendar and from every device it syncs to.</string>
     <string name="event_delete_recurring_title">Delete recurring event</string>
@@ -294,6 +297,43 @@
     <string name="calendars_delete_confirm_title">Delete calendar?</string>
     <string name="calendars_delete_confirm_message">\"%1$s\" and all of its events will be permanently removed from this device.</string>
     <string name="calendars_write_error">Couldn\'t save the change.</string>
+    <!-- Backup (whole-calendar .ics export) -->
+    <string name="calendars_backup_header">Backup</string>
+    <string name="calendars_backup_hint">Local calendars aren\'t synced anywhere, so export them to an .ics file to keep a copy.</string>
+    <string name="calendars_backup_action">Export as .ics file</string>
+    <string name="calendars_backup_failed">Couldn\'t export the backup.</string>
+    <plurals name="calendars_backup_done">
+        <item quantity="one">Exported %d event.</item>
+        <item quantity="other">Exported %d events.</item>
+    </plurals>
+    <!-- Import (.ics) -->
+    <string name="import_title">Import events</string>
+    <string name="import_target_header">Add to calendar</string>
+    <string name="import_empty">No events found in this file.</string>
+    <string name="import_failed">Couldn\'t read this file.</string>
+    <string name="import_no_calendar">No writable calendar to import into. Create a local calendar first.</string>
+    <string name="import_done_title">Import complete</string>
+    <string name="import_close">Close</string>
+    <string name="import_warning_recurrence">Some changed occurrences of recurring events were skipped.</string>
+    <string name="import_warning_no_start">An event without a start time was skipped.</string>
+    <string name="import_warning_attendees">Guest lists weren\'t imported.</string>
+    <string name="import_warning_timezone">An unknown time zone fell back to your device\'s.</string>
+    <plurals name="import_event_count">
+        <item quantity="one">%d event in this file.</item>
+        <item quantity="other">%d events in this file.</item>
+    </plurals>
+    <plurals name="import_action">
+        <item quantity="one">Import %d event</item>
+        <item quantity="other">Import %d events</item>
+    </plurals>
+    <plurals name="import_done_imported">
+        <item quantity="one">Imported %d event.</item>
+        <item quantity="other">Imported %d events.</item>
+    </plurals>
+    <plurals name="import_done_skipped">
+        <item quantity="one">Skipped %d already in this calendar.</item>
+        <item quantity="other">Skipped %d already in this calendar.</item>
+    </plurals>
     <!-- Launcher long-press shortcuts -->
     <string name="shortcut_new_event_short">New event</string>
     <string name="shortcut_new_event_long">Create a new event</string>

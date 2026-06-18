@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
@@ -77,6 +80,7 @@ import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.Position
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.ui.common.positionOf
+import java.time.LocalDate
 
 /** Sentinel [editorId] meaning "the editor is composing a new calendar". */
 private const val NEW_CALENDAR_ID = Long.MIN_VALUE
@@ -95,6 +99,7 @@ fun CalendarsScreen(
 ) {
     val calendars by viewModel.calendars.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val backupResult by viewModel.backupResult.collectAsStateWithLifecycle()
 
     // null = list; NEW_CALENDAR_ID = create; any other id = edit that calendar.
     // [editorSession] bumps on every open so the editor's field state resets for
@@ -131,6 +136,9 @@ fun CalendarsScreen(
             synced = calendars.filterNot { it.isLocal },
             error = error,
             onConsumeError = viewModel::consumeError,
+            backupResult = backupResult,
+            onExportBackup = viewModel::exportBackup,
+            onConsumeBackupResult = viewModel::consumeBackupResult,
             onBack = onBack,
             onAdd = { editorSession++; editorId = NEW_CALENDAR_ID },
             onEdit = { calendar -> editorSession++; editorId = calendar.id },
@@ -144,6 +152,9 @@ private fun CalendarsList(
     synced: List<CalendarSource>,
     error: Boolean,
     onConsumeError: () -> Unit,
+    backupResult: BackupResult?,
+    onExportBackup: (android.net.Uri) -> Unit,
+    onConsumeBackupResult: () -> Unit,
     onBack: () -> Unit,
     onAdd: () -> Unit,
     onEdit: (CalendarSource) -> Unit,
@@ -156,6 +167,31 @@ private fun CalendarsList(
         if (error) {
             snackbarHostState.showSnackbar(writeErrorText)
             onConsumeError()
+        }
+    }
+
+    // SAF "create document" target for the backup file. The picked Uri is handed
+    // to the VM to stream the .ics into.
+    val createBackup = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/calendar"),
+    ) { uri -> uri?.let(onExportBackup) }
+
+    val backupFailedText = stringResource(R.string.calendars_backup_failed)
+    LaunchedEffect(backupResult) {
+        when (val r = backupResult) {
+            is BackupResult.Success -> {
+                snackbarHostState.showSnackbar(
+                    context.resources.getQuantityString(
+                        R.plurals.calendars_backup_done, r.eventCount, r.eventCount,
+                    ),
+                )
+                onConsumeBackupResult()
+            }
+            BackupResult.Failure -> {
+                snackbarHostState.showSnackbar(backupFailedText)
+                onConsumeBackupResult()
+            }
+            null -> Unit
         }
     }
 
@@ -194,6 +230,22 @@ private fun CalendarsList(
             leading = { AddAvatar() },
             onClick = onAdd,
         )
+
+        // Backup — local calendars have no sync, so a .ics export is their only
+        // safety net. Offered only when there is something to back up.
+        if (local.isNotEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            SectionHeader(stringResource(R.string.calendars_backup_header))
+            HintText(stringResource(R.string.calendars_backup_hint))
+            GroupedRow(
+                title = stringResource(R.string.calendars_backup_action),
+                position = Position.Alone,
+                leading = { LeadingAvatar(Icons.Default.FileDownload) },
+                onClick = {
+                    runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
+                },
+            )
+        }
 
         Spacer(Modifier.height(16.dp))
 
@@ -426,6 +478,25 @@ private fun AccountHeader(account: String, accountType: String) {
             Spacer(Modifier.width(6.dp))
             Text(stringResource(R.string.calendars_manage_in_app))
         }
+    }
+}
+
+/** Neutral circular chip carrying an arbitrary icon — matches [AddAvatar]'s shape. */
+@Composable
+private fun LeadingAvatar(icon: ImageVector) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }
 

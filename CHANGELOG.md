@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] — 2026-06-18
+
+### Added
+- Share a single event as an `.ics` file from the event detail screen — hands a
+  standard calendar file to any app via the system share sheet.
+- Back up your local (device-only) calendars: Settings → Calendars → Export as
+  `.ics` file writes every event of your on-device calendars to a file you
+  choose. Local calendars aren't synced anywhere, so this is their only backup.
+- Open or share an `.ics` file into Calendula: a single event opens the create
+  form prefilled for review, while a file with many events (e.g. a backup) opens
+  a bulk import — pick a calendar and import them all. Re-importing a backup
+  won't create duplicates (events are matched by their unique identifier), and
+  anything Calendula can't represent (changed recurring occurrences, guest
+  lists) is reported rather than silently dropped.
+
+### Fixed
+- All-day events that cover a single day (e.g. a birthday) no longer show up on
+  the following day as well — in the day, week and month views or on the event
+  detail screen. The extra day came from interpreting the all-day date range in
+  the device's time zone instead of UTC.
+- Fixed the app crashing immediately on every launch in the optimized release
+  build: release code-shrinking (R8) was stripping a database class the
+  home-screen widget framework needs, so the app died at startup before showing
+  anything. Added the missing keep rule.
+
 ## [2.6.0] — 2026-06-18
 
 ### Added

@@ -445,4 +445,35 @@ class CalendarRepositoryImplTest {
             .containsExactly(EventColorOption("5", 0xFF33B679.toInt()))
         assertThat(repo.eventColorPalette(8L)).isEmpty()
     }
+
+    @Test
+    fun `importEvents skips events whose UID already exists and inserts the rest`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val fake = FakeCalendarDataSource().apply {
+            existingUidsResult = setOf("dup@x")
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+        val events = listOf(
+            parsedEvent("dup@x"), // already present → skipped
+            parsedEvent("new@x"), // inserted
+            parsedEvent(null), // no UID → always inserted
+        )
+
+        val summary = repo.importEvents(targetCalendarId = 3L, events = events)
+
+        assertThat(summary.imported).isEqualTo(2)
+        assertThat(summary.skippedDuplicate).isEqualTo(1)
+        assertThat(fake.importedEvents.map { it.first.uid }).containsExactly("new@x", null)
+        assertThat(fake.importedEvents.map { it.second }).containsExactly(3L, 3L)
+    }
+
+    private fun parsedEvent(uid: String?) = de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent(
+        uid = uid,
+        summary = "E",
+        start = Instant.fromEpochMilliseconds(1_000_000_000L),
+        end = Instant.fromEpochMilliseconds(1_000_003_600L),
+        isAllDay = false,
+        zoneId = "UTC",
+    )
 }

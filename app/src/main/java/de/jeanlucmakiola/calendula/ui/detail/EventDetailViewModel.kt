@@ -1,14 +1,20 @@
 package de.jeanlucmakiola.calendula.ui.detail
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.calendar.NoSuchEventException
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
+import de.jeanlucmakiola.calendula.data.ics.IcsExporter
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
+import de.jeanlucmakiola.calendula.domain.ics.IcsWriter
+import de.jeanlucmakiola.calendula.domain.ics.toShareIcsEvent
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
+import kotlin.time.Clock
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -34,6 +40,7 @@ import javax.inject.Inject
 @HiltViewModel
 class EventDetailViewModel @Inject constructor(
     private val repository: CalendarRepository,
+    private val icsExporter: IcsExporter,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -113,6 +120,24 @@ class EventDetailViewModel @Inject constructor(
         _deleteState.value = DeleteUiState.Idle
     }
 
+    /**
+     * Serialise the open event to a `.ics` cache file and return a shareable
+     * content Uri (for an ACTION_SEND), or null when nothing is loaded or the
+     * write fails. The event is exported as a one-off (see [toShareIcsEvent]).
+     */
+    suspend fun shareUri(): Uri? {
+        val detail = (state.value as? EventDetailUiState.Success)?.detail ?: return null
+        return runCatching {
+            withContext(io) {
+                val ics = IcsWriter().writeCalendar(
+                    events = listOf(detail.toShareIcsEvent()),
+                    dtStamp = Clock.System.now(),
+                )
+                icsExporter.stageShareFile(shareFileName(detail.instance.title), ics)
+            }
+        }.getOrNull()
+    }
+
     private suspend fun loadDetail(target: Target): EventDetailUiState = try {
         val detail = repository.eventDetail(target.eventId)
         // The Events row holds the series start; replace it with this
@@ -142,4 +167,14 @@ class EventDetailViewModel @Inject constructor(
 
     /** A tapped occurrence: the series [eventId] plus this occurrence's own times. */
     private data class Target(val eventId: Long, val beginMillis: Long, val endMillis: Long)
+}
+
+/** A filesystem-safe `.ics` file name from an event title (or a fallback). */
+private fun shareFileName(title: String): String {
+    val base = title.trim()
+        .replace(Regex("""[^\p{L}\p{Nd} _-]"""), "")
+        .replace(' ', '_')
+        .take(40)
+        .ifBlank { "event" }
+    return "$base.ics"
 }

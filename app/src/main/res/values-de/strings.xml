@@ -47,6 +47,9 @@
     <string name="event_detail_back">Zurück</string>
     <string name="event_detail_edit">Bearbeiten</string>
     <string name="event_detail_delete">Löschen</string>
+    <string name="event_detail_share">Teilen</string>
+    <string name="event_share_chooser_title">Termin teilen</string>
+    <string name="event_share_failed">Termin konnte nicht geteilt werden.</string>
     <string name="event_delete_title">Termin löschen?</string>
     <string name="event_delete_body">Der Termin wird aus deinem Kalender und von allen synchronisierten Geräten entfernt.</string>
     <string name="event_delete_recurring_title">Wiederkehrenden Termin löschen</string>
@@ -297,4 +300,41 @@
     <string name="calendars_delete_confirm_title">Kalender löschen?</string>
     <string name="calendars_delete_confirm_message">\"%1$s\" und alle zugehörigen Termine werden dauerhaft von diesem Gerät entfernt.</string>
     <string name="calendars_write_error">Änderung konnte nicht gespeichert werden.</string>
+    <!-- Backup (whole-calendar .ics export) -->
+    <string name="calendars_backup_header">Sicherung</string>
+    <string name="calendars_backup_hint">Lokale Kalender werden nirgends synchronisiert – exportiere sie als .ics-Datei, um eine Kopie zu behalten.</string>
+    <string name="calendars_backup_action">Als .ics-Datei exportieren</string>
+    <string name="calendars_backup_failed">Sicherung konnte nicht exportiert werden.</string>
+    <plurals name="calendars_backup_done">
+        <item quantity="one">%d Termin exportiert.</item>
+        <item quantity="other">%d Termine exportiert.</item>
+    </plurals>
+    <!-- Import (.ics) -->
+    <string name="import_title">Termine importieren</string>
+    <string name="import_target_header">Zu Kalender hinzufügen</string>
+    <string name="import_empty">In dieser Datei wurden keine Termine gefunden.</string>
+    <string name="import_failed">Datei konnte nicht gelesen werden.</string>
+    <string name="import_no_calendar">Kein beschreibbarer Kalender zum Importieren. Lege zuerst einen lokalen Kalender an.</string>
+    <string name="import_done_title">Import abgeschlossen</string>
+    <string name="import_close">Schließen</string>
+    <string name="import_warning_recurrence">Einige geänderte Einzeltermine wiederkehrender Termine wurden übersprungen.</string>
+    <string name="import_warning_no_start">Ein Termin ohne Startzeit wurde übersprungen.</string>
+    <string name="import_warning_attendees">Gästelisten wurden nicht importiert.</string>
+    <string name="import_warning_timezone">Eine unbekannte Zeitzone wurde durch die deines Geräts ersetzt.</string>
+    <plurals name="import_event_count">
+        <item quantity="one">%d Termin in dieser Datei.</item>
+        <item quantity="other">%d Termine in dieser Datei.</item>
+    </plurals>
+    <plurals name="import_action">
+        <item quantity="one">%d Termin importieren</item>
+        <item quantity="other">%d Termine importieren</item>
+    </plurals>
+    <plurals name="import_done_imported">
+        <item quantity="one">%d Termin importiert.</item>
+        <item quantity="other">%d Termine importiert.</item>
+    </plurals>
+    <plurals name="import_done_skipped">
+        <item quantity="one">%d bereits in diesem Kalender übersprungen.</item>
+        <item quantity="other">%d bereits in diesem Kalender übersprungen.</item>
+    </plurals>
 </resources>

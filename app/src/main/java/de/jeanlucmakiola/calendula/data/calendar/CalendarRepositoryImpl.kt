@@ -8,6 +8,8 @@ import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.ics.IcsImportSummary
+import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -98,6 +100,28 @@ class CalendarRepositoryImpl @Inject constructor(
 
     override suspend fun deleteCalendar(id: Long) =
         withContext(io) { dataSource.deleteCalendar(id) }
+
+    override suspend fun exportEvents() = withContext(io) { dataSource.exportableEvents() }
+
+    override suspend fun importEvents(
+        targetCalendarId: Long,
+        events: List<ParsedIcsEvent>,
+    ): IcsImportSummary = withContext(io) {
+        val existing = dataSource.existingUids(targetCalendarId)
+        var imported = 0
+        var skipped = 0
+        for (event in events) {
+            // A known UID means the event is already in this calendar — skip,
+            // keeping a restore idempotent (no overwrite this pass).
+            if (event.uid != null && event.uid in existing) {
+                skipped++
+            } else {
+                dataSource.insertImportedEvent(event, targetCalendarId)
+                imported++
+            }
+        }
+        IcsImportSummary(imported = imported, skippedDuplicate = skipped)
+    }
 
     override suspend fun createEvent(form: EventForm): Long = withContext(io) {
         dataSource.insertEvent(form, allDayReminderTimeMinutes())
