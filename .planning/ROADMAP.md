@@ -233,18 +233,25 @@ pass on the existing controls; new toggles ride in with their own features.
 8. App shortcuts: ~~launcher long-press → New event~~ *(done, v2.5.0)*; optional quick-settings tile still open
 
 **Tier 4 — reliability, data-safety & interop** *(re-ranked 2026-06-17)*
-9. **Reminders — defaults + delivery reliability** *(next)* — global default
-   reminder **+ per-calendar override**, bundled with exact-alarm / battery
-   hardening. Elevated above .ics: it's core to the "Calendula is your only
-   calendar app" promise. Full sketch in "Reminders — defaults & delivery
-   reliability" below.
-10. **Local-calendar backup / export** — device-only calendars have no sync and
-    therefore **no backup**; losing the phone = total data loss. Whole-calendar
-    `.ics` export + restore. A data-integrity gap, not a feature; front-runs and
-    overlaps the single-event .ics work below.
-11. Share event as .ics + receive/open .ics into a prefilled create form
+9. **Reminders — defaults + delivery reliability** *(shipped v2.6.0)* — global
+   default reminder **+ per-calendar override**, bundled with battery-exemption
+   hardening. Full sketch in "Reminders — defaults & delivery reliability" below.
+10. **The `.ics` engine — export + import** *(in progress → v2.7)* — one
+    hand-rolled serializer/parser (zero deps, stays on `kotlinx-datetime`),
+    four surfaces: single-event share + whole-calendar backup (export),
+    open-`.ics`→form + whole-calendar restore (import). Closes the
+    device-local-calendar data-loss gap (#10/#11 merged here). Built as **two
+    sequential branches in one release**: `feat/ics-export` (write side +
+    UID-on-create precursor) then `feat/ics-import` (parser, restore, dedup).
+    Import is liberal-in/strict-out: skip-and-report foreign `VTIMEZONE` /
+    `RECURRENCE-ID` it can't model. Timezone rule: all-day `VALUE=DATE`,
+    non-recurring timed UTC `Z`, recurring timed `TZID`-labelled from the stored
+    `EVENT_TIMEZONE` (no `VTIMEZONE` blocks; resolved against the OS tz DB on
+    import). Plan: `docs/superpowers/plans/2026-06-18-05-ics-export.md`.
+11. **Snooze / dismiss notification actions** *(next, after v2.7)* — follows the
+    `.ics` work; inherits v2.6's deferred exact-alarm/WorkManager decision (snooze
+    must re-fire an alarm).
 12. Drag & drop rescheduling in day/week — big-ticket, own slice (recurring drops reuse the scope dialog)
-13. Snooze / dismiss notification actions — follows the reminders slice (#9)
 
 **Gated — explicit go/no-go before any work (mostly INTERNET-permission calls)**
 - Remote calendar create/edit (re-implements DAVx5; INTERNET + credential storage)

@@ -5,6 +5,7 @@ import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.ics.IcsEvent
 import kotlinx.coroutines.flow.Flow
 import kotlin.time.Instant
 
@@ -27,6 +28,12 @@ interface CalendarRepository {
 
     /** Permanently delete a local calendar the app owns, with all its events. */
     suspend fun deleteCalendar(id: Long)
+
+    /**
+     * Every event of the writable local calendars, ready to serialise into a
+     * whole-calendar `.ics` backup (see [CalendarDataSource.exportableEvents]).
+     */
+    suspend fun exportEvents(): List<IcsEvent>
 
     /** Create a new event from a validated form; returns the new `Events._ID`. */
     suspend fun createEvent(form: EventForm): Long

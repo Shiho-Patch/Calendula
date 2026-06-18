@@ -97,6 +97,48 @@ internal object EventDetailProjection {
     const val IDX_EVENT_COLOR_KEY = 17
 }
 
+/**
+ * Master/one-off Events rows for a whole-calendar backup. Unlike
+ * [EventDetailProjection] this reads `UID_2445` (to keep a row's identity across
+ * backups) and `DURATION` (recurring rows carry it instead of DTEND). Modified-
+ * occurrence and cancelled-exception rows are filtered out by the query
+ * (`ORIGINAL_ID IS NULL`), so RECURRENCE-ID overrides and EXDATEs aren't
+ * exported yet — a documented v1 limit (import skips them too).
+ */
+internal object EventExportProjection {
+    val COLUMNS: Array<String> = arrayOf(
+        CalendarContract.Events._ID,
+        CalendarContract.Events.UID_2445,
+        CalendarContract.Events.TITLE,
+        CalendarContract.Events.DTSTART,
+        CalendarContract.Events.DTEND,
+        CalendarContract.Events.DURATION,
+        CalendarContract.Events.ALL_DAY,
+        CalendarContract.Events.EVENT_TIMEZONE,
+        CalendarContract.Events.RRULE,
+        CalendarContract.Events.EVENT_LOCATION,
+        CalendarContract.Events.DESCRIPTION,
+        CalendarContract.Events.STATUS,
+        CalendarContract.Events.AVAILABILITY,
+        CalendarContract.Events.CALENDAR_ID,
+    )
+
+    const val IDX_ID = 0
+    const val IDX_UID = 1
+    const val IDX_TITLE = 2
+    const val IDX_DTSTART = 3
+    const val IDX_DTEND = 4
+    const val IDX_DURATION = 5
+    const val IDX_ALL_DAY = 6
+    const val IDX_EVENT_TIMEZONE = 7
+    const val IDX_RRULE = 8
+    const val IDX_LOCATION = 9
+    const val IDX_DESCRIPTION = 10
+    const val IDX_STATUS = 11
+    const val IDX_AVAILABILITY = 12
+    const val IDX_CALENDAR_ID = 13
+}
+
 internal object AttendeeProjection {
     val COLUMNS: Array<String> = arrayOf(
         CalendarContract.Attendees.ATTENDEE_NAME,

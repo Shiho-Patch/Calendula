@@ -47,6 +47,9 @@
     <string name="event_detail_back">Zurück</string>
     <string name="event_detail_edit">Bearbeiten</string>
     <string name="event_detail_delete">Löschen</string>
+    <string name="event_detail_share">Teilen</string>
+    <string name="event_share_chooser_title">Termin teilen</string>
+    <string name="event_share_failed">Termin konnte nicht geteilt werden.</string>
     <string name="event_delete_title">Termin löschen?</string>
     <string name="event_delete_body">Der Termin wird aus deinem Kalender und von allen synchronisierten Geräten entfernt.</string>
     <string name="event_delete_recurring_title">Wiederkehrenden Termin löschen</string>
@@ -297,4 +300,13 @@
     <string name="calendars_delete_confirm_title">Kalender löschen?</string>
     <string name="calendars_delete_confirm_message">\"%1$s\" und alle zugehörigen Termine werden dauerhaft von diesem Gerät entfernt.</string>
     <string name="calendars_write_error">Änderung konnte nicht gespeichert werden.</string>
+    <!-- Backup (whole-calendar .ics export) -->
+    <string name="calendars_backup_header">Sicherung</string>
+    <string name="calendars_backup_hint">Lokale Kalender werden nirgends synchronisiert – exportiere sie als .ics-Datei, um eine Kopie zu behalten.</string>
+    <string name="calendars_backup_action">Als .ics-Datei exportieren</string>
+    <string name="calendars_backup_failed">Sicherung konnte nicht exportiert werden.</string>
+    <plurals name="calendars_backup_done">
+        <item quantity="one">%d Termin exportiert.</item>
+        <item quantity="other">%d Termine exportiert.</item>
+    </plurals>
 </resources>

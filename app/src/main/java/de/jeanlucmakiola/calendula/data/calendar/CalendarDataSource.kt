@@ -19,10 +19,12 @@ import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.Reminder
+import de.jeanlucmakiola.calendula.domain.ics.IcsEvent
 import de.jeanlucmakiola.calendula.domain.rruleTruncatedAt
 import kotlinx.datetime.toJavaLocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -47,6 +49,13 @@ interface CalendarDataSource {
      * which a synced calendar may drop on its next sync.
      */
     fun eventColorPalette(calendarId: Long): List<EventColorOption>
+
+    /**
+     * Every master/one-off event of the writable local calendars, mapped for a
+     * whole-calendar `.ics` backup. Modified-occurrence and cancelled-exception
+     * rows are excluded (see [EventExportProjection]).
+     */
+    fun exportableEvents(): List<IcsEvent>
 
     /**
      * Create a new device-only (`ACCOUNT_TYPE_LOCAL`) calendar the app owns;
@@ -265,6 +274,39 @@ class AndroidCalendarDataSource @Inject constructor(
             ?: emptyList()
     }
 
+    override fun exportableEvents(): List<IcsEvent> {
+        // Only the local calendars the app owns and can write — synced calendars
+        // already have a backup (their server). Map id → display name for the
+        // X-CALENDULA-CALENDAR tag a restore uses to fan back out.
+        val names = calendars()
+            .filter { it.isLocal && it.canModifyContents }
+            .associate { it.id to it.displayName }
+        if (names.isEmpty()) return emptyList()
+
+        val idList = names.keys.joinToString(",")
+        return resolver.query(
+            CalendarContract.Events.CONTENT_URI,
+            EventExportProjection.COLUMNS,
+            // Skip soft-deleted rows and exception rows (modified occurrences /
+            // cancellations) — v1 exports masters + one-offs only.
+            "${CalendarContract.Events.CALENDAR_ID} IN ($idList) AND " +
+                "${CalendarContract.Events.DELETED} = 0 AND " +
+                "${CalendarContract.Events.ORIGINAL_ID} IS NULL",
+            null,
+            CalendarContract.Events.DTSTART + " ASC",
+        )?.use { c ->
+            c.mapAll {
+                val reader = CursorColumnReader(c)
+                val eventId = reader.getLong(EventExportProjection.IDX_ID)
+                val calendarId = reader.getLong(EventExportProjection.IDX_CALENDAR_ID)
+                reader.toIcsEvent(
+                    reminderMinutes = queryReminders(eventId).map { it.minutes },
+                    calendarName = names[calendarId],
+                )
+            }
+        } ?: emptyList()
+    }
+
     /** The account a calendar belongs to, for scoping a `Colors` lookup. */
     private fun calendarAccount(calendarId: Long): CalendarAccount? = resolver.query(
         ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, calendarId),
@@ -316,6 +358,11 @@ class AndroidCalendarDataSource @Inject constructor(
                 CalendarContract.Events.CALENDAR_ID,
                 requireNotNull(form.calendarId) { "EventForm.calendarId is required" },
             )
+            // A globally-unique UID so a later .ics backup/restore can identify
+            // the event and not duplicate it on re-import (the provider leaves
+            // this null for events it didn't sync). Older rows without one fall
+            // back to a stable synthesised UID at export time (deriveIcsUid).
+            put(CalendarContract.Events.UID_2445, "${UUID.randomUUID()}@calendula")
             put(CalendarContract.Events.TITLE, form.title.trim())
             put(CalendarContract.Events.ALL_DAY, if (form.isAllDay) 1 else 0)
             put(CalendarContract.Events.DTSTART, times.dtStartMillis)

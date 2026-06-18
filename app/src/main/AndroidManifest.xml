@@ -112,6 +112,19 @@
             </intent-filter>
         </receiver>
 
+        <!-- Hands .ics files we stage in the cache to other apps via a content
+             Uri (single-event share). Authority tracks applicationId so the
+             debug suffix doesn't break getUriForFile. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- Persists the per-app language (M4) on API < 33, where the platform
              per-app-languages API is unavailable. On 33+ this is a no-op. -->
         <service
