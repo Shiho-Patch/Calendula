@@ -1,0 +1,6 @@
+<resources>
+    <!-- Dark-scheme window backdrop, matching the Compose dark background/surface
+         (#101316) so activity recreation (e.g. language switch) doesn't flash a
+         lighter grey. See values/colors.xml. -->
+    <color name="window_background">#FF101316</color>
+</resources>

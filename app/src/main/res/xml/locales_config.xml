@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The languages Calendula ships translations for. This is the single source of
+    truth: each entry must have a matching res/values-<tag>/strings.xml, and is
+    surfaced automatically in both the in-app language picker (parsed at runtime
+    by AppLanguage) and the system per-app language settings (Android 13+, via
+    android:localeConfig in the manifest). To add a community translation, drop
+    in the values-<tag> folder and add one <locale> line here.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="de" />
+</locale-config>

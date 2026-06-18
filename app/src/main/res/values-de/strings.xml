@@ -268,8 +268,6 @@
     <string name="settings_section_language">Sprache</string>
     <string name="settings_language">App-Sprache</string>
     <string name="settings_language_auto">Systemstandard</string>
-    <string name="settings_language_german">Deutsch</string>
-    <string name="settings_language_english">English</string>
     <!-- Hub category subtitles -->
     <string name="settings_appearance_subtitle">Design, dynamische Farben, Wochenstart</string>
     <string name="settings_event_form_subtitle">Standardfelder für neue Termine</string>
