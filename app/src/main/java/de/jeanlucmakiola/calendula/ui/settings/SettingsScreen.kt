@@ -5,6 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
+import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -31,20 +34,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,17 +68,28 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
-import de.jeanlucmakiola.calendula.ui.common.OptionCard
+import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.OptionPicker
 import de.jeanlucmakiola.calendula.ui.common.Position
+import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
+import de.jeanlucmakiola.calendula.ui.common.ReminderDefaultPicker
+import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
 import de.jeanlucmakiola.calendula.ui.common.positionOf
+import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
+import kotlinx.datetime.LocalTime
+import java.util.Calendar
 
 /** The settings sub-screens reached from the hub's category rows. */
 private enum class SettingsSection { Appearance, EventForm, Notifications }
@@ -202,7 +218,7 @@ private fun LanguageRow(position: Position) {
     )
 
     if (showDialog) {
-        OptionPickerDialog(
+        OptionPicker(
             title = stringResource(R.string.settings_language),
             options = LanguagePref.entries,
             selected = current,
@@ -378,7 +394,7 @@ private fun AppearanceScreen(
     }
 
     if (showTheme) {
-        OptionPickerDialog(
+        OptionPicker(
             title = stringResource(R.string.settings_theme),
             options = ThemeMode.entries,
             selected = state.themeMode,
@@ -388,7 +404,7 @@ private fun AppearanceScreen(
         )
     }
     if (showWeekStart) {
-        OptionPickerDialog(
+        OptionPicker(
             title = stringResource(R.string.settings_week_start),
             options = WeekStartPref.entries,
             selected = state.weekStart,
@@ -482,6 +498,12 @@ private fun NotificationsScreen(
         }
     }
 
+    var showDefaultReminder by remember { mutableStateOf(false) }
+    var showAllDayReminder by remember { mutableStateOf(false) }
+    var showAllDayReminderTime by remember { mutableStateOf(false) }
+    var overrideDialog by remember { mutableStateOf<OverrideTarget?>(null) }
+    var expandedCalendars by remember { mutableStateOf(emptySet<Long>()) }
+
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_notifications),
         onBack = onBack,
@@ -489,13 +511,273 @@ private fun NotificationsScreen(
         GroupedRow(
             title = stringResource(R.string.settings_reminders),
             summary = stringResource(R.string.settings_reminders_hint),
-            position = Position.Alone,
+            position = Position.Top,
             trailing = {
                 Switch(checked = state.remindersEnabled, onCheckedChange = toggleReminders)
             },
             onClick = { toggleReminders(!state.remindersEnabled) },
         )
+        GroupedRow(
+            title = stringResource(R.string.settings_default_reminder),
+            summary = reminderChoiceLabel(state.defaultReminderMinutes),
+            position = Position.Middle,
+            onClick = { showDefaultReminder = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_default_reminder_allday),
+            summary = reminderChoiceLabel(state.defaultAllDayReminderMinutes),
+            position = Position.Middle,
+            onClick = { showAllDayReminder = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_allday_reminder_time),
+            summary = stringResource(
+                R.string.settings_allday_reminder_time_hint,
+                formatTimeOfDay(context, state.allDayReminderTimeMinutes),
+            ),
+            position = Position.Bottom,
+            onClick = { showAllDayReminderTime = true },
+        )
+
+        // Per-calendar overrides: each writable calendar may keep, drop, or
+        // replace the global default — separately for timed and all-day events.
+        if (state.writableCalendars.isNotEmpty()) {
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = stringResource(R.string.settings_calendar_reminders_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+            state.writableCalendars.forEach { calendar ->
+                Spacer(Modifier.height(16.dp))
+                val expanded = calendar.id in expandedCalendars
+                // Calendar card; tapping expands it into a grouped list of three
+                // (the card + the timed and all-day override rows).
+                GroupedRow(
+                    title = calendar.displayName,
+                    position = if (expanded) Position.Top else Position.Alone,
+                    leading = { CalendarColorChip(calendar.color) },
+                    trailing = {
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                    onClick = {
+                        expandedCalendars = if (expanded) {
+                            expandedCalendars - calendar.id
+                        } else {
+                            expandedCalendars + calendar.id
+                        }
+                    },
+                )
+                AnimatedVisibility(visible = expanded) {
+                    Column {
+                        val timed = state.perCalendarReminderOverride.choiceFor(calendar.id)
+                        GroupedRow(
+                            title = stringResource(R.string.settings_default_reminder),
+                            summary = calendarOverrideSummary(timed, state.defaultReminderMinutes),
+                            position = Position.Middle,
+                            onClick = { overrideDialog = OverrideTarget(calendar.id, isAllDay = false) },
+                        )
+                        val allDay = state.perCalendarAllDayReminderOverride.choiceFor(calendar.id)
+                        GroupedRow(
+                            title = stringResource(R.string.settings_default_reminder_allday),
+                            summary = calendarOverrideSummary(allDay, state.defaultAllDayReminderMinutes),
+                            position = Position.Bottom,
+                            onClick = { overrideDialog = OverrideTarget(calendar.id, isAllDay = true) },
+                        )
+                    }
+                }
+            }
+        }
+
+        // Delivery reliability: Android's battery optimisation can delay or drop
+        // the calendar provider's reminder broadcast. A soft, optional exemption
+        // (system-settings deep-link, no special permission) improves on-time
+        // delivery; shown as live status, reversible by the user at any time.
+        Spacer(Modifier.height(24.dp))
+        val batteryExempt = rememberBatteryOptimizationExempt()
+        GroupedRow(
+            title = stringResource(R.string.settings_reliable_delivery),
+            summary = if (batteryExempt) {
+                stringResource(R.string.settings_reliable_delivery_exempt)
+            } else {
+                stringResource(R.string.settings_reliable_delivery_hint)
+            },
+            position = Position.Alone,
+            trailing = if (batteryExempt) {
+                {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            } else {
+                null
+            },
+            onClick = { openBatteryOptimizationSettings(context) },
+        )
     }
+
+    if (showDefaultReminder) {
+        ReminderDefaultPicker(
+            title = stringResource(R.string.settings_default_reminder),
+            presets = REMINDER_PRESETS,
+            selected = state.defaultReminderMinutes.toReminderChoice(),
+            allowInherit = false,
+            onSelect = { viewModel.setDefaultReminderMinutes(it.toMinutesOrNull()) },
+            onDismiss = { showDefaultReminder = false },
+        )
+    }
+    if (showAllDayReminder) {
+        ReminderDefaultPicker(
+            title = stringResource(R.string.settings_default_reminder_allday),
+            presets = ALLDAY_REMINDER_PRESETS,
+            selected = state.defaultAllDayReminderMinutes.toReminderChoice(),
+            allowInherit = false,
+            onSelect = { viewModel.setDefaultAllDayReminderMinutes(it.toMinutesOrNull()) },
+            onDismiss = { showAllDayReminder = false },
+        )
+    }
+    if (showAllDayReminderTime) {
+        TimePickerAlert(
+            initial = LocalTime(
+                state.allDayReminderTimeMinutes / 60,
+                state.allDayReminderTimeMinutes % 60,
+            ),
+            onConfirm = {
+                viewModel.setAllDayReminderTimeMinutes(it.hour * 60 + it.minute)
+                showAllDayReminderTime = false
+            },
+            onDismiss = { showAllDayReminderTime = false },
+        )
+    }
+    overrideDialog?.let { target ->
+        val map = if (target.isAllDay) {
+            state.perCalendarAllDayReminderOverride
+        } else {
+            state.perCalendarReminderOverride
+        }
+        ReminderDefaultPicker(
+            title = stringResource(
+                if (target.isAllDay) {
+                    R.string.settings_default_reminder_allday
+                } else {
+                    R.string.settings_default_reminder
+                },
+            ),
+            presets = if (target.isAllDay) ALLDAY_REMINDER_PRESETS else REMINDER_PRESETS,
+            selected = map.choiceFor(target.calendarId),
+            allowInherit = true,
+            onSelect = {
+                if (target.isAllDay) {
+                    viewModel.setCalendarAllDayReminderOverride(target.calendarId, it)
+                } else {
+                    viewModel.setCalendarReminderOverride(target.calendarId, it)
+                }
+            },
+            onDismiss = { overrideDialog = null },
+        )
+    }
+}
+
+/** Which calendar + event kind a per-calendar reminder-override dialog targets. */
+private data class OverrideTarget(val calendarId: Long, val isAllDay: Boolean)
+
+/** A global default (null = none) as a picker choice for selection highlighting. */
+private fun Int?.toReminderChoice(): CalendarReminderOverride =
+    if (this == null) CalendarReminderOverride.None else CalendarReminderOverride.Minutes(this)
+
+/** A picked choice as global-default minutes (Inherit isn't offered for globals). */
+private fun CalendarReminderOverride.toMinutesOrNull(): Int? =
+    (this as? CalendarReminderOverride.Minutes)?.minutes
+
+/**
+ * Whether Calendula is exempt from battery optimisation, re-read on every
+ * `ON_RESUME` so the row reflects a change the user just made in system
+ * settings without needing to leave and re-enter the screen.
+ */
+@Composable
+private fun rememberBatteryOptimizationExempt(): Boolean {
+    val context = LocalContext.current
+    var exempt by remember { mutableStateOf(isIgnoringBatteryOptimizations(context)) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                exempt = isIgnoringBatteryOptimizations(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    return exempt
+}
+
+private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
+    val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+    return power.isIgnoringBatteryOptimizations(context.packageName)
+}
+
+/**
+ * Take the user straight to Calendula's exemption: the direct
+ * `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` dialog ("Allow Calendula to ignore
+ * battery optimisation?") rather than the full app list they'd have to scroll.
+ * Falls back to the optimisation list if the OS refuses the direct intent.
+ */
+private fun openBatteryOptimizationSettings(context: Context) {
+    val direct = Intent(
+        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+        "package:${context.packageName}".toUri(),
+    )
+    if (runCatching { context.startActivity(direct) }.isFailure) {
+        runCatching {
+            context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        }
+    }
+}
+
+/**
+ * Lead times offered for the all-day default — day-scale, since a "minutes
+ * before midnight" reminder on an all-day event is rarely what's wanted.
+ */
+private val ALLDAY_REMINDER_PRESETS = listOf(0, 1_440, 2_880, 10_080)
+
+/** A minute-of-day formatted in the device's 12/24-hour convention (e.g. "09:00"). */
+private fun formatTimeOfDay(context: Context, minutesOfDay: Int): String {
+    val time = Calendar.getInstance().apply {
+        set(Calendar.HOUR_OF_DAY, minutesOfDay / 60)
+        set(Calendar.MINUTE, minutesOfDay % 60)
+    }.time
+    return DateFormat.getTimeFormat(context).format(time)
+}
+
+/** The stored override for [calendarId], as a picker choice (absent → inherit). */
+private fun Map<Long, Int?>.choiceFor(calendarId: Long): CalendarReminderOverride = when {
+    !containsKey(calendarId) -> CalendarReminderOverride.Inherit
+    this[calendarId] == null -> CalendarReminderOverride.None
+    else -> CalendarReminderOverride.Minutes(this.getValue(calendarId)!!)
+}
+
+/** Label for a global-default choice: null → "None", else the lead time. */
+@Composable
+private fun reminderChoiceLabel(minutes: Int?): String =
+    if (minutes == null) stringResource(R.string.reminder_none) else reminderLeadTimeLabel(minutes)
+
+/** Row summary for a calendar: its override, or the inherited global default. */
+@Composable
+private fun calendarOverrideSummary(
+    choice: CalendarReminderOverride,
+    globalDefault: Int?,
+): String = when (choice) {
+    CalendarReminderOverride.Inherit ->
+        stringResource(R.string.settings_calendar_reminder_inherits, reminderChoiceLabel(globalDefault))
+    CalendarReminderOverride.None -> stringResource(R.string.reminder_none)
+    is CalendarReminderOverride.Minutes -> reminderLeadTimeLabel(choice.minutes)
 }
 
 // ---------------------------------------------------------------------------
@@ -531,38 +813,6 @@ private fun CategoryIcon(icon: ImageVector, accent: ChipAccent) {
     }
 }
 
-/** OptionCard selection dialog — the app's only sanctioned picker style. */
-@Composable
-private fun <T> OptionPickerDialog(
-    title: String,
-    options: List<T>,
-    selected: T,
-    label: @Composable (T) -> String,
-    onSelect: (T) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                options.forEach { option ->
-                    OptionCard(
-                        label = label(option),
-                        onClick = {
-                            onSelect(option)
-                            onDismiss()
-                        },
-                        selected = option == selected,
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
-        },
-    )
-}
 
 private fun openUrl(context: Context, url: String) {
     val intent = Intent(Intent.ACTION_VIEW, url.toUri())

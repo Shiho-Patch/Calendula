@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
@@ -27,6 +28,13 @@ class CalendarRepositoryImplTest {
 
     private fun newPrefs(tempDir: Path): CalendarPrefs =
         CalendarPrefs(newDataStore(tempDir))
+
+    private fun newSettings(tempDir: Path): SettingsPrefs =
+        SettingsPrefs(
+            PreferenceDataStoreFactory.create(
+                produceFile = { tempDir.resolve("repo_test_settings.preferences_pb").toFile() },
+            ),
+        )
 
     private fun newDataStore(tempDir: Path): DataStore<Preferences> =
         PreferenceDataStoreFactory.create(
@@ -53,7 +61,7 @@ class CalendarRepositoryImplTest {
         val fake = FakeCalendarDataSource().apply {
             calendarsResult = listOf(makeCal(1L), makeCal(2L))
         }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), UnconfinedTestDispatcher(testScheduler))
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
 
         repo.calendars().test {
             val first = awaitItem()
@@ -67,7 +75,7 @@ class CalendarRepositoryImplTest {
         val fake = FakeCalendarDataSource().apply {
             calendarsResult = listOf(makeCal(1L))
         }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), UnconfinedTestDispatcher(testScheduler))
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
 
         repo.calendars().test {
             assertThat(awaitItem().map { it.id }).containsExactly(1L)
@@ -91,7 +99,7 @@ class CalendarRepositoryImplTest {
                 listOf(makeEvent(10L))
             }
         }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), UnconfinedTestDispatcher(testScheduler))
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
 
         val range = Instant.fromEpochMilliseconds(1_000L)..Instant.fromEpochMilliseconds(2_000L)
         repo.instances(range).test {
@@ -107,7 +115,7 @@ class CalendarRepositoryImplTest {
         val fake = FakeCalendarDataSource().apply {
             instancesResult = {_, _ -> listOf(makeEvent(10L, "Good")) }
         }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), UnconfinedTestDispatcher(testScheduler))
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
 
         val range = Instant.fromEpochMilliseconds(0)..Instant.fromEpochMilliseconds(10_000L)
         repo.instances(range).test {
@@ -129,7 +137,7 @@ class CalendarRepositoryImplTest {
                 )
             }
         }
-        val repo = CalendarRepositoryImpl(fake, prefs, UnconfinedTestDispatcher(testScheduler))
+        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
 
         val range = Instant.fromEpochMilliseconds(0)..Instant.fromEpochMilliseconds(10_000L)
         repo.instances(range).test {
@@ -149,7 +157,7 @@ class CalendarRepositoryImplTest {
                 )
             }
         }
-        val repo = CalendarRepositoryImpl(fake, prefs, UnconfinedTestDispatcher(testScheduler))
+        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
 
         val range = Instant.fromEpochMilliseconds(0)..Instant.fromEpochMilliseconds(10_000L)
         repo.instances(range).test {
@@ -165,7 +173,7 @@ class CalendarRepositoryImplTest {
     @Test
     fun `createEvent delegates and returns the new id`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource().apply { nextInsertId = 77L }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
         val form = EventForm(
             calendarId = 1L,
             title = "Stand-up",
@@ -180,11 +188,31 @@ class CalendarRepositoryImplTest {
     }
 
     @Test
+    fun `createEvent passes the configured all-day reminder time to the data source`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val fake = FakeCalendarDataSource()
+        val settings = newSettings(tempDir)
+        settings.setAllDayReminderTimeMinutes(8 * 60) // 08:00
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), settings, Dispatchers.Unconfined)
+        val form = EventForm(
+            calendarId = 1L,
+            isAllDay = true,
+            start = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(0, 0)),
+        )
+
+        repo.createEvent(form)
+
+        assertThat(fake.allDayReminderTimes).containsExactly(480)
+    }
+
+    @Test
     fun `createEvent propagates write failures`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource().apply {
             writeError = WriteFailedException("insert event")
         }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
         val form = EventForm(
             calendarId = 1L,
             start = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(9, 0)),
@@ -202,7 +230,7 @@ class CalendarRepositoryImplTest {
     @Test
     fun `updateEvent forwards id and both forms`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource()
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
         val original = EventForm(
             calendarId = 1L,
             title = "Stand-up",
@@ -221,7 +249,7 @@ class CalendarRepositoryImplTest {
         val fake = FakeCalendarDataSource().apply {
             writeError = WriteFailedException("update event id=42")
         }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
         val form = EventForm(
             calendarId = 1L,
             start = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(9, 0)),
@@ -239,7 +267,7 @@ class CalendarRepositoryImplTest {
     @Test
     fun `deleteEvent delegates to the data source`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource()
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
 
         repo.deleteEvent(eventId = 42L)
 
@@ -250,7 +278,7 @@ class CalendarRepositoryImplTest {
     @Test
     fun `deleteOccurrence forwards event id and begin time`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource()
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
 
         repo.deleteOccurrence(eventId = 42L, beginMillis = 1_000L)
 
@@ -261,7 +289,7 @@ class CalendarRepositoryImplTest {
     @Test
     fun `deleteEventFromOccurrence forwards event id and begin time`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource()
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
 
         repo.deleteEventFromOccurrence(eventId = 42L, beginMillis = 1_000L)
 
@@ -273,7 +301,7 @@ class CalendarRepositoryImplTest {
     @Test
     fun `updateOccurrence forwards target and form, returns the exception id`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource().apply { nextInsertId = 88L }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
         val form = EventForm(
             calendarId = 1L,
             title = "Moved",
@@ -291,7 +319,7 @@ class CalendarRepositoryImplTest {
     @Test
     fun `updateEventFromOccurrence forwards target and forms, returns the new id`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource().apply { nextInsertId = 99L }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
         val original = EventForm(
             calendarId = 1L,
             title = "Weekly",
@@ -318,7 +346,7 @@ class CalendarRepositoryImplTest {
         val fake = FakeCalendarDataSource().apply {
             writeError = WriteFailedException("delete event id=42")
         }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
 
         try {
             repo.deleteEvent(eventId = 42L)
@@ -331,7 +359,7 @@ class CalendarRepositoryImplTest {
     @Test
     fun `createLocalCalendar delegates and returns the new id`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource().apply { nextCalendarId = 501L }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
 
         val id = repo.createLocalCalendar(
             displayName = "Home",
@@ -348,7 +376,7 @@ class CalendarRepositoryImplTest {
     @Test
     fun `updateCalendar forwards id, name, color and description`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource()
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
 
         repo.updateCalendar(
             id = 5L,
@@ -365,7 +393,7 @@ class CalendarRepositoryImplTest {
     @Test
     fun `deleteCalendar delegates to the data source`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource()
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
 
         repo.deleteCalendar(id = 7L)
 
@@ -377,7 +405,7 @@ class CalendarRepositoryImplTest {
         val fake = FakeCalendarDataSource().apply {
             writeError = WriteFailedException("create local calendar 'Home'")
         }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
 
         try {
             repo.createLocalCalendar(displayName = "Home", color = 0, description = null)
@@ -392,7 +420,7 @@ class CalendarRepositoryImplTest {
         val fake = FakeCalendarDataSource().apply {
             eventDetailResult = { null }
         }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
 
         try {
             repo.eventDetail(eventId = 999L)
@@ -411,7 +439,7 @@ class CalendarRepositoryImplTest {
                 if (id == 7L) listOf(EventColorOption("5", 0xFF33B679.toInt())) else emptyList()
             }
         }
-        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), Dispatchers.Unconfined)
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
 
         assertThat(repo.eventColorPalette(7L))
             .containsExactly(EventColorOption("5", 0xFF33B679.toInt()))

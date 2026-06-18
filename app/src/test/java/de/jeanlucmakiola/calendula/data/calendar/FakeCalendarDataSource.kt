@@ -66,20 +66,36 @@ internal class FakeCalendarDataSource : CalendarDataSource {
         deletedCalendarIds += id
     }
 
-    override fun insertEvent(form: EventForm): Long {
+    /** All-day reminder fire-time minute-of-day passed into the last write. */
+    val allDayReminderTimes = mutableListOf<Int>()
+
+    override fun insertEvent(form: EventForm, allDayReminderTimeMinutes: Int): Long {
         writeError?.let { throw it }
         insertedForms += form
+        allDayReminderTimes += allDayReminderTimeMinutes
         return nextInsertId
     }
 
-    override fun updateEvent(eventId: Long, original: EventForm, updated: EventForm) {
+    override fun updateEvent(
+        eventId: Long,
+        original: EventForm,
+        updated: EventForm,
+        allDayReminderTimeMinutes: Int,
+    ) {
         writeError?.let { throw it }
         updatedEvents += Triple(eventId, original, updated)
+        allDayReminderTimes += allDayReminderTimeMinutes
     }
 
-    override fun updateOccurrence(eventId: Long, beginMillis: Long, form: EventForm): Long {
+    override fun updateOccurrence(
+        eventId: Long,
+        beginMillis: Long,
+        form: EventForm,
+        allDayReminderTimeMinutes: Int,
+    ): Long {
         writeError?.let { throw it }
         updatedOccurrences += Triple(eventId, beginMillis, form)
+        allDayReminderTimes += allDayReminderTimeMinutes
         return nextInsertId
     }
 
@@ -88,9 +104,11 @@ internal class FakeCalendarDataSource : CalendarDataSource {
         beginMillis: Long,
         original: EventForm,
         updated: EventForm,
+        allDayReminderTimeMinutes: Int,
     ): Long {
         writeError?.let { throw it }
         updatedFromOccurrences += Triple(eventId, beginMillis, updated)
+        allDayReminderTimes += allDayReminderTimeMinutes
         return nextInsertId
     }
 

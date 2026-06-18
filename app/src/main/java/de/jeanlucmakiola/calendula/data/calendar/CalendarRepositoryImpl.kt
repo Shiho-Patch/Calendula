@@ -2,6 +2,7 @@ package de.jeanlucmakiola.calendula.data.calendar
 
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
@@ -11,6 +12,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onStart
@@ -28,8 +30,13 @@ import javax.inject.Singleton
 class CalendarRepositoryImpl @Inject constructor(
     private val dataSource: CalendarDataSource,
     private val prefs: CalendarPrefs,
+    private val settingsPrefs: SettingsPrefs,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : CalendarRepository {
+
+    /** The configured wall-clock fire time for all-day reminders, read per write. */
+    private suspend fun allDayReminderTimeMinutes(): Int =
+        settingsPrefs.allDayReminderTimeMinutes.first()
 
     private val ticks = MutableSharedFlow<Unit>(
         replay = 0,
@@ -93,7 +100,7 @@ class CalendarRepositoryImpl @Inject constructor(
         withContext(io) { dataSource.deleteCalendar(id) }
 
     override suspend fun createEvent(form: EventForm): Long = withContext(io) {
-        dataSource.insertEvent(form)
+        dataSource.insertEvent(form, allDayReminderTimeMinutes())
     }
 
     override suspend fun updateEvent(
@@ -101,7 +108,7 @@ class CalendarRepositoryImpl @Inject constructor(
         original: EventForm,
         updated: EventForm,
     ) = withContext(io) {
-        dataSource.updateEvent(eventId, original, updated)
+        dataSource.updateEvent(eventId, original, updated, allDayReminderTimeMinutes())
     }
 
     override suspend fun deleteEvent(eventId: Long) = withContext(io) {
@@ -113,7 +120,7 @@ class CalendarRepositoryImpl @Inject constructor(
         beginMillis: Long,
         form: EventForm,
     ): Long = withContext(io) {
-        dataSource.updateOccurrence(eventId, beginMillis, form)
+        dataSource.updateOccurrence(eventId, beginMillis, form, allDayReminderTimeMinutes())
     }
 
     override suspend fun updateEventFromOccurrence(
@@ -122,7 +129,9 @@ class CalendarRepositoryImpl @Inject constructor(
         original: EventForm,
         updated: EventForm,
     ): Long = withContext(io) {
-        dataSource.updateEventFromOccurrence(eventId, beginMillis, original, updated)
+        dataSource.updateEventFromOccurrence(
+            eventId, beginMillis, original, updated, allDayReminderTimeMinutes(),
+        )
     }
 
     override suspend fun deleteOccurrence(eventId: Long, beginMillis: Long) = withContext(io) {

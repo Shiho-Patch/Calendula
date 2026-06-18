@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import kotlinx.coroutines.flow.Flow
@@ -127,6 +128,97 @@ class SettingsPrefs @Inject constructor(
         store.edit { it[REMINDER_ONBOARDING_KEY] = true }
     }
 
+    /**
+     * The default reminder lead time (minutes before start) prefilled on new
+     * **timed** events. `null` = no default reminder — the prior behaviour, kept
+     * as the factory default so existing users aren't surprised by reminders they
+     * never asked for. Stored as a string so "none" is distinct from a numeric
+     * value (and from an unset key, which is also "none"). Per-calendar overrides
+     * in [perCalendarReminderOverride] take precedence; all-day events instead use
+     * [defaultAllDayReminderMinutes]. Resolve with [resolveDefaultReminder].
+     */
+    val defaultReminderMinutes: Flow<Int?> = store.data.map { prefs ->
+        prefs[DEFAULT_REMINDER_KEY].toReminderMinutes()
+    }
+
+    suspend fun setDefaultReminderMinutes(minutes: Int?) {
+        store.edit { it[DEFAULT_REMINDER_KEY] = minutes?.toString() ?: NONE }
+    }
+
+    /**
+     * The default reminder lead time prefilled on new **all-day** events, in
+     * minutes before the start of the day. All-day events want day-scale lead
+     * times ("1 day before"), so they have their own default rather than reusing
+     * the timed one. `null` = no default. Per-calendar overrides do **not** apply
+     * to all-day events — they always use this global value.
+     */
+    val defaultAllDayReminderMinutes: Flow<Int?> = store.data.map { prefs ->
+        prefs[DEFAULT_ALLDAY_REMINDER_KEY].toReminderMinutes()
+    }
+
+    suspend fun setDefaultAllDayReminderMinutes(minutes: Int?) {
+        store.edit { it[DEFAULT_ALLDAY_REMINDER_KEY] = minutes?.toString() ?: NONE }
+    }
+
+    /**
+     * Wall-clock time, as minutes from local midnight, at which **all-day**
+     * reminders fire. All-day events live at UTC midnight, so a raw "1 day
+     * before" would fire at an off hour (02:00 local in CEST); this time is
+     * encoded into the provider offset so the reminder lands at, e.g., 09:00 the
+     * day before instead. Global for every all-day reminder; default 09:00.
+     * Stored/clamped to a valid 0..1439 minute-of-day.
+     */
+    val allDayReminderTimeMinutes: Flow<Int> = store.data.map { prefs ->
+        (prefs[ALLDAY_REMINDER_TIME_KEY] ?: DEFAULT_ALLDAY_REMINDER_TIME)
+            .coerceIn(0, MINUTES_PER_DAY - 1)
+    }
+
+    suspend fun setAllDayReminderTimeMinutes(minutesOfDay: Int) {
+        store.edit { it[ALLDAY_REMINDER_TIME_KEY] = minutesOfDay.coerceIn(0, MINUTES_PER_DAY - 1) }
+    }
+
+    /**
+     * Per-calendar overrides of [defaultReminderMinutes] for **timed** events,
+     * keyed by calendar id. A calendar **present** in the map overrides the global
+     * timed default for its new events: a `null` value means "no reminder", an int
+     * means that lead time. A calendar **absent** from the map inherits the global
+     * default. Serialised as `id=value;id=value`, with `none` for an explicit
+     * no-reminder override. (All-day events ignore this and use
+     * [defaultAllDayReminderMinutes].)
+     */
+    val perCalendarReminderOverride: Flow<Map<Long, Int?>> = store.data.map { prefs ->
+        parseReminderOverrides(prefs[CALENDAR_REMINDER_OVERRIDE_KEY])
+    }
+
+    suspend fun setCalendarReminderOverride(calendarId: Long, override: CalendarReminderOverride) {
+        store.edit { prefs ->
+            val current = parseReminderOverrides(prefs[CALENDAR_REMINDER_OVERRIDE_KEY]).toMutableMap()
+            current.applyOverride(calendarId, override)
+            prefs[CALENDAR_REMINDER_OVERRIDE_KEY] = serializeReminderOverrides(current)
+        }
+    }
+
+    /**
+     * Per-calendar overrides of [defaultAllDayReminderMinutes] for **all-day**
+     * events, with the same semantics as [perCalendarReminderOverride] (absent =
+     * inherit the global all-day default; present null = no reminder).
+     */
+    val perCalendarAllDayReminderOverride: Flow<Map<Long, Int?>> = store.data.map { prefs ->
+        parseReminderOverrides(prefs[CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY])
+    }
+
+    suspend fun setCalendarAllDayReminderOverride(
+        calendarId: Long,
+        override: CalendarReminderOverride,
+    ) {
+        store.edit { prefs ->
+            val current =
+                parseReminderOverrides(prefs[CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY]).toMutableMap()
+            current.applyOverride(calendarId, override)
+            prefs[CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY] = serializeReminderOverrides(current)
+        }
+    }
+
     private fun parseFormFields(stored: String?): Set<EventFormField> = when (stored) {
         null -> DEFAULT_FORM_FIELDS
         else -> stored.split(',')
@@ -143,10 +235,90 @@ class SettingsPrefs @Inject constructor(
         internal val REMINDER_ONBOARDING_KEY = booleanPreferencesKey("reminder_onboarding_done")
         internal val ALLOW_COLOR_UNSUPPORTED_KEY =
             booleanPreferencesKey("allow_color_unsupported_calendars")
+        internal val DEFAULT_REMINDER_KEY = stringPreferencesKey("default_reminder_minutes")
+        internal val DEFAULT_ALLDAY_REMINDER_KEY =
+            stringPreferencesKey("default_allday_reminder_minutes")
+        internal val ALLDAY_REMINDER_TIME_KEY =
+            intPreferencesKey("allday_reminder_time_minutes")
+        /** 09:00 as minutes from midnight; the default all-day reminder fire time. */
+        internal const val DEFAULT_ALLDAY_REMINDER_TIME = 540
+        private const val MINUTES_PER_DAY = 1_440
+        internal val CALENDAR_REMINDER_OVERRIDE_KEY =
+            stringPreferencesKey("per_calendar_reminder_override")
+        internal val CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY =
+            stringPreferencesKey("per_calendar_allday_reminder_override")
         internal val DEFAULT_FORM_FIELDS =
             setOf(EventFormField.Location, EventFormField.Description)
     }
 }
+
+/** A calendar's reminder-default override (see [SettingsPrefs.perCalendarReminderOverride]). */
+sealed interface CalendarReminderOverride {
+    /** No override — the calendar uses the global default. */
+    data object Inherit : CalendarReminderOverride
+    /** Explicit "no reminder" for this calendar, regardless of the global default. */
+    data object None : CalendarReminderOverride
+    /** A specific lead time in minutes before the event start. */
+    data class Minutes(val minutes: Int) : CalendarReminderOverride
+}
+
+/**
+ * The lead time to prefill on a new event: the matching per-calendar override
+ * if [calendarId] has one for this event kind, otherwise the global default for
+ * that kind. All-day events consult [allDayOverrides] / [allDayGlobal]; timed
+ * events consult [timedOverrides] / [timedGlobal]. `null` = no reminder. Pure so
+ * it can be unit-tested.
+ */
+fun resolveDefaultReminder(
+    timedGlobal: Int?,
+    allDayGlobal: Int?,
+    timedOverrides: Map<Long, Int?>,
+    allDayOverrides: Map<Long, Int?>,
+    calendarId: Long?,
+    isAllDay: Boolean,
+): Int? {
+    val overrides = if (isAllDay) allDayOverrides else timedOverrides
+    val global = if (isAllDay) allDayGlobal else timedGlobal
+    return if (calendarId != null && overrides.containsKey(calendarId)) {
+        overrides[calendarId]
+    } else {
+        global
+    }
+}
+
+/** Apply a [CalendarReminderOverride] to an override map ([Inherit] removes the key). */
+private fun MutableMap<Long, Int?>.applyOverride(
+    calendarId: Long,
+    override: CalendarReminderOverride,
+) {
+    when (override) {
+        CalendarReminderOverride.Inherit -> remove(calendarId)
+        CalendarReminderOverride.None -> put(calendarId, null)
+        is CalendarReminderOverride.Minutes -> put(calendarId, override.minutes)
+    }
+}
+
+private const val NONE = "none"
+private const val ENTRY_SEP = ";"
+private const val KEY_VALUE_SEP = "="
+
+private fun String?.toReminderMinutes(): Int? = when (this) {
+    null, "", NONE -> null
+    else -> toIntOrNull()
+}
+
+private fun parseReminderOverrides(stored: String?): Map<Long, Int?> {
+    if (stored.isNullOrBlank()) return emptyMap()
+    return stored.split(ENTRY_SEP).mapNotNull { entry ->
+        val parts = entry.split(KEY_VALUE_SEP).takeIf { it.size == 2 } ?: return@mapNotNull null
+        val id = parts[0].toLongOrNull() ?: return@mapNotNull null
+        val value = if (parts[1] == NONE) null else parts[1].toIntOrNull() ?: return@mapNotNull null
+        id to value
+    }.toMap()
+}
+
+private fun serializeReminderOverrides(map: Map<Long, Int?>): String =
+    map.entries.joinToString(ENTRY_SEP) { (id, minutes) -> "$id$KEY_VALUE_SEP${minutes ?: NONE}" }
 
 private inline fun <reified E : Enum<E>> String?.toEnum(default: E): E =
     this?.let { stored -> enumValues<E>().firstOrNull { it.name == stored } } ?: default

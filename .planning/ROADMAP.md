@@ -232,10 +232,19 @@ pass on the existing controls; new toggles ride in with their own features.
 7. ~~Home-screen widget — built on the agenda data source from #6~~ *(done, v2.5.0 — agenda + month widgets)*
 8. App shortcuts: ~~launcher long-press → New event~~ *(done, v2.5.0)*; optional quick-settings tile still open
 
-**Tier 4 — interop & bigger-ticket**
-9. Share event as .ics + receive/open .ics into a prefilled create form
-10. Default reminder applied to new events; then snooze/dismiss notification actions
-11. Drag & drop rescheduling in day/week — big-ticket, own slice (recurring drops reuse the scope dialog)
+**Tier 4 — reliability, data-safety & interop** *(re-ranked 2026-06-17)*
+9. **Reminders — defaults + delivery reliability** *(next)* — global default
+   reminder **+ per-calendar override**, bundled with exact-alarm / battery
+   hardening. Elevated above .ics: it's core to the "Calendula is your only
+   calendar app" promise. Full sketch in "Reminders — defaults & delivery
+   reliability" below.
+10. **Local-calendar backup / export** — device-only calendars have no sync and
+    therefore **no backup**; losing the phone = total data loss. Whole-calendar
+    `.ics` export + restore. A data-integrity gap, not a feature; front-runs and
+    overlaps the single-event .ics work below.
+11. Share event as .ics + receive/open .ics into a prefilled create form
+12. Drag & drop rescheduling in day/week — big-ticket, own slice (recurring drops reuse the scope dialog)
+13. Snooze / dismiss notification actions — follows the reminders slice (#9)
 
 **Gated — explicit go/no-go before any work (mostly INTERNET-permission calls)**
 - Remote calendar create/edit (re-implements DAVx5; INTERNET + credential storage)
@@ -249,8 +258,9 @@ pass on the existing controls; new toggles ride in with their own features.
 **Unranked / fill-in** — pinch-to-zoom time scale, tablet/foldable layouts,
 full-text search, ICS file import. Pulled in opportunistically, not sequenced.
 
-Debatable calls worth a second look: widget (#7) vs .ics interop (#9) ordering;
-whether drag-drop (#11) jumps ahead given its daily-driver impact.
+Debatable calls worth a second look: whether **local-calendar backup (#10)**
+should lead Tier 4 outright (it's a silent data-loss risk, not a feature);
+whether drag-drop (#12) jumps ahead given its daily-driver impact.
 
 ## Navigation & views
 
@@ -260,9 +270,14 @@ whether drag-drop (#11) jumps ahead given its daily-driver impact.
 - Agenda view (fourth view: upcoming events grouped by day; also the
   natural data source for a future widget)
 - Jump to date — drawer date picker (un-cut from V1)
+- Current-time "now" line in day/week — standard in every calendar, cheap,
+  currently absent. Daily-driver polish.
+- Week numbers in the **month** grid — week view already shows the badge
+  (`WeekNumberBadge`, `WeekScreen.kt`); extend to month for ISO/European users.
 - Pinch-to-zoom time scale in day/week
 - Tablet / foldable layouts *(was v3.0)*
-- Full-text search *(was v3.0)*
+- Full-text search *(was v3.0)* — promote out of "fill-in": for a daily driver
+  with real event history, finding an event is core completeness, not optional.
 
 ## Event editing & creation
 
@@ -297,12 +312,103 @@ whether drag-drop (#11) jumps ahead given its daily-driver impact.
   go/no-go gate as the OSM/INTERNET item below.
 - Move event to another calendar (copy+delete model with a consequences
   warning — deferred from v2.0; `CALENDAR_ID` is sync-adapter-owned) *(was v3.0)*
+- **Local-calendar backup / export** *(Tier 4 #10)* — device-only
+  (`ACCOUNT_TYPE_LOCAL`) calendars are first-class in Calendula but have **no
+  sync and therefore no backup**: a lost/wiped phone destroys them permanently.
+  Whole-calendar `.ics` (VCALENDAR) export to a user-chosen file (SAF), plus
+  restore-on-import that recreates events into a chosen local calendar. Reuses
+  the .ics serializer from the single-event share work; the restore path reuses
+  the import parser. A data-integrity obligation, not a feature.
 
-## Reminders, round two
+## Reminders — defaults & delivery reliability *(implemented 2026-06-17, `feat/default-reminders` — pending on-device review)*
+
+Two themes bundled because both are "make reminders trustworthy" — the core of
+the "Calendula is your only calendar app" promise.
+
+**Built in this slice (A + the safe half of B):** global timed default reminder
++ a **separate all-day default** (day-scale lead times) + per-calendar override
+(timed events), applied on create with manual-edit / calendar-switch / all-day-
+toggle handling; three pickers + per-calendar override list in Settings →
+Notifications; battery-optimisation exemption row (status + system deep-link, no
+extra permission). `resolveDefaultReminder` + prefs round-trips unit-tested.
+Resolution model: all-day events use the all-day global default outright;
+per-calendar overrides govern timed events only. Reviewed (8-angle), fixes
+applied: form-reset state race, label-fn consolidation with the detail screen,
+inline wrapper + single combined flow read.
+
+**Deliberately deferred (documented decisions, not oversights):**
+- *Absolute time-of-day for all-day reminders* — the all-day default is still
+  minutes-before-midnight (day-scale presets), not "9am the day before" (open
+  decision #2's richer half). Per-calendar all-day overrides also deferred.
+- *Self-scheduled alarms* — kept the existing provider-broadcast architecture
+  (open decision #1). The battery exemption is the reliability lever; no
+  `AlarmManager`/`USE_EXACT_ALARM` subsystem was added.
+- *Test-reminder diagnostic* and *battery prompt inside onboarding* — the
+  exemption lives only in Settings for now (onboarding flow untouched to keep
+  the change reviewable).
+
+### A. Default reminders (global + per-calendar override)
+
+**No provider backing.** `CalendarContract` has no column that auto-applies a
+default reminder per calendar — Google's per-calendar defaults live server-side.
+So both the global default *and* the per-calendar override are **app-side
+preferences**, applied by us at event-insert time. We inherit nothing from the
+synced calendar.
+
+- **Storage (DataStore):**
+  - `defaultReminderMinutes: Int?` — global default; `null` = "no reminder".
+  - `defaultAllDayReminderMinutes: Int?` — separate all-day default (all-day
+    reminders are expressed as minutes before midnight / day-before-at-time, not
+    minutes before a start instant — they need their own value).
+  - `perCalendarReminderOverride: Map<Long, Int?>` — keyed by calendar id;
+    **absent key = inherit global**, explicit `null` = "no reminder for this
+    calendar". (Same for an all-day override map if we want per-calendar all-day.)
+- **Apply on create:** a fresh event prefills its reminders list from
+  override-or-global for the preselected calendar. Changing the calendar in the
+  form re-applies the *new* calendar's default **only if the user hasn't manually
+  edited the reminders** — track a dirty flag, mirroring the per-event-color
+  reset pattern (v2.4).
+- **Edit semantics:** defaults apply to **new events only**; never rewrite
+  reminders on existing events on open or on calendar-switch-during-edit.
+- **Settings UI (Notifications sub-page):**
+  - Global default via OptionCard (None / at time of event / 5 / 10 / 15 / 30 min
+    / 1 h / 1 day / custom), plus the separate all-day default.
+  - Per-calendar overrides: a row per writable calendar (in the Calendars screen
+    or a Notifications subsection), each opening the same OptionCard with a
+    leading **"Use global default"** option.
+
+### B. Delivery reliability (exact alarms + battery)
+
+The provider broadcasts `EVENT_REMINDER`, but on modern Android (Doze / OEM
+battery managers) delivery can be silently delayed or dropped. v1.4 deferred this;
+it directly undermines the feature's premise, so it rides in here.
+
+- **Exact alarm — decision first:** trust the provider broadcast, or
+  self-schedule via `AlarmManager.setExactAndAllowWhileIdle` for reliability?
+  If we self-schedule, declare `USE_EXACT_ALARM` (API 33+, auto-granted for
+  calendar/alarm-category apps, F-Droid-clean) with a `SCHEDULE_EXACT_ALARM`
+  fallback for API 31–32 (user-revocable → settings deep-link prompt).
+- **Battery-optimization exemption:** a *soft, optional* prompt via
+  `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` (settings deep-link — never the
+  auto-grant intent), honest copy: "Android may delay reminders to save battery;
+  exempt Calendula for on-time delivery." Shown once after the existing
+  `POST_NOTIFICATIONS` onboarding step, reversible in Settings → Notifications.
+- **Diagnostics:** a "send a test reminder in 1 minute" button in Notifications
+  settings so users can verify delivery on their specific OEM (Samsung / Xiaomi
+  are notorious for suppressing it).
+
+### Open decisions (resolve before building)
+
+1. Self-schedule via `AlarmManager` vs trust the provider broadcast
+   (reliability vs simplicity + battery cost).
+2. All-day reminder representation (minutes-before vs absolute time-of-day).
+3. Where per-calendar overrides live in the UI (rows on the Calendars screen vs
+   a list inside the Notifications sub-page).
+
+### Later (round two)
 
 - Snooze + dismiss actions on the notification (snooze needs an
-  exact-alarm / WorkManager decision)
-- Settings default reminder applied to new events
+  exact-alarm / WorkManager decision) — Tier 4 #13.
 
 ## Sharing & interop
 
@@ -312,8 +418,18 @@ whether drag-drop (#11) jumps ahead given its daily-driver impact.
 
 ## Platform & launchers
 
-- Home-screen widget *(was v3.0)*
-- App shortcuts (launcher long-press → New event), maybe a quick-settings tile
+- ~~Home-screen widget~~ **shipped v2.5.0** — agenda + month widgets
+- ~~App shortcuts (launcher long-press → New event)~~ **shipped v2.5.0** —
+  optional quick-settings tile still open
+
+## Quality & reliability
+
+- **Accessibility pass** — TalkBack content descriptions across all screens,
+  dynamic-type / large-font reflow, touch-target audit. Quality bar for an
+  F-Droid app; nothing tracks it yet.
+- **Reminder delivery reliability** — exact alarms + battery-optimization
+  exemption; specced in the "Reminders — defaults & delivery reliability" slice
+  above (Tier 4 #9).
 
 ## Locations & People *(go/no-go, captured 2026-06-11)*
 
