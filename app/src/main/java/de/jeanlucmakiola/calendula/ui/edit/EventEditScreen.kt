@@ -68,10 +68,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -86,7 +84,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -112,10 +109,17 @@ import de.jeanlucmakiola.calendula.domain.toRRule
 import de.jeanlucmakiola.calendula.ui.common.CALENDAR_COLOR_PALETTE
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
+import de.jeanlucmakiola.calendula.ui.common.DialogAmountField
+import de.jeanlucmakiola.calendula.ui.common.DialogUnitDropdown
 import de.jeanlucmakiola.calendula.ui.common.MILLIS_PER_DAY
 import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.OptionCard
+import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
+import de.jeanlucmakiola.calendula.ui.common.ReminderUnit
+import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
+import de.jeanlucmakiola.calendula.ui.common.reminderUnitLabel
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.ui.common.recurrenceText
 import kotlinx.datetime.DayOfWeek
@@ -916,14 +920,7 @@ private fun FieldPickerDialog(
 }
 
 /** Quick-pick lead times offered as chips in the reminder dialog. */
-private val REMINDER_QUICK_PICKS = listOf(0, 10, 30, 60, 1_440)
-
-private enum class ReminderUnit(val minutesFactor: Int) {
-    Minutes(1),
-    Hours(60),
-    Days(1_440),
-    Weeks(10_080),
-}
+private val REMINDER_QUICK_PICKS = REMINDER_PRESETS
 
 /**
  * Reminder picker, two steps: the common lead times as a tappable list
@@ -1245,84 +1242,6 @@ private fun Set<DayOfWeek>.toMask(): Int = fold(0) { acc, day -> acc or day.toMa
 private fun Int.toDaySet(): Set<DayOfWeek> =
     DayOfWeek.entries.filter { this and it.toMaskBit() != 0 }.toSet()
 
-/** Tonal 3-digit number input shared by the custom reminder/recurrence steps. */
-@Composable
-private fun DialogAmountField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-) {
-    // surfaceContainerHighest — the dialog itself sits on
-    // surfaceContainerHigh, so anything lower vanishes.
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        shape = RoundedCornerShape(12.dp),
-    ) {
-        InlineField(
-            value = value,
-            onValueChange = { text ->
-                if (text.length <= 3 && text.all(Char::isDigit)) {
-                    onValueChange(text)
-                }
-            },
-            placeholder = placeholder,
-            textStyle = MaterialTheme.typography.titleMedium,
-            keyboardType = KeyboardType.Number,
-            modifier = Modifier
-                .width(72.dp)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-        )
-    }
-}
-
-/** Tonal dropdown trigger + menu shared by the custom reminder/recurrence steps. */
-@Composable
-private fun DialogUnitDropdown(
-    label: String,
-    entries: List<String>,
-    onPick: (Int) -> Unit,
-) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            shape = RoundedCornerShape(12.dp),
-            onClick = { open = true },
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(
-                    start = 14.dp,
-                    end = 8.dp,
-                    top = 12.dp,
-                    bottom = 12.dp,
-                ),
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Spacer(Modifier.width(4.dp))
-                Icon(
-                    imageVector = Icons.Default.ArrowDropDown,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            entries.forEachIndexed { index, entry ->
-                DropdownMenuItem(
-                    text = { Text(entry) },
-                    onClick = {
-                        onPick(index)
-                        open = false
-                    },
-                )
-            }
-        }
-    }
-}
 
 private fun recurrencePresetLabel(freq: RecurrenceFreq): Int = when (freq) {
     RecurrenceFreq.Daily -> R.string.recurrence_daily
@@ -1375,13 +1294,6 @@ private fun AddReminderChip(onClick: () -> Unit) {
         border = null,
         modifier = Modifier.fillMaxWidth(),
     )
-}
-
-private fun reminderUnitLabel(unit: ReminderUnit): Int = when (unit) {
-    ReminderUnit.Minutes -> R.string.reminder_unit_minutes
-    ReminderUnit.Hours -> R.string.reminder_unit_hours
-    ReminderUnit.Days -> R.string.reminder_unit_days
-    ReminderUnit.Weeks -> R.string.reminder_unit_weeks
 }
 
 private fun fieldLabel(field: EventFormField): Int = when (field) {
@@ -1517,16 +1429,7 @@ private fun accessLevelLabel(level: AccessLevel): Int = when (level) {
 
 /** Humanise a reminder lead time, mirroring the detail screen's rendering. */
 @Composable
-private fun reminderLabel(minutes: Int): String = when {
-    minutes <= 0 -> stringResource(R.string.reminder_at_time)
-    minutes % 10_080 == 0 ->
-        pluralStringResource(R.plurals.reminder_weeks, minutes / 10_080, minutes / 10_080)
-    minutes % 1_440 == 0 ->
-        pluralStringResource(R.plurals.reminder_days, minutes / 1_440, minutes / 1_440)
-    minutes % 60 == 0 ->
-        pluralStringResource(R.plurals.reminder_hours, minutes / 60, minutes / 60)
-    else -> pluralStringResource(R.plurals.reminder_minutes, minutes, minutes)
-}
+private fun reminderLabel(minutes: Int): String = reminderLeadTimeLabel(minutes)
 
 /**
  * One info card mirroring the detail screen's DetailCard: tonal container,
@@ -1685,31 +1588,6 @@ private fun ScheduleRow(
             )
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TimePickerAlert(
-    initial: LocalTime,
-    onConfirm: (LocalTime) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val state = rememberTimePickerState(
-        initialHour = initial.hour,
-        initialMinute = initial.minute,
-    )
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = { onConfirm(LocalTime(state.hour, state.minute)) }) {
-                Text(stringResource(R.string.dialog_ok))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
-        },
-        text = { TimePicker(state = state) },
-    )
 }
 
 @Composable

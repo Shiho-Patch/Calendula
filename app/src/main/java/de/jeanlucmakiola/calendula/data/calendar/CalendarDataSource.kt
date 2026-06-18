@@ -20,6 +20,7 @@ import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.Reminder
 import de.jeanlucmakiola.calendula.domain.rruleTruncatedAt
+import kotlinx.datetime.toJavaLocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 import javax.inject.Inject
@@ -60,24 +61,40 @@ interface CalendarDataSource {
     /** Permanently delete a local calendar the app owns, with all its events. */
     fun deleteCalendar(id: Long)
 
-    /** Insert a new event; returns the new `Events._ID`. */
-    fun insertEvent(form: EventForm): Long
+    /**
+     * Insert a new event; returns the new `Events._ID`. [allDayReminderTimeMinutes]
+     * (minutes from local midnight) is the wall-clock time all-day reminders
+     * should fire at — encoded into each all-day reminder's provider offset
+     * (ignored for timed events).
+     */
+    fun insertEvent(form: EventForm, allDayReminderTimeMinutes: Int): Long
 
     /**
      * Update an existing event (for recurring events: the whole series) to
      * match [updated]. [original] is the form as it was prefilled from the
      * event, so only fields the user actually changed are written and the
      * reminder rows can be diffed instead of wiped.
+     * [allDayReminderTimeMinutes]: see [insertEvent].
      */
-    fun updateEvent(eventId: Long, original: EventForm, updated: EventForm)
+    fun updateEvent(
+        eventId: Long,
+        original: EventForm,
+        updated: EventForm,
+        allDayReminderTimeMinutes: Int,
+    )
 
     /**
      * Change a single occurrence of a recurring event by inserting a
      * modified-occurrence exception at [beginMillis] (the occurrence's
      * `Instances.BEGIN`) carrying [form]'s values; returns the exception
-     * row's `Events._ID`.
+     * row's `Events._ID`. [allDayReminderTimeMinutes]: see [insertEvent].
      */
-    fun updateOccurrence(eventId: Long, beginMillis: Long, form: EventForm): Long
+    fun updateOccurrence(
+        eventId: Long,
+        beginMillis: Long,
+        form: EventForm,
+        allDayReminderTimeMinutes: Int,
+    ): Long
 
     /**
      * Change a recurring event from the occurrence at [beginMillis] onwards
@@ -92,6 +109,7 @@ interface CalendarDataSource {
         beginMillis: Long,
         original: EventForm,
         updated: EventForm,
+        allDayReminderTimeMinutes: Int,
     ): Long
 
     /**
@@ -265,7 +283,33 @@ class AndroidCalendarDataSource @Inject constructor(
 
     private data class CalendarAccount(val name: String, val type: String)
 
-    override fun insertEvent(form: EventForm): Long {
+    /**
+     * The raw provider `MINUTES` to store for one of [form]'s reminders: an
+     * all-day reminder is shifted to fire at [allDayReminderTimeMinutes] local
+     * (see [toProviderAllDayMinutes]); a timed reminder is its lead time as-is.
+     */
+    private fun providerReminderMinutes(
+        form: EventForm,
+        minutes: Int,
+        allDayReminderTimeMinutes: Int,
+    ): Int = if (form.isAllDay) {
+        toProviderAllDayMinutes(
+            semanticMinutes = minutes,
+            startDate = form.start.date.toJavaLocalDate(),
+            zone = ZoneId.systemDefault(),
+            timeOfDayMinutes = allDayReminderTimeMinutes,
+        )
+    } else {
+        minutes
+    }
+
+    /** [form]'s reminders as the distinct raw provider offsets to store. */
+    private fun encodedReminders(form: EventForm, allDayReminderTimeMinutes: Int): List<Int> =
+        form.reminders
+            .map { providerReminderMinutes(form, it, allDayReminderTimeMinutes) }
+            .distinct()
+
+    override fun insertEvent(form: EventForm, allDayReminderTimeMinutes: Int): Long {
         val times = form.toWriteTimes(ZoneId.systemDefault())
         val values = ContentValues().apply {
             put(
@@ -303,20 +347,26 @@ class AndroidCalendarDataSource @Inject constructor(
         val eventId = ContentUris.parseId(uri)
         // Best effort (spec §8): the event exists at this point — a reminder
         // that fails to attach is logged, not surfaced as a failed create.
-        form.reminders.distinct().forEach { minutes ->
-            val reminder = ContentValues().apply {
-                put(CalendarContract.Reminders.EVENT_ID, eventId)
-                put(CalendarContract.Reminders.MINUTES, minutes)
-                put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+        encodedReminders(form, allDayReminderTimeMinutes)
+            .forEach { minutes ->
+                val reminder = ContentValues().apply {
+                    put(CalendarContract.Reminders.EVENT_ID, eventId)
+                    put(CalendarContract.Reminders.MINUTES, minutes)
+                    put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+                }
+                if (resolver.insert(CalendarContract.Reminders.CONTENT_URI, reminder) == null) {
+                    Log.w(TAG, "Failed to attach reminder ($minutes min) to event $eventId")
+                }
             }
-            if (resolver.insert(CalendarContract.Reminders.CONTENT_URI, reminder) == null) {
-                Log.w(TAG, "Failed to attach reminder ($minutes min) to event $eventId")
-            }
-        }
         return eventId
     }
 
-    override fun updateEvent(eventId: Long, original: EventForm, updated: EventForm) {
+    override fun updateEvent(
+        eventId: Long,
+        original: EventForm,
+        updated: EventForm,
+        allDayReminderTimeMinutes: Int,
+    ) {
         val values = buildEventUpdateValues(
             original = original,
             updated = updated,
@@ -332,13 +382,19 @@ class AndroidCalendarDataSource @Inject constructor(
             if (rows == 0) throw WriteFailedException("update event id=$eventId")
         }
         // Untouched reminder sets are left alone so unrelated edits can't
-        // disturb provider rows the form never knew about.
+        // disturb provider rows the form never knew about. The diff is on the
+        // form's semantic minutes; reconcile works in encoded provider minutes.
         if (updated.reminders.toSet() != original.reminders.toSet()) {
-            reconcileReminders(eventId, updated.reminders)
+            reconcileReminders(eventId, encodedReminders(updated, allDayReminderTimeMinutes))
         }
     }
 
-    override fun updateOccurrence(eventId: Long, beginMillis: Long, form: EventForm): Long {
+    override fun updateOccurrence(
+        eventId: Long,
+        beginMillis: Long,
+        form: EventForm,
+        allDayReminderTimeMinutes: Int,
+    ): Long {
         // The provider clones the series row and applies these values on top.
         val values = buildOccurrenceExceptionValues(
             form = form,
@@ -352,7 +408,7 @@ class AndroidCalendarDataSource @Inject constructor(
         val exceptionId = ContentUris.parseId(uri)
         // Whether the provider copied the parent's reminder rows is its
         // business — reconciling against the actual rows handles both ways.
-        reconcileReminders(exceptionId, form.reminders)
+        reconcileReminders(exceptionId, encodedReminders(form, allDayReminderTimeMinutes))
         return exceptionId
     }
 
@@ -361,16 +417,17 @@ class AndroidCalendarDataSource @Inject constructor(
         beginMillis: Long,
         original: EventForm,
         updated: EventForm,
+        allDayReminderTimeMinutes: Int,
     ): Long {
         val row = querySeriesRow(eventId)
         // From the first occurrence on (or with no rule to split) this is
         // just a series update.
         if (row.rrule.isNullOrBlank() || beginMillis <= row.dtStartMillis) {
-            updateEvent(eventId, original, updated)
+            updateEvent(eventId, original, updated, allDayReminderTimeMinutes)
             return eventId
         }
         // Insert the new series first: if it fails, the original is untouched.
-        val newEventId = insertEvent(updated)
+        val newEventId = insertEvent(updated, allDayReminderTimeMinutes)
         truncateSeries(eventId, row, beginMillis)
         return newEventId
     }
@@ -456,9 +513,11 @@ class AndroidCalendarDataSource @Inject constructor(
     }
 
     /**
-     * Make the event's reminder rows match [targetMinutes]: rows with other
-     * lead times are deleted, missing ones inserted as best-effort ALERTs
-     * (like insertEvent). Rows whose minutes survive keep their method.
+     * Make the event's reminder rows match [targetMinutes] — the raw provider
+     * offsets to store (already encoded via [encodedReminders], so all-day shifts
+     * are baked in and the diff matches the stored rows). Rows with other offsets
+     * are deleted, missing ones inserted as best-effort ALERTs (like insertEvent).
+     * Rows whose minutes survive keep their method.
      */
     private fun reconcileReminders(eventId: Long, targetMinutes: List<Int>) {
         val target = targetMinutes.toSet()

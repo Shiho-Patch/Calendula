@@ -67,7 +67,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
@@ -96,6 +95,7 @@ import de.jeanlucmakiola.calendula.ui.common.OptionCard
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.ui.common.recurrenceText
+import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import kotlinx.datetime.TimeZone
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -684,26 +684,7 @@ private fun attendeeRoleLabel(attendee: Attendee): Int? = when {
 
 /** Humanise a reminder's lead time, e.g. "10 minutes before" / "At time of event". */
 @Composable
-private fun reminderLeadText(reminder: Reminder): String {
-    val minutes = reminder.minutes
-    return when {
-        minutes < 0 -> stringResource(R.string.reminder_default)
-        minutes == 0 -> stringResource(R.string.reminder_at_time)
-        minutes % 10_080 == 0 -> {
-            val weeks = minutes / 10_080
-            pluralStringResource(R.plurals.reminder_weeks, weeks, weeks)
-        }
-        minutes % 1_440 == 0 -> {
-            val days = minutes / 1_440
-            pluralStringResource(R.plurals.reminder_days, days, days)
-        }
-        minutes % 60 == 0 -> {
-            val hours = minutes / 60
-            pluralStringResource(R.plurals.reminder_hours, hours, hours)
-        }
-        else -> pluralStringResource(R.plurals.reminder_minutes, minutes, minutes)
-    }
-}
+private fun reminderLeadText(reminder: Reminder): String = reminderLeadTimeLabel(reminder.minutes)
 
 /**
  * A localized label for [tz] (e.g. "Central European Time (Europe/Berlin)"),

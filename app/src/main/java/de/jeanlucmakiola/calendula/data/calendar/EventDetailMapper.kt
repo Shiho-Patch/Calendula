@@ -13,6 +13,9 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.EventStatus
 import de.jeanlucmakiola.calendula.domain.Reminder
 import de.jeanlucmakiola.calendula.domain.ReminderMethod
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 private const val TAG = "EventDetailMapper"
 
@@ -58,6 +61,7 @@ internal fun ColumnReader.toEventDetailCore(
     val color = eventColor ?: getInt(EventDetailProjection.IDX_CALENDAR_COLOR)
 
     val eventId = getLong(EventDetailProjection.IDX_EVENT_ID)
+    val isAllDay = getInt(EventDetailProjection.IDX_ALL_DAY) != 0
     val instance = EventInstance(
         instanceId = eventId,
         eventId = eventId,
@@ -65,10 +69,22 @@ internal fun ColumnReader.toEventDetailCore(
         title = title,
         start = begin.toKotlinInstantFromEpochMillis(),
         end = end.toKotlinInstantFromEpochMillis(),
-        isAllDay = getInt(EventDetailProjection.IDX_ALL_DAY) != 0,
+        isAllDay = isAllDay,
         color = color,
         location = getString(EventDetailProjection.IDX_LOCATION),
     )
+
+    // All-day reminders are stored as a wall-clock-shifted offset (see
+    // AllDayReminderEncoding); decode back to the whole-day lead time the form
+    // and detail screen speak. DTSTART is UTC midnight for all-day events, so the
+    // event's date is its UTC date.
+    val displayReminders = if (isAllDay) {
+        val startDate = Instant.ofEpochMilli(begin).atZone(ZoneOffset.UTC).toLocalDate()
+        val zone = ZoneId.systemDefault()
+        reminders.map { it.copy(minutes = fromProviderAllDayMinutes(it.minutes, startDate, zone)) }
+    } else {
+        reminders
+    }
 
     // STATUS shares its 0 value with STATUS_TENTATIVE, so a missing column must
     // be distinguished from a present 0 — an absent status means "just confirmed".
@@ -84,7 +100,7 @@ internal fun ColumnReader.toEventDetailCore(
         organizer = getString(EventDetailProjection.IDX_ORGANIZER),
         attendees = attendees,
         rrule = getString(EventDetailProjection.IDX_RRULE),
-        reminders = reminders,
+        reminders = displayReminders,
         status = status,
         // BUSY and DEFAULT are both 0, so a null column folds into the same
         // default these mappers already return — no isNull guard needed.
