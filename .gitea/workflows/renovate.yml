@@ -16,11 +16,18 @@ concurrency:
 jobs:
   renovate:
     runs-on: docker
+    # Run the Renovate image *as* the job container and invoke the `renovate`
+    # binary directly. The renovatebot/github-action wrapper is a thin Node
+    # action that shells out to `docker run …` — it needs a Docker CLI + socket
+    # inside the job, which the Gitea runner's plain node container has not, so
+    # it died on "Unable to locate executable file: docker". Running the image
+    # directly drops the docker-in-docker requirement entirely.
+    # Full tag pinned; Renovate's github-actions manager keeps it bumped.
+    container:
+      image: ghcr.io/renovatebot/renovate:43.232.0
     steps:
       - name: Run Renovate
-        # This action publishes only full semver tags (no moving major tag —
-        # @v46 / @v40 etc. 404). Pin a real release; Renovate keeps it bumped.
-        uses: renovatebot/github-action@v46.1.15
+        run: renovate
         env:
           # Self-hosted Gitea, not github.com.
           RENOVATE_PLATFORM: gitea
