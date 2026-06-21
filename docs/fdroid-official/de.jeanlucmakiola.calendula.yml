@@ -27,16 +27,16 @@ AutoName: Calendula
 RepoType: git
 Repo: https://gitea.jeanlucmakiola.de/makiolaj/calendula.git
 
-# IMPORTANT: the first build entry MUST target the first release that contains
-# `vcsInfo { include = false }` (added on branch chore/release-verification-process).
-# v2.7.1 and earlier embed META-INF/version-control-info.textproto, whose
-# env-dependent git metadata breaks reproducibility — they will NOT verify.
-# Update the versionName/versionCode/commit/Binaries below once that release is
-# tagged (e.g. v2.7.2 -> versionCode 20702). Values below are placeholders.
+# First build entry = v2.7.3, the first release with `vcsInfo { include = false }`.
+# VERIFIED reproducible (2026-06-21): a clean from-source build of tag v2.7.3
+# matched the published calendula_v2.7.3.apk byte-for-byte across all 1382 zip
+# entries (only the signature block differs, which F-Droid copies). v2.7.2 and
+# earlier embed META-INF/version-control-info.textproto and will NOT verify — do
+# not target them. Subsequent versions are added automatically (AutoUpdateMode).
 Builds:
-  - versionName: 2.7.2
-    versionCode: 20702
-    commit: v2.7.2
+  - versionName: 2.7.3
+    versionCode: 20703
+    commit: v2.7.3
     subdir: app
     gradle:
       - yes
@@ -49,10 +49,13 @@ Builds:
 AllowedAPKSigningKeys: 5cdaee8eb31cb0df9157c646ae3ec8b3dc43b5bb72624e088c9ddea0c4eb5ec1
 
 # Our own developer-signed APK for reproducible-build verification. %v -> the
-# versionName, so v2.7.2 resolves to calendula_v2.7.2.apk on the self-hosted repo.
+# versionName, so v2.7.3 resolves to calendula_v2.7.3.apk on the self-hosted repo.
 Binaries: https://apps.dev.jeanlucmakiola.de/dev/fdroid/repo/calendula_v%v.apk
 
+# After this one-time submission F-Droid auto-tracks new vX.Y.Z tags and creates
+# build entries itself — no manual recipe edits per release. The tag regex keeps
+# it to release tags only.
 AutoUpdateMode: Version v%v
-UpdateCheckMode: Tags
-CurrentVersion: 2.7.2
-CurrentVersionCode: 20702
+UpdateCheckMode: Tags ^v[0-9.]+$
+CurrentVersion: 2.7.3
+CurrentVersionCode: 20703

@@ -30,6 +30,12 @@ jobs:
           # Full history so the base..HEAD diff below has a merge-base.
           fetch-depth: 0
 
+      # Cheap, always-on guard: the release build must stay reproducible for the
+      # official F-Droid repo (no AGP VCS-info embedding). Runs regardless of
+      # change scope so a regression can't slip through on a "docs-only" PR.
+      - name: Reproducible-release invariant
+        run: bash scripts/check_reproducible_release.sh
+
       # Decide whether anything that affects the app build changed. Docs,
       # F-Droid metadata and the licence don't, so those PRs skip the SDK +
       # Gradle work below but still report a green `ci`.
