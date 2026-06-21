@@ -24,7 +24,8 @@ class IcsExporter @Inject constructor(
     fun writeDocument(uri: Uri, content: String) {
         context.contentResolver.openOutputStream(uri)?.use { out ->
             out.write(content.toByteArray(Charsets.UTF_8))
-        } ?: throw IOException("Could not open $uri for writing")
+            // Only the scheme — the full Uri can embed the user's chosen filename.
+        } ?: throw IOException("Could not open output stream for export (scheme=${uri.scheme})")
     }
 
     /**

@@ -18,9 +18,13 @@ import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
+import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.ui.RootScreen
 import de.jeanlucmakiola.calendula.ui.WidgetNavRequest
+import de.jeanlucmakiola.calendula.ui.crash.CrashReportActivity
+import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
+import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
 import de.jeanlucmakiola.calendula.ui.settings.SettingsViewModel
 import de.jeanlucmakiola.calendula.ui.theme.CalendulaTheme
 import kotlinx.datetime.LocalDate
@@ -41,12 +45,31 @@ class MainActivity : AppCompatActivity() {
     // by CalendarHost's import flow.
     private var requestedImportUri by mutableStateOf<Uri?>(null)
 
+    // A captured crash report awaiting the user's decision, surfaced as a dialog
+    // over the calendar on the next launch (the single-crash path). A startup
+    // crash-loop is handled out of band, before setContent — see below.
+    private var pendingCrashReport by mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // If the app keeps crashing as it starts, the main UI can't be trusted
+        // to come up — route to the standalone report screen instead of
+        // re-entering the crashing graph.
+        if (CrashReporter.isCrashLoop(this)) {
+            startActivity(
+                Intent(this, CrashReportActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+            )
+            finish()
+            return
+        }
+
         enableEdgeToEdge()
         requestedDetailKey = intent.detailKeyOrNull()
         requestedNav = intent.navRequestOrNull()
         requestedImportUri = intent.importUriOrNull()
+        if (CrashReporter.shouldPrompt(this)) pendingCrashReport = CrashReporter.pendingReport(this)
         setContent {
             // One activity-scoped SettingsViewModel drives both the theme here
             // and the Settings screen, so a theme change applies app-wide at once.
@@ -70,8 +93,30 @@ class MainActivity : AppCompatActivity() {
                     requestedImportUri = requestedImportUri,
                     onImportConsumed = { requestedImportUri = null },
                 )
+                pendingCrashReport?.let { report ->
+                    CrashReportDialog(
+                        report = report,
+                        onSend = {
+                            submitCrashReport(this@MainActivity, report)
+                            CrashReporter.clearReport(this@MainActivity)
+                            pendingCrashReport = null
+                        },
+                        onDismiss = {
+                            // Keep the report (Settings can still reach it); just
+                            // stop it popping on every launch.
+                            CrashReporter.dismissPrompt(this@MainActivity)
+                            pendingCrashReport = null
+                        },
+                    )
+                }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Reaching a running UI means startup succeeded; reset the loop trail.
+        CrashReporter.markHealthy(this)
     }
 
     override fun onNewIntent(intent: Intent) {

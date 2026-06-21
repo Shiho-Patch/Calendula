@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
@@ -73,10 +74,14 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
+import de.jeanlucmakiola.calendula.ui.crash.openIssueTracker
+import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
@@ -196,9 +201,45 @@ private fun SettingsHub(
             leading = { CategoryIcon(Icons.Default.CalendarMonth, ChipAccent.Tertiary) },
             onClick = onManageCalendars,
         )
-        LanguageRow(position = Position.Bottom)
+        LanguageRow(position = Position.Middle)
+        ReportProblemRow(position = Position.Bottom)
 
         AppVersionText()
+    }
+}
+
+/**
+ * Opens the project's issue tracker to report a problem. If a crash report was
+ * captured (and not yet sent), it surfaces that report first via the same
+ * dialog the next-launch prompt uses; otherwise it opens the issue template
+ * chooser. No data leaves the device until the user submits the issue.
+ */
+@Composable
+private fun ReportProblemRow(position: Position) {
+    val context = LocalContext.current
+    var report by remember { mutableStateOf<String?>(null) }
+
+    GroupedRow(
+        title = stringResource(R.string.settings_report_problem),
+        summary = stringResource(R.string.settings_report_problem_hint),
+        position = position,
+        leading = { CategoryIcon(Icons.Default.BugReport, ChipAccent.Neutral) },
+        onClick = {
+            val pending = CrashReporter.pendingReport(context)
+            if (pending != null) report = pending else openIssueTracker(context)
+        },
+    )
+
+    report?.let { pending ->
+        CrashReportDialog(
+            report = pending,
+            onSend = {
+                submitCrashReport(context, pending)
+                CrashReporter.clearReport(context)
+                report = null
+            },
+            onDismiss = { report = null },
+        )
     }
 }
 

@@ -27,9 +27,9 @@ android {
         // a bumped versionName into main triggers .gitea/workflows/release.yaml,
         // which builds this version and then creates the matching vX.Y.Z tag +
         // release itself (versionCode is pinned to MAJOR*10000 + MINOR*100 +
-        // PATCH from versionName, e.g. 2.7.1 -> 20701). See docs/RELEASING.md.
-        versionCode = 20701
-        versionName = "2.7.1"
+        // PATCH from versionName, e.g. 2.7.2 -> 20702). See docs/RELEASING.md.
+        versionCode = 20702
+        versionName = "2.7.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
