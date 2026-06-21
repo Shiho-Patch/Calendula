@@ -22,19 +22,43 @@ Published version codes so far: `v0.1.0`→100 … `v1.0.0`→10000 … `v2.0.0`
 
 ## Cutting a release
 
-1. Move the `## [Unreleased]` section of `CHANGELOG.md` under a new
+1. **Assemble the release branch.** Create `release/vX.Y.Z` and merge the
+   feature/fix branches that make up this release into it. This branch is the
+   release candidate — everything below happens on it, before it reaches `main`.
+2. Move the `## [Unreleased]` section of `CHANGELOG.md` under a new
    `## [X.Y.Z] — <date>` heading (Keep a Changelog format). The text between
    that heading and the next `## [` becomes both the Gitea release notes and
    the F-Droid per-version changelog.
-2. Optionally bump the committed `versionCode`/`versionName` in
-   `app/build.gradle.kts` to match the new version (keeps local builds tidy).
-3. Commit, then tag and push:
+3. Bump the committed `versionCode`/`versionName` in `app/build.gradle.kts` to
+   match the new version (keeps local builds tidy; CI overwrites from the tag).
+4. **Verify the release build on a real device** — the mandatory gate. The
+   shipped APK is R8-shrunk/obfuscated, and bugs that only appear there, or
+   only on first run, never show up in the debug build or on a device that
+   already granted the calendar permission (this is how the v2.7.0 launch
+   crash slipped through). Run:
+   ```bash
+   scripts/verify-release.sh
+   ```
+   It builds the `releaseTest` variant (same R8 config as `release`, debug-signed
+   with a `.releasetest` suffix so it installs alongside the real app) and resets
+   it to a first-run state. Then, on the device:
+   - launch from a **clean / permission-not-granted** state — the permission
+     screen must appear, no crash;
+   - grant access — the calendar must load;
+   - add both home-screen **widgets** and confirm they render;
+   - exercise this release's headline changes.
+
+   Only proceed once all of that passes on-device.
+5. Merge `release/vX.Y.Z` into `main`, then tag and push:
    ```bash
    git tag vX.Y.Z
    git push origin vX.Y.Z
    ```
-4. The push triggers the release workflow. **Hold UI releases for on-device
+6. The push triggers the release workflow. **Hold UI releases for on-device
    review and explicit go-ahead before tagging.**
+
+> The `releaseTest` build type exists only for step 4 — it is never published.
+> The pipeline always builds and signs the real `release` variant from the tag.
 
 ## What the pipeline does
 

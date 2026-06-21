@@ -61,6 +61,21 @@ android {
             applicationIdSuffix = ".debug"
             isMinifyEnabled = false
         }
+        // A locally-installable twin of `release`: same R8 shrinking + obfuscation
+        // and resource shrinking, but debug-signed and given its own applicationId
+        // suffix so it installs alongside both the production app (signed with the
+        // real key) and the debug build. Used to smoke-test a release candidate on
+        // a real device before tagging — R8-only breakage and first-run/permission
+        // states don't surface in the unminified debug build, nor on a device that
+        // already holds the permission. Never published. See docs/RELEASING.md.
+        create("releaseTest") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".releasetest"
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            matchingFallbacks += "release"
+        }
     }
 
     compileOptions {
