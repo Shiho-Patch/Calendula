@@ -1,9 +1,11 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
+import android.Manifest
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.database.Cursor
 import android.net.Uri
@@ -11,6 +13,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.CalendarContract
 import android.util.Log
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.domain.Attendee
 import de.jeanlucmakiola.calendula.domain.CalendarSource
@@ -162,14 +165,52 @@ class AndroidCalendarDataSource @Inject constructor(
 ) : CalendarDataSource {
 
     private val resolver: ContentResolver get() = context.contentResolver
-    private val observers = mutableMapOf<() -> Unit, ContentObserver>()
 
-    override fun calendars(): List<CalendarSource> = resolver.query(
-        CalendarContract.Calendars.CONTENT_URI,
-        CalendarProjection.COLUMNS,
-        null, null,
-        CalendarContract.Calendars.CALENDAR_DISPLAY_NAME + " ASC",
-    )?.use { it.mapAll(::toCalendarSource) } ?: emptyList()
+    // All access to these two collections is guarded by [observerLock] because
+    // listeners are registered on the main thread (repository init, via ViewModel
+    // creation) while [ensureObserversRegistered] runs on the IO dispatcher.
+    private val observerLock = Any()
+    private val observers = mutableMapOf<() -> Unit, ContentObserver>()
+    private val registeredObservers = mutableSetOf<ContentObserver>()
+
+    private fun hasCalendarPermission(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) ==
+            PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Attach any not-yet-registered observers to the provider, but only once the
+     * calendar permission is held. Registering a ContentObserver on the calendar
+     * provider without that permission throws SecurityException on newer Android
+     * (it used to silently no-op), which crashed the app at launch — the repo
+     * registers its observer eagerly, before the permission gate. Called from the
+     * observed reads ([calendars]/[instances]) so the observer re-attaches the
+     * first time a screen queries after the permission is granted.
+     */
+    private fun ensureObserversRegistered() {
+        if (!hasCalendarPermission()) return
+        synchronized(observerLock) {
+            if (registeredObservers.size == observers.size) return
+            observers.values.forEach(::registerObserverLocked)
+        }
+    }
+
+    private fun registerObserverLocked(obs: ContentObserver) {
+        if (obs in registeredObservers || !hasCalendarPermission()) return
+        runCatching {
+            resolver.registerContentObserver(CalendarContract.CONTENT_URI, true, obs)
+        }.onSuccess { registeredObservers += obs }
+            .onFailure { Log.w(TAG, "Calendar observer registration skipped", it) }
+    }
+
+    override fun calendars(): List<CalendarSource> {
+        ensureObserversRegistered()
+        return resolver.query(
+            CalendarContract.Calendars.CONTENT_URI,
+            CalendarProjection.COLUMNS,
+            null, null,
+            CalendarContract.Calendars.CALENDAR_DISPLAY_NAME + " ASC",
+        )?.use { it.mapAll(::toCalendarSource) } ?: emptyList()
+    }
 
     /**
      * Calendar-row writes must address the provider as a sync adapter and name
@@ -242,6 +283,7 @@ class AndroidCalendarDataSource @Inject constructor(
     }
 
     override fun instances(beginMillis: Long, endMillis: Long): List<EventInstance> {
+        ensureObserversRegistered()
         val uri = CalendarContract.Instances.CONTENT_URI.buildUpon().apply {
             ContentUris.appendId(this, beginMillis)
             ContentUris.appendId(this, endMillis)
@@ -718,16 +760,20 @@ class AndroidCalendarDataSource @Inject constructor(
                 listener()
             }
         }
-        observers[listener] = obs
-        resolver.registerContentObserver(
-            CalendarContract.CONTENT_URI,
-            /* notifyForDescendants = */ true,
-            obs,
-        )
+        synchronized(observerLock) {
+            observers[listener] = obs
+            // Attach now if we already hold the permission; otherwise it stays
+            // pending and re-attaches on the first read after the grant.
+            registerObserverLocked(obs)
+        }
     }
 
     override fun unregisterChangeListener(listener: () -> Unit) {
-        observers.remove(listener)?.let { resolver.unregisterContentObserver(it) }
+        synchronized(observerLock) {
+            observers.remove(listener)?.let { obs ->
+                if (registeredObservers.remove(obs)) resolver.unregisterContentObserver(obs)
+            }
+        }
     }
 
     private fun queryAttendees(eventId: Long): List<Attendee> = resolver.query(
