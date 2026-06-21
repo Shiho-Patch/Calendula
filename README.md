@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="fdroid-metadata/de.jeanlucmakiola.calendula/en-US/icon.png" width="112" alt="Calendula icon">
+<img src="fastlane/metadata/android/en-US/images/icon.png" width="112" alt="Calendula icon">
 
 <h1>Calendula</h1>
 
@@ -16,11 +16,11 @@ Reads, writes, and reminds — on top of the system calendar, with zero network 
 </p>
 
 <p>
-<img src="fdroid-metadata/de.jeanlucmakiola.calendula/en-US/phoneScreenshots/01-week.png" width="19%" alt="Week view">&nbsp;
-<img src="fdroid-metadata/de.jeanlucmakiola.calendula/en-US/phoneScreenshots/02-month.png" width="19%" alt="Month view">&nbsp;
-<img src="fdroid-metadata/de.jeanlucmakiola.calendula/en-US/phoneScreenshots/04-detail.png" width="19%" alt="Event detail">&nbsp;
-<img src="fdroid-metadata/de.jeanlucmakiola.calendula/en-US/phoneScreenshots/05-edit.png" width="19%" alt="Event form">&nbsp;
-<img src="fdroid-metadata/de.jeanlucmakiola.calendula/en-US/phoneScreenshots/06-onboarding.png" width="19%" alt="Reminder onboarding">
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01-week.png" width="19%" alt="Week view">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02-month.png" width="19%" alt="Month view">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04-detail.png" width="19%" alt="Event detail">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05-edit.png" width="19%" alt="Event form">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/06-onboarding.png" width="19%" alt="Reminder onboarding">
 </p>
 
 </div>

@@ -41,7 +41,7 @@ jobs:
           git fetch --no-tags --depth=1 origin "$BASE"
           CHANGED=$(git diff --name-only "origin/$BASE...HEAD")
           echo "Changed files:"; echo "$CHANGED"
-          if echo "$CHANGED" | grep -vE '(\.md$|^docs/|^fdroid-metadata/|^LICENSE$)' | grep -q .; then
+          if echo "$CHANGED" | grep -vE '(\.md$|^docs/|^fdroid-metadata/|^fastlane/|^LICENSE$)' | grep -q .; then
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
             echo "code=false" >> "$GITHUB_OUTPUT"

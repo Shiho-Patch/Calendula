@@ -222,31 +222,27 @@ jobs:
           mkdir -p fdroid/repo
           cp app/build/outputs/apk/release/app-release.apk "fdroid/repo/calendula_v${VERSION}.apk"
 
-      - name: Copy metadata to F-Droid repo
+      # Per-version "What's New": ensure this version's changelog exists in the
+      # fastlane tree (committed at release-cut time for the official repo; this
+      # regenerates it from CHANGELOG.md so the self-hosted repo never depends on
+      # the commit having happened). The transform below then carries it across.
+      - name: Ensure this version's changelog is in the fastlane tree
+        if: env.IS_RELEASE == 'true'
+        run: bash scripts/sync_changelog_to_fastlane.sh
+
+      - name: Build F-Droid metadata from fastlane (single source of truth)
         run: |
           mkdir -p fdroid/metadata
-          cp -r fdroid-metadata/* fdroid/metadata/
-
-      # Per-version "What's New" for F-Droid clients: this version's CHANGELOG
-      # section written to changelogs/<versionCode>.txt (same extraction as the
-      # Gitea release notes). en-US only — F-Droid falls back to it for locales
-      # without their own changelog. fdroid update bakes this into the index.
-      - name: Generate F-Droid changelog for this version
-        if: env.IS_RELEASE == 'true'
-        run: |
-          set -e
-          awk -v ver="$VERSION" '
-            $0 ~ "^## \\[" ver "\\]" { flag = 1; next }
-            /^## \[/ { flag = 0 }
-            flag' CHANGELOG.md > /tmp/changelog.txt
-          sed -i -e '/./,$!d' /tmp/changelog.txt
-          if [ ! -s /tmp/changelog.txt ]; then
-            echo "See CHANGELOG.md for $VERSION." > /tmp/changelog.txt
-          fi
-          CL_DIR="fdroid/metadata/de.jeanlucmakiola.calendula/en-US/changelogs"
-          mkdir -p "$CL_DIR"
-          cp /tmp/changelog.txt "$CL_DIR/${VERSION_CODE}.txt"
-          echo "Wrote $CL_DIR/${VERSION_CODE}.txt"
+          # App-level control file (Categories/License/links) for the self-hosted
+          # repo's `fdroid update`.
+          cp fdroid-metadata/de.jeanlucmakiola.calendula.yml fdroid/metadata/
+          # Localized text + graphics + per-version changelogs come from the SAME
+          # fastlane tree the official F-Droid repo harvests from source,
+          # transformed into the F-Droid repo "localized" layout. One source of
+          # truth, both channels.
+          bash scripts/fastlane_to_fdroid_localized.sh \
+            fastlane/metadata/android \
+            fdroid/metadata/de.jeanlucmakiola.calendula
 
       - name: Generate F-Droid Index
         run: |

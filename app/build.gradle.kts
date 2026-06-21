@@ -47,6 +47,11 @@ android {
 
     buildTypes {
         release {
+            // Keep release builds reproducible for F-Droid: don't let AGP embed
+            // build-environment git metadata (META-INF/version-control-info.textproto),
+            // whose `revision`/path content varies by build machine and is the only
+            // thing that otherwise differs from a clean from-source rebuild.
+            vcsInfo { include = false }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

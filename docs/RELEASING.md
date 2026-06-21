@@ -33,7 +33,15 @@ Published version codes so far: `v0.1.0`→100 … `v1.0.0`→10000 … `v2.0.0`
    the F-Droid per-version changelog.
 3. Bump the committed `versionName` (and `versionCode`) in
    `app/build.gradle.kts` to the new version. **This bump is what triggers the
-   release** when the branch merges to `main`.
+   release** when the branch merges to `main`. Then run
+   ```bash
+   scripts/sync_changelog_to_fastlane.sh
+   ```
+   and commit the generated
+   `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`. This is what
+   makes the **official** F-Droid repo show this version's changelog (it reads
+   the changelog from the tagged source tree). The self-hosted pipeline
+   regenerates it regardless, so forgetting only affects the official listing.
 4. **Verify the release build on a real device** — the mandatory gate. The
    shipped APK is R8-shrunk/obfuscated, and bugs that only appear there, or
    only on first run, never show up in the debug build or on a device that
