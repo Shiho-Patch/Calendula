@@ -28,8 +28,8 @@ android {
         // which builds this version and then creates the matching vX.Y.Z tag +
         // release itself (versionCode is pinned to MAJOR*10000 + MINOR*100 +
         // PATCH from versionName, e.g. 2.7.2 -> 20702). See docs/RELEASING.md.
-        versionCode = 20704
-        versionName = "2.7.4"
+        versionCode = 20705
+        versionName = "2.7.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -90,6 +90,16 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    // Don't embed AGP's dependency-metadata block in the APK signing block. It's
+    // a Play-oriented blob, and F-Droid's reproducible-build scanner rejects any
+    // "extra signing block" — so leaving it in blocks publishing to the official
+    // repo. It lives in the signing block, not the zip entries, so disabling it
+    // doesn't change the build output (reproducibility is unaffected).
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 
     packaging {

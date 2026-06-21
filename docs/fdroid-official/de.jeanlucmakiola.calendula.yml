@@ -27,18 +27,20 @@ AutoName: Calendula
 RepoType: git
 Repo: https://gitea.jeanlucmakiola.de/makiolaj/calendula.git
 
-# First build entry = v2.7.4, the first release that BOTH disables AGP VCS-info
-# (`vcsInfo { include = false }`, since v2.7.3) AND drops the unused Gradle
-# foojay toolchain-resolver plugin, which F-Droid's offline build scanner rejects
-# (it can fetch a JDK over the network). The plugin was inert here (no toolchain
-# block invoked it), so v2.7.4 is functionally identical to v2.7.3 and reproduces
-# byte-for-byte from source. v2.7.3 and earlier either embed
-# META-INF/version-control-info.textproto or trip the foojay scanner — do not
-# target them. Subsequent versions are added automatically (AutoUpdateMode).
+# First build entry = v2.7.5, the first release that clears ALL three F-Droid
+# blockers: (1) AGP VCS-info disabled (`vcsInfo { include = false }`, since
+# v2.7.3); (2) the unused Gradle foojay toolchain-resolver plugin removed (since
+# v2.7.4) — the offline build scanner rejects it as it can fetch a JDK; (3) AGP's
+# dependency-metadata block no longer embedded (`dependenciesInfo { includeInApk
+# = false }`) — the binary scanner rejects it as an "extra signing block". All
+# three live outside the zip entries or are inert, so v2.7.5 is functionally
+# identical to v2.7.3 and reproduces byte-for-byte from source. v2.7.4 and
+# earlier trip one of these checks — do not target them. Subsequent versions are
+# added automatically (AutoUpdateMode).
 Builds:
-  - versionName: 2.7.4
-    versionCode: 20704
-    commit: v2.7.4
+  - versionName: 2.7.5
+    versionCode: 20705
+    commit: v2.7.5
     subdir: app
     gradle:
       - yes
@@ -51,7 +53,7 @@ Builds:
 AllowedAPKSigningKeys: 5cdaee8eb31cb0df9157c646ae3ec8b3dc43b5bb72624e088c9ddea0c4eb5ec1
 
 # Our own developer-signed APK for reproducible-build verification. %v -> the
-# versionName, so v2.7.4 resolves to calendula_v2.7.4.apk on the self-hosted repo.
+# versionName, so v2.7.5 resolves to calendula_v2.7.5.apk on the self-hosted repo.
 Binaries: https://apps.dev.jeanlucmakiola.de/dev/fdroid/repo/calendula_v%v.apk
 
 # After this one-time submission F-Droid auto-tracks new vX.Y.Z tags and creates
@@ -59,5 +61,5 @@ Binaries: https://apps.dev.jeanlucmakiola.de/dev/fdroid/repo/calendula_v%v.apk
 # it to release tags only.
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
-CurrentVersion: 2.7.4
-CurrentVersionCode: 20704
+CurrentVersion: 2.7.5
+CurrentVersionCode: 20705
