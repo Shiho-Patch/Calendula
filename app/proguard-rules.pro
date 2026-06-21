@@ -15,3 +15,14 @@
 # Keep the generated Room database implementations fully intact.
 -keep class * extends androidx.room.RoomDatabase { *; }
 -dontwarn androidx.room.paging.**
+
+# WorkManager instantiates an InputMerger reflectively (Class.newInstance) from
+# the fully-qualified class name persisted in the WorkSpec, so the class must
+# keep both its name and a no-arg constructor. Glance renders every widget
+# through a WorkManager worker (androidx.glance.session.SessionWorker) whose
+# default merger is androidx.work.OverwritingInputMerger. Under R8 full mode
+# (AGP 9 default) that unused no-arg constructor was stripped, so WorkManager
+# threw "OverwritingInputMerger has no zero argument constructor", the
+# SessionWorker never ran, and widgets were stuck on their loading layout
+# (a blank spinner) in release builds. Keep every InputMerger's name + ctor.
+-keep class * extends androidx.work.InputMerger { <init>(...); }

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.3] — 2026-06-21
+
+### Fixed
+- Home-screen widgets no longer get stuck on a loading spinner in the published
+  (F-Droid) release build. They render via Android's background-work system, and
+  release optimisation (R8) was stripping a helper class it loads by name, so the
+  render job never ran. Added the missing keep rule — widgets now load normally.
+
 ## [2.7.2] — 2026-06-21
 
 ### Added
