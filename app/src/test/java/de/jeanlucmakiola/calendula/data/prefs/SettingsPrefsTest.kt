@@ -234,6 +234,23 @@ class SettingsPrefsTest {
     }
 
     @Test
+    fun `snooze duration defaults to 10 minutes`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.snoozeMinutes.first()).isEqualTo(10)
+    }
+
+    @Test
+    fun `snooze duration round-trips and clamps to at least one minute`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        prefs.setSnoozeMinutes(30)
+        assertThat(prefs.snoozeMinutes.first()).isEqualTo(30)
+        prefs.setSnoozeMinutes(0)
+        assertThat(prefs.snoozeMinutes.first()).isEqualTo(1)
+    }
+
+    @Test
     fun `explicit week-start prefs resolve regardless of locale`() {
         assertThat(WeekStartPref.MONDAY.resolveFirstDay(Locale.US)).isEqualTo(DayOfWeek.MONDAY)
         assertThat(WeekStartPref.SUNDAY.resolveFirstDay(Locale.GERMANY)).isEqualTo(DayOfWeek.SUNDAY)

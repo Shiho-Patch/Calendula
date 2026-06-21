@@ -178,6 +178,20 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * How long the notification "Snooze" action defers a reminder, in minutes.
+     * Tapping Snooze cancels the notification and re-posts it after this delay
+     * via an exact alarm (the calendar provider won't re-fire). Default 10 min;
+     * clamped to at least 1.
+     */
+    val snoozeMinutes: Flow<Int> = store.data.map { prefs ->
+        (prefs[SNOOZE_MINUTES_KEY] ?: DEFAULT_SNOOZE_MINUTES).coerceAtLeast(1)
+    }
+
+    suspend fun setSnoozeMinutes(minutes: Int) {
+        store.edit { it[SNOOZE_MINUTES_KEY] = minutes.coerceAtLeast(1) }
+    }
+
+    /**
      * Per-calendar overrides of [defaultReminderMinutes] for **timed** events,
      * keyed by calendar id. A calendar **present** in the map overrides the global
      * timed default for its new events: a `null` value means "no reminder", an int
@@ -243,6 +257,9 @@ class SettingsPrefs @Inject constructor(
         /** 09:00 as minutes from midnight; the default all-day reminder fire time. */
         internal const val DEFAULT_ALLDAY_REMINDER_TIME = 540
         private const val MINUTES_PER_DAY = 1_440
+        internal val SNOOZE_MINUTES_KEY = intPreferencesKey("snooze_minutes")
+        /** Default snooze delay for the notification "Snooze" action. */
+        const val DEFAULT_SNOOZE_MINUTES = 10
         internal val CALENDAR_REMINDER_OVERRIDE_KEY =
             stringPreferencesKey("per_calendar_reminder_override")
         internal val CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY =

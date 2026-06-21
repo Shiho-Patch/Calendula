@@ -13,6 +13,17 @@
     -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!--
+      Re-fire a snoozed reminder at an exact time (the calendar provider won't —
+      its alert is already fired). USE_EXACT_ALARM is auto-granted to calendar
+      apps on API 33+; SCHEDULE_EXACT_ALARM covers API 31–32 (user-revocable,
+      with an inexact fallback if withheld). F-Droid-clean: no Play allowlisting.
+    -->
+    <uses-permission
+        android:name="android.permission.SCHEDULE_EXACT_ALARM"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+
     <!-- Package visibility (Android 11+): without this, getLaunchIntentForPackage
          returns null and the calendar manager's per-account "manage" button can't
          open the source sync app (DAVx5, ICSx5, Google Calendar, …). The LAUNCHER
@@ -90,6 +101,13 @@
                     android:scheme="content" />
             </intent-filter>
         </receiver>
+
+        <!-- Snooze / dismiss actions on a reminder notification, plus the snooze
+             re-show alarm. Not exported: only our own notification buttons and
+             AlarmManager PendingIntents target it. -->
+        <receiver
+            android:name=".data.reminders.ReminderActionReceiver"
+            android:exported="false" />
 
         <!-- Home-screen widgets (Glance). Exported: the launcher/host binds them. -->
         <receiver

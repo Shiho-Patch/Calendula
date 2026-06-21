@@ -61,6 +61,16 @@ class ReminderNotifier @Inject constructor(
             .setAutoCancel(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(detailIntent(alert))
+            .addAction(
+                R.drawable.ic_notification_snooze,
+                context.getString(R.string.reminder_action_snooze),
+                actionIntent(alert, ReminderActionReceiver.ACTION_SNOOZE),
+            )
+            .addAction(
+                R.drawable.ic_notification_dismiss,
+                context.getString(R.string.reminder_action_dismiss),
+                actionIntent(alert, ReminderActionReceiver.ACTION_DISMISS),
+            )
             .build()
         try {
             NotificationManagerCompat.from(context)
@@ -70,6 +80,19 @@ class ReminderNotifier @Inject constructor(
             Log.w(TAG, "Could not post reminder for event ${alert.eventId}", e)
         }
     }
+
+    /** Remove a posted reminder (snooze re-shows it later; dismiss is final). */
+    fun cancel(alert: ReminderAlert) {
+        NotificationManagerCompat.from(context).cancel(alert.alertId.toString(), NOTIFICATION_ID)
+    }
+
+    private fun actionIntent(alert: ReminderAlert, action: String): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            ReminderActionReceiver.requestCode(alert, action),
+            ReminderActionReceiver.intent(context, action, alert),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
 
     private fun detailIntent(alert: ReminderAlert): PendingIntent = PendingIntent.getActivity(
         context,
