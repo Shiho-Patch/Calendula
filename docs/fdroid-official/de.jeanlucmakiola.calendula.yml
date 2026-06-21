@@ -15,7 +15,7 @@
 # ---------------------------------------------------------------------------
 
 Categories:
-  - Time
+  - Calendar & Agenda
 License: MIT
 AuthorName: Jean-Luc Makiola
 SourceCode: https://gitea.jeanlucmakiola.de/makiolaj/calendula
@@ -27,16 +27,18 @@ AutoName: Calendula
 RepoType: git
 Repo: https://gitea.jeanlucmakiola.de/makiolaj/calendula.git
 
-# First build entry = v2.7.3, the first release with `vcsInfo { include = false }`.
-# VERIFIED reproducible (2026-06-21): a clean from-source build of tag v2.7.3
-# matched the published calendula_v2.7.3.apk byte-for-byte across all 1382 zip
-# entries (only the signature block differs, which F-Droid copies). v2.7.2 and
-# earlier embed META-INF/version-control-info.textproto and will NOT verify — do
-# not target them. Subsequent versions are added automatically (AutoUpdateMode).
+# First build entry = v2.7.4, the first release that BOTH disables AGP VCS-info
+# (`vcsInfo { include = false }`, since v2.7.3) AND drops the unused Gradle
+# foojay toolchain-resolver plugin, which F-Droid's offline build scanner rejects
+# (it can fetch a JDK over the network). The plugin was inert here (no toolchain
+# block invoked it), so v2.7.4 is functionally identical to v2.7.3 and reproduces
+# byte-for-byte from source. v2.7.3 and earlier either embed
+# META-INF/version-control-info.textproto or trip the foojay scanner — do not
+# target them. Subsequent versions are added automatically (AutoUpdateMode).
 Builds:
-  - versionName: 2.7.3
-    versionCode: 20703
-    commit: v2.7.3
+  - versionName: 2.7.4
+    versionCode: 20704
+    commit: v2.7.4
     subdir: app
     gradle:
       - yes
@@ -49,13 +51,13 @@ Builds:
 AllowedAPKSigningKeys: 5cdaee8eb31cb0df9157c646ae3ec8b3dc43b5bb72624e088c9ddea0c4eb5ec1
 
 # Our own developer-signed APK for reproducible-build verification. %v -> the
-# versionName, so v2.7.3 resolves to calendula_v2.7.3.apk on the self-hosted repo.
+# versionName, so v2.7.4 resolves to calendula_v2.7.4.apk on the self-hosted repo.
 Binaries: https://apps.dev.jeanlucmakiola.de/dev/fdroid/repo/calendula_v%v.apk
 
 # After this one-time submission F-Droid auto-tracks new vX.Y.Z tags and creates
 # build entries itself — no manual recipe edits per release. The tag regex keeps
 # it to release tags only.
-AutoUpdateMode: Version v%v
+AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9.]+$
-CurrentVersion: 2.7.3
-CurrentVersionCode: 20703
+CurrentVersion: 2.7.4
+CurrentVersionCode: 20704

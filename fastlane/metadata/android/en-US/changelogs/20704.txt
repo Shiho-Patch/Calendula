@@ -1,0 +1,6 @@
+### Changed
+- Build cleanup that lets Calendula ship in the official F-Droid repository:
+  removed an unused Gradle toolchain-resolver plugin, which F-Droid's offline,
+  reproducible build process disallows. No functional or visible changes — this
+  is the same app as 2.7.3.
+
