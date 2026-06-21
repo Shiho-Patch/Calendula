@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.5] — 2026-06-21
+
+### Changed
+- Further build cleanup for the official F-Droid repository: stopped embedding
+  AGP's dependency-metadata block in the APK, which F-Droid's reproducible-build
+  scanner rejects as an extra signing block. No functional or visible changes —
+  the same app as 2.7.4, just without that Play-oriented metadata blob.
+
 ## [2.7.4] — 2026-06-21
 
 ### Changed
