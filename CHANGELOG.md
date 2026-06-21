@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.7.2] — 2026-06-18
+## [2.7.2] — 2026-06-21
 
 ### Added
 - Crash reporting you control. If Calendula closes unexpectedly, it now captures
@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   trace), and you see the full text before sending. There's also a "Report a
   problem" entry in Settings, and if the app ever fails to start repeatedly, a
   minimal recovery screen still lets you send the report.
+
+## [2.7.1] — 2026-06-21
+
+### Fixed
+- Fixed the app crashing immediately on launch whenever calendar access hadn't
+  been granted yet (a fresh install, or after revoking the permission). The app
+  set up its live calendar-change listener before the permission screen could
+  appear, which newer Android versions reject outright — so the app died before
+  you could grant access. The listener now waits for the permission and attaches
+  itself the moment it's granted.
 
 ## [2.7.0] — 2026-06-18
 

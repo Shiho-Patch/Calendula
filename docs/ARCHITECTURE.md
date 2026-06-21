@@ -143,5 +143,6 @@ JUnit 5 + Truth + Turbine on the JVM. The seams that make it work:
 `CalendarDataSource` is faked (`FakeCalendarDataSource` records writes),
 mappers parse `ColumnReader`/plain maps instead of cursors, domain logic
 (recurrence, validation, snapshots, write-value building) is pure. CI
-(Gitea Actions) runs `lint test assembleDebug` on every push; release tags
-additionally build, sign, and publish to the self-hosted F-Droid repo.
+(Gitea Actions) runs `lint test assembleDebug` once per pull request; merging a
+bumped `versionName` to `main` builds, signs, and publishes to the self-hosted
+F-Droid repo and then mints the `vX.Y.Z` tag + release. See docs/RELEASING.md.

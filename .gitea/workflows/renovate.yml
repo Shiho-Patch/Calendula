@@ -1,0 +1,42 @@
+name: Renovate
+
+on:
+  # Weekly sweep. Mondays 05:00 UTC — this cron owns the cadence; the repo's
+  # renovate.json5 deliberately has no internal schedule (avoids double-gating).
+  schedule:
+    - cron: '0 5 * * 1'
+  # Manual run for an on-demand sweep from the Actions tab.
+  workflow_dispatch:
+
+# Never let two Renovate runs touch the repo at once.
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    runs-on: docker
+    # Run the Renovate image *as* the job container and invoke the `renovate`
+    # binary directly. The renovatebot/github-action wrapper is a thin Node
+    # action that shells out to `docker run …` — it needs a Docker CLI + socket
+    # inside the job, which the Gitea runner's plain node container has not, so
+    # it died on "Unable to locate executable file: docker". Running the image
+    # directly drops the docker-in-docker requirement entirely.
+    # Full tag pinned; Renovate's github-actions manager keeps it bumped.
+    container:
+      image: ghcr.io/renovatebot/renovate:43.232.0
+    steps:
+      - name: Run Renovate
+        run: renovate
+        env:
+          # Self-hosted Gitea, not github.com.
+          RENOVATE_PLATFORM: gitea
+          RENOVATE_ENDPOINT: https://gitea.jeanlucmakiola.de/api/v1
+          # Bot-account token (Gitea secret). Needs repo read/write + PR scope.
+          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+          # Scope to this repo only — no org-wide autodiscovery.
+          RENOVATE_AUTODISCOVER: 'false'
+          RENOVATE_REPOSITORIES: '["makiolaj/calendula"]'
+          # Commits/PRs authored as the bot, not a real maintainer.
+          RENOVATE_GIT_AUTHOR: 'Renovate Bot <renovate@jeanlucmakiola.de>'
+          LOG_LEVEL: info

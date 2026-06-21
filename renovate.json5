@@ -1,0 +1,56 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+
+  extends: [
+    "config:recommended",
+    // chore(deps): … — match the repo's conventional-commit style.
+    ":semanticCommits",
+  ],
+
+  // No automerge: a dependency bump goes through the same review (and, for
+  // anything touching the build, the same on-device check) as a feature
+  // before it can ride a release — see docs/RELEASING.md and the
+  // "hold release for approval" rule.
+  automerge: false,
+
+  // One reviewable surface; the dashboard issue lists everything pending.
+  dependencyDashboard: true,
+  labels: ["dependencies"],
+  prConcurrentLimit: 5,
+  prHourlyLimit: 0,
+
+  // Cadence is owned by the Gitea Actions cron (.gitea/workflows/renovate.yml,
+  // Mondays) — no internal `schedule` here, so the two don't double-gate and
+  // silently skip a run.
+
+  // Gitea Actions workflows live under .gitea/workflows, not .github — extend
+  // the github-actions manager (same syntax) to watch them too.
+  "github-actions": {
+    fileMatch: ["^\\.gitea/workflows/[^/]+\\.ya?ml$"],
+  },
+
+  packageRules: [
+    // material3 is deliberately pinned to the 1.5 *alpha* line for the
+    // Expressive APIs (see gradle/libs.versions.toml). Follow the alpha train
+    // but keep it in its own PR, reviewed in isolation; revisit the pin when
+    // 1.5.0 stable lands.
+    {
+      matchPackageNames: ["androidx.compose.material3:material3"],
+      ignoreUnstable: false,
+      groupName: "material3 (alpha)",
+    },
+    // Test-only deps: group into one low-noise PR.
+    {
+      matchPackageNames: [
+        "org.junit.jupiter:**",
+        "org.junit.platform:**",
+        "com.google.truth:**",
+        "app.cash.turbine:**",
+        "androidx.test:**",
+        "androidx.test.espresso:**",
+        "androidx.test.ext:**",
+      ],
+      groupName: "test dependencies",
+    },
+  ],
+}
