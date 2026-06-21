@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.4] — 2026-06-21
+
+### Changed
+- Build cleanup that lets Calendula ship in the official F-Droid repository:
+  removed an unused Gradle toolchain-resolver plugin, which F-Droid's offline,
+  reproducible build process disallows. No functional or visible changes — this
+  is the same app as 2.7.3.
+
 ## [2.7.3] — 2026-06-21
 
 ### Fixed
