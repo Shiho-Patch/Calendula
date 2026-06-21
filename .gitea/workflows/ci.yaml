@@ -38,10 +38,20 @@ jobs:
         run: |
           set -e
           BASE="${{ github.base_ref }}"
-          git fetch --no-tags --depth=1 origin "$BASE"
-          CHANGED=$(git diff --name-only "origin/$BASE...HEAD")
+          # Full (not --depth=1) base fetch so the merge-base is present even when
+          # the PR branch forked several commits back; a shallow tip has no merge
+          # base with a divergent branch and `git diff base...HEAD` aborts.
+          git fetch --no-tags origin "$BASE"
+          MB=$(git merge-base "origin/$BASE" HEAD 2>/dev/null || true)
+          if [ -z "$MB" ]; then
+            # No common ancestor available — don't risk skipping the build.
+            echo "No merge base with origin/$BASE — running the full build to be safe."
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          CHANGED=$(git diff --name-only "$MB" HEAD)
           echo "Changed files:"; echo "$CHANGED"
-          if echo "$CHANGED" | grep -vE '(\.md$|^docs/|^fdroid-metadata/|^LICENSE$)' | grep -q .; then
+          if echo "$CHANGED" | grep -vE '(\.md$|^docs/|^fdroid-metadata/|^fastlane/|^LICENSE$)' | grep -q .; then
             echo "code=true" >> "$GITHUB_OUTPUT"
           else
             echo "code=false" >> "$GITHUB_OUTPUT"

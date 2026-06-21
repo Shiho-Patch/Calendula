@@ -12,7 +12,9 @@ Where to look for what:
 | [`../.planning/STATE.md`](../.planning/STATE.md) | Snapshot of where development currently stands |
 | [`superpowers/specs/`](superpowers/specs/) | The original design spec (2026-06-08) — historical record, not updated |
 | [`superpowers/plans/`](superpowers/plans/) | Per-milestone implementation plans with task checklists — historical record of how each slice was built, including provider lessons learned |
-| [`../fdroid-metadata/`](../fdroid-metadata/) | F-Droid/fastlane store metadata: descriptions, icon, screenshots (DE + EN) |
+| [`../fastlane/metadata/android/`](../fastlane/metadata/android/) | Store metadata (single source of truth): descriptions, title, icon, screenshots (DE + EN). Harvested directly by the official F-Droid repo; transformed into the self-hosted repo layout at release time by [`../scripts/fastlane_to_fdroid_localized.sh`](../scripts/fastlane_to_fdroid_localized.sh) |
+| [`../fdroid-metadata/`](../fdroid-metadata/) | App-level F-Droid control file (`*.yml`: Categories, License, links) for the self-hosted repo's `fdroid update` |
+| [`fdroid-official/`](fdroid-official/) | Draft recipe + notes for publishing to the **official** F-Droid repo (reproducible build + developer-signed binary) |
 
 Conventions: plans and specs under `superpowers/` are point-in-time
 artifacts of the agentic workflow that built each milestone — they get
