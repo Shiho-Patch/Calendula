@@ -4,11 +4,7 @@ name: Translations
 # only touch values-*/strings.xml) get quick feedback without the full Android
 # build. The deeper checks still run in CI via lintDebug (ExtraTranslation).
 on:
-  push:
-    branches:
-      - '**'
-    tags-ignore:
-      - '**'
+  pull_request:
     paths:
       - 'app/src/main/res/values*/strings.xml'
       - 'app/src/main/res/xml/locales_config.xml'

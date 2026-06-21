@@ -39,4 +39,5 @@ echo "  3. Add both home-screen widgets and confirm they render (not a spinner).
 echo "  4. Exercise the release's headline changes end to end."
 echo
 echo "Watch for crashes with:  adb logcat -b crash"
-echo "Only tag the release once all of the above pass on a real device."
+echo "Only merge the release branch to main once all of the above pass on a device"
+echo "(the merge is what publishes the release — see docs/RELEASING.md)."
