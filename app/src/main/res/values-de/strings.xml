@@ -283,7 +283,7 @@
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_logo_desc">Calendula-App-Symbol</string>
     <string name="settings_report_problem">Problem melden</string>
-    <string name="settings_report_problem_hint">Absturzbericht senden oder Issue-Tracker öffnen</string>
+    <string name="settings_report_problem_hint">Absturzbericht oder Feedback per E-Mail senden</string>
 
     <!-- Calendar manager -->
     <string name="calendars_title">Kalender</string>
@@ -347,8 +347,9 @@
     <string name="crash_dialog_dismiss">Nicht jetzt</string>
     <string name="crash_report_issue_title">Absturzbericht</string>
     <string name="crash_report_clip_label">Calendula-Absturzbericht</string>
-    <string name="crash_report_copied">Bericht in die Zwischenablage kopiert</string>
-    <string name="crash_report_open_failed">Der Issue-Tracker konnte nicht geöffnet werden. Der Bericht ist in deiner Zwischenablage.</string>
+    <string name="crash_report_copied">Bericht kopiert — E-Mail-App wird geöffnet</string>
+    <string name="crash_report_open_failed">Keine E-Mail-App gefunden. Der Bericht ist in deiner Zwischenablage.</string>
     <string name="crash_report_body_template">Danke, dass du einen Absturz in Calendula meldest. Bitte ergänze, was du gerade getan hast, und sende dann ab.\n\n### Was ist passiert\n\n\n### Absturzbericht\n%1$s\n</string>
-    <string name="crash_report_body_paste">_(Der Bericht war zu lang für diesen Link — füge ihn aus deiner Zwischenablage hier ein.)_</string>
+    <string name="report_issue_subject">Calendula — Problemmeldung</string>
+    <string name="report_issue_body_template">Bitte beschreibe das aufgetretene Problem und was du gerade getan hast.\n\n</string>
 </resources>
