@@ -1,61 +1,90 @@
 # Releasing Calendula
 
-Calendula is distributed through a self-hosted F-Droid repository. Every
-release is built, signed, and published automatically by
-`.gitea/workflows/release.yaml` when a version tag is pushed.
+Calendula is distributed through a self-hosted F-Droid repository. A release is
+built, signed, and published automatically by `.gitea/workflows/release.yaml`
+when a **bumped `versionName` reaches `main`** — the pipeline then creates the
+matching `vX.Y.Z` tag and Gitea release itself.
 
-## Versioning — the git tag is the single source of truth
+## Versioning — the committed version is the source of truth
 
-A release is defined by its tag, `vMAJOR.MINOR.PATCH` (e.g. `v2.1.0`). At
-release time the workflow derives both Gradle fields from the tag:
+A release is defined by the `versionName`/`versionCode` committed in
+`app/build.gradle.kts`:
 
-- `versionName` = the tag without the leading `v` (`2.1.0`)
+- `versionName` = `MAJOR.MINOR.PATCH` (e.g. `2.1.0`)
 - `versionCode` = `MAJOR*10000 + MINOR*100 + PATCH` (`2.1.0` → `20100`)
 
-So `MINOR` and `PATCH` each have room for 0–99. The values committed in
-`app/build.gradle.kts` are only the dev/local default — CI overwrites them
-from the tag. Keep the committed `versionCode`/`versionName` matching the
-**latest released tag** so local builds are sanely versioned; the published
-value always comes from the tag.
+So `MINOR` and `PATCH` each have room for 0–99. The release pipeline reads
+`versionName`, pins `versionCode` to the derived value, builds, and — once the
+APK is published — creates the tag `v<versionName>` at that commit. The tag is
+an **output** of a successful release, not its trigger, so a tag always marks a
+fully-shipped version (and a failure before publish leaves no tag, so re-running
+the workflow safely retries).
 
 Published version codes so far: `v0.1.0`→100 … `v1.0.0`→10000 … `v2.0.0`→20000.
 
 ## Cutting a release
 
-1. Move the `## [Unreleased]` section of `CHANGELOG.md` under a new
+1. **Assemble the release branch.** Create `release/vX.Y.Z` and merge the
+   feature/fix branches that make up this release into it. This branch is the
+   release candidate — everything below happens on it, before it reaches `main`.
+2. Move the `## [Unreleased]` section of `CHANGELOG.md` under a new
    `## [X.Y.Z] — <date>` heading (Keep a Changelog format). The text between
    that heading and the next `## [` becomes both the Gitea release notes and
    the F-Droid per-version changelog.
-2. Optionally bump the committed `versionCode`/`versionName` in
-   `app/build.gradle.kts` to match the new version (keeps local builds tidy).
-3. Commit, then tag and push:
+3. Bump the committed `versionName` (and `versionCode`) in
+   `app/build.gradle.kts` to the new version. **This bump is what triggers the
+   release** when the branch merges to `main`.
+4. **Verify the release build on a real device** — the mandatory gate. The
+   shipped APK is R8-shrunk/obfuscated, and bugs that only appear there, or
+   only on first run, never show up in the debug build or on a device that
+   already granted the calendar permission (this is how the v2.7.0 launch
+   crash slipped through). Run:
    ```bash
-   git tag vX.Y.Z
-   git push origin vX.Y.Z
+   scripts/verify-release.sh
    ```
-4. The push triggers the release workflow. **Hold UI releases for on-device
-   review and explicit go-ahead before tagging.**
+   It builds the `releaseTest` variant (same R8 config as `release`, debug-signed
+   with a `.releasetest` suffix so it installs alongside the real app) and resets
+   it to a first-run state. Then, on the device:
+   - launch from a **clean / permission-not-granted** state — the permission
+     screen must appear, no crash;
+   - grant access — the calendar must load;
+   - add both home-screen **widgets** and confirm they render;
+   - exercise this release's headline changes.
+
+   Only proceed once all of that passes on-device.
+5. **Merge `release/vX.Y.Z` into `main`.** That's it — no manual tagging. The
+   merge triggers `release.yaml`, which detects the new version, builds, signs,
+   publishes to F-Droid, and creates the `vX.Y.Z` tag + Gitea release. **Hold UI
+   releases for on-device review and explicit go-ahead before merging.**
+
+> The `releaseTest` build type exists only for step 4 — it is never published.
+> The pipeline always builds and signs the real `release` variant.
 
 ## What the pipeline does
 
-`release.yaml` has three jobs:
+CI and release are split so a change is built once on its PR and only does
+release work when a merge actually cuts a release:
 
-- **ci** — unit tests + a debug assemble (sanity).
-- **build-and-deploy** — derives the version, builds & signs the release APK
-  with the app key, copies it into the F-Droid repo, generates the per-version
-  changelog, re-signs the F-Droid index with the **repo key**, uploads
-  `repo/` + `metadata/` to the box, and attaches the R8 `mapping.txt` to the
-  Gitea release (best-effort).
-- **gitea-release** — creates/updates the Gitea release carrying the tag's
-  CHANGELOG section as notes. Gated on `ci` only (not the deploy) so notes
-  publish even if the F-Droid upload hiccups.
+- **`ci.yaml`** (on `pull_request`) — lint + unit tests + a debug assemble (and
+  a Trivy scan), once per PR. Docs/metadata-only PRs skip the Android build but
+  still report a green `CI` check.
+- **`release.yaml`** (on push to `main`, plus `workflow_dispatch`) — a cheap
+  `detect` job reads `versionName` and checks whether a tag for it already
+  exists. Only when it doesn't does the `release` job run: unit tests on the
+  merged commit, build & sign the release APK with the **app key**, copy it into
+  the F-Droid repo, generate the per-version changelog, re-sign the index with
+  the **repo key**, upload `repo/` + `metadata/`, then create the `vX.Y.Z` tag +
+  Gitea release (CHANGELOG section as notes) and attach the R8 `mapping.txt`
+  (best-effort). Ordinary merges with no version bump fall through `detect` and
+  do nothing.
 
 ### Manual re-sign / recovery
 
-A manual `workflow_dispatch` of the release workflow **from a branch** (not a
-tag) runs a **re-sign-only** path: it skips the APK build and just re-signs
-the existing F-Droid index with the configured repo key and re-uploads. Use
-this for key rotation or repo recovery without publishing a new app version.
+A manual `workflow_dispatch` of the release workflow runs a **re-sign-only**
+path: `detect` reports it's not a release, so the `release` job skips the APK
+build, the version bump, and tag/release creation, and just re-signs the
+existing F-Droid index with the configured repo key and re-uploads. Use this
+for key rotation or repo recovery without publishing a new app version.
 
 ## Secrets (Gitea → repo Settings → Actions → Secrets)
 

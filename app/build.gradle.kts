@@ -23,11 +23,11 @@ android {
         applicationId = "de.jeanlucmakiola.calendula"
         minSdk = 29
         targetSdk = 36
-        // The git tag is the single source of truth for released builds: at
-        // release time .gitea/workflows/release.yaml derives both fields from
-        // the tag, with versionCode = MAJOR*10000 + MINOR*100 + PATCH
-        // (e.g. v2.0.0 -> 20000). These committed values are the dev/local
-        // default; keep them matching the latest released tag. See docs/RELEASING.md.
+        // These committed values ARE the source of truth for a release: merging
+        // a bumped versionName into main triggers .gitea/workflows/release.yaml,
+        // which builds this version and then creates the matching vX.Y.Z tag +
+        // release itself (versionCode is pinned to MAJOR*10000 + MINOR*100 +
+        // PATCH from versionName, e.g. 2.7.1 -> 20701). See docs/RELEASING.md.
         versionCode = 20701
         versionName = "2.7.1"
 
@@ -60,6 +60,21 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             isMinifyEnabled = false
+        }
+        // A locally-installable twin of `release`: same R8 shrinking + obfuscation
+        // and resource shrinking, but debug-signed and given its own applicationId
+        // suffix so it installs alongside both the production app (signed with the
+        // real key) and the debug build. Used to smoke-test a release candidate on
+        // a real device before tagging — R8-only breakage and first-run/permission
+        // states don't surface in the unminified debug build, nor on a device that
+        // already holds the permission. Never published. See docs/RELEASING.md.
+        create("releaseTest") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".releasetest"
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            matchingFallbacks += "release"
         }
     }
 
