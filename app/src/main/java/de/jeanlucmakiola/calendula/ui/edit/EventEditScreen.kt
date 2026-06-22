@@ -1,7 +1,12 @@
 package de.jeanlucmakiola.calendula.ui.edit
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.ContactsContract
 import android.util.Patterns
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -38,6 +43,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
@@ -439,6 +445,22 @@ private fun EventEditContent(
     var showColorPicker by rememberSaveable { mutableStateOf(false) }
     var showFieldPicker by rememberSaveable { mutableStateOf(false) }
 
+    // Pick a guest from contacts: a one-shot system picker returning the chosen
+    // email row (email + display name). No READ_CONTACTS — the result Intent
+    // grants temporary read access, so Calendula stays no-network/no-permission.
+    val context = LocalContext.current
+    val pickContact = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                readContactEmail(context, uri)?.let { (email, name) ->
+                    viewModel.addAttendee(email, name)
+                }
+            }
+        }
+    }
+
     val selectedCalendar = state.calendars.firstOrNull { it.id == form.calendarId }
     // The accent ties the form to the detail screen's design language: the
     // bar under the title takes the target calendar's colour.
@@ -797,6 +819,16 @@ private fun EventEditContent(
             AddGuestInlineCard(
                 position = positionOf(guests.size, rows),
                 onAdd = { viewModel.addAttendee(it) },
+                onPickContact = {
+                    runCatching {
+                        pickContact.launch(
+                            Intent(
+                                Intent.ACTION_PICK,
+                                ContactsContract.CommonDataKinds.Email.CONTENT_URI,
+                            ),
+                        )
+                    }
+                },
             )
             Spacer(Modifier.height(8.dp))
             Text(
@@ -1457,13 +1489,17 @@ private fun AddActionCard(label: String, position: Position, onClick: () -> Unit
 }
 
 /**
- * The trailing card of the guests list: an inline email field. Type an address
- * and press Done (or tap the add button) to commit it as a guest; the field
- * clears, ready for the next. Matches the form's inline-field input style — no
- * dialog.
+ * The trailing card of the guests list: an inline email field plus a "from
+ * contacts" button. Type an address and press Done (or tap +) to commit a guest;
+ * or pick from contacts to fill email + name at once. The field clears after,
+ * ready for the next. Matches the form's inline-field input style — no dialog.
  */
 @Composable
-private fun AddGuestInlineCard(position: Position, onAdd: (String) -> Unit) {
+private fun AddGuestInlineCard(
+    position: Position,
+    onAdd: (String) -> Unit,
+    onPickContact: () -> Unit,
+) {
     var text by rememberSaveable { mutableStateOf("") }
     val valid = remember(text) { Patterns.EMAIL_ADDRESS.matcher(text.trim()).matches() }
     fun commit() {
@@ -1511,9 +1547,36 @@ private fun AddGuestInlineCard(position: Position, onAdd: (String) -> Unit) {
                     )
                 }
             }
+            IconButton(onClick = onPickContact, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Contacts,
+                    contentDescription = stringResource(R.string.event_edit_add_guest_from_contacts),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
         }
     }
 }
+
+/**
+ * Read the email + display name from a contact-pick result URI. No
+ * READ_CONTACTS needed: ACTION_PICK grants this URI temporary read access.
+ */
+private fun readContactEmail(context: Context, uri: Uri): Pair<String, String>? =
+    context.contentResolver.query(
+        uri,
+        arrayOf(
+            ContactsContract.CommonDataKinds.Email.ADDRESS,
+            ContactsContract.Contacts.DISPLAY_NAME,
+        ),
+        null, null, null,
+    )?.use { cursor ->
+        if (!cursor.moveToFirst()) return@use null
+        val email = cursor.getString(0).orEmpty().trim()
+        val name = cursor.getString(1).orEmpty().trim()
+        email.takeIf { it.isNotEmpty() }?.let { it to name }
+    }
 
 
 private fun fieldLabel(field: EventFormField): Int = when (field) {

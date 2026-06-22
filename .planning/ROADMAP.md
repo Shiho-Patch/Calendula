@@ -490,15 +490,15 @@ detail screen (since v0.6) but the form can't write them. Make guests editable.
   required/optional type updates; organizer/resource/no-email rows untouched).
   Reminders restyled to the same grouped-list pattern in passing. Needs only the
   existing `WRITE_CALENDAR` — no new permission.
-- **Name on manual add — solved next via a contact picker.** The inline field is
-  email-only (the quick path); names otherwise come from sync. The planned fix is
-  a **"from contacts" entry**: `ACTION_PICK` on
-  `ContactsContract.CommonDataKinds.Email.CONTENT_URI` → the system Contacts app
-  returns a URI to the picked email row, queried for `Email.ADDRESS` **and** the
-  contact `DISPLAY_NAME`, so a picked guest gets both email and name directly. The
-  result Intent grants temporary read access, so **no `READ_CONTACTS` permission**
-  — one-shot and user-driven, same no-permission mechanism as the location address
-  picker above. Self/organizer rows stay non-editable.
+- **Name on manual add — SHIPPED via a contact picker** (2026-06-22). The inline
+  field is email-only (the quick path); the add row also has a **"from contacts"
+  button**: `ACTION_PICK` on `ContactsContract.CommonDataKinds.Email.CONTENT_URI` →
+  the system Contacts app returns a URI to the picked email row, queried for
+  `Email.ADDRESS` **and** the contact `DISPLAY_NAME`, so a picked guest gets both
+  email and name in one tap. The result Intent grants temporary read access, so
+  **no `READ_CONTACTS` permission** — one-shot and user-driven, same no-permission
+  mechanism as the location address picker above. Self/organizer rows stay
+  non-editable.
 - **Invitation behavior — DECIDED 2026-06-22: record-only, all writable
   calendars.** Calendula has no INTERNET and never sends an invitation itself; it
   only writes `Attendees` rows. Whether a guest is notified is decided downstream:
