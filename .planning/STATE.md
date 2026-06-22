@@ -167,9 +167,10 @@ release-cut.
    detail screen since v0.6; the gap is the write side — make guests editable
    in `EventEditScreen` / `EventForm` (add by typed email, role, remove),
    persisted by diffing `CalendarContract.Attendees`. No new permission for the
-   typed-email path. **Resolve first:** the backend-specific invitation/sync
-   behavior (Google auto-mails invites, CalDAV writes `ATTENDEE`) — decide and
-   document the honest promise. Full sketch in `ROADMAP.md` → "Attendee editing".
+   typed-email path. **Invitation behavior DECIDED 2026-06-22: record-only on all
+   writable calendars** — Calendula never sends (no INTERNET); honest backend-aware
+   copy ("your account may email guests when it syncs" on synced calendars, "no one
+   is notified" on local). Full sketch in `ROADMAP.md` → "Attendee editing".
 3. Then: the two INTERNET go/no-go calls (OSM autocomplete, remote calendar
    create/edit) and Tier 2/3 leftovers (quick-settings tile, now-line, week
    numbers in month, full-text search, accessibility pass). Drag-and-drop

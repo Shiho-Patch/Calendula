@@ -490,12 +490,23 @@ detail screen (since v0.6) but the form can't write them. Make guests editable.
   the existing `WRITE_CALENDAR`. A contact-picker entry (`ACTION_PICK` on emails,
   one-shot, no READ_CONTACTS) can follow as a convenience, reusing the address-
   picker mechanism above.
-- **Sync-adapter caveat — decide before building:** writing `Attendees` rows
-  triggers backend-specific *invitation* behavior. Google's provider may auto-mail
-  invites; CalDAV/DAVx5 writes the `ATTENDEE` property and leaves delivery to the
-  server. Calendula sends nothing itself (no INTERNET), so what actually reaches a
-  guest depends entirely on the sync adapter. Settle and document the honest
-  promise (and any "your account may email this guest" copy) up front.
+- **Invitation behavior — DECIDED 2026-06-22: record-only, all writable
+  calendars.** Calendula has no INTERNET and never sends an invitation itself; it
+  only writes `Attendees` rows. Whether a guest is notified is decided downstream:
+  local calendars notify no one (no sync); CalDAV/DAVx5 PUTs the `ATTENDEE` lines
+  and the *server* decides iMIP delivery; Google's sync adapter pushes the change
+  and Google decides (third-party attendee writes are historically unreliable
+  there). Editing is allowed on **any writable calendar** — not gated to local.
+  - **Honest, backend-aware copy is mandatory** (this is the whole point of the
+    decision): on a synced calendar show "Calendula doesn't send invitations —
+    your calendar account may email guests when it syncs"; on a local calendar
+    show "Stored on this device. No one is notified."
+  - Calendula must **not fabricate an ORGANIZER** or otherwise fake scheduling
+    state to coax a send — it writes the guest list faithfully and leaves
+    scheduling entirely to the backend.
+  - The optional "send an .ics invite via your email app" delegate (`ACTION_SEND`,
+    still no INTERNET) was considered and **deferred** — revisit only if users ask
+    to notify guests explicitly.
 - **Out of scope (for now):** RSVP/your-own-response editing, free/busy lookups,
   resource booking — all carry server round-trips or richer sync semantics.
 
