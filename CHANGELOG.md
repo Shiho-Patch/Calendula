@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Snooze and dismiss buttons on reminder notifications. Dismiss clears the
+  reminder; snooze hides it and brings it back after a delay you pick in
+  Settings → Notifications (5 to 60 minutes, default 10). Android's calendar
+  system won't re-post a reminder on its own, so Calendula schedules an exact
+  alarm to bring a snoozed one back on time.
+
 ## [2.7.5] — 2026-06-21
 
 ### Changed
