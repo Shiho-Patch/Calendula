@@ -1,17 +1,27 @@
 # Calendula — Current State
 
-*Last updated: 2026-06-17*
+*Last updated: 2026-06-22*
 
 ## Status
 
-**Milestone:** 2 (write support) **complete** — v2.0.0 shipped 2026-06-11;
-v2.1.0 (month event grid, drawer view tabs, cursor fix) shipped 2026-06-15.
-**Phase:** post-2.1 backlog work. v2.2.0 (tap-to-create in day/week + local
-calendar management) and v2.3.0 (Material 3 grouped-list redesign of Settings,
-the calendar manager and the navigation drawer) both shipped 2026-06-16;
-v2.4.0 (per-event colors) and v2.5.0 (jump-to-date, Agenda view, home-screen
-agenda + month widgets, and a "New event" launcher shortcut) shipped
-2026-06-17. The backlog is now organised by theme in `ROADMAP.md`.
+**Milestone:** 2 (write support) **complete** — v2.0.0 shipped 2026-06-11.
+**Phase:** post-2.x theme-based backlog work (organised in `ROADMAP.md`).
+**Latest released tag: v2.7.5.** The whole Tier 4 (reliability/data-safety/
+interop) arc is now done or in flight:
+- v2.4.0 per-event colors (2026-06-17)
+- v2.5.0 jump-to-date, Agenda view, agenda + month home-screen widgets, "New
+  event" launcher shortcut (2026-06-17)
+- v2.6.0 default reminders (global + per-calendar override, all-day default,
+  battery-exemption row) + system per-app language (2026-06-18)
+- v2.7.0 **`.ics` engine** — single-event share, local-calendar backup export,
+  open/receive `.ics` (single → form, many → bulk import, dedup by UID)
+  (2026-06-18)
+- v2.7.1–v2.7.5 — crash-reporting + F-Droid reproducible-build hardening + fixes
+
+**Next release `release/v2.8.0` (integration branch, not yet cut to main):**
+holds crash reports via the public Codeberg tracker (MR !27) + reminder
+snooze/dismiss notification actions (MR !28). Version bump to 2.8.0 happens at
+release-cut.
 
 ## Progress
 
@@ -120,11 +130,47 @@ agenda + month widgets, and a "New event" launcher shortcut) shipped
   sync" warning on the picker and in Settings. Color writes flow through
   insert / dirty-checked update / occurrence-exception; mapper + form tests.
 
+- [x] v2.5 (shipped 2026-06-17) — Agenda view (4th top-level view),
+  jump-to-date drawer date picker, two home-screen widgets (scrolling
+  "Upcoming" agenda + month grid), and a "New event" launcher long-press
+  shortcut
+
+- [x] v2.6 (shipped 2026-06-18) — default reminders: global timed default +
+  separate all-day default + per-calendar override (timed), applied on create
+  with dirty-flag handling; three pickers + override list in Settings →
+  Notifications; battery-optimisation exemption row (status + system deep-link,
+  no new permission). Plus system per-app language (Android 13+) and an
+  immediate-effect fix for the in-app language picker
+
+- [x] v2.7 (shipped 2026-06-18) — the `.ics` engine: share a single event as
+  `.ics` from the detail screen; back up local calendars (Settings → Calendars
+  → Export) to a SAF file; open/receive an `.ics` — one event prefills the
+  create form, many events open a bulk import into a chosen calendar (dedup by
+  UID, skip-and-report unrepresentable VTIMEZONE / RECURRENCE-ID / guests).
+  Hand-rolled serializer/parser, zero deps. Plus all-day single-day UTC fix and
+  a widget R8 keep-rule crash fix
+
+- [x] v2.7.1–v2.7.5 (2026-06-21) — launch crash fix (listener before grant),
+  user-controlled crash reporting, widget loading-spinner R8 keep rule, and
+  F-Droid reproducible-build cleanups for the official repo
+
+- [~] release/v2.8.0 (not yet cut) — crash reports via the public Codeberg
+  tracker (MR !27) + reminder snooze/dismiss notification actions (MR !28,
+  snooze self-schedules an exact alarm; primary delivery stays provider-broadcast)
+
 ## Next
 
-1. Monitor the F-Droid build/publish for the v2.4.0 tag
-2. Decide the "Locations & People" and "remote calendar create/edit"
-   go/no-go calls (both hinge on the INTERNET permission) — see `ROADMAP.md`
-3. **Duplicate event** and **jump-to-date** are the cheap follow-ups; then
-   agenda view (strategic, backs a future widget). Full ranked sequence in
-   `ROADMAP.md` → "Near-term sequence".
+1. Cut **v2.8.0** from `release/v2.8.0` (bump versionName → tag via the
+   merge-driven pipeline) once on-device review signs off
+2. **Attendee editing** — the committed next feature (Tier 5 #12, high-
+   importance, opened 2026-06-22). Attendees are already read & shown on the
+   detail screen since v0.6; the gap is the write side — make guests editable
+   in `EventEditScreen` / `EventForm` (add by typed email, role, remove),
+   persisted by diffing `CalendarContract.Attendees`. No new permission for the
+   typed-email path. **Resolve first:** the backend-specific invitation/sync
+   behavior (Google auto-mails invites, CalDAV writes `ATTENDEE`) — decide and
+   document the honest promise. Full sketch in `ROADMAP.md` → "Attendee editing".
+3. Then: the two INTERNET go/no-go calls (OSM autocomplete, remote calendar
+   create/edit) and Tier 2/3 leftovers (quick-settings tile, now-line, week
+   numbers in month, full-text search, accessibility pass). Drag-and-drop
+   rescheduling is **rejected**.
