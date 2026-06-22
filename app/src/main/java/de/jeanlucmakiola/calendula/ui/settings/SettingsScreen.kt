@@ -80,7 +80,7 @@ import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
-import de.jeanlucmakiola.calendula.ui.crash.reportIssueByEmail
+import de.jeanlucmakiola.calendula.ui.crash.openIssueTracker
 import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
@@ -209,10 +209,10 @@ private fun SettingsHub(
 }
 
 /**
- * Composes a problem-report email. If a crash report was captured (and not yet
- * sent), it surfaces that report first via the same dialog the next-launch
- * prompt uses; otherwise it opens a blank report email. No data leaves the
- * device until the user sends the mail themselves.
+ * Opens the project's issue tracker to report a problem. If a crash report was
+ * captured (and not yet sent), it surfaces that report first via the same
+ * dialog the next-launch prompt uses; otherwise it opens the issue template
+ * chooser. No data leaves the device until the user submits the issue.
  */
 @Composable
 private fun ReportProblemRow(position: Position) {
@@ -226,7 +226,7 @@ private fun ReportProblemRow(position: Position) {
         leading = { CategoryIcon(Icons.Default.BugReport, ChipAccent.Neutral) },
         onClick = {
             val pending = CrashReporter.pendingReport(context)
-            if (pending != null) report = pending else reportIssueByEmail(context)
+            if (pending != null) report = pending else openIssueTracker(context)
         },
     )
 

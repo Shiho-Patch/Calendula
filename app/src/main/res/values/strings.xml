@@ -280,7 +280,7 @@
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_logo_desc">Calendula app icon</string>
     <string name="settings_report_problem">Report a problem</string>
-    <string name="settings_report_problem_hint">Send a crash report or feedback by email</string>
+    <string name="settings_report_problem_hint">Send a crash report or open the issue tracker</string>
 
     <!-- Calendar manager -->
     <string name="calendars_title">Calendars</string>
@@ -351,10 +351,10 @@
     <string name="crash_dialog_dismiss">Not now</string>
     <string name="crash_report_issue_title">Crash report</string>
     <string name="crash_report_clip_label">Calendula crash report</string>
-    <string name="crash_report_copied">Report copied — opening your email app</string>
-    <string name="crash_report_open_failed">No email app found. The report is on your clipboard.</string>
-    <string name="crash_report_body_template">Thanks for reporting a crash in Calendula. Please add anything you remember about what you were doing, then send.\n\n### What happened\n\n\n### Crash report\n%1$s\n</string>
-    <string name="report_issue_email" translatable="false">mail@jeanlucmakiola.de</string>
-    <string name="report_issue_subject">Calendula — problem report</string>
-    <string name="report_issue_body_template">Please describe the problem you ran into, and what you were doing when it happened.\n\n</string>
+    <string name="crash_report_copied">Report copied to your clipboard</string>
+    <string name="crash_report_open_failed">Couldn\'t open the issue tracker. The report is on your clipboard.</string>
+    <string name="crash_report_body_template">Thanks for reporting a crash in Calendula. Please add anything you remember about what you were doing, then submit.\n\n### What happened\n\n\n### Crash report\n%1$s\n</string>
+    <string name="crash_report_body_paste">_(The report was too long for this link — paste it from your clipboard here.)_</string>
+    <string name="report_issue_url" translatable="false">https://codeberg.org/jlmakiola/calendula/issues/new</string>
+    <string name="report_issue_choose_url" translatable="false">https://codeberg.org/jlmakiola/calendula/issues/new/choose</string>
 </resources>
