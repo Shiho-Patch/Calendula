@@ -77,6 +77,14 @@
     <string name="event_edit_add">Hinzufügen</string>
     <string name="event_edit_add_reminder">Erinnerung hinzufügen</string>
     <string name="event_edit_remove_reminder">Erinnerung entfernen</string>
+    <string name="event_edit_attendees">Gäste</string>
+    <string name="event_edit_add_guest">Gast hinzufügen</string>
+    <string name="event_edit_add_guest_hint">Gast per E-Mail hinzufügen…</string>
+    <string name="event_edit_remove_guest">Gast entfernen</string>
+    <string name="event_edit_attendee_required">Erforderlich</string>
+    <string name="event_edit_attendee_optional">Optional</string>
+    <string name="event_edit_attendees_note_synced">Calendula versendet keine Einladungen. Dein Kalenderkonto sendet Gästen bei der Synchronisierung unter Umständen eine E-Mail.</string>
+    <string name="event_edit_attendees_note_local">Auf diesem Gerät gespeichert. Niemand wird benachrichtigt.</string>
     <string name="event_edit_reminder_custom">Benutzerdefiniert</string>
     <string name="reminder_unit_minutes">Minuten</string>
     <string name="reminder_unit_hours">Stunden</string>
