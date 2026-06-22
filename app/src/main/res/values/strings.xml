@@ -355,6 +355,6 @@
     <string name="crash_report_open_failed">Couldn\'t open the issue tracker. The report is on your clipboard.</string>
     <string name="crash_report_body_template">Thanks for reporting a crash in Calendula. Please add anything you remember about what you were doing, then submit.\n\n### What happened\n\n\n### Crash report\n%1$s\n</string>
     <string name="crash_report_body_paste">_(The report was too long for this link — paste it from your clipboard here.)_</string>
-    <string name="report_issue_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula/issues/new</string>
-    <string name="report_issue_choose_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula/issues/new/choose</string>
+    <string name="report_issue_url" translatable="false">https://codeberg.org/jlmakiola/calendula/issues/new</string>
+    <string name="report_issue_choose_url" translatable="false">https://codeberg.org/jlmakiola/calendula/issues/new/choose</string>
 </resources>
