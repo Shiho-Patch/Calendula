@@ -59,8 +59,11 @@ class SettingsViewModel @Inject constructor(
                 prefs.defaultReminderMinutes,
                 prefs.defaultAllDayReminderMinutes,
                 prefs.allDayReminderTimeMinutes,
-            ) { allowColor, defaultReminder, allDayReminder, allDayReminderTime ->
-                ReminderDefaults(allowColor, defaultReminder, allDayReminder, allDayReminderTime)
+                prefs.snoozeMinutes,
+            ) { allowColor, defaultReminder, allDayReminder, allDayReminderTime, snooze ->
+                ReminderDefaults(
+                    allowColor, defaultReminder, allDayReminder, allDayReminderTime, snooze,
+                )
             },
             combine(
                 prefs.perCalendarReminderOverride,
@@ -75,6 +78,7 @@ class SettingsViewModel @Inject constructor(
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
                 allDayReminderTimeMinutes = defaults.allDayReminderTime,
+                snoozeMinutes = defaults.snoozeMinutes,
                 perCalendarReminderOverride = overrides.timed,
                 perCalendarAllDayReminderOverride = overrides.allDay,
                 writableCalendars = overrides.calendars,
@@ -90,6 +94,7 @@ class SettingsViewModel @Inject constructor(
         val defaultReminder: Int?,
         val allDayReminder: Int?,
         val allDayReminderTime: Int,
+        val snoozeMinutes: Int,
     )
 
     private data class ReminderOverrides(
@@ -128,6 +133,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setAllDayReminderTimeMinutes(minutesOfDay: Int) {
         viewModelScope.launch { prefs.setAllDayReminderTimeMinutes(minutesOfDay) }
+    }
+
+    fun setSnoozeMinutes(minutes: Int) {
+        viewModelScope.launch { prefs.setSnoozeMinutes(minutes) }
     }
 
     fun setCalendarReminderOverride(calendarId: Long, override: CalendarReminderOverride) {

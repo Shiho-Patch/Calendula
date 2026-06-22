@@ -177,6 +177,15 @@
         <item quantity="one">%d Woche vorher</item>
         <item quantity="other">%d Wochen vorher</item>
     </plurals>
+    <!-- Reine Zeitdauern (ohne „vorher"), z. B. die Schlummerdauer. -->
+    <plurals name="duration_minutes">
+        <item quantity="one">%d Minute</item>
+        <item quantity="other">%d Minuten</item>
+    </plurals>
+    <plurals name="duration_hours">
+        <item quantity="one">%d Stunde</item>
+        <item quantity="other">%d Stunden</item>
+    </plurals>
 
     <!-- Geteilte Event-Strings -->
     <string name="event_untitled">(Ohne Titel)</string>
@@ -194,6 +203,8 @@
     <string name="reminder_benefit_reversible_body">Der Schalter liegt in den Einstellungen unter Benachrichtigungen.</string>
     <string name="reminder_onboarding_enable_button">Erinnerungen einschalten</string>
     <string name="reminder_onboarding_skip_button">Später</string>
+    <string name="reminder_action_snooze">Schlummern</string>
+    <string name="reminder_action_dismiss">Verwerfen</string>
 
     <!-- View-Switcher (M1) -->
     <string name="view_month">Monat</string>
@@ -265,6 +276,7 @@
     <string name="settings_reliable_delivery">Zuverlässige Zustellung</string>
     <string name="settings_reliable_delivery_hint">Android verzögert Erinnerungen womöglich, um Akku zu sparen. Nimm Calendula aus, damit sie pünktlich ankommen.</string>
     <string name="settings_reliable_delivery_exempt">Von der Akku-Optimierung ausgenommen — Erinnerungen kommen pünktlich.</string>
+    <string name="settings_snooze_duration">Schlummerdauer</string>
     <string name="settings_section_calendars">Kalender</string>
     <string name="settings_manage_calendars">Kalender verwalten</string>
     <string name="settings_manage_calendars_hint">Lokale Kalender anlegen, synchronisierte verwalten</string>

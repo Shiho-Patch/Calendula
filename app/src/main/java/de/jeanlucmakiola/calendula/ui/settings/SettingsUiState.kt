@@ -30,6 +30,8 @@ data class SettingsUiState(
     val defaultAllDayReminderMinutes: Int? = null,
     /** Wall-clock time (minutes from midnight) all-day reminders fire at; default 09:00. */
     val allDayReminderTimeMinutes: Int = SettingsPrefs.DEFAULT_ALLDAY_REMINDER_TIME,
+    /** How long the notification "Snooze" action defers a reminder; default 10 min. */
+    val snoozeMinutes: Int = SettingsPrefs.DEFAULT_SNOOZE_MINUTES,
     /**
      * Per-calendar overrides of [defaultReminderMinutes] for timed events: a
      * calendar present in the map overrides the global default (null value = no

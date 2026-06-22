@@ -63,6 +63,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -546,6 +547,7 @@ private fun NotificationsScreen(
     var showDefaultReminder by remember { mutableStateOf(false) }
     var showAllDayReminder by remember { mutableStateOf(false) }
     var showAllDayReminderTime by remember { mutableStateOf(false) }
+    var showSnooze by remember { mutableStateOf(false) }
     var overrideDialog by remember { mutableStateOf<OverrideTarget?>(null) }
     var expandedCalendars by remember { mutableStateOf(emptySet<Long>()) }
 
@@ -666,8 +668,27 @@ private fun NotificationsScreen(
             },
             onClick = { openBatteryOptimizationSettings(context) },
         )
+
+        // Snooze: how long the notification's "Snooze" action defers a reminder.
+        Spacer(Modifier.height(24.dp))
+        GroupedRow(
+            title = stringResource(R.string.settings_snooze_duration),
+            summary = snoozeDurationLabel(state.snoozeMinutes),
+            position = Position.Alone,
+            onClick = { showSnooze = true },
+        )
     }
 
+    if (showSnooze) {
+        OptionPicker(
+            title = stringResource(R.string.settings_snooze_duration),
+            options = SNOOZE_PRESETS,
+            selected = state.snoozeMinutes,
+            label = { snoozeDurationLabel(it) },
+            onSelect = { viewModel.setSnoozeMinutes(it) },
+            onDismiss = { showSnooze = false },
+        )
+    }
     if (showDefaultReminder) {
         ReminderDefaultPicker(
             title = stringResource(R.string.settings_default_reminder),
@@ -791,6 +812,18 @@ private fun openBatteryOptimizationSettings(context: Context) {
  * before midnight" reminder on an all-day event is rarely what's wanted.
  */
 private val ALLDAY_REMINDER_PRESETS = listOf(0, 1_440, 2_880, 10_080)
+
+/** Snooze delays offered for the notification "Snooze" action, in minutes. */
+private val SNOOZE_PRESETS = listOf(5, 10, 15, 30, 60)
+
+/** A snooze delay as a plain duration ("10 minutes", "1 hour") — no "before". */
+@Composable
+private fun snoozeDurationLabel(minutes: Int): String =
+    if (minutes % 60 == 0) {
+        pluralStringResource(R.plurals.duration_hours, minutes / 60, minutes / 60)
+    } else {
+        pluralStringResource(R.plurals.duration_minutes, minutes, minutes)
+    }
 
 /** A minute-of-day formatted in the device's 12/24-hour convention (e.g. "09:00"). */
 private fun formatTimeOfDay(context: Context, minutesOfDay: Int): String {

@@ -178,6 +178,15 @@
         <item quantity="one">%d week before</item>
         <item quantity="other">%d weeks before</item>
     </plurals>
+    <!-- Plain durations (no "before"), e.g. the snooze delay. -->
+    <plurals name="duration_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="duration_hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
 
     <!-- Shared event strings -->
     <string name="event_untitled">(No title)</string>
@@ -195,6 +204,8 @@
     <string name="reminder_benefit_reversible_body">The switch lives in Settings, under Notifications.</string>
     <string name="reminder_onboarding_enable_button">Turn on reminders</string>
     <string name="reminder_onboarding_skip_button">Not now</string>
+    <string name="reminder_action_snooze">Snooze</string>
+    <string name="reminder_action_dismiss">Dismiss</string>
 
     <!-- View switcher (M1) -->
     <string name="view_month">Month</string>
@@ -262,6 +273,7 @@
     <string name="settings_reliable_delivery">Reliable delivery</string>
     <string name="settings_reliable_delivery_hint">Android may delay reminders to save battery. Exempt Calendula so they arrive on time.</string>
     <string name="settings_reliable_delivery_exempt">Exempt from battery optimisation — reminders arrive on time.</string>
+    <string name="settings_snooze_duration">Snooze duration</string>
     <string name="settings_section_calendars">Calendars</string>
     <string name="settings_manage_calendars">Manage calendars</string>
     <string name="settings_manage_calendars_hint">Create local calendars; manage synced ones</string>
