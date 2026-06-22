@@ -480,16 +480,25 @@ detail screen (since v0.6) but the form can't write them. Make guests editable.
   enums, `queryAttendees` + `EventDetailMapper.toAttendee` (with tests), and the
   attendees `DetailCard` + `AttendeeRow` in `EventDetailScreen`. Nothing to add
   there.
-- **Write side (new):** add `attendees` to `EventForm` and an attendees section
-  to `EventEditScreen` — add a guest by typed email (+ optional display name),
-  remove rows, set role (required / optional). Persist by diffing against the
-  provider's `CalendarContract.Attendees` rows on insert + dirty-checked update,
-  mirroring the reminders-diff (kept rows keep their fields). Organizer/self rows
-  are not user-editable.
-- **No new permission for the typed-email path** — writing `Attendees` needs only
-  the existing `WRITE_CALENDAR`. A contact-picker entry (`ACTION_PICK` on emails,
-  one-shot, no READ_CONTACTS) can follow as a convenience, reusing the address-
-  picker mechanism above.
+- **Write side — SHIPPED (`feat/attendee-editing`, commit b0f34ff, 2026-06-22):**
+  `attendees` on `EventForm`; a Guests section in `EventEditScreen` rendered as an
+  inline grouped list — each guest a tonal card (avatar, name/email, tappable
+  Required/Optional role chip, remove), the trailing card an inline email field
+  (type → Done commits). Persisted by `reconcileAttendees` diffing the provider's
+  `CalendarContract.Attendees` rows on insert + dirty-checked update (new guests =
+  `RELATIONSHIP_ATTENDEE` / `STATUS_INVITED`; kept rows keep their status, only the
+  required/optional type updates; organizer/resource/no-email rows untouched).
+  Reminders restyled to the same grouped-list pattern in passing. Needs only the
+  existing `WRITE_CALENDAR` — no new permission.
+- **Name on manual add — solved next via a contact picker.** The inline field is
+  email-only (the quick path); names otherwise come from sync. The planned fix is
+  a **"from contacts" entry**: `ACTION_PICK` on
+  `ContactsContract.CommonDataKinds.Email.CONTENT_URI` → the system Contacts app
+  returns a URI to the picked email row, queried for `Email.ADDRESS` **and** the
+  contact `DISPLAY_NAME`, so a picked guest gets both email and name directly. The
+  result Intent grants temporary read access, so **no `READ_CONTACTS` permission**
+  — one-shot and user-driven, same no-permission mechanism as the location address
+  picker above. Self/organizer rows stay non-editable.
 - **Invitation behavior — DECIDED 2026-06-22: record-only, all writable
   calendars.** Calendula has no INTERNET and never sends an invitation itself; it
   only writes `Attendees` rows. Whether a guest is notified is decided downstream:
