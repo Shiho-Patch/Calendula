@@ -1,23 +1,64 @@
 #!/usr/bin/env bash
-# Reproducibility guard for the official F-Droid repo.
+# Reproducibility guard for the official F-Droid repo (de.jeanlucmakiola.calendula).
 #
-# F-Droid only republishes OUR signed binary if a from-source build reproduces
-# it byte-for-byte. AGP's VCS-info injection writes
-# META-INF/version-control-info.textproto with build-environment git metadata
-# (commit hash / path) — env-dependent, and the one thing that broke
-# reproducibility before we disabled it. It MUST stay off on the release build,
-# or new versions silently stop publishing to the official repo (fails safe, but
-# you'd be stuck on an old version without noticing). Fail loudly if it regresses.
+# F-Droid only republishes OUR signed binary if a from-source build reproduces it
+# byte-for-byte and the binary carries no extra signing blocks. If any invariant
+# below regresses, the official repo silently stalls on the last good version
+# (fails safe — but you'd be stuck on an old release without noticing). So fail
+# loudly here, on every PR.
+#
+# Each invariant was learned from a real fdroiddata CI rejection (see
+# docs/fdroid-official/ and the v2.7.3 -> v2.7.5 history):
+#   1. vcsInfo { include = false }          — else AGP embeds env-dependent git
+#      metadata (META-INF/version-control-info.textproto) -> not reproducible.
+#   2. no foojay toolchain resolver         — F-Droid's offline source scanner
+#      rejects org.gradle.toolchains.foojay-resolver (it can fetch a JDK over
+#      the network at build time).
+#   3. dependenciesInfo { includeInApk = false } — else AGP embeds a "Dependency
+#      metadata" block (id 0x504b4453) in the APK Signing Block, which F-Droid's
+#      binary scanner rejects as an extra signing block.
 set -euo pipefail
-F="app/build.gradle.kts"
 
-# Match `vcsInfo { ... include = false ... }` within the block, tolerant of
-# whitespace/newlines (-z: whole file as one record; [^}] stays inside the block).
-if grep -Pzoq 'vcsInfo\s*\{[^}]*include\s*=\s*false' "$F"; then
-  echo "OK: release build disables AGP VCS-info — stays reproducible for F-Droid."
+APP="app/build.gradle.kts"
+SETTINGS="settings.gradle.kts"
+fail=0
+
+# 1. AGP VCS-info must be disabled on the release build. -z reads the whole file
+#    as one record so the match can span newlines; [^}] keeps it inside the block.
+if grep -Pzoq 'vcsInfo\s*\{[^}]*include\s*=\s*false' "$APP"; then
+  echo "OK: vcsInfo { include = false } — no env-dependent VCS metadata embedded."
 else
-  echo "ERROR: '$F' release build is missing 'vcsInfo { include = false }'." >&2
-  echo "AGP would embed env-dependent git metadata (version-control-info.textproto)," >&2
-  echo "breaking F-Droid reproducible builds. Restore it. See docs/fdroid-official/." >&2
+  echo "ERROR: '$APP' release build is missing 'vcsInfo { include = false }'." >&2
+  echo "       AGP would embed version-control-info.textproto, breaking reproducibility." >&2
+  fail=1
+fi
+
+# 2. The foojay toolchain resolver must not be present in any Gradle script.
+gradle_files=("$SETTINGS" "$APP")
+[ -f build.gradle.kts ] && gradle_files+=(build.gradle.kts)
+if grep -qi 'foojay' "${gradle_files[@]}"; then
+  echo "ERROR: foojay toolchain resolver found in: $(grep -li foojay "${gradle_files[@]}" | tr '\n' ' ')" >&2
+  echo "       F-Droid's source scanner rejects org.gradle.toolchains.foojay-resolver" >&2
+  echo "       (it can fetch a JDK over the network). Remove the plugin." >&2
+  fail=1
+else
+  echo "OK: no foojay toolchain resolver — offline build scanner stays happy."
+fi
+
+# 3. AGP dependency-metadata block must not be embedded in the APK.
+if grep -Pzoq 'dependenciesInfo\s*\{[^}]*includeInApk\s*=\s*false' "$APP"; then
+  echo "OK: dependenciesInfo { includeInApk = false } — no extra APK signing block."
+else
+  echo "ERROR: '$APP' is missing 'dependenciesInfo { includeInApk = false }'." >&2
+  echo "       AGP would embed a 'Dependency metadata' block (0x504b4453) in the APK" >&2
+  echo "       Signing Block, which F-Droid's binary scanner rejects." >&2
+  fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo >&2
+  echo "Reproducible-release invariant(s) violated — official F-Droid publishing would" >&2
+  echo "stall. Fix the above before merging. See docs/fdroid-official/." >&2
   exit 1
 fi
+echo "All reproducible-release invariants hold."
