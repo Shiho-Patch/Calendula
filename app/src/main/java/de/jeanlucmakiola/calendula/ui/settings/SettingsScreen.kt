@@ -905,6 +905,7 @@ private fun formFieldLabel(field: EventFormField): Int = when (field) {
     EventFormField.Availability -> R.string.event_edit_availability
     EventFormField.Visibility -> R.string.event_edit_visibility
     EventFormField.Color -> R.string.event_edit_color
+    EventFormField.Attendees -> R.string.event_edit_attendees
 }
 
 @Composable

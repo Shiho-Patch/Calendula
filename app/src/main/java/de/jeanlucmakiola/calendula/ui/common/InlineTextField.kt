@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -12,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -36,6 +38,9 @@ fun InlineTextField(
     minLines: Int = 1,
     keyboardType: KeyboardType = KeyboardType.Text,
     capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
+    imeAction: ImeAction = ImeAction.Default,
+    /** Invoked when the IME action key (e.g. Done) is pressed. */
+    onImeAction: (() -> Unit)? = null,
 ) {
     val resolvedStyle = textStyle.copy(
         color = if (textStyle.color.isSpecified) {
@@ -53,7 +58,11 @@ fun InlineTextField(
         keyboardOptions = KeyboardOptions(
             keyboardType = keyboardType,
             capitalization = capitalization,
+            imeAction = imeAction,
         ),
+        keyboardActions = onImeAction?.let { action ->
+            KeyboardActions(onAny = { action() })
+        } ?: KeyboardActions.Default,
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         decorationBox = { innerTextField ->
             Box {

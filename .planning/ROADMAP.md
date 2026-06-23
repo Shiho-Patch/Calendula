@@ -236,22 +236,34 @@ pass on the existing controls; new toggles ride in with their own features.
 9. **Reminders — defaults + delivery reliability** *(shipped v2.6.0)* — global
    default reminder **+ per-calendar override**, bundled with battery-exemption
    hardening. Full sketch in "Reminders — defaults & delivery reliability" below.
-10. **The `.ics` engine — export + import** *(in progress → v2.7)* — one
+10. **The `.ics` engine — export + import** *(shipped v2.7.0, 2026-06-18)* — one
     hand-rolled serializer/parser (zero deps, stays on `kotlinx-datetime`),
-    four surfaces: single-event share + whole-calendar backup (export),
-    open-`.ics`→form + whole-calendar restore (import). Closes the
-    device-local-calendar data-loss gap (#10/#11 merged here). Built as **two
-    sequential branches in one release**: `feat/ics-export` (write side +
-    UID-on-create precursor) then `feat/ics-import` (parser, restore, dedup).
-    Import is liberal-in/strict-out: skip-and-report foreign `VTIMEZONE` /
-    `RECURRENCE-ID` it can't model. Timezone rule: all-day `VALUE=DATE`,
-    non-recurring timed UTC `Z`, recurring timed `TZID`-labelled from the stored
-    `EVENT_TIMEZONE` (no `VTIMEZONE` blocks; resolved against the OS tz DB on
-    import). Plan: `docs/superpowers/plans/2026-06-18-05-ics-export.md`.
-11. **Snooze / dismiss notification actions** *(next, after v2.7)* — follows the
-    `.ics` work; inherits v2.6's deferred exact-alarm/WorkManager decision (snooze
-    must re-fire an alarm).
-12. Drag & drop rescheduling in day/week — big-ticket, own slice (recurring drops reuse the scope dialog)
+    four surfaces all shipped: single-event share + whole-calendar backup
+    (export), open-`.ics`→form + whole-calendar bulk import (import). Closed the
+    device-local-calendar data-loss gap (#10/#11 merged here). Built as two
+    sequential branches: `feat/ics-export` (write side + UID-on-create precursor)
+    then `feat/ics-import` (parser, restore, dedup by UID). Import is
+    liberal-in/strict-out: skip-and-report foreign `VTIMEZONE` / `RECURRENCE-ID`
+    / guest lists it can't model. Plans:
+    `docs/superpowers/plans/2026-06-18-05-ics-export.md` + `…-06-ics-import.md`.
+11. **Snooze / dismiss notification actions** *(merged into release/v2.8.0)* —
+    followed the `.ics` work; inherits v2.6's deferred exact-alarm/WorkManager
+    decision (snooze must re-fire an alarm).
+
+**Tier 5 — close the read/write gap on the event model** *(opened 2026-06-22)*
+12. **Attendee editing** *(next — promoted from the gated "Locations & People"
+    bucket, owner says high-importance 2026-06-22)* — attendees are already
+    *read* (queried, mapped, shown on the detail screen since v0.6) but the
+    event form can't *write* them, the last big read-only gap in the event
+    model. Add an attendees section to `EventEditScreen` / `EventForm`: add by
+    typed email (contact-picker entry can follow later), edit/remove rows, set
+    role (required / optional) — writing `CalendarContract.Attendees` rows on
+    insert + dirty-checked update, mirroring the reminders-diff pattern.
+    **Caveat to resolve first:** writing `Attendees` rows triggers sync-adapter
+    *invitation* behavior that differs by backend (Google auto-emails invites;
+    DAVx5/CalDAV writes the `ATTENDEE` property and lets the server decide) —
+    decide and document what Calendula promises before building. Full sketch in
+    "Attendee editing" under Locations & People below.
 
 **Gated — explicit go/no-go before any work (mostly INTERNET-permission calls)**
 - Remote calendar create/edit (re-implements DAVx5; INTERNET + credential storage)
@@ -263,11 +275,13 @@ pass on the existing controls; new toggles ride in with their own features.
   2026-06-17; cheap but low value, pick up only if asked
 
 **Unranked / fill-in** — pinch-to-zoom time scale, tablet/foldable layouts,
-full-text search, ICS file import. Pulled in opportunistically, not sequenced.
+full-text search. Pulled in opportunistically, not sequenced.
 
-Debatable calls worth a second look: whether **local-calendar backup (#10)**
-should lead Tier 4 outright (it's a silent data-loss risk, not a feature);
-whether drag-drop (#12) jumps ahead given its daily-driver impact.
+Tier 4 is now fully shipped (#9 reminders defaults v2.6.0, #10 `.ics`
+export/import v2.7.0, #11 snooze/dismiss in release/v2.8.0; drag-drop rejected).
+**Next committed work is Tier 5 #12 — attendee editing** (the last read-only gap
+in the event model). After it: the theme-group ideas and Tier 2/3 leftovers
+(quick-settings tile, now-line, week numbers in month, full-text search).
 
 ## Navigation & views
 
@@ -288,8 +302,6 @@ whether drag-drop (#12) jumps ahead given its daily-driver impact.
 
 ## Event editing & creation
 
-- Drag & drop rescheduling in day/week (recurring drops reuse the scope
-  dialog) — big-ticket, own slice
 - Duplicate event (detail action → prefilled create form)
 - **Per-event color** (`Events.EVENT_COLOR`, OptionCard picker in the form)
   *(next)* — chosen to follow the in-progress tap-to-create + calendar
@@ -319,13 +331,11 @@ whether drag-drop (#12) jumps ahead given its daily-driver impact.
   go/no-go gate as the OSM/INTERNET item below.
 - Move event to another calendar (copy+delete model with a consequences
   warning — deferred from v2.0; `CALENDAR_ID` is sync-adapter-owned) *(was v3.0)*
-- **Local-calendar backup / export** *(Tier 4 #10)* — device-only
-  (`ACCOUNT_TYPE_LOCAL`) calendars are first-class in Calendula but have **no
-  sync and therefore no backup**: a lost/wiped phone destroys them permanently.
-  Whole-calendar `.ics` (VCALENDAR) export to a user-chosen file (SAF), plus
-  restore-on-import that recreates events into a chosen local calendar. Reuses
-  the .ics serializer from the single-event share work; the restore path reuses
-  the import parser. A data-integrity obligation, not a feature.
+- ~~**Local-calendar backup / export** *(Tier 4 #10)*~~ **shipped v2.7.0** —
+  device-only (`ACCOUNT_TYPE_LOCAL`) calendars had no sync and therefore no
+  backup. Settings → Calendars → Export writes every event to a user-chosen
+  `.ics` file (SAF); restore is the bulk-import path (pick a calendar, dedup by
+  UID). Closed the silent data-loss gap.
 
 ## Reminders — defaults & delivery reliability *(implemented 2026-06-17, `feat/default-reminders` — pending on-device review)*
 
@@ -419,9 +429,11 @@ it directly undermines the feature's premise, so it rides in here.
 
 ## Sharing & interop
 
-- Share event as .ics + open/receive .ics into a prefilled create form
-  (front-runs the import below)
-- ICS file import (drag-and-drop) *(was v3.0, optional)*
+- ~~Share event as .ics + open/receive .ics into a prefilled create form~~
+  **shipped v2.7.0** — single-event share from detail; opening an `.ics` with one
+  event prefills the create form, many events opens a bulk import (dedup by UID)
+- ~~ICS file import~~ **shipped v2.7.0** — covered by the open/receive `.ics`
+  flow above (single → form, many → bulk import)
 
 ## Platform & launchers
 
@@ -455,9 +467,57 @@ in detail yet:
   trade-off is an explicit go/no-go decision before any work starts.
 - **Inline contact suggestions** while typing (needs READ_CONTACTS) — only
   if the picker proves clunky.
-- **Attendee editing / invites from contacts** — own milestone; writing
-  `Attendees` rows touches sync-adapter invitation behavior (Google vs
-  DAVx5 differ).
+- **Attendee editing** *(promoted out of this gated bucket 2026-06-22 — now
+  Tier 5 #12, high-importance; the no-permission typed-email path is not an
+  INTERNET/contacts call)*. See the "Attendee editing" sketch below.
+
+### Attendee editing *(Tier 5 #12, opened 2026-06-22)*
+
+The last read-only gap in the event model: attendees are read & shown on the
+detail screen (since v0.6) but the form can't write them. Make guests editable.
+
+- **Read side already done:** `Attendee` domain model + status/relationship/type
+  enums, `queryAttendees` + `EventDetailMapper.toAttendee` (with tests), and the
+  attendees `DetailCard` + `AttendeeRow` in `EventDetailScreen`. Nothing to add
+  there.
+- **Write side — SHIPPED (`feat/attendee-editing`, commit b0f34ff, 2026-06-22):**
+  `attendees` on `EventForm`; a Guests section in `EventEditScreen` rendered as an
+  inline grouped list — each guest a tonal card (avatar, name/email, tappable
+  Required/Optional role chip, remove), the trailing card an inline email field
+  (type → Done commits). Persisted by `reconcileAttendees` diffing the provider's
+  `CalendarContract.Attendees` rows on insert + dirty-checked update (new guests =
+  `RELATIONSHIP_ATTENDEE` / `STATUS_INVITED`; kept rows keep their status, only the
+  required/optional type updates; organizer/resource/no-email rows untouched).
+  Reminders restyled to the same grouped-list pattern in passing. Needs only the
+  existing `WRITE_CALENDAR` — no new permission.
+- **Name on manual add — SHIPPED via a contact picker** (2026-06-22). The inline
+  field is email-only (the quick path); the add row also has a **"from contacts"
+  button**: `ACTION_PICK` on `ContactsContract.CommonDataKinds.Email.CONTENT_URI` →
+  the system Contacts app returns a URI to the picked email row, queried for
+  `Email.ADDRESS` **and** the contact `DISPLAY_NAME`, so a picked guest gets both
+  email and name in one tap. The result Intent grants temporary read access, so
+  **no `READ_CONTACTS` permission** — one-shot and user-driven, same no-permission
+  mechanism as the location address picker above. Self/organizer rows stay
+  non-editable.
+- **Invitation behavior — DECIDED 2026-06-22: record-only, all writable
+  calendars.** Calendula has no INTERNET and never sends an invitation itself; it
+  only writes `Attendees` rows. Whether a guest is notified is decided downstream:
+  local calendars notify no one (no sync); CalDAV/DAVx5 PUTs the `ATTENDEE` lines
+  and the *server* decides iMIP delivery; Google's sync adapter pushes the change
+  and Google decides (third-party attendee writes are historically unreliable
+  there). Editing is allowed on **any writable calendar** — not gated to local.
+  - **Honest, backend-aware copy is mandatory** (this is the whole point of the
+    decision): on a synced calendar show "Calendula doesn't send invitations —
+    your calendar account may email guests when it syncs"; on a local calendar
+    show "Stored on this device. No one is notified."
+  - Calendula must **not fabricate an ORGANIZER** or otherwise fake scheduling
+    state to coax a send — it writes the guest list faithfully and leaves
+    scheduling entirely to the backend.
+  - The optional "send an .ics invite via your email app" delegate (`ACTION_SEND`,
+    still no INTERNET) was considered and **deferred** — revisit only if users ask
+    to notify guests explicitly.
+- **Out of scope (for now):** RSVP/your-own-response editing, free/busy lookups,
+  resource booking — all carry server round-trips or richer sync semantics.
 
 ## Consciously rejected
 
@@ -465,3 +525,5 @@ in detail yet:
 - Natural-language quick entry (high effort, locale-fragile; the prefilled
   form already covers fast entry)
 - Quick-add sheet (the prefilled full form already covers it — cut in v2.0)
+- Drag & drop rescheduling in day/week — **rejected** (owner decision,
+  reaffirmed 2026-06-22): not wanted. Rescheduling stays via the edit form.

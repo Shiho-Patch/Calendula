@@ -211,12 +211,55 @@ class EventFormTest {
     }
 
     @Test
-    fun `changes the form cannot write do not fake a conflict`() {
+    fun `a reminder-method change the form cannot write does not fake a conflict`() {
+        // The form carries reminder minutes only, not the method — so a method
+        // flip the form can't express must not read as an external change.
+        val loaded = detail(reminders = listOf(Reminder(10, ReminderMethod.Alert)))
+            .toEditSnapshot(0L, 3_600_000L, berlin)
+        val fresh = detail(reminders = listOf(Reminder(10, ReminderMethod.Email)))
+            .toEditSnapshot(0L, 3_600_000L, berlin)
+        assertThat(fresh).isEqualTo(loaded)
+    }
+
+    @Test
+    fun `an external guest change now trips the conflict check`() {
+        // Attendees are writable now, so they ride in the snapshot: adding a
+        // guest externally is a real conflict, not invisible.
         val loaded = detail().toEditSnapshot(0L, 3_600_000L, berlin)
         val fresh = detail(
-            attendees = listOf(Attendee("Ada", "ada@example.org", AttendeeStatus.Accepted)),
+            attendees = listOf(Attendee("Ada", "ada@example.org", AttendeeStatus.NeedsAction)),
         ).toEditSnapshot(0L, 3_600_000L, berlin)
-        assertThat(fresh).isEqualTo(loaded)
+        assertThat(fresh).isNotEqualTo(loaded)
+    }
+
+    @Test
+    fun `toEditForm carries editable guests with name email and optional role`() {
+        val prefilled = detail(
+            attendees = listOf(
+                Attendee("Ada", "ada@example.org", AttendeeStatus.Accepted, type = AttendeeType.Required),
+                Attendee("", "bob@example.org", AttendeeStatus.NeedsAction, type = AttendeeType.Optional),
+            ),
+        ).toEditForm(beginMillis = 0L, endMillis = 3_600_000L, zone = berlin)
+        assertThat(prefilled.attendees).containsExactly(
+            EventAttendee(email = "ada@example.org", name = "Ada", optional = false),
+            EventAttendee(email = "bob@example.org", name = "", optional = true),
+        ).inOrder()
+        assertThat(prefilled.populatedFields()).contains(EventFormField.Attendees)
+    }
+
+    @Test
+    fun `toEditForm drops the organizer, resources and guests without an email`() {
+        val prefilled = detail(
+            attendees = listOf(
+                Attendee("Org", "org@example.org", AttendeeStatus.Accepted, AttendeeRelationship.Organizer),
+                Attendee("Room A", "room@example.org", AttendeeStatus.Accepted, type = AttendeeType.Resource),
+                Attendee("No address", null, AttendeeStatus.NeedsAction),
+                Attendee("Ada", "ada@example.org", AttendeeStatus.NeedsAction),
+            ),
+        ).toEditForm(beginMillis = 0L, endMillis = 3_600_000L, zone = berlin)
+        assertThat(prefilled.attendees).containsExactly(
+            EventAttendee(email = "ada@example.org", name = "Ada", optional = false),
+        )
     }
 
     @Test

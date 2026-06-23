@@ -590,10 +590,22 @@ private fun AttendeeRow(attendee: Attendee) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
+            val hasName = attendee.name.isNotBlank()
             Text(
-                text = attendee.name.ifBlank { attendee.email.orEmpty() },
+                text = if (hasName) attendee.name else attendee.email.orEmpty(),
                 style = MaterialTheme.typography.bodyMedium,
             )
+            // Email as supporting text — only when the name is the headline, so we
+            // don't repeat it on rows that already fall back to the email above.
+            if (hasName) {
+                attendee.email?.takeIf { it.isNotBlank() }?.let { email ->
+                    Text(
+                        text = email,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             attendeeRoleLabel(attendee)?.let { roleRes ->
                 Text(
                     text = stringResource(roleRes),
