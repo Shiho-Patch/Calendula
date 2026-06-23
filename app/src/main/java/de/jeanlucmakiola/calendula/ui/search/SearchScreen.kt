@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -78,8 +79,12 @@ fun SearchScreen(
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
 
-    // Open straight into typing — request focus and raise the keyboard once.
+    // Each fresh open starts blank and straight into typing. The ViewModel is
+    // activity-scoped so it outlives the overlay; clearing on (re)enter is what
+    // resets a previous search. Peeking a result doesn't re-run this (the screen
+    // stays composed under the detail), so backing out keeps the query.
     LaunchedEffect(Unit) {
+        viewModel.setQuery("")
         focusRequester.requestFocus()
         keyboard?.show()
     }
@@ -126,7 +131,15 @@ fun SearchScreen(
             )
         },
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+        // imePadding shrinks the content by the keyboard, so the centered
+        // idle/empty message re-centres in the space above it (and the results
+        // list lifts clear of the keyboard too).
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .imePadding(),
+        ) {
             when (val s = state) {
                 SearchUiState.Idle -> SearchMessage(
                     icon = null,
