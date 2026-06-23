@@ -26,6 +26,7 @@ import de.jeanlucmakiola.calendula.ui.detail.EventDetailScreen
 import de.jeanlucmakiola.calendula.ui.edit.EventEditScreen
 import de.jeanlucmakiola.calendula.ui.imports.ImportScreen
 import de.jeanlucmakiola.calendula.ui.month.MonthScreen
+import de.jeanlucmakiola.calendula.ui.search.SearchScreen
 import de.jeanlucmakiola.calendula.ui.settings.SettingsScreen
 import de.jeanlucmakiola.calendula.ui.week.WeekScreen
 import kotlinx.datetime.LocalDate
@@ -96,6 +97,12 @@ fun CalendarHost(
     // in the navigation drawer, so no overlay state is needed for it.)
     var showSettings by rememberSaveable { mutableStateOf(false) }
     val onOpenSettings = { showSettings = true }
+
+    // Full-text search — its own overlay, opened from each calendar screen's
+    // top bar. Sits below the detail/edit overlays so tapping a result reveals
+    // the detail on top and backing out returns to the results.
+    var showSearch by rememberSaveable { mutableStateOf(false) }
+    val onOpenSearch = { showSearch = true }
 
     // Calendar manager (reached from Settings) — its own overlay so it slides
     // over Settings and survives view switches.
@@ -189,6 +196,7 @@ fun CalendarHost(
                 onSelectView = onSelectView,
                 onEventClick = onEventClick,
                 onOpenSettings = onOpenSettings,
+                onOpenSearch = onOpenSearch,
                 onCreateEvent = onCreateEvent,
             )
             CalendarView.Day -> DayScreen(
@@ -196,6 +204,7 @@ fun CalendarHost(
                 onSelectView = onSelectView,
                 onEventClick = onEventClick,
                 onOpenSettings = onOpenSettings,
+                onOpenSearch = onOpenSearch,
                 onCreateEvent = onCreateEvent,
                 initialDateIso = pendingDayIso,
             )
@@ -204,6 +213,7 @@ fun CalendarHost(
                 onSelectView = onSelectView,
                 onOpenDay = onOpenDay,
                 onOpenSettings = onOpenSettings,
+                onOpenSearch = onOpenSearch,
                 onCreateEvent = onCreateEvent,
             )
             CalendarView.Agenda -> AgendaScreen(
@@ -211,7 +221,21 @@ fun CalendarHost(
                 onSelectView = onSelectView,
                 onEventClick = onEventClick,
                 onOpenSettings = onOpenSettings,
+                onOpenSearch = onOpenSearch,
                 onCreateEvent = onCreateEvent,
+            )
+        }
+
+        // Search overlay — below detail/edit in the Box so a tapped result's
+        // detail screen draws on top, and closing it returns to the results.
+        AnimatedVisibility(
+            visible = showSearch,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            SearchScreen(
+                onBack = { showSearch = false },
+                onEventClick = onEventClick,
             )
         }
 

@@ -17,6 +17,13 @@ interface CalendarRepository {
     suspend fun eventDetail(eventId: Long): EventDetail
 
     /**
+     * Events whose title, description or location contains [query], with hidden
+     * calendars removed and newest first. Empty when [query] is blank. Searches
+     * the whole history/future (see [CalendarDataSource.searchEvents]).
+     */
+    suspend fun searchEvents(query: String): List<EventInstance>
+
+    /**
      * The event-colour palette a calendar's account publishes; empty when it
      * exposes none (see [CalendarDataSource.eventColorPalette]).
      */

@@ -234,6 +234,14 @@
     <string name="agenda_empty_title">Nothing scheduled</string>
     <string name="agenda_empty_subtitle">Upcoming events will show up here.</string>
 
+    <!-- Event search -->
+    <string name="search_action">Search</string>
+    <string name="search_hint">Search events</string>
+    <string name="search_back">Back</string>
+    <string name="search_clear">Clear</string>
+    <string name="search_idle_hint">Search your events by title, location or notes.</string>
+    <string name="search_empty">No events match “%1$s”.</string>
+
     <!-- Home-screen widgets -->
     <string name="widget_agenda_title">Upcoming</string>
     <string name="widget_agenda_label">Calendula agenda</string>

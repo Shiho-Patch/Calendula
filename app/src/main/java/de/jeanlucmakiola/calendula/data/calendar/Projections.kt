@@ -139,6 +139,44 @@ internal object EventExportProjection {
     const val IDX_CALENDAR_ID = 13
 }
 
+/**
+ * Master/one-off Events rows matched by a full-text search. Like
+ * [EventExportProjection] it reads the Events table directly (so the search is
+ * unbounded in time), carrying DURATION for recurring rows that have no DTEND.
+ * Colour folds the calendar fallback like [InstanceProjection].
+ */
+internal object SearchProjection {
+    val COLUMNS: Array<String> = arrayOf(
+        CalendarContract.Events._ID,
+        CalendarContract.Events.CALENDAR_ID,
+        CalendarContract.Events.TITLE,
+        CalendarContract.Events.DTSTART,
+        CalendarContract.Events.DTEND,
+        CalendarContract.Events.DURATION,
+        CalendarContract.Events.ALL_DAY,
+        CalendarContract.Events.EVENT_COLOR,
+        CalendarContract.Events.CALENDAR_COLOR,
+        CalendarContract.Events.EVENT_LOCATION,
+        // Recurrence markers: a non-empty RRULE or RDATE means the result should
+        // display its nearest occurrence, not the series-start DTSTART.
+        CalendarContract.Events.RRULE,
+        CalendarContract.Events.RDATE,
+    )
+
+    const val IDX_ID = 0
+    const val IDX_CALENDAR_ID = 1
+    const val IDX_TITLE = 2
+    const val IDX_DTSTART = 3
+    const val IDX_DTEND = 4
+    const val IDX_DURATION = 5
+    const val IDX_ALL_DAY = 6
+    const val IDX_EVENT_COLOR = 7
+    const val IDX_CALENDAR_COLOR = 8
+    const val IDX_LOCATION = 9
+    const val IDX_RRULE = 10
+    const val IDX_RDATE = 11
+}
+
 internal object AttendeeProjection {
     val COLUMNS: Array<String> = arrayOf(
         CalendarContract.Attendees.ATTENDEE_NAME,

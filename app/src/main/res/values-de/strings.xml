@@ -233,6 +233,14 @@
     <string name="agenda_empty_title">Nichts geplant</string>
     <string name="agenda_empty_subtitle">Anstehende Termine erscheinen hier.</string>
 
+    <!-- Terminsuche -->
+    <string name="search_action">Suchen</string>
+    <string name="search_hint">Termine suchen</string>
+    <string name="search_back">Zurück</string>
+    <string name="search_clear">Löschen</string>
+    <string name="search_idle_hint">Durchsuche deine Termine nach Titel, Ort oder Notizen.</string>
+    <string name="search_empty">Keine Termine passen zu „%1$s“.</string>
+
     <!-- Startbildschirm-Widgets -->
     <string name="widget_agenda_title">Anstehend</string>
     <string name="widget_agenda_label">Calendula Agenda</string>
