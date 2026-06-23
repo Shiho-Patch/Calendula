@@ -16,6 +16,7 @@ internal class FakeCalendarDataSource : CalendarDataSource {
 
     var calendarsResult: List<CalendarSource> = emptyList()
     var instancesResult: (Long, Long) -> List<EventInstance> = { _, _ -> emptyList() }
+    var searchResult: (String) -> List<EventInstance> = { _ -> emptyList() }
     var eventDetailResult: (Long) -> EventDetail? = { null }
     var eventColorPaletteResult: (Long) -> List<EventColorOption> = { emptyList() }
     var exportableEventsResult: List<IcsEvent> = emptyList()
@@ -51,6 +52,7 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     override fun calendars(): List<CalendarSource> = calendarsResult
     override fun instances(beginMillis: Long, endMillis: Long): List<EventInstance> =
         instancesResult(beginMillis, endMillis)
+    override fun searchEvents(query: String): List<EventInstance> = searchResult(query)
     override fun eventDetail(eventId: Long): EventDetail? = eventDetailResult(eventId)
     override fun eventColorPalette(calendarId: Long): List<EventColorOption> =
         eventColorPaletteResult(calendarId)

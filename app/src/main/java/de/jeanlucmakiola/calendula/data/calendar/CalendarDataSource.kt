@@ -48,6 +48,14 @@ interface CalendarDataSource {
     fun eventDetail(eventId: Long): EventDetail?
 
     /**
+     * Master/one-off events whose title, description or location contains
+     * [query] (case-insensitive), across all calendars, newest first. Reads the
+     * Events table directly so the search is unbounded in time; exception rows
+     * are excluded (see [SearchProjection]). [query] is assumed non-blank.
+     */
+    fun searchEvents(query: String): List<EventInstance>
+
+    /**
      * The event-colour palette the calendar's account publishes
      * (`CalendarContract.Colors`, `TYPE_EVENT`), sorted by key. Empty when the
      * account exposes no palette (most local calendars, some CalDAV) — the
@@ -296,6 +304,32 @@ class AndroidCalendarDataSource @Inject constructor(
             null, null,
             CalendarContract.Instances.BEGIN + " ASC",
         )?.use { c -> c.mapAllNotNull { CursorColumnReader(c).toEventInstance() } } ?: emptyList()
+    }
+
+    override fun searchEvents(query: String): List<EventInstance> {
+        ensureObserversRegistered()
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return emptyList()
+        // Escape the SQL LIKE wildcards so a literal % or _ in the query matches
+        // itself instead of acting as a wildcard.
+        val escaped = trimmed
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        val like = "%$escaped%"
+        val match = "${CalendarContract.Events.TITLE} LIKE ? ESCAPE '\\' OR " +
+            "${CalendarContract.Events.DESCRIPTION} LIKE ? ESCAPE '\\' OR " +
+            "${CalendarContract.Events.EVENT_LOCATION} LIKE ? ESCAPE '\\'"
+        val selection = "($match) AND " +
+            "${CalendarContract.Events.DELETED} = 0 AND " +
+            "${CalendarContract.Events.ORIGINAL_ID} IS NULL"
+        return resolver.query(
+            CalendarContract.Events.CONTENT_URI,
+            SearchProjection.COLUMNS,
+            selection,
+            arrayOf(like, like, like),
+            CalendarContract.Events.DTSTART + " DESC",
+        )?.use { c -> c.mapAllNotNull { CursorColumnReader(c).toSearchResult() } } ?: emptyList()
     }
 
     override fun eventDetail(eventId: Long): EventDetail? {

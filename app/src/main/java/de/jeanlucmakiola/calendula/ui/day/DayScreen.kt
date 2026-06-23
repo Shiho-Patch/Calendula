@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DrawerValue
@@ -105,6 +106,7 @@ fun DayScreen(
     onSelectView: (CalendarView) -> Unit,
     onEventClick: (EventInstance) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenSearch: () -> Unit,
     onCreateEvent: (LocalDate, Int?) -> Unit,
     modifier: Modifier = Modifier,
     initialDateIso: String? = null,
@@ -188,6 +190,7 @@ fun DayScreen(
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next()) },
                     onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onOpenSearch = onOpenSearch,
                     scrollBehavior = scrollBehavior,
                 )
             },
@@ -340,6 +343,7 @@ private fun DayTopBar(
     selectedView: CalendarView,
     onCycleView: () -> Unit,
     onOpenDrawer: () -> Unit,
+    onOpenSearch: () -> Unit,
     scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
     TopAppBar(
@@ -358,6 +362,12 @@ private fun DayTopBar(
             }
         },
         actions = {
+            IconButton(onClick = onOpenSearch) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = stringResource(R.string.search_action),
+                )
+            }
             ViewSwitcherPill(
                 current = selectedView,
                 onCycle = onCycleView,
