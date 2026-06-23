@@ -15,6 +15,9 @@ import kotlin.time.Clock
  */
 class NewEventTileService : TileService() {
 
+    // The pre-34 branch intentionally uses the deprecated Intent overload: it is
+    // the only form available below UpsideDownCake, and is reached only there.
+    @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
     override fun onClick() {
         super.onClick()
         val today = Clock.System.now()
@@ -33,7 +36,6 @@ class NewEventTileService : TileService() {
                 )
                 startActivityAndCollapse(pending)
             } else {
-                @Suppress("DEPRECATION")
                 startActivityAndCollapse(intent)
             }
         }
