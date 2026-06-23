@@ -76,6 +76,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.NowLine
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
@@ -610,6 +611,7 @@ private fun Timeline(
                             blocks = state.timedByDay[day].orEmpty(),
                             dark = dark,
                             date = day,
+                            today = state.today,
                             onEventClick = onEventClick,
                             onCreateAt = onCreateAt,
                             modifier = Modifier
@@ -628,6 +630,7 @@ private fun DayColumnCard(
     blocks: List<TimedBlock>,
     dark: Boolean,
     date: LocalDate,
+    today: LocalDate,
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
     modifier: Modifier = Modifier,
@@ -670,6 +673,10 @@ private fun DayColumnCard(
                         .height(height)
                         .padding(horizontal = 1.dp),
                 )
+            }
+            // Current-time line, on top of the events, only on today's column.
+            if (date == today) {
+                NowLine(date = date, hourHeight = HOUR_HEIGHT)
             }
         }
     }
