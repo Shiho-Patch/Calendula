@@ -157,6 +157,10 @@ internal object SearchProjection {
         CalendarContract.Events.EVENT_COLOR,
         CalendarContract.Events.CALENDAR_COLOR,
         CalendarContract.Events.EVENT_LOCATION,
+        // Recurrence markers: a non-empty RRULE or RDATE means the result should
+        // display its nearest occurrence, not the series-start DTSTART.
+        CalendarContract.Events.RRULE,
+        CalendarContract.Events.RDATE,
     )
 
     const val IDX_ID = 0
@@ -169,6 +173,8 @@ internal object SearchProjection {
     const val IDX_EVENT_COLOR = 7
     const val IDX_CALENDAR_COLOR = 8
     const val IDX_LOCATION = 9
+    const val IDX_RRULE = 10
+    const val IDX_RDATE = 11
 }
 
 internal object AttendeeProjection {

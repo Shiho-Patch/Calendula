@@ -329,7 +329,64 @@ class AndroidCalendarDataSource @Inject constructor(
             selection,
             arrayOf(like, like, like),
             CalendarContract.Events.DTSTART + " DESC",
-        )?.use { c -> c.mapAllNotNull { CursorColumnReader(c).toSearchResult() } } ?: emptyList()
+        )?.use { c ->
+            val reader = CursorColumnReader(c)
+            val out = ArrayList<EventInstance>(c.count)
+            while (c.moveToNext()) {
+                val base = reader.toSearchResult() ?: continue
+                // A recurring master's DTSTART is the series start; show its
+                // nearest occurrence instead so the date is the one the user
+                // actually cares about (and sorting reflects it).
+                val recurring = !reader.getString(SearchProjection.IDX_RRULE).isNullOrEmpty() ||
+                    !reader.getString(SearchProjection.IDX_RDATE).isNullOrEmpty()
+                out += if (recurring) {
+                    nearestOccurrenceMillis(base.eventId)?.let { (begin, end) ->
+                        base.copy(
+                            start = begin.toKotlinInstantFromEpochMillis(),
+                            end = end.toKotlinInstantFromEpochMillis(),
+                        )
+                    } ?: base
+                } else {
+                    base
+                }
+            }
+            out
+        } ?: emptyList()
+    }
+
+    /**
+     * The occurrence of [eventId] nearest to now: the soonest upcoming one
+     * within [OCCURRENCE_WINDOW_MILLIS] ahead, else the most recent past one
+     * within the same window behind. Null when neither exists (e.g. a series
+     * that only starts further out than the window) — the caller then keeps the
+     * series-start DTSTART. Returns (begin, end) epoch millis.
+     */
+    private fun nearestOccurrenceMillis(eventId: Long): Pair<Long, Long>? {
+        val now = System.currentTimeMillis()
+        return occurrenceInWindow(eventId, now, now + OCCURRENCE_WINDOW_MILLIS, soonestFirst = true)
+            ?: occurrenceInWindow(eventId, now - OCCURRENCE_WINDOW_MILLIS, now, soonestFirst = false)
+    }
+
+    private fun occurrenceInWindow(
+        eventId: Long,
+        beginMillis: Long,
+        endMillis: Long,
+        soonestFirst: Boolean,
+    ): Pair<Long, Long>? {
+        val uri = CalendarContract.Instances.CONTENT_URI.buildUpon().apply {
+            ContentUris.appendId(this, beginMillis)
+            ContentUris.appendId(this, endMillis)
+        }.build()
+        val order = CalendarContract.Instances.BEGIN + if (soonestFirst) " ASC" else " DESC"
+        return resolver.query(
+            uri,
+            arrayOf(CalendarContract.Instances.BEGIN, CalendarContract.Instances.END),
+            "${CalendarContract.Instances.EVENT_ID} = ?",
+            arrayOf(eventId.toString()),
+            order,
+        )?.use { c ->
+            if (!c.moveToFirst()) null else c.getLong(0) to c.getLong(1)
+        }
     }
 
     override fun eventDetail(eventId: Long): EventDetail? {
@@ -989,5 +1046,12 @@ class AndroidCalendarDataSource @Inject constructor(
          * together (by account) in the filter sheet and calendar manager.
          */
         const val LOCAL_ACCOUNT_NAME = "Calendula"
+
+        /**
+         * How far ahead/behind a search looks for a recurring event's nearest
+         * occurrence (~2 years). Wide enough for everyday series; a series that
+         * next fires beyond it falls back to its series-start date.
+         */
+        const val OCCURRENCE_WINDOW_MILLIS = 2L * 365 * 24 * 60 * 60 * 1000
     }
 }
