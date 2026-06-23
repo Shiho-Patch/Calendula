@@ -82,6 +82,7 @@
     <string name="event_edit_add_guest">Add guest</string>
     <string name="event_edit_add_guest_hint">Add a guest by email…</string>
     <string name="event_edit_add_guest_from_contacts">Add from contacts</string>
+    <string name="event_edit_location_from_contacts">Pick address from contacts</string>
     <string name="event_edit_remove_guest">Remove guest</string>
     <string name="event_edit_attendee_required">Required</string>
     <string name="event_edit_attendee_optional">Optional</string>
