@@ -1,12 +1,16 @@
 package de.jeanlucmakiola.calendula.ui.settings
 
 import android.Manifest
+import android.app.StatusBarManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import androidx.annotation.RequiresApi
 import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -80,6 +84,7 @@ import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.qs.NewEventTileService
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
 import de.jeanlucmakiola.calendula.ui.crash.openIssueTracker
 import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
@@ -514,7 +519,37 @@ private fun EventFormScreen(
                 )
             },
         )
+
+        // One-tap add of the "New event" Quick Settings tile. The system prompt
+        // is API 33+; on older versions the tile is still addable manually from
+        // the QS editor, so the row simply doesn't appear there.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Spacer(Modifier.height(24.dp))
+            val context = LocalContext.current
+            GroupedRow(
+                title = stringResource(R.string.settings_qs_tile),
+                summary = stringResource(R.string.settings_qs_tile_hint),
+                position = Position.Alone,
+                onClick = { requestAddQsTile(context) },
+            )
+        }
     }
+}
+
+/**
+ * Ask the system to add the "New event" Quick Settings tile (API 33+). The OS
+ * shows its own confirmation dialog and handles the already-added case, so no
+ * result handling is needed here.
+ */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private fun requestAddQsTile(context: Context) {
+    val statusBar = context.getSystemService(StatusBarManager::class.java) ?: return
+    statusBar.requestAddTileService(
+        ComponentName(context, NewEventTileService::class.java),
+        context.getString(R.string.qs_tile_new_event_label),
+        Icon.createWithResource(context, R.drawable.ic_qs_new_event),
+        context.mainExecutor,
+    ) { /* result code unused — the system surfaces its own feedback */ }
 }
 
 /**

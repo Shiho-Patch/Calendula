@@ -248,6 +248,11 @@
     <string name="shortcut_new_event_short">Neuer Termin</string>
     <string name="shortcut_new_event_long">Neuen Termin erstellen</string>
 
+    <!-- Schnelleinstellungen-Kachel -->
+    <string name="qs_tile_new_event_label">Neuer Termin</string>
+    <string name="settings_qs_tile">Schnelleinstellungen-Kachel hinzufügen</string>
+    <string name="settings_qs_tile_hint">Eine Kachel „Neuer Termin“ zu den Schnelleinstellungen hinzufügen.</string>
+
     <!-- Kalender-Filter (M3) -->
     <string name="filter_title">Kalender</string>
 

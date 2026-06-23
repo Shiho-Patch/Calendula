@@ -362,6 +362,11 @@
     <string name="shortcut_new_event_short">New event</string>
     <string name="shortcut_new_event_long">Create a new event</string>
 
+    <!-- Quick Settings tile -->
+    <string name="qs_tile_new_event_label">New event</string>
+    <string name="settings_qs_tile">Add Quick Settings tile</string>
+    <string name="settings_qs_tile_hint">Add a “New event” tile to the Quick Settings panel.</string>
+
     <string name="about_source_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula</string>
     <string name="about_license_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula/src/branch/main/LICENSE</string>
 

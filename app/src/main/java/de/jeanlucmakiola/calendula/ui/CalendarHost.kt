@@ -137,16 +137,37 @@ fun CalendarHost(
         }
     }
 
+    // Close every overlay that can sit over the calendar, so an externally
+    // requested destination (a widget/shortcut/QS-tile launch) is revealed on
+    // top instead of underneath whatever the user had open.
+    fun dismissCoveringOverlays() {
+        showSettings = false
+        showCalendars = false
+        detailKey = null
+        editKey = null
+        importUri = null
+        importForm = null
+    }
+
     // A home-screen widget launch asks to open a date (→ day view) or start a
     // create. Handled once and cleared, mirroring [requestedDetailKey].
     LaunchedEffect(widgetNavRequest) {
         when (val req = widgetNavRequest) {
             is WidgetNavRequest.OpenDate -> {
+                // Reveal the day view: drop any overlay that would cover it, so
+                // an external date-open doesn't land under an open Settings/form.
+                dismissCoveringOverlays()
+                createDateIso = null
                 pendingDayIso = req.dateIso
                 view = CalendarView.Day
                 onWidgetNavConsumed()
             }
             is WidgetNavRequest.Create -> {
+                // External "new event" entries (QS tile / launcher shortcut /
+                // widget) must land on top of whatever is open — the form overlay
+                // sits below Settings/calendars in the Box, so without this it
+                // would open hidden underneath them.
+                dismissCoveringOverlays()
                 val iso = req.dateIso ?: Clock.System.now()
                     .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
                 heldCreateIso = iso

@@ -88,6 +88,20 @@
             android:excludeFromRecents="true"
             android:launchMode="singleTask" />
 
+        <!-- Quick Settings tile: a one-tap "New event" shortcut in the QS panel.
+             Exported with BIND_QUICK_SETTINGS_TILE so only the system QS host can
+             bind it; the action mirrors the launcher "New event" shortcut. -->
+        <service
+            android:name=".qs.NewEventTileService"
+            android:exported="true"
+            android:icon="@drawable/ic_qs_new_event"
+            android:label="@string/qs_tile_new_event_label"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <!-- The provider broadcasts EVENT_REMINDER at reminder time but posts
              no notification itself — a calendar app must (v1.4, Etar model).
              Exported: the broadcast arrives from the provider's process. -->
