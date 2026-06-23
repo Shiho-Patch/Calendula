@@ -5,14 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.8.0] — 2026-06-23
 
 ### Added
+- Find events fast. A search button in the top bar of every calendar view opens
+  a search box — type a couple of letters and matching events (by title,
+  location or description) appear, soonest first with past events below. Tap a
+  result to open it. Search covers your whole calendar, not just what's on
+  screen, and skips calendars you've hidden. A recurring event shows its next
+  occurrence rather than the date the series first started.
+- A current-time line in the day and week views. A thin coloured line marks the
+  present moment across today's column, so you can see at a glance where you are
+  in the day. It updates every minute and only appears when today is in view.
+- Add and remove event guests. The create/edit form now has a Guests section:
+  add people by email or pick them from your contacts, mark each as required or
+  optional, and remove them. Calendula never sends invitations itself (it has no
+  internet access) — it only records the guests; if the event lives on a synced
+  account, that account may email them when it syncs, and on a local calendar no
+  one is notified. The form tells you which applies. Picking a guest from
+  contacts needs no contacts permission.
+- Pick a location from your contacts. A contacts button beside the location
+  field drops a contact's address straight into an event — handy for a meeting
+  at someone's home or office. Like the guest picker, it needs no contacts
+  permission.
+- A "New event" Quick Settings tile. Add it to your quick settings to jump
+  straight into the new-event form from anywhere. Settings → New event has a
+  one-tap button to add the tile (Android 13+); on older versions you can add it
+  from the quick-settings editor.
 - Snooze and dismiss buttons on reminder notifications. Dismiss clears the
   reminder; snooze hides it and brings it back after a delay you pick in
   Settings → Notifications (5 to 60 minutes, default 10). Android's calendar
   system won't re-post a reminder on its own, so Calendula schedules an exact
   alarm to bring a snoozed one back on time.
+
+### Changed
+- Event details now show each guest's email beneath their name, instead of only
+  when no name is available.
+- Crash and problem reports now open on the project's public Codeberg tracker,
+  where anyone can register and file an issue. Nothing is sent automatically —
+  you still review the report and submit it yourself in the browser.
 
 ## [2.7.5] — 2026-06-21
 
