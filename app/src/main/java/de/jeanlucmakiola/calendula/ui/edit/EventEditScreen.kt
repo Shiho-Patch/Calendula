@@ -461,6 +461,21 @@ private fun EventEditContent(
         }
     }
 
+    // Pick a postal address from contacts: the same one-shot picker, scoped to
+    // address rows, dropping the chosen contact's formatted address into the
+    // location field. Same no-permission guarantee as the guest picker above.
+    val pickContactAddress = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                readContactAddress(context, uri)?.let { address ->
+                    viewModel.setLocation(address)
+                }
+            }
+        }
+    }
+
     val selectedCalendar = state.calendars.firstOrNull { it.id == form.calendarId }
     // The accent ties the form to the detail screen's design language: the
     // bar under the title takes the target calendar's colour.
@@ -592,11 +607,39 @@ private fun EventEditContent(
                 icon = Icons.Default.Place,
                 iconContentDescription = stringResource(R.string.event_detail_location),
             ) {
-                InlineField(
-                    value = form.location,
-                    onValueChange = viewModel::setLocation,
-                    placeholder = stringResource(R.string.event_detail_location),
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    InlineField(
+                        value = form.location,
+                        onValueChange = viewModel::setLocation,
+                        placeholder = stringResource(R.string.event_detail_location),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(vertical = 4.dp),
+                    )
+                    IconButton(
+                        onClick = {
+                            runCatching {
+                                pickContactAddress.launch(
+                                    Intent(
+                                        Intent.ACTION_PICK,
+                                        ContactsContract.CommonDataKinds.StructuredPostal
+                                            .CONTENT_URI,
+                                    ),
+                                )
+                            }
+                        },
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Contacts,
+                            contentDescription = stringResource(
+                                R.string.event_edit_location_from_contacts,
+                            ),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
             }
         }
 
@@ -1576,6 +1619,27 @@ private fun readContactEmail(context: Context, uri: Uri): Pair<String, String>? 
         val email = cursor.getString(0).orEmpty().trim()
         val name = cursor.getString(1).orEmpty().trim()
         email.takeIf { it.isNotEmpty() }?.let { it to name }
+    }
+
+/**
+ * Read the formatted postal address from a contact-pick result URI. No
+ * READ_CONTACTS needed: ACTION_PICK grants this URI temporary read access.
+ * The provider's formatted address is multi-line; collapse it to one line so
+ * it sits cleanly in the single-line location field.
+ */
+private fun readContactAddress(context: Context, uri: Uri): String? =
+    context.contentResolver.query(
+        uri,
+        arrayOf(ContactsContract.CommonDataKinds.StructuredPostal.FORMATTED_ADDRESS),
+        null, null, null,
+    )?.use { cursor ->
+        if (!cursor.moveToFirst()) return@use null
+        cursor.getString(0).orEmpty()
+            .lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString(", ")
+            .takeIf { it.isNotEmpty() }
     }
 
 

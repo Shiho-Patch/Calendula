@@ -81,6 +81,7 @@
     <string name="event_edit_add_guest">Gast hinzufügen</string>
     <string name="event_edit_add_guest_hint">Gast per E-Mail hinzufügen…</string>
     <string name="event_edit_add_guest_from_contacts">Aus Kontakten hinzufügen</string>
+    <string name="event_edit_location_from_contacts">Adresse aus Kontakten wählen</string>
     <string name="event_edit_remove_guest">Gast entfernen</string>
     <string name="event_edit_attendee_required">Erforderlich</string>
     <string name="event_edit_attendee_optional">Optional</string>
