@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.10.0] — Unreleased
 
 ### Added
+- Turn a calendar off across the whole app. Settings → Calendars now has a
+  switch on every calendar — both your own and synced ones. Switching one off
+  removes it everywhere: its events disappear from all views and search, and it
+  drops out of the drawer's hide/show filter, the event-form calendar picker and
+  the import target picker. Unlike hiding (the quick per-view checkbox in the
+  drawer), a disabled calendar leaves the app entirely until you turn it back on.
+  Nothing is deleted and no other app is affected — it's a Calendula-only view
+  choice — so you can re-enable it any time from the same screen, where disabled
+  calendars stay listed but dimmed.
 - An optional way to support development. Settings → About now has a "Support
   development" button that opens Ko-fi in your browser. It's a plain donation
   link with no perks attached, and it needs no new permissions — Calendula still

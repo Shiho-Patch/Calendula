@@ -30,7 +30,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Palette
@@ -45,6 +44,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -58,11 +58,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -98,6 +101,7 @@ fun CalendarsScreen(
     viewModel: CalendarsViewModel = hiltViewModel(),
 ) {
     val calendars by viewModel.calendars.collectAsStateWithLifecycle()
+    val disabledIds by viewModel.disabledCalendarIds.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val backupResult by viewModel.backupResult.collectAsStateWithLifecycle()
 
@@ -134,6 +138,7 @@ fun CalendarsScreen(
         CalendarsList(
             local = calendars.filter { it.isLocal },
             synced = calendars.filterNot { it.isLocal },
+            disabledIds = disabledIds,
             error = error,
             onConsumeError = viewModel::consumeError,
             backupResult = backupResult,
@@ -142,6 +147,7 @@ fun CalendarsScreen(
             onBack = onBack,
             onAdd = { editorSession++; editorId = NEW_CALENDAR_ID },
             onEdit = { calendar -> editorSession++; editorId = calendar.id },
+            onSetDisabled = viewModel::setDisabled,
         )
     }
 }
@@ -150,6 +156,7 @@ fun CalendarsScreen(
 private fun CalendarsList(
     local: List<CalendarSource>,
     synced: List<CalendarSource>,
+    disabledIds: Set<Long>,
     error: Boolean,
     onConsumeError: () -> Unit,
     backupResult: BackupResult?,
@@ -158,6 +165,7 @@ private fun CalendarsList(
     onBack: () -> Unit,
     onAdd: () -> Unit,
     onEdit: (CalendarSource) -> Unit,
+    onSetDisabled: (Long, Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -206,19 +214,21 @@ private fun CalendarsList(
         if (local.isEmpty()) {
             HintText(stringResource(R.string.calendars_local_empty))
         }
+        HintText(stringResource(R.string.calendars_disable_hint))
         val localCount = local.size + 1
         local.forEachIndexed { index, calendar ->
+            val disabled = calendar.id in disabledIds
             GroupedRow(
                 title = calendar.displayName,
                 summary = calendar.description,
                 position = positionOf(index, localCount),
-                leading = { CalendarColorChip(calendar.color) },
+                dimmed = disabled,
+                leading = { CalendarColorChip(calendar.color, dimIf(disabled)) },
                 trailing = {
-                    Icon(
-                        Icons.Default.Edit,
-                        contentDescription = stringResource(R.string.calendars_edit_title),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
+                    EnableSwitch(
+                        calendarName = calendar.displayName,
+                        enabled = !disabled,
+                        onToggle = { enabled -> onSetDisabled(calendar.id, !enabled) },
                     )
                 },
                 onClick = { onEdit(calendar) },
@@ -258,10 +268,19 @@ private fun CalendarsList(
             .forEach { (account, cals) ->
                 AccountHeader(account = account, accountType = cals.first().accountType)
                 cals.forEachIndexed { index, calendar ->
+                    val disabled = calendar.id in disabledIds
                     GroupedRow(
                         title = calendar.displayName,
                         position = positionOf(index, cals.size),
-                        leading = { CalendarColorChip(calendar.color) },
+                        dimmed = disabled,
+                        leading = { CalendarColorChip(calendar.color, dimIf(disabled)) },
+                        trailing = {
+                            EnableSwitch(
+                                calendarName = calendar.displayName,
+                                enabled = !disabled,
+                                onToggle = { enabled -> onSetDisabled(calendar.id, !enabled) },
+                            )
+                        },
                     )
                 }
             }
@@ -423,6 +442,30 @@ private fun CalendarEditor(
         )
     }
 }
+
+/**
+ * The per-row enable/disable control. Checked = the calendar is shown in the
+ * app; unchecking disables it (events, filters and pickers all drop it) without
+ * touching any provider data. Carries its own content description so the toggle
+ * is self-describing to screen readers even on a dimmed row.
+ */
+@Composable
+private fun EnableSwitch(
+    calendarName: String,
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    val label = stringResource(R.string.calendars_show_in_app_a11y, calendarName)
+    Switch(
+        checked = enabled,
+        onCheckedChange = onToggle,
+        modifier = Modifier.semantics { contentDescription = label },
+    )
+}
+
+/** Fade a leading element to the M3 disabled emphasis when [disabled]. */
+private fun dimIf(disabled: Boolean): Modifier =
+    if (disabled) Modifier.alpha(0.38f) else Modifier
 
 /** Tonal field card matching the event editor's design (icon + content). */
 @Composable

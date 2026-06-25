@@ -7,6 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.ics.IcsExporter
+import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.ics.IcsWriter
 import kotlinx.coroutines.CoroutineDispatcher
@@ -15,6 +16,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -33,6 +35,7 @@ import javax.inject.Inject
 class CalendarsViewModel @Inject constructor(
     private val repository: CalendarRepository,
     private val icsExporter: IcsExporter,
+    private val prefs: CalendarPrefs,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -44,6 +47,20 @@ class CalendarsViewModel @Inject constructor(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000L),
                 initialValue = emptyList(),
+            )
+
+    /**
+     * Calendars the user has disabled in the app. This screen is the only
+     * surface that lists them, so it both reads the set (to dim the rows) and
+     * toggles it. Every other surface simply excludes these ids.
+     */
+    val disabledCalendarIds: StateFlow<Set<Long>> =
+        prefs.disabledCalendarIds
+            .flowOn(io)
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000L),
+                initialValue = emptySet(),
             )
 
     private val _error = MutableStateFlow(false)
@@ -91,6 +108,19 @@ class CalendarsViewModel @Inject constructor(
 
     fun deleteCalendar(id: Long) = write {
         repository.deleteCalendar(id)
+    }
+
+    /**
+     * Enable or disable a calendar app-side. Disabling removes it from every
+     * surface but Settings → Calendars (and hides its events) without touching
+     * provider data — purely a reversible Calendula-local view choice.
+     */
+    fun setDisabled(id: Long, disabled: Boolean) {
+        viewModelScope.launch {
+            val current = prefs.disabledCalendarIds.first()
+            val next = if (disabled) current + id else current - id
+            if (next != current) prefs.setDisabledCalendarIds(next)
+        }
     }
 
     private inline fun write(crossinline block: suspend () -> Unit) {

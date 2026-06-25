@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -55,11 +56,12 @@ class CalendarRepositoryImpl @Inject constructor(
             .reQuery { dataSource.calendars() }
             .flowOn(io)
 
-    // Instances are filtered by the app-side hidden-calendar set (M3): an event
-    // is dropped whenever the user has hidden its calendar. Re-runs when the
-    // provider ticks *or* the hidden set changes — toggling a calendar in the
-    // filter sheet updates every view immediately. [calendars] stays unfiltered
-    // so the filter sheet can list and re-enable hidden calendars.
+    // Instances are filtered by the app-side hidden ∪ disabled calendar sets
+    // (M3): an event is dropped whenever the user has hidden *or* disabled its
+    // calendar. Re-runs when the provider ticks *or* either set changes —
+    // toggling a calendar in the filter sheet or the calendar manager updates
+    // every view immediately. [calendars] stays unfiltered so those screens can
+    // list and re-enable hidden/disabled calendars.
     override fun instances(range: ClosedRange<Instant>): Flow<List<EventInstance>> =
         combine(
             ticks
@@ -71,10 +73,17 @@ class CalendarRepositoryImpl @Inject constructor(
                     )
                 },
             prefs.hiddenCalendarIds,
-        ) { instances, hidden ->
-            if (hidden.isEmpty()) instances
-            else instances.filterNot { it.calendarId in hidden }
-        }.flowOn(io)
+            prefs.disabledCalendarIds,
+        ) { instances, hidden, disabled ->
+            val excluded = hidden + disabled
+            if (excluded.isEmpty()) instances
+            else instances.filterNot { it.calendarId in excluded }
+        }
+            // hidden and disabled both derive from one DataStore, so toggling
+            // either makes both re-emit and combine briefly surfaces the same
+            // list twice — collapse the duplicate so views don't re-render for it.
+            .distinctUntilChanged()
+            .flowOn(io)
 
     override suspend fun eventDetail(eventId: Long): EventDetail = withContext(io) {
         dataSource.eventDetail(eventId) ?: throw NoSuchEventException(eventId)
@@ -82,9 +91,9 @@ class CalendarRepositoryImpl @Inject constructor(
 
     override suspend fun searchEvents(query: String): List<EventInstance> = withContext(io) {
         if (query.isBlank()) return@withContext emptyList()
-        val hidden = prefs.hiddenCalendarIds.first()
+        val excluded = prefs.hiddenCalendarIds.first() + prefs.disabledCalendarIds.first()
         dataSource.searchEvents(query)
-            .let { if (hidden.isEmpty()) it else it.filterNot { e -> e.calendarId in hidden } }
+            .let { if (excluded.isEmpty()) it else it.filterNot { e -> e.calendarId in excluded } }
     }
 
     override suspend fun eventColorPalette(calendarId: Long): List<EventColorOption> =

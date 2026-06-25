@@ -230,7 +230,7 @@ pass on the existing controls; new toggles ride in with their own features.
 
 **Tier 3 — platform reach (depends on Tier 2)**
 7. ~~Home-screen widget — built on the agenda data source from #6~~ *(done, v2.5.0 — agenda + month widgets)*
-8. App shortcuts: ~~launcher long-press → New event~~ *(done, v2.5.0)*; optional quick-settings tile still open
+8. App shortcuts: ~~launcher long-press → New event~~ *(done, v2.5.0)*; ~~quick-settings tile~~ *(done, v2.8.0 — "New event" QS tile)*
 
 **Tier 4 — reliability, data-safety & interop** *(re-ranked 2026-06-17)*
 9. **Reminders — defaults + delivery reliability** *(shipped v2.6.0)* — global
@@ -251,37 +251,38 @@ pass on the existing controls; new toggles ride in with their own features.
     decision (snooze must re-fire an alarm).
 
 **Tier 5 — close the read/write gap on the event model** *(opened 2026-06-22)*
-12. **Attendee editing** *(next — promoted from the gated "Locations & People"
-    bucket, owner says high-importance 2026-06-22)* — attendees are already
-    *read* (queried, mapped, shown on the detail screen since v0.6) but the
-    event form can't *write* them, the last big read-only gap in the event
-    model. Add an attendees section to `EventEditScreen` / `EventForm`: add by
-    typed email (contact-picker entry can follow later), edit/remove rows, set
-    role (required / optional) — writing `CalendarContract.Attendees` rows on
-    insert + dirty-checked update, mirroring the reminders-diff pattern.
-    **Caveat to resolve first:** writing `Attendees` rows triggers sync-adapter
-    *invitation* behavior that differs by backend (Google auto-emails invites;
-    DAVx5/CalDAV writes the `ATTENDEE` property and lets the server decide) —
-    decide and document what Calendula promises before building. Full sketch in
-    "Attendee editing" under Locations & People below.
+12. **Attendee editing** *(shipped — merged into release/v2.8.0, `feat/attendee-editing`
+    MR !29 / commit `b0f34ff`, 2026-06-22)* — closed the last big read-only gap in
+    the event model: attendees were already *read* (queried, mapped, shown on the
+    detail screen since v0.6) and are now *writable* from the form. An attendees
+    section on `EventEditScreen` / `EventForm` adds by typed email **or** the
+    no-permission contact picker, edits/removes rows, and sets role (required /
+    optional) — writing `CalendarContract.Attendees` rows on insert + dirty-checked
+    update, mirroring the reminders-diff pattern. The sync-adapter *invitation*
+    caveat was **settled record-only** (Calendula never sends invites; the backend
+    decides delivery) — full sketch + decision in "Attendee editing" under Locations
+    & People below.
 
 **Gated — explicit go/no-go before any work (mostly INTERNET-permission calls)**
 - Remote calendar create/edit (re-implements DAVx5; INTERNET + credential storage)
-- Locations & People — contact address picker (no-permission, one-shot) is the safe entry; OSM autocomplete needs INTERNET
+- Locations & People — the no-permission contact pickers already shipped (location v2.8.0, attendee email v2.8.0); what remains gated is OSM autocomplete (needs INTERNET)
 - Move event to another calendar — sync-adapter minefield (copy+delete model)
 
 **Bottom — deprioritised, not important**
 - Duplicate event (detail action → prefilled create form) — moved here
   2026-06-17; cheap but low value, pick up only if asked
 
-**Unranked / fill-in** — pinch-to-zoom time scale, tablet/foldable layouts,
-full-text search. Pulled in opportunistically, not sequenced.
+**Unranked / fill-in** — pinch-to-zoom time scale, tablet/foldable layouts.
+Pulled in opportunistically, not sequenced.
 
 Tier 4 is now fully shipped (#9 reminders defaults v2.6.0, #10 `.ics`
-export/import v2.7.0, #11 snooze/dismiss in release/v2.8.0; drag-drop rejected).
-**Next committed work is Tier 5 #12 — attendee editing** (the last read-only gap
-in the event model). After it: the theme-group ideas and Tier 2/3 leftovers
-(quick-settings tile, now-line, week numbers in month, full-text search).
+export/import v2.7.0, #11 snooze/dismiss in release/v2.8.0; drag-drop rejected),
+and Tier 5 #12 — attendee editing — shipped in release/v2.8.0, closing the last
+read-only gap in the event model. v2.8.0 also cleared most Tier 2/3 leftovers —
+full-text search, the "New event" Quick Settings tile, and the now-line all
+shipped there. **No tier work is currently committed as next;** the remaining
+candidates are unscheduled theme-group ideas (pinch-to-zoom, tablet/foldable,
+accessibility pass) plus the gated go/no-go items.
 
 ## Navigation & views
 
@@ -291,24 +292,22 @@ in the event model). After it: the theme-group ideas and Tier 2/3 leftovers
 - Agenda view (fourth view: upcoming events grouped by day; also the
   natural data source for a future widget)
 - Jump to date — drawer date picker (un-cut from V1)
-- Current-time "now" line in day/week — standard in every calendar, cheap,
-  currently absent. Daily-driver polish.
-- Week numbers in the **month** grid — week view already shows the badge
-  (`WeekNumberBadge`, `WeekScreen.kt`); extend to month for ISO/European users.
+- ~~Current-time "now" line in day/week~~ **shipped v2.8.0**
+- Week numbers in the **month** grid — **rejected** (owner decision): clutters
+  the view and shrinks the day cells; the badge stays week-view-only.
 - Pinch-to-zoom time scale in day/week
 - Tablet / foldable layouts *(was v3.0)*
-- Full-text search *(was v3.0)* — promote out of "fill-in": for a daily driver
-  with real event history, finding an event is core completeness, not optional.
+- ~~Full-text search~~ **shipped v2.8.0** — for a daily driver with real event
+  history, finding an event is core completeness, not optional.
 
 ## Event editing & creation
 
 - Duplicate event (detail action → prefilled create form)
-- **Per-event color** (`Events.EVENT_COLOR`, OptionCard picker in the form)
-  *(next)* — chosen to follow the in-progress tap-to-create + calendar
-  management work: reuses the color-picker component and palette plumbing
-  being built for local calendar management, and finishes the create/edit
-  theme. `EVENT_COLOR` / `EVENT_COLOR_KEY` from the calendar's color list
-  (`Colors` table, `TYPE_EVENT`); falls back to the calendar color when unset.
+- ~~**Per-event color**~~ *(shipped v2.4.0)* — `EVENT_COLOR` / `EVENT_COLOR_KEY`
+  from the calendar's color list (`Colors` table, `TYPE_EVENT`), OptionCard
+  picker in the form, falling back to the calendar color when unset. Reused the
+  color-picker component and palette plumbing from local calendar management and
+  finished the create/edit theme.
 
 ## Calendars & accounts
 
@@ -337,7 +336,63 @@ in the event model). After it: the theme-group ideas and Tier 2/3 leftovers
   `.ics` file (SAF); restore is the bulk-import path (pick a calendar, dedup by
   UID). Closed the silent data-loss gap.
 
-## Reminders — defaults & delivery reliability *(implemented 2026-06-17, `feat/default-reminders` — pending on-device review)*
+### Disable a calendar in-app *(captured 2026-06-25)*
+
+A second, heavier visibility level **above** the existing per-view filter. Today
+the drawer's calendar filter (`hiddenCalendarIds` in `CalendarPrefs`) only hides
+a calendar's *events* from the month/week/day/agenda views — the calendar itself
+still clutters the drawer filter list, the event-form calendar picker, and the
+import target picker. "Disable" removes a calendar from the app's surfaces
+entirely; "hide" stays the lightweight, frequently-toggled control.
+
+**Two-level model (both kept):**
+- **Hidden** (existing) — `hiddenCalendarIds`; a quick per-view checkbox in the
+  drawer. Toggles events on/off in the views; the calendar stays listed
+  everywhere. Operates only over the *enabled* calendars.
+- **Disabled** (new) — the calendar is gone from the app: not in the drawer
+  filter list, not in the event-form picker, not in the import picker, and its
+  events never appear (it's gated out of `instances()` like a hidden one). It
+  remains visible **only** in Settings → Calendars, where the enable/disable
+  toggle lives, so it can be brought back.
+
+**Storage — app-side (DataStore), mirrors the hidden set.** Add
+`disabledCalendarIds: Set<Long>` + `setDisabledCalendarIds(...)` to
+`CalendarPrefs` (comma-separated string key, same shape as `hiddenCalendarIds`).
+**Does not touch** `CalendarContract.Calendars.VISIBLE` / `SYNC_EVENTS` — purely
+a Calendula-local preference, so other calendar apps are unaffected and the sync
+adapters stay out of it (privacy-clean, reversible).
+
+**Where the disabled set is applied:**
+- `CalendarRepositoryImpl.instances()` + `searchEvents()` — exclude
+  `calendarId ∈ (hidden ∪ disabled)` so a disabled calendar's events never show
+  and aren't searchable. (`repository.calendars()` itself stays unfiltered/raw —
+  the screens that need everything still get everything.)
+- `FilterViewModel.state` — drop disabled calendars from the drawer filter list
+  (you can't hide/show what's disabled).
+- `EventEditViewModel.writableCalendars` — exclude disabled, so you can't create
+  into a calendar you've removed from the app. Handle the last-used-calendar
+  preselect falling on a now-disabled calendar (fall back to first enabled
+  writable).
+- `ImportViewModel` — exclude disabled from the import target list.
+- `CalendarsScreen` / `CalendarsViewModel` — the **only** surface that lists
+  disabled calendars; add `setDisabled(id, Boolean)` and a per-calendar toggle.
+
+**UI — Settings → Calendars (no new tab).** Add an enable/disable control to each
+row on the existing `CalendarsScreen` (both the local and the synced/read-only
+groups — disabling is an app-side view choice, independent of write access).
+Disabled rows render visibly de-emphasised (dimmed) but keep the toggle so
+they're re-enableable. Follow the project dialog/list conventions (M3 grouped
+list, `option-card-modal-style-default` if a confirm/selection surface is needed).
+
+**Decided behaviour:**
+- All calendars disabled → views show the existing empty state.
+- A disabled calendar that still holds events: events simply vanish from
+  views/search until re-enabled (no data touched — it's a filter, not a delete).
+- Deep links / notifications pointing at an event in a disabled calendar still
+  open its detail screen — detail is a direct id lookup, not an `instances()`
+  query, so disabling never strands an existing link.
+
+## Reminders — defaults & delivery reliability *(shipped v2.6.0; built on `feat/default-reminders`)*
 
 Two themes bundled because both are "make reminders trustworthy" — the core of
 the "Calendula is your only calendar app" promise.
@@ -414,18 +469,20 @@ it directly undermines the feature's premise, so it rides in here.
   settings so users can verify delivery on their specific OEM (Samsung / Xiaomi
   are notorious for suppressing it).
 
-### Open decisions (resolve before building)
+### Decisions made (as shipped in v2.6.0)
 
-1. Self-schedule via `AlarmManager` vs trust the provider broadcast
-   (reliability vs simplicity + battery cost).
-2. All-day reminder representation (minutes-before vs absolute time-of-day).
-3. Where per-calendar overrides live in the UI (rows on the Calendars screen vs
-   a list inside the Notifications sub-page).
+1. **Provider broadcast kept** — did not self-schedule via `AlarmManager`; the
+   battery-optimisation exemption is the reliability lever (simplicity + battery
+   cost won over the exact-alarm subsystem).
+2. **All-day reminders = minutes-before-midnight** (day-scale presets); absolute
+   time-of-day ("9am the day before") deferred — see the deferred list above.
+3. **Per-calendar overrides live in the Notifications sub-page** (override list),
+   governing timed events only.
 
-### Later (round two)
+### Round two
 
-- Snooze + dismiss actions on the notification (snooze needs an
-  exact-alarm / WorkManager decision) — Tier 4 #13.
+- ~~Snooze + dismiss actions on the notification~~ *(shipped in release/v2.8.0,
+  Tier 4 #11)* — snooze re-fires a snooze-only exact alarm.
 
 ## Sharing & interop
 
@@ -438,8 +495,8 @@ it directly undermines the feature's premise, so it rides in here.
 ## Platform & launchers
 
 - ~~Home-screen widget~~ **shipped v2.5.0** — agenda + month widgets
-- ~~App shortcuts (launcher long-press → New event)~~ **shipped v2.5.0** —
-  optional quick-settings tile still open
+- ~~App shortcuts (launcher long-press → New event)~~ **shipped v2.5.0**
+- ~~"New event" Quick Settings tile~~ **shipped v2.8.0**
 
 ## Quality & reliability
 
@@ -455,9 +512,10 @@ it directly undermines the feature's premise, so it rides in here.
 Beyond classic calendar-client scope; discussed, deliberately not planned
 in detail yet:
 
-- **Contact address picker** for the location field via the system picker
-  (`ACTION_PICK` on postal addresses) — one-shot, needs no READ_CONTACTS,
-  fits the privacy story. Same mechanism later for picking emails.
+- ~~**Contact address picker** for the location field via the system picker
+  (`ACTION_PICK`)~~ **shipped v2.8.0** — one-shot, needs no READ_CONTACTS, fits
+  the privacy story. The same no-permission mechanism was then reused for the
+  attendee email picker (v2.8.0).
 - **OSM address autocomplete** in the location field (type "Brandenburger
   Tor" → tap suggestion → resolved address inserted). Backend would be
   Photon (Nominatim's public policy forbids autocomplete). **Requires the
