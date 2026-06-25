@@ -80,6 +80,8 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.NowLine
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
+import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
+import de.jeanlucmakiola.calendula.ui.common.rememberReduceMotion
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
@@ -247,6 +249,8 @@ private fun WeekContent(
     val threshold = with(density) { 24.dp.toPx() }
     var dragAccum by remember { mutableFloatStateOf(0f) }
     val slideSpec = rememberCalendarSlideSpec()
+    val fadeSpec = rememberCalendarFadeSpec()
+    val reduceMotion = rememberReduceMotion()
 
     // Hoisted above the per-week AnimatedContent so the vertical scroll position
     // survives week-to-week swipes (e.g. 18:00 stays centred). We only centre on
@@ -300,7 +304,7 @@ private fun WeekContent(
                 WeekUiState.Loading -> "loading"
             }
         },
-        transitionSpec = { calendarSlideTransition(slideDir, slideSpec) },
+        transitionSpec = { calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion) },
         label = "week-transition",
     ) { s ->
         when (s) {

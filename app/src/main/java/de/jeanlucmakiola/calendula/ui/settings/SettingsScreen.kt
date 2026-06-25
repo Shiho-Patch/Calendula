@@ -88,6 +88,8 @@ import de.jeanlucmakiola.calendula.qs.NewEventTileService
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
 import de.jeanlucmakiola.calendula.ui.crash.openIssueTracker
 import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
+import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
+import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
@@ -674,7 +676,11 @@ private fun NotificationsScreen(
                         }
                     },
                 )
-                AnimatedVisibility(visible = expanded) {
+                AnimatedVisibility(
+                    visible = expanded,
+                    enter = calendarExpandEnter(),
+                    exit = calendarCollapseExit(),
+                ) {
                     Column {
                         val timed = state.perCalendarReminderOverride.choiceFor(calendar.id)
                         GroupedRow(

@@ -75,6 +75,8 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.NowLine
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
+import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
+import de.jeanlucmakiola.calendula.ui.common.rememberReduceMotion
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
@@ -237,6 +239,8 @@ private fun DayContent(
     val threshold = with(density) { 24.dp.toPx() }
     var dragAccum by remember { mutableFloatStateOf(0f) }
     val slideSpec = rememberCalendarSlideSpec()
+    val fadeSpec = rememberCalendarFadeSpec()
+    val reduceMotion = rememberReduceMotion()
 
     // Hoisted above the per-day AnimatedContent so the vertical scroll position
     // survives day-to-day swipes. We only centre on noon once, on first entry
@@ -287,7 +291,7 @@ private fun DayContent(
                 DayUiState.Loading -> "loading"
             }
         },
-        transitionSpec = { calendarSlideTransition(slideDir, slideSpec) },
+        transitionSpec = { calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion) },
         label = "day-transition",
     ) { s ->
         when (s) {
