@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -12,15 +13,20 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaScreen
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarsScreen
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.drillToDay
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
+import de.jeanlucmakiola.calendula.ui.common.viewBaseStack
 import de.jeanlucmakiola.calendula.ui.day.DayScreen
 import de.jeanlucmakiola.calendula.ui.detail.EventDetailScreen
 import de.jeanlucmakiola.calendula.ui.edit.EventEditScreen
@@ -35,14 +41,23 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 
 /**
- * Holds the active top-level view (spec M1) and swaps between the calendar
+ * Holds the top-level view back stack (spec M1) and swaps between the calendar
  * screens. Each screen owns its own ViewModel and date anchor; the view-switcher
  * pill in their top bars writes back here via [onSelectView].
+ *
+ * The stack's bottom is the user's [CalendarHostViewModel.defaultView] home view.
+ * A lateral move (pill / drawer / a widget establishing its own view) replaces
+ * the non-home top; a date tap drills the day view on top. Pressing back pops
+ * one level, and the base-level [BackHandler] hands off to the system to exit
+ * once only the home view remains. So back from a widget-opened screen returns
+ * to that widget's view, then home, then out.
  *
  * [requestedDetailKey] is an externally requested occurrence (a tapped
  * reminder notification routed through MainActivity): it opens the detail
  * overlay exactly like an event tap and is cleared via [onDetailKeyConsumed]
- * so a later recomposition can't re-open it.
+ * so a later recomposition can't re-open it. (A widget event tap instead arrives
+ * as [WidgetNavRequest.OpenEvent], which also roots the back stack in the
+ * widget's view.)
  */
 @Composable
 fun CalendarHost(
@@ -53,15 +68,24 @@ fun CalendarHost(
     onWidgetNavConsumed: () -> Unit = {},
     requestedImportUri: android.net.Uri? = null,
     onImportConsumed: () -> Unit = {},
+    viewModel: CalendarHostViewModel = hiltViewModel(),
 ) {
-    var view by rememberSaveable { mutableStateOf(CalendarView.Week) }
-    val onSelectView: (CalendarView) -> Unit = { view = it }
+    // Wait for the persisted default view before seeding the stack, so the app
+    // opens straight on the user's choice instead of flashing a placeholder and
+    // correcting it. Brief blank first frame, matching the onboarding gate above.
+    val defaultView = viewModel.defaultView.collectAsStateWithLifecycle().value ?: return
+
+    var viewStack by rememberSaveable(stateSaver = viewStackSaver) {
+        mutableStateOf(listOf(defaultView))
+    }
+    val view = viewStack.last()
+    val onSelectView: (CalendarView) -> Unit = { viewStack = viewBaseStack(defaultView, it) }
 
     // Tapping a day in the month grid opens the day view anchored to that date.
     var pendingDayIso by rememberSaveable { mutableStateOf<String?>(null) }
     val onOpenDay: (LocalDate) -> Unit = { date ->
         pendingDayIso = date.toString()
-        view = CalendarView.Day
+        viewStack = viewStack.drillToDay()
     }
 
     // The event-detail screen (S4) is a full-screen destination hoisted here so
@@ -156,17 +180,30 @@ fun CalendarHost(
         importForm = null
     }
 
-    // A home-screen widget launch asks to open a date (→ day view) or start a
-    // create. Handled once and cleared, mirroring [requestedDetailKey].
+    // A home-screen widget launch asks to open a date (→ day view), open an
+    // event's detail, or start a create. Handled once and cleared, mirroring
+    // [requestedDetailKey]. Date/event opens root the stack in the widget's own
+    // view so backing out returns there (then home), not to the default.
     LaunchedEffect(widgetNavRequest) {
         when (val req = widgetNavRequest) {
             is WidgetNavRequest.OpenDate -> {
-                // Reveal the day view: drop any overlay that would cover it, so
-                // an external date-open doesn't land under an open Settings/form.
+                // Drill the day view in over the widget's view: drop any overlay
+                // that would cover it, so the open doesn't land under Settings/form.
                 dismissCoveringOverlays()
                 createDateIso = null
                 pendingDayIso = req.dateIso
-                view = CalendarView.Day
+                viewStack = viewBaseStack(defaultView, req.source).drillToDay()
+                onWidgetNavConsumed()
+            }
+            is WidgetNavRequest.OpenEvent -> {
+                // Root the stack in the widget's view, then open the occurrence
+                // detail over it (same key shape as a tapped event / reminder).
+                dismissCoveringOverlays()
+                createDateIso = null
+                viewStack = viewBaseStack(defaultView, req.source)
+                val key = longArrayOf(req.eventId, req.beginMillis, req.endMillis)
+                heldKey = key
+                detailKey = key
                 onWidgetNavConsumed()
             }
             is WidgetNavRequest.Create -> {
@@ -188,6 +225,16 @@ fun CalendarHost(
     }
 
     val slideSpec = rememberCalendarSlideSpec()
+
+    // Base-level back: pop the view stack while no overlay covers it (each overlay
+    // owns its own BackHandler and takes precedence). Disabled at the home view,
+    // so back there falls through to the system and exits the app.
+    val anyOverlayVisible = showSearch || detailKey != null || createDateIso != null ||
+        editKey != null || showSettings || showCalendars || importUri != null ||
+        importForm != null
+    BackHandler(enabled = !anyOverlayVisible && viewStack.size > 1) {
+        viewStack = viewStack.dropLast(1)
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         when (view) {
@@ -338,3 +385,9 @@ fun CalendarHost(
         }
     }
 }
+
+/** Persists the view back stack across config change / process death by ordinal. */
+private val viewStackSaver = listSaver<List<CalendarView>, Int>(
+    save = { stack -> stack.map(CalendarView::ordinal) },
+    restore = { ordinals -> ordinals.map { CalendarView.entries[it] } },
+)

@@ -5,6 +5,7 @@ import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.ui.common.CalendarView
 
 /**
  * Settings screen state (M4). Persisted preferences are instant to read, so
@@ -17,6 +18,8 @@ data class SettingsUiState(
     val dynamicColor: Boolean = true,
     val dynamicColorAvailable: Boolean = true,
     val weekStart: WeekStartPref = WeekStartPref.AUTO,
+    /** The calendar view the app opens on, and the home of the view back stack (M1). */
+    val defaultView: CalendarView = CalendarView.Week,
     /** Optional event-form fields shown by default (rest behind "more fields"). */
     val defaultFormFields: Set<EventFormField> = SettingsPrefs.DEFAULT_FORM_FIELDS,
     /** Whether Calendula posts reminder notifications (v1.4). */

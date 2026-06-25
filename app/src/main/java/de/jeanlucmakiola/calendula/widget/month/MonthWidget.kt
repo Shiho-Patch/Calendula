@@ -49,6 +49,7 @@ import androidx.glance.unit.ColorProvider
 import de.jeanlucmakiola.calendula.MainActivity
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.ui.month.MonthWeek
 import de.jeanlucmakiola.calendula.ui.month.layoutMonthWeeks
@@ -209,7 +210,9 @@ private fun MonthHeader(label: String) {
             resId = R.drawable.ic_widget_today,
             contentDescription = context.getString(R.string.widget_today),
             onClick = GlanceModifier.clickable(
-                actionStartActivity(MainActivity.openDateIntent(context, today(systemZone()))),
+                actionStartActivity(
+                    MainActivity.openDateIntent(context, today(systemZone()), CalendarView.Month),
+                ),
             ),
         )
         HeaderIcon(

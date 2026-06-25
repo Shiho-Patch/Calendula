@@ -49,3 +49,23 @@ fun CalendarView.next(available: List<CalendarView> = IMPLEMENTED_VIEWS): Calend
     if (i < 0) return available.firstOrNull() ?: CalendarView.Month
     return available[(i + 1) % available.size]
 }
+
+/**
+ * The top-level view back stack (bottom → top): the [default] home view always
+ * sits at the bottom, with a laterally-selected or widget-entered view layered
+ * above it. Pressing back pops one level until only the home view remains, then
+ * the system exits the app.
+ *
+ * [viewBaseStack] is the stack after a lateral move to [top] (the switcher pill,
+ * the drawer, or a widget establishing its own view): just `[default]` when
+ * [top] is the home view, else `[default, top]`. It collapses any prior drill-in
+ * so the depth never grows past a single lateral level. [drillToDay] pushes the
+ * day view on top — a date tap from the month grid or a widget — unless the day
+ * view is already current.
+ */
+fun viewBaseStack(default: CalendarView, top: CalendarView): List<CalendarView> =
+    if (top == default) listOf(default) else listOf(default, top)
+
+/** Push the day view as a drill-in over the current stack (no-op if already on it). */
+fun List<CalendarView>.drillToDay(): List<CalendarView> =
+    if (lastOrNull() == CalendarView.Day) this else this + CalendarView.Day

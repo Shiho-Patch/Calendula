@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Choose the view Calendula opens on. A new **Default view** setting (Settings →
+  Appearance) lets you pick Month, Week, Day or Agenda as the view shown each
+  time you start the app, instead of always opening on Week. Thanks to
+  @devinside for the suggestion ([#1]).
+
+### Fixed
+- Home-screen widgets now back out the way you came in. Opening a day or event
+  from the Agenda widget keeps you in the agenda context, and the Month widget
+  keeps you in the month context — pressing Back returns to that view instead of
+  dropping you on the week view. The app now keeps a proper view history: Back
+  steps from a drilled-in day to the view you opened it from, then to your
+  default view, then leaves the app. Thanks to @devinside for reporting ([#2]).
+
 ## [2.8.0] — 2026-06-23
 
 ### Added
@@ -572,3 +588,6 @@ automatically, with zero telemetry and no internet permission.
 - Gitea release workflow: signed release APK + F-Droid metadata sync to Hetzner
 - F-Droid metadata stubs (DE + EN short/full descriptions)
 - `.planning/` project-tracking documents
+
+[#1]: https://codeberg.org/jlmakiola/calendula/issues/1
+[#2]: https://codeberg.org/jlmakiola/calendula/issues/2
