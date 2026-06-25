@@ -1,6 +1,5 @@
 package de.jeanlucmakiola.calendula.ui.common
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -73,11 +72,11 @@ fun CollapsingScaffold(
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    BackHandler(onBack = onBack)
     val scrollBehavior =
         TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     Scaffold(
         modifier = modifier
+            .predictiveBack(onBack = onBack)
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface)
             .nestedScroll(scrollBehavior.nestedScrollConnection),

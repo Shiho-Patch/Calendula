@@ -66,6 +66,8 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
+import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
+import de.jeanlucmakiola.calendula.ui.common.rememberReduceMotion
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
@@ -217,6 +219,8 @@ private fun MonthContent(
     val threshold = with(density) { 6.dp.toPx() }
     var dragAccum by remember { mutableFloatStateOf(0f) }
     val slideSpec = rememberCalendarSlideSpec()
+    val fadeSpec = rememberCalendarFadeSpec()
+    val reduceMotion = rememberReduceMotion()
 
     val swipeModifier = Modifier.pointerInput(Unit) {
         detectHorizontalDragGestures(
@@ -243,7 +247,7 @@ private fun MonthContent(
                 MonthUiState.Loading -> "loading"
             }
         },
-        transitionSpec = { calendarSlideTransition(slideDir, slideSpec) },
+        transitionSpec = { calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion) },
         label = "month-transition",
     ) { s ->
         when (s) {

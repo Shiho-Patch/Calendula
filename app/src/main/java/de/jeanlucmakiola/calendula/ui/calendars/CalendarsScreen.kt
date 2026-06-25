@@ -4,7 +4,6 @@ import android.accounts.AccountManager
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -73,6 +72,7 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.ui.common.CALENDAR_COLOR_PALETTE
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
@@ -295,10 +295,9 @@ private fun CalendarEditor(
     var confirmDelete by remember { mutableStateOf(false) }
     val dark = isSystemInDarkTheme()
 
-    BackHandler(onBack = onClose)
-
     Scaffold(
         modifier = Modifier
+            .predictiveBack(onBack = onClose)
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.surface),
         topBar = {

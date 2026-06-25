@@ -11,6 +11,7 @@ import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -72,8 +73,10 @@ class SettingsViewModel @Inject constructor(
             ) { overrides, allDayOverrides, calendars ->
                 ReminderOverrides(overrides, allDayOverrides, calendars)
             },
-        ) { base, defaults, overrides ->
+            prefs.defaultView,
+        ) { base, defaults, overrides, defaultView ->
             base.copy(
+                defaultView = defaultView,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -113,6 +116,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setWeekStart(pref: WeekStartPref) {
         viewModelScope.launch { prefs.setWeekStart(pref) }
+    }
+
+    fun setDefaultView(view: CalendarView) {
+        viewModelScope.launch { prefs.setDefaultView(view) }
     }
 
     fun setFormFieldDefault(field: EventFormField, enabled: Boolean) {

@@ -41,6 +41,7 @@ import androidx.glance.text.TextStyle
 import de.jeanlucmakiola.calendula.MainActivity
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.widget.AgendaWidgetData
 import de.jeanlucmakiola.calendula.widget.CalendulaGlanceTheme
@@ -185,7 +186,11 @@ private fun DayHeaderRow(date: LocalDate, today: LocalDate) {
         modifier = GlanceModifier
             .fillMaxWidth()
             .padding(start = 8.dp, end = 8.dp, top = 10.dp, bottom = 4.dp)
-            .clickable(actionStartActivity(MainActivity.openDateIntent(context, date))),
+            .clickable(
+                actionStartActivity(
+                    MainActivity.openDateIntent(context, date, CalendarView.Agenda),
+                ),
+            ),
     )
 }
 
@@ -199,11 +204,12 @@ private fun EventRow(event: EventInstance, dark: Boolean) {
             .padding(horizontal = 4.dp, vertical = 4.dp)
             .clickable(
                 actionStartActivity(
-                    MainActivity.eventDetailIntent(
+                    MainActivity.openEventIntent(
                         context = context,
                         eventId = event.eventId,
                         beginMillis = event.start.toEpochMilliseconds(),
                         endMillis = event.end.toEpochMilliseconds(),
+                        source = CalendarView.Agenda,
                     ),
                 ),
             ),
