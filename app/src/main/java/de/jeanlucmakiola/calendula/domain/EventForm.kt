@@ -41,6 +41,27 @@ data class EventForm(
      */
     val colorKey: String? = null,
     val color: Int? = null,
+    /**
+     * Guests the user has added/kept on the event. Calendula only writes these
+     * `Attendees` rows — it has no INTERNET and never sends an invitation
+     * itself; whether a guest is notified is decided downstream by the
+     * calendar's backend (local: no one; CalDAV/Google: the server/account).
+     * Read-only rows the form doesn't model (the organizer, resources) are
+     * preserved by the data layer, not carried here.
+     */
+    val attendees: List<EventAttendee> = emptyList(),
+)
+
+/**
+ * One editable guest: the user controls the [email] (the identity we dedup and
+ * write on), an optional display [name], and whether they're [optional] rather
+ * than required. Response status and the organizer/resource distinction are not
+ * user-editable, so they aren't modelled here.
+ */
+data class EventAttendee(
+    val email: String,
+    val name: String = "",
+    val optional: Boolean = false,
 )
 
 /**
@@ -55,6 +76,7 @@ enum class EventFormField {
     Availability,
     Visibility,
     Color,
+    Attendees,
 }
 
 enum class EventFormProblem {
@@ -108,6 +130,24 @@ fun EventDetail.toEditForm(beginMillis: Long, endMillis: Long, zone: TimeZone): 
         // calendar's colour.
         colorKey = eventColorKey,
         color = eventColor,
+        // Only editable guests ride in the form: drop the organizer and
+        // resource rows (not user-editable) and any without an email (we key
+        // edits and dedup on the address). The data layer preserves the rows we
+        // don't carry here, so they're never clobbered on save.
+        attendees = attendees
+            .filter {
+                it.relationship != AttendeeRelationship.Organizer &&
+                    it.type != AttendeeType.Resource
+            }
+            .mapNotNull { a ->
+                a.email?.takeIf { it.isNotBlank() }?.let { email ->
+                    EventAttendee(
+                        email = email,
+                        name = a.name,
+                        optional = a.type == AttendeeType.Optional,
+                    )
+                }
+            },
     )
 }
 
@@ -117,9 +157,10 @@ fun EventDetail.toEditForm(beginMillis: Long, endMillis: Long, zone: TimeZone): 
  * while the form was open. The raw row times ride along because
  * [toEditForm] derives the form's times from the *tapped occurrence*, so
  * re-deriving with the same occurrence would mask an externally moved
- * event. Not covered (the form can't write them, and the dirty-checked
- * write can't clobber them): attendees, status, the user's own response,
- * reminder methods, and a recurring event's duration.
+ * event. Guests are covered (the form writes editable attendees), so an
+ * external attendee change now also trips the conflict check. Still not
+ * covered: status, the user's own response, reminder methods, the
+ * organizer/resource rows, and a recurring event's duration.
  */
 data class EditSnapshot(
     val form: EventForm,
@@ -148,6 +189,7 @@ fun EventForm.populatedFields(): Set<EventFormField> = buildSet {
     if (availability != Availability.Busy) add(EventFormField.Availability)
     if (accessLevel != AccessLevel.Default) add(EventFormField.Visibility)
     if (colorKey != null || color != null) add(EventFormField.Color)
+    if (attendees.isNotEmpty()) add(EventFormField.Attendees)
 }
 
 fun EventForm.problems(): Set<EventFormProblem> = buildSet {

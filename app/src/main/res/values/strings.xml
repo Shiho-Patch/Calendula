@@ -78,6 +78,16 @@
     <string name="event_edit_add">Add</string>
     <string name="event_edit_add_reminder">Add reminder</string>
     <string name="event_edit_remove_reminder">Remove reminder</string>
+    <string name="event_edit_attendees">Guests</string>
+    <string name="event_edit_add_guest">Add guest</string>
+    <string name="event_edit_add_guest_hint">Add a guest by email…</string>
+    <string name="event_edit_add_guest_from_contacts">Add from contacts</string>
+    <string name="event_edit_location_from_contacts">Pick address from contacts</string>
+    <string name="event_edit_remove_guest">Remove guest</string>
+    <string name="event_edit_attendee_required">Required</string>
+    <string name="event_edit_attendee_optional">Optional</string>
+    <string name="event_edit_attendees_note_synced">Calendula doesn\'t send invitations. Your calendar account may email guests when it syncs.</string>
+    <string name="event_edit_attendees_note_local">Stored on this device. No one is notified.</string>
     <string name="event_edit_reminder_custom">Custom</string>
     <string name="reminder_unit_minutes">minutes</string>
     <string name="reminder_unit_hours">hours</string>
@@ -178,6 +188,15 @@
         <item quantity="one">%d week before</item>
         <item quantity="other">%d weeks before</item>
     </plurals>
+    <!-- Plain durations (no "before"), e.g. the snooze delay. -->
+    <plurals name="duration_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="duration_hours">
+        <item quantity="one">%d hour</item>
+        <item quantity="other">%d hours</item>
+    </plurals>
 
     <!-- Shared event strings -->
     <string name="event_untitled">(No title)</string>
@@ -195,6 +214,8 @@
     <string name="reminder_benefit_reversible_body">The switch lives in Settings, under Notifications.</string>
     <string name="reminder_onboarding_enable_button">Turn on reminders</string>
     <string name="reminder_onboarding_skip_button">Not now</string>
+    <string name="reminder_action_snooze">Snooze</string>
+    <string name="reminder_action_dismiss">Dismiss</string>
 
     <!-- View switcher (M1) -->
     <string name="view_month">Month</string>
@@ -212,6 +233,14 @@
     <string name="agenda_header_tomorrow">Tomorrow</string>
     <string name="agenda_empty_title">Nothing scheduled</string>
     <string name="agenda_empty_subtitle">Upcoming events will show up here.</string>
+
+    <!-- Event search -->
+    <string name="search_action">Search</string>
+    <string name="search_hint">Search events</string>
+    <string name="search_back">Back</string>
+    <string name="search_clear">Clear</string>
+    <string name="search_idle_hint">Search your events by title, location or notes.</string>
+    <string name="search_empty">No events match “%1$s”.</string>
 
     <!-- Home-screen widgets -->
     <string name="widget_agenda_title">Upcoming</string>
@@ -262,6 +291,7 @@
     <string name="settings_reliable_delivery">Reliable delivery</string>
     <string name="settings_reliable_delivery_hint">Android may delay reminders to save battery. Exempt Calendula so they arrive on time.</string>
     <string name="settings_reliable_delivery_exempt">Exempt from battery optimisation — reminders arrive on time.</string>
+    <string name="settings_snooze_duration">Snooze duration</string>
     <string name="settings_section_calendars">Calendars</string>
     <string name="settings_manage_calendars">Manage calendars</string>
     <string name="settings_manage_calendars_hint">Create local calendars; manage synced ones</string>
@@ -340,6 +370,11 @@
     <string name="shortcut_new_event_short">New event</string>
     <string name="shortcut_new_event_long">Create a new event</string>
 
+    <!-- Quick Settings tile -->
+    <string name="qs_tile_new_event_label">New event</string>
+    <string name="settings_qs_tile">Add Quick Settings tile</string>
+    <string name="settings_qs_tile_hint">Add a “New event” tile to the Quick Settings panel.</string>
+
     <string name="about_source_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula</string>
     <string name="about_license_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula/src/branch/main/LICENSE</string>
 
@@ -355,6 +390,6 @@
     <string name="crash_report_open_failed">Couldn\'t open the issue tracker. The report is on your clipboard.</string>
     <string name="crash_report_body_template">Thanks for reporting a crash in Calendula. Please add anything you remember about what you were doing, then submit.\n\n### What happened\n\n\n### Crash report\n%1$s\n</string>
     <string name="crash_report_body_paste">_(The report was too long for this link — paste it from your clipboard here.)_</string>
-    <string name="report_issue_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula/issues/new</string>
-    <string name="report_issue_choose_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula/issues/new/choose</string>
+    <string name="report_issue_url" translatable="false">https://codeberg.org/jlmakiola/calendula/issues/new</string>
+    <string name="report_issue_choose_url" translatable="false">https://codeberg.org/jlmakiola/calendula/issues/new/choose</string>
 </resources>

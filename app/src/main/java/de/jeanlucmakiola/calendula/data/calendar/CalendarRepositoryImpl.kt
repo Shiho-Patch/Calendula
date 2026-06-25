@@ -80,6 +80,13 @@ class CalendarRepositoryImpl @Inject constructor(
         dataSource.eventDetail(eventId) ?: throw NoSuchEventException(eventId)
     }
 
+    override suspend fun searchEvents(query: String): List<EventInstance> = withContext(io) {
+        if (query.isBlank()) return@withContext emptyList()
+        val hidden = prefs.hiddenCalendarIds.first()
+        dataSource.searchEvents(query)
+            .let { if (hidden.isEmpty()) it else it.filterNot { e -> e.calendarId in hidden } }
+    }
+
     override suspend fun eventColorPalette(calendarId: Long): List<EventColorOption> =
         withContext(io) { dataSource.eventColorPalette(calendarId) }
 

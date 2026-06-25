@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -75,6 +76,7 @@ fun AgendaScreen(
     onSelectView: (CalendarView) -> Unit,
     onEventClick: (EventInstance) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenSearch: () -> Unit,
     onCreateEvent: (LocalDate, Int?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AgendaViewModel = hiltViewModel(),
@@ -119,6 +121,7 @@ fun AgendaScreen(
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next()) },
                     onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onOpenSearch = onOpenSearch,
                     scrollBehavior = scrollBehavior,
                 )
             },
@@ -274,6 +277,7 @@ private fun AgendaTopBar(
     selectedView: CalendarView,
     onCycleView: () -> Unit,
     onOpenDrawer: () -> Unit,
+    onOpenSearch: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     TopAppBar(
@@ -292,6 +296,12 @@ private fun AgendaTopBar(
             }
         },
         actions = {
+            IconButton(onClick = onOpenSearch) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = stringResource(R.string.search_action),
+                )
+            }
             ViewSwitcherPill(
                 current = selectedView,
                 onCycle = onCycleView,

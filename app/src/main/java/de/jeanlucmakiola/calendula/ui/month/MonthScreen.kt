@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -86,6 +87,7 @@ fun MonthScreen(
     onSelectView: (CalendarView) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenSearch: () -> Unit,
     onCreateEvent: (LocalDate, Int?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MonthViewModel = hiltViewModel(),
@@ -161,6 +163,7 @@ fun MonthScreen(
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next()) },
                     onOpenDrawer = { scope.launch { drawerState.open() } },
+                    onOpenSearch = onOpenSearch,
                     scrollBehavior = scrollBehavior,
                 )
             },
@@ -261,6 +264,7 @@ private fun MonthTopBar(
     selectedView: CalendarView,
     onCycleView: () -> Unit,
     onOpenDrawer: () -> Unit,
+    onOpenSearch: () -> Unit,
     scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
     TopAppBar(
@@ -279,6 +283,12 @@ private fun MonthTopBar(
             }
         },
         actions = {
+            IconButton(onClick = onOpenSearch) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = stringResource(R.string.search_action),
+                )
+            }
             ViewSwitcherPill(
                 current = selectedView,
                 onCycle = onCycleView,

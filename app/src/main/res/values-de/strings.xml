@@ -77,6 +77,16 @@
     <string name="event_edit_add">Hinzufügen</string>
     <string name="event_edit_add_reminder">Erinnerung hinzufügen</string>
     <string name="event_edit_remove_reminder">Erinnerung entfernen</string>
+    <string name="event_edit_attendees">Gäste</string>
+    <string name="event_edit_add_guest">Gast hinzufügen</string>
+    <string name="event_edit_add_guest_hint">Gast per E-Mail hinzufügen…</string>
+    <string name="event_edit_add_guest_from_contacts">Aus Kontakten hinzufügen</string>
+    <string name="event_edit_location_from_contacts">Adresse aus Kontakten wählen</string>
+    <string name="event_edit_remove_guest">Gast entfernen</string>
+    <string name="event_edit_attendee_required">Erforderlich</string>
+    <string name="event_edit_attendee_optional">Optional</string>
+    <string name="event_edit_attendees_note_synced">Calendula versendet keine Einladungen. Dein Kalenderkonto sendet Gästen bei der Synchronisierung unter Umständen eine E-Mail.</string>
+    <string name="event_edit_attendees_note_local">Auf diesem Gerät gespeichert. Niemand wird benachrichtigt.</string>
     <string name="event_edit_reminder_custom">Benutzerdefiniert</string>
     <string name="reminder_unit_minutes">Minuten</string>
     <string name="reminder_unit_hours">Stunden</string>
@@ -177,6 +187,15 @@
         <item quantity="one">%d Woche vorher</item>
         <item quantity="other">%d Wochen vorher</item>
     </plurals>
+    <!-- Reine Zeitdauern (ohne „vorher"), z. B. die Schlummerdauer. -->
+    <plurals name="duration_minutes">
+        <item quantity="one">%d Minute</item>
+        <item quantity="other">%d Minuten</item>
+    </plurals>
+    <plurals name="duration_hours">
+        <item quantity="one">%d Stunde</item>
+        <item quantity="other">%d Stunden</item>
+    </plurals>
 
     <!-- Geteilte Event-Strings -->
     <string name="event_untitled">(Ohne Titel)</string>
@@ -194,6 +213,8 @@
     <string name="reminder_benefit_reversible_body">Der Schalter liegt in den Einstellungen unter Benachrichtigungen.</string>
     <string name="reminder_onboarding_enable_button">Erinnerungen einschalten</string>
     <string name="reminder_onboarding_skip_button">Später</string>
+    <string name="reminder_action_snooze">Schlummern</string>
+    <string name="reminder_action_dismiss">Verwerfen</string>
 
     <!-- View-Switcher (M1) -->
     <string name="view_month">Monat</string>
@@ -212,6 +233,14 @@
     <string name="agenda_empty_title">Nichts geplant</string>
     <string name="agenda_empty_subtitle">Anstehende Termine erscheinen hier.</string>
 
+    <!-- Terminsuche -->
+    <string name="search_action">Suchen</string>
+    <string name="search_hint">Termine suchen</string>
+    <string name="search_back">Zurück</string>
+    <string name="search_clear">Löschen</string>
+    <string name="search_idle_hint">Durchsuche deine Termine nach Titel, Ort oder Notizen.</string>
+    <string name="search_empty">Keine Termine passen zu „%1$s“.</string>
+
     <!-- Startbildschirm-Widgets -->
     <string name="widget_agenda_title">Anstehend</string>
     <string name="widget_agenda_label">Calendula Agenda</string>
@@ -226,6 +255,11 @@
     <!-- Verknüpfungen (Long-Press auf das App-Symbol) -->
     <string name="shortcut_new_event_short">Neuer Termin</string>
     <string name="shortcut_new_event_long">Neuen Termin erstellen</string>
+
+    <!-- Schnelleinstellungen-Kachel -->
+    <string name="qs_tile_new_event_label">Neuer Termin</string>
+    <string name="settings_qs_tile">Schnelleinstellungen-Kachel hinzufügen</string>
+    <string name="settings_qs_tile_hint">Eine Kachel „Neuer Termin“ zu den Schnelleinstellungen hinzufügen.</string>
 
     <!-- Kalender-Filter (M3) -->
     <string name="filter_title">Kalender</string>
@@ -265,6 +299,7 @@
     <string name="settings_reliable_delivery">Zuverlässige Zustellung</string>
     <string name="settings_reliable_delivery_hint">Android verzögert Erinnerungen womöglich, um Akku zu sparen. Nimm Calendula aus, damit sie pünktlich ankommen.</string>
     <string name="settings_reliable_delivery_exempt">Von der Akku-Optimierung ausgenommen — Erinnerungen kommen pünktlich.</string>
+    <string name="settings_snooze_duration">Schlummerdauer</string>
     <string name="settings_section_calendars">Kalender</string>
     <string name="settings_manage_calendars">Kalender verwalten</string>
     <string name="settings_manage_calendars_hint">Lokale Kalender anlegen, synchronisierte verwalten</string>

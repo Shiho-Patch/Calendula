@@ -1,7 +1,13 @@
 package de.jeanlucmakiola.calendula.ui.edit
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.ContactsContract
+import android.util.Patterns
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,7 +36,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Notes
@@ -38,10 +43,14 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Repeat
@@ -49,11 +58,11 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -82,13 +91,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -97,6 +110,7 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.EventAttendee
 import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
@@ -115,6 +129,8 @@ import de.jeanlucmakiola.calendula.ui.common.DialogUnitDropdown
 import de.jeanlucmakiola.calendula.ui.common.MILLIS_PER_DAY
 import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.OptionCard
+import de.jeanlucmakiola.calendula.ui.common.Position
+import de.jeanlucmakiola.calendula.ui.common.positionOf
 import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
 import de.jeanlucmakiola.calendula.ui.common.ReminderUnit
 import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
@@ -429,6 +445,37 @@ private fun EventEditContent(
     var showColorPicker by rememberSaveable { mutableStateOf(false) }
     var showFieldPicker by rememberSaveable { mutableStateOf(false) }
 
+    // Pick a guest from contacts: a one-shot system picker returning the chosen
+    // email row (email + display name). No READ_CONTACTS — the result Intent
+    // grants temporary read access, so Calendula stays no-network/no-permission.
+    val context = LocalContext.current
+    val pickContact = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                readContactEmail(context, uri)?.let { (email, name) ->
+                    viewModel.addAttendee(email, name)
+                }
+            }
+        }
+    }
+
+    // Pick a postal address from contacts: the same one-shot picker, scoped to
+    // address rows, dropping the chosen contact's formatted address into the
+    // location field. Same no-permission guarantee as the guest picker above.
+    val pickContactAddress = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let { uri ->
+                readContactAddress(context, uri)?.let { address ->
+                    viewModel.setLocation(address)
+                }
+            }
+        }
+    }
+
     val selectedCalendar = state.calendars.firstOrNull { it.id == form.calendarId }
     // The accent ties the form to the detail screen's design language: the
     // bar under the title takes the target calendar's colour.
@@ -560,11 +607,39 @@ private fun EventEditContent(
                 icon = Icons.Default.Place,
                 iconContentDescription = stringResource(R.string.event_detail_location),
             ) {
-                InlineField(
-                    value = form.location,
-                    onValueChange = viewModel::setLocation,
-                    placeholder = stringResource(R.string.event_detail_location),
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    InlineField(
+                        value = form.location,
+                        onValueChange = viewModel::setLocation,
+                        placeholder = stringResource(R.string.event_detail_location),
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(vertical = 4.dp),
+                    )
+                    IconButton(
+                        onClick = {
+                            runCatching {
+                                pickContactAddress.launch(
+                                    Intent(
+                                        Intent.ACTION_PICK,
+                                        ContactsContract.CommonDataKinds.StructuredPostal
+                                            .CONTENT_URI,
+                                    ),
+                                )
+                            }
+                        },
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Contacts,
+                            contentDescription = stringResource(
+                                R.string.event_edit_location_from_contacts,
+                            ),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
             }
         }
 
@@ -587,33 +662,24 @@ private fun EventEditContent(
 
         OptionalFormSection(visible = EventFormField.Reminders in state.visibleFields) {
             Spacer(Modifier.height(gap))
-            // Reminders stack one per row (remove on the right edge); the
-            // add chip closes the card at the bottom. The card icon centres
-            // on the first row, whatever that is.
-            EditCard(
-                icon = Icons.Default.Notifications,
-                iconContentDescription = stringResource(R.string.event_detail_reminders),
-                header = {
-                    when (val first = form.reminders.firstOrNull()) {
-                        null -> AddReminderChip(onClick = { showReminderPicker = true })
-                        else -> ReminderRow(
-                            label = reminderLabel(first),
-                            onRemove = { viewModel.removeReminder(first) },
-                        )
-                    }
-                },
-            ) {
-                form.reminders.drop(1).forEach { minutes ->
-                    ReminderRow(
-                        label = reminderLabel(minutes),
-                        onRemove = { viewModel.removeReminder(minutes) },
-                    )
-                }
-                if (form.reminders.isNotEmpty()) {
-                    Spacer(Modifier.height(4.dp))
-                    AddReminderChip(onClick = { showReminderPicker = true })
-                }
+            // A grouped list like guests: each reminder is its own tonal card
+            // with connected corners, the last row being "Add reminder".
+            val reminders = form.reminders
+            val rows = reminders.size + 1
+            reminders.forEachIndexed { index, minutes ->
+                GroupedItemCard(
+                    position = positionOf(index, rows),
+                    icon = Icons.Default.Notifications,
+                    title = reminderLabel(minutes),
+                    removeContentDescription = stringResource(R.string.event_edit_remove_reminder),
+                    onRemove = { viewModel.removeReminder(minutes) },
+                )
             }
+            AddActionCard(
+                label = stringResource(R.string.event_edit_add_reminder),
+                position = positionOf(reminders.size, rows),
+                onClick = { showReminderPicker = true },
+            )
         }
 
         OptionalFormSection(visible = EventFormField.Recurrence in state.visibleFields) {
@@ -776,6 +842,52 @@ private fun EventEditContent(
             }
         }
 
+        OptionalFormSection(visible = EventFormField.Attendees in state.visibleFields) {
+            Spacer(Modifier.height(gap))
+            // Guests are an inline grouped list: each is a tonal card with a
+            // role toggle + remove, and the trailing card is an inline email
+            // field — type an address, press Done, it commits. Below sits an
+            // honest note — Calendula never sends invitations, so whether a
+            // guest is notified is the calendar backend's call.
+            val guests = form.attendees
+            val rows = guests.size + 1
+            guests.forEachIndexed { index, attendee ->
+                GuestCard(
+                    attendee = attendee,
+                    position = positionOf(index, rows),
+                    onToggleOptional = { viewModel.setAttendeeOptional(attendee, it) },
+                    onRemove = { viewModel.removeAttendee(attendee) },
+                )
+            }
+            AddGuestInlineCard(
+                position = positionOf(guests.size, rows),
+                onAdd = { viewModel.addAttendee(it) },
+                onPickContact = {
+                    runCatching {
+                        pickContact.launch(
+                            Intent(
+                                Intent.ACTION_PICK,
+                                ContactsContract.CommonDataKinds.Email.CONTENT_URI,
+                            ),
+                        )
+                    }
+                },
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(
+                    if (isLocalCalendar) {
+                        R.string.event_edit_attendees_note_local
+                    } else {
+                        R.string.event_edit_attendees_note_synced
+                    },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
+
         OptionalFormSection(visible = state.hiddenFields.isNotEmpty()) {
             Spacer(Modifier.height(20.dp))
             TextButton(
@@ -839,6 +951,7 @@ private fun EventEditContent(
             onDismiss = { showReminderPicker = false },
         )
     }
+
 
     if (showRecurrencePicker) {
         RecurrencePickerDialog(
@@ -1262,44 +1375,273 @@ private fun recurrenceUnitLabel(freq: RecurrenceFreq): Int = when (freq) {
     RecurrenceFreq.Yearly -> R.string.recurrence_unit_years
 }
 
-/** One chosen reminder: humanised lead time, remove pinned to the right edge. */
-@Composable
-private fun ReminderRow(label: String, onRemove: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.weight(1f),
+/** Corner shape for a card at [position] in a grouped run (mirrors GroupedRow). */
+private fun groupedShape(position: Position, full: Dp = 20.dp, small: Dp = 6.dp): Shape =
+    when (position) {
+        Position.Alone -> RoundedCornerShape(full)
+        Position.Top -> RoundedCornerShape(
+            topStart = full, topEnd = full, bottomStart = small, bottomEnd = small,
         )
-        IconButton(onClick = onRemove, modifier = Modifier.size(32.dp)) {
+        Position.Middle -> RoundedCornerShape(small)
+        Position.Bottom -> RoundedCornerShape(
+            topStart = small, topEnd = small, bottomStart = full, bottomEnd = full,
+        )
+    }
+
+/** The 2dp gap that visually separates grouped cards (none after the last). */
+private fun groupedGap(position: Position): Modifier = when (position) {
+    Position.Top, Position.Middle -> Modifier.padding(bottom = 2.dp)
+    Position.Bottom, Position.Alone -> Modifier
+}
+
+/**
+ * One entry in a grouped form list (a guest, a reminder): a leading [icon],
+ * a [title] with optional [supporting] line, and a remove button — all on a
+ * tonal card whose corners come from its [position] in the run.
+ */
+@Composable
+private fun GroupedItemCard(
+    position: Position,
+    icon: ImageVector,
+    title: String,
+    removeContentDescription: String,
+    onRemove: () -> Unit,
+    supporting: String? = null,
+    titleMaxLines: Int = Int.MAX_VALUE,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = groupedShape(position),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(groupedGap(position)),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+        ) {
             Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = stringResource(R.string.event_edit_remove_reminder),
-                modifier = Modifier.size(18.dp),
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = titleMaxLines,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (supporting != null) {
+                    Text(
+                        text = supporting,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (trailing != null) {
+                Spacer(Modifier.width(8.dp))
+                trailing()
+            }
+            IconButton(onClick = onRemove, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = removeContentDescription,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * One guest as a grouped-list card: avatar glyph, name/email, a tappable
+ * Required/Optional role chip, and remove. The email shows as the supporting
+ * line when a name is present, otherwise as the title.
+ */
+@Composable
+private fun GuestCard(
+    attendee: EventAttendee,
+    position: Position,
+    onToggleOptional: (Boolean) -> Unit,
+    onRemove: () -> Unit,
+) {
+    val hasName = attendee.name.isNotBlank()
+    GroupedItemCard(
+        position = position,
+        icon = Icons.Default.Person,
+        title = if (hasName) attendee.name else attendee.email,
+        supporting = attendee.email.takeIf { hasName },
+        titleMaxLines = 1,
+        removeContentDescription = stringResource(R.string.event_edit_remove_guest),
+        onRemove = onRemove,
+        trailing = {
+            FilterChip(
+                selected = attendee.optional,
+                onClick = { onToggleOptional(!attendee.optional) },
+                label = {
+                    Text(
+                        stringResource(
+                            if (attendee.optional) {
+                                R.string.event_edit_attendee_optional
+                            } else {
+                                R.string.event_edit_attendee_required
+                            },
+                        ),
+                    )
+                },
+            )
+        },
+    )
+}
+
+/** The trailing "Add …" action card of a grouped form list (opens a picker). */
+@Composable
+private fun AddActionCard(label: String, position: Position, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = groupedShape(position),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(groupedGap(position)),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(Modifier.width(16.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
     }
 }
 
+/**
+ * The trailing card of the guests list: an inline email field plus a "from
+ * contacts" button. Type an address and press Done (or tap +) to commit a guest;
+ * or pick from contacts to fill email + name at once. The field clears after,
+ * ready for the next. Matches the form's inline-field input style — no dialog.
+ */
 @Composable
-private fun AddReminderChip(onClick: () -> Unit) {
-    AssistChip(
-        onClick = onClick,
-        label = { Text(stringResource(R.string.event_edit_add)) },
-        leadingIcon = {
+private fun AddGuestInlineCard(
+    position: Position,
+    onAdd: (String) -> Unit,
+    onPickContact: () -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf("") }
+    val valid = remember(text) { Patterns.EMAIL_ADDRESS.matcher(text.trim()).matches() }
+    fun commit() {
+        if (valid) {
+            onAdd(text.trim())
+            text = ""
+        }
+    }
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = groupedShape(position),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(groupedGap(position)),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+        ) {
             Icon(
-                imageVector = Icons.Default.Add,
+                imageVector = Icons.Default.PersonAdd,
                 contentDescription = null,
-                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp),
             )
-        },
-        border = null,
-        modifier = Modifier.fillMaxWidth(),
-    )
+            Spacer(Modifier.width(16.dp))
+            InlineTextField(
+                value = text,
+                onValueChange = { text = it },
+                placeholder = stringResource(R.string.event_edit_add_guest_hint),
+                keyboardType = KeyboardType.Email,
+                imeAction = ImeAction.Done,
+                onImeAction = { commit() },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 8.dp),
+            )
+            if (valid) {
+                IconButton(onClick = { commit() }, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(R.string.event_edit_add_guest),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+            IconButton(onClick = onPickContact, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Contacts,
+                    contentDescription = stringResource(R.string.event_edit_add_guest_from_contacts),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+        }
+    }
 }
+
+/**
+ * Read the email + display name from a contact-pick result URI. No
+ * READ_CONTACTS needed: ACTION_PICK grants this URI temporary read access.
+ */
+private fun readContactEmail(context: Context, uri: Uri): Pair<String, String>? =
+    context.contentResolver.query(
+        uri,
+        arrayOf(
+            ContactsContract.CommonDataKinds.Email.ADDRESS,
+            ContactsContract.Contacts.DISPLAY_NAME,
+        ),
+        null, null, null,
+    )?.use { cursor ->
+        if (!cursor.moveToFirst()) return@use null
+        val email = cursor.getString(0).orEmpty().trim()
+        val name = cursor.getString(1).orEmpty().trim()
+        email.takeIf { it.isNotEmpty() }?.let { it to name }
+    }
+
+/**
+ * Read the formatted postal address from a contact-pick result URI. No
+ * READ_CONTACTS needed: ACTION_PICK grants this URI temporary read access.
+ * The provider's formatted address is multi-line; collapse it to one line so
+ * it sits cleanly in the single-line location field.
+ */
+private fun readContactAddress(context: Context, uri: Uri): String? =
+    context.contentResolver.query(
+        uri,
+        arrayOf(ContactsContract.CommonDataKinds.StructuredPostal.FORMATTED_ADDRESS),
+        null, null, null,
+    )?.use { cursor ->
+        if (!cursor.moveToFirst()) return@use null
+        cursor.getString(0).orEmpty()
+            .lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .joinToString(", ")
+            .takeIf { it.isNotEmpty() }
+    }
+
 
 private fun fieldLabel(field: EventFormField): Int = when (field) {
     EventFormField.Location -> R.string.event_detail_location
@@ -1309,6 +1651,7 @@ private fun fieldLabel(field: EventFormField): Int = when (field) {
     EventFormField.Availability -> R.string.event_edit_availability
     EventFormField.Visibility -> R.string.event_edit_visibility
     EventFormField.Color -> R.string.event_edit_color
+    EventFormField.Attendees -> R.string.event_edit_attendees
 }
 
 private fun fieldIcon(field: EventFormField): ImageVector = when (field) {
@@ -1319,6 +1662,7 @@ private fun fieldIcon(field: EventFormField): ImageVector = when (field) {
     EventFormField.Availability -> Icons.Default.EventAvailable
     EventFormField.Visibility -> Icons.Default.Lock
     EventFormField.Color -> Icons.Default.Palette
+    EventFormField.Attendees -> Icons.Default.People
 }
 
 /**

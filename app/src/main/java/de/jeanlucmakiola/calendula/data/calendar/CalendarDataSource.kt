@@ -17,6 +17,7 @@ import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.domain.Attendee
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.EventAttendee
 import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
@@ -45,6 +46,14 @@ interface CalendarDataSource {
     fun calendars(): List<CalendarSource>
     fun instances(beginMillis: Long, endMillis: Long): List<EventInstance>
     fun eventDetail(eventId: Long): EventDetail?
+
+    /**
+     * Master/one-off events whose title, description or location contains
+     * [query] (case-insensitive), across all calendars, newest first. Reads the
+     * Events table directly so the search is unbounded in time; exception rows
+     * are excluded (see [SearchProjection]). [query] is assumed non-blank.
+     */
+    fun searchEvents(query: String): List<EventInstance>
 
     /**
      * The event-colour palette the calendar's account publishes
@@ -297,6 +306,89 @@ class AndroidCalendarDataSource @Inject constructor(
         )?.use { c -> c.mapAllNotNull { CursorColumnReader(c).toEventInstance() } } ?: emptyList()
     }
 
+    override fun searchEvents(query: String): List<EventInstance> {
+        ensureObserversRegistered()
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return emptyList()
+        // Escape the SQL LIKE wildcards so a literal % or _ in the query matches
+        // itself instead of acting as a wildcard.
+        val escaped = trimmed
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        val like = "%$escaped%"
+        val match = "${CalendarContract.Events.TITLE} LIKE ? ESCAPE '\\' OR " +
+            "${CalendarContract.Events.DESCRIPTION} LIKE ? ESCAPE '\\' OR " +
+            "${CalendarContract.Events.EVENT_LOCATION} LIKE ? ESCAPE '\\'"
+        val selection = "($match) AND " +
+            "${CalendarContract.Events.DELETED} = 0 AND " +
+            "${CalendarContract.Events.ORIGINAL_ID} IS NULL"
+        return resolver.query(
+            CalendarContract.Events.CONTENT_URI,
+            SearchProjection.COLUMNS,
+            selection,
+            arrayOf(like, like, like),
+            CalendarContract.Events.DTSTART + " DESC",
+        )?.use { c ->
+            val reader = CursorColumnReader(c)
+            val out = ArrayList<EventInstance>(c.count)
+            while (c.moveToNext()) {
+                val base = reader.toSearchResult() ?: continue
+                // A recurring master's DTSTART is the series start; show its
+                // nearest occurrence instead so the date is the one the user
+                // actually cares about (and sorting reflects it).
+                val recurring = !reader.getString(SearchProjection.IDX_RRULE).isNullOrEmpty() ||
+                    !reader.getString(SearchProjection.IDX_RDATE).isNullOrEmpty()
+                out += if (recurring) {
+                    nearestOccurrenceMillis(base.eventId)?.let { (begin, end) ->
+                        base.copy(
+                            start = begin.toKotlinInstantFromEpochMillis(),
+                            end = end.toKotlinInstantFromEpochMillis(),
+                        )
+                    } ?: base
+                } else {
+                    base
+                }
+            }
+            out
+        } ?: emptyList()
+    }
+
+    /**
+     * The occurrence of [eventId] nearest to now: the soonest upcoming one
+     * within [OCCURRENCE_WINDOW_MILLIS] ahead, else the most recent past one
+     * within the same window behind. Null when neither exists (e.g. a series
+     * that only starts further out than the window) — the caller then keeps the
+     * series-start DTSTART. Returns (begin, end) epoch millis.
+     */
+    private fun nearestOccurrenceMillis(eventId: Long): Pair<Long, Long>? {
+        val now = System.currentTimeMillis()
+        return occurrenceInWindow(eventId, now, now + OCCURRENCE_WINDOW_MILLIS, soonestFirst = true)
+            ?: occurrenceInWindow(eventId, now - OCCURRENCE_WINDOW_MILLIS, now, soonestFirst = false)
+    }
+
+    private fun occurrenceInWindow(
+        eventId: Long,
+        beginMillis: Long,
+        endMillis: Long,
+        soonestFirst: Boolean,
+    ): Pair<Long, Long>? {
+        val uri = CalendarContract.Instances.CONTENT_URI.buildUpon().apply {
+            ContentUris.appendId(this, beginMillis)
+            ContentUris.appendId(this, endMillis)
+        }.build()
+        val order = CalendarContract.Instances.BEGIN + if (soonestFirst) " ASC" else " DESC"
+        return resolver.query(
+            uri,
+            arrayOf(CalendarContract.Instances.BEGIN, CalendarContract.Instances.END),
+            "${CalendarContract.Instances.EVENT_ID} = ?",
+            arrayOf(eventId.toString()),
+            order,
+        )?.use { c ->
+            if (!c.moveToFirst()) null else c.getLong(0) to c.getLong(1)
+        }
+    }
+
     override fun eventDetail(eventId: Long): EventDetail? {
         val attendees = queryAttendees(eventId)
         val reminders = queryReminders(eventId)
@@ -536,6 +628,10 @@ class AndroidCalendarDataSource @Inject constructor(
                     Log.w(TAG, "Failed to attach reminder ($minutes min) to event $eventId")
                 }
             }
+        // Guests are best-effort like reminders: a row that fails to attach is
+        // logged, not surfaced as a failed create. Calendula never sends an
+        // invitation — it only writes the rows; the backend decides delivery.
+        insertAttendees(eventId, form.attendees)
         return eventId
     }
 
@@ -565,6 +661,12 @@ class AndroidCalendarDataSource @Inject constructor(
         if (updated.reminders.toSet() != original.reminders.toSet()) {
             reconcileReminders(eventId, encodedReminders(updated, allDayReminderTimeMinutes))
         }
+        // Same untouched-set guard for guests: only reconcile when the form's
+        // attendees actually changed, so unrelated edits never disturb the
+        // organizer/resource rows the form doesn't model.
+        if (updated.attendees.toSet() != original.attendees.toSet()) {
+            reconcileAttendees(eventId, updated.attendees)
+        }
     }
 
     override fun updateOccurrence(
@@ -587,6 +689,7 @@ class AndroidCalendarDataSource @Inject constructor(
         // Whether the provider copied the parent's reminder rows is its
         // business — reconciling against the actual rows handles both ways.
         reconcileReminders(exceptionId, encodedReminders(form, allDayReminderTimeMinutes))
+        reconcileAttendees(exceptionId, form.attendees)
         return exceptionId
     }
 
@@ -720,6 +823,135 @@ class AndroidCalendarDataSource @Inject constructor(
         }
     }
 
+    /** Normalised key an attendee is matched/deduped on (case-insensitive email). */
+    private fun EventAttendee.key(): String = email.trim().lowercase()
+
+    /** Distinct guests by email; blanks dropped (we key and write on the address). */
+    private fun List<EventAttendee>.distinctByEmail(): List<EventAttendee> {
+        val seen = HashSet<String>()
+        return filter { it.email.isNotBlank() && seen.add(it.key()) }
+    }
+
+    private fun attendeeValues(eventId: Long, attendee: EventAttendee): ContentValues =
+        ContentValues().apply {
+            put(CalendarContract.Attendees.EVENT_ID, eventId)
+            put(CalendarContract.Attendees.ATTENDEE_EMAIL, attendee.email.trim())
+            attendee.name.trim().takeIf { it.isNotEmpty() }
+                ?.let { put(CalendarContract.Attendees.ATTENDEE_NAME, it) }
+            // A plain guest — never the organizer (we don't fabricate scheduling
+            // identity; the backend owns that). Invited = awaiting their reply.
+            put(
+                CalendarContract.Attendees.ATTENDEE_RELATIONSHIP,
+                CalendarContract.Attendees.RELATIONSHIP_ATTENDEE,
+            )
+            put(CalendarContract.Attendees.ATTENDEE_TYPE, attendee.providerType())
+            put(
+                CalendarContract.Attendees.ATTENDEE_STATUS,
+                CalendarContract.Attendees.ATTENDEE_STATUS_INVITED,
+            )
+        }
+
+    private fun EventAttendee.providerType(): Int = if (optional) {
+        CalendarContract.Attendees.TYPE_OPTIONAL
+    } else {
+        CalendarContract.Attendees.TYPE_REQUIRED
+    }
+
+    /** Best-effort attendee inserts (like reminders); emails are never logged. */
+    private fun insertAttendees(eventId: Long, attendees: List<EventAttendee>) {
+        attendees.distinctByEmail().forEach { attendee ->
+            if (resolver.insert(
+                    CalendarContract.Attendees.CONTENT_URI,
+                    attendeeValues(eventId, attendee),
+                ) == null
+            ) {
+                Log.w(TAG, "Failed to attach a guest to event $eventId")
+            }
+        }
+    }
+
+    private data class AttendeeRow(
+        val id: Long,
+        val email: String,
+        val relationship: Int,
+        val type: Int,
+    ) {
+        val key: String get() = email.trim().lowercase()
+    }
+
+    private fun queryAttendeeRows(eventId: Long): List<AttendeeRow> = resolver.query(
+        CalendarContract.Attendees.CONTENT_URI,
+        arrayOf(
+            CalendarContract.Attendees._ID,
+            CalendarContract.Attendees.ATTENDEE_EMAIL,
+            CalendarContract.Attendees.ATTENDEE_RELATIONSHIP,
+            CalendarContract.Attendees.ATTENDEE_TYPE,
+        ),
+        CalendarContract.Attendees.EVENT_ID + " = ?",
+        arrayOf(eventId.toString()),
+        null,
+    )?.use { c ->
+        buildList {
+            while (c.moveToNext()) {
+                add(
+                    AttendeeRow(
+                        id = c.getLong(0),
+                        email = c.getString(1).orEmpty(),
+                        relationship = c.getInt(2),
+                        type = c.getInt(3),
+                    ),
+                )
+            }
+        }
+    } ?: emptyList()
+
+    /**
+     * Make the event's *editable* guest rows match [attendees]. Only rows we
+     * own — has an email, not the organizer, not a resource — are reconciled;
+     * everything else the backend put there is left untouched. Matched rows keep
+     * their response status (only the required/optional type is updated if it
+     * changed); dropped rows are deleted; new guests inserted. Calendula sends
+     * nothing — the backend decides if anyone is notified on sync.
+     */
+    private fun reconcileAttendees(eventId: Long, attendees: List<EventAttendee>) {
+        val target = attendees.distinctByEmail()
+        val targetByKey = target.associateBy { it.key() }
+        val editable = queryAttendeeRows(eventId).filter {
+            it.email.isNotBlank() &&
+                it.relationship != CalendarContract.Attendees.RELATIONSHIP_ORGANIZER &&
+                it.type != CalendarContract.Attendees.TYPE_RESOURCE
+        }
+        val editableKeys = editable.map { it.key }.toSet()
+        editable.forEach { row ->
+            val want = targetByKey[row.key]
+            if (want == null) {
+                resolver.delete(
+                    CalendarContract.Attendees.CONTENT_URI,
+                    CalendarContract.Attendees._ID + " = ?",
+                    arrayOf(row.id.toString()),
+                )
+            } else if (row.type != want.providerType()) {
+                resolver.update(
+                    CalendarContract.Attendees.CONTENT_URI,
+                    ContentValues().apply {
+                        put(CalendarContract.Attendees.ATTENDEE_TYPE, want.providerType())
+                    },
+                    CalendarContract.Attendees._ID + " = ?",
+                    arrayOf(row.id.toString()),
+                )
+            }
+        }
+        target.filterNot { it.key() in editableKeys }.forEach { attendee ->
+            if (resolver.insert(
+                    CalendarContract.Attendees.CONTENT_URI,
+                    attendeeValues(eventId, attendee),
+                ) == null
+            ) {
+                Log.w(TAG, "Failed to attach a guest to event $eventId")
+            }
+        }
+    }
+
     private fun Map<String, Any?>.toContentValues(): ContentValues =
         ContentValues().also { cv ->
             forEach { (column, value) ->
@@ -814,5 +1046,12 @@ class AndroidCalendarDataSource @Inject constructor(
          * together (by account) in the filter sheet and calendar manager.
          */
         const val LOCAL_ACCOUNT_NAME = "Calendula"
+
+        /**
+         * How far ahead/behind a search looks for a recurring event's nearest
+         * occurrence (~2 years). Wide enough for everyday series; a series that
+         * next fires beyond it falls back to its series-start date.
+         */
+        const val OCCURRENCE_WINDOW_MILLIS = 2L * 365 * 24 * 60 * 60 * 1000
     }
 }

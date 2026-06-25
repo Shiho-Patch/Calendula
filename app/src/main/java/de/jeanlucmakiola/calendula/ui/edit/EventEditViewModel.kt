@@ -13,6 +13,7 @@ import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EditSnapshot
+import de.jeanlucmakiola.calendula.domain.EventAttendee
 import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
@@ -351,6 +352,33 @@ class EventEditViewModel @Inject constructor(
     fun removeReminder(minutes: Int) {
         _remindersTouched.value = true
         update { it.copy(reminders = it.reminders - minutes) }
+    }
+
+    /**
+     * Add a guest, keyed on a trimmed lower-cased email so re-adding the same
+     * address just refreshes it (no duplicate row). A blank email is ignored —
+     * the email is what we write and dedup on.
+     */
+    fun addAttendee(email: String, name: String = "", optional: Boolean = false) {
+        val trimmed = email.trim()
+        if (trimmed.isEmpty()) return
+        update { form ->
+            val attendee = EventAttendee(email = trimmed, name = name.trim(), optional = optional)
+            val rest = form.attendees.filterNot { it.email.equals(trimmed, ignoreCase = true) }
+            form.copy(attendees = rest + attendee)
+        }
+    }
+
+    fun removeAttendee(attendee: EventAttendee) =
+        update { it.copy(attendees = it.attendees.filterNot { a -> a.email.equals(attendee.email, ignoreCase = true) }) }
+
+    /** Flip a guest between required and optional (the per-row role toggle). */
+    fun setAttendeeOptional(attendee: EventAttendee, optional: Boolean) = update { form ->
+        form.copy(
+            attendees = form.attendees.map { a ->
+                if (a.email.equals(attendee.email, ignoreCase = true)) a.copy(optional = optional) else a
+            },
+        )
     }
 
     /** Moving the start drags the end along, preserving the duration. */

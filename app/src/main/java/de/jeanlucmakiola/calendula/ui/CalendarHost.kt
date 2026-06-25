@@ -26,6 +26,7 @@ import de.jeanlucmakiola.calendula.ui.detail.EventDetailScreen
 import de.jeanlucmakiola.calendula.ui.edit.EventEditScreen
 import de.jeanlucmakiola.calendula.ui.imports.ImportScreen
 import de.jeanlucmakiola.calendula.ui.month.MonthScreen
+import de.jeanlucmakiola.calendula.ui.search.SearchScreen
 import de.jeanlucmakiola.calendula.ui.settings.SettingsScreen
 import de.jeanlucmakiola.calendula.ui.week.WeekScreen
 import kotlinx.datetime.LocalDate
@@ -97,6 +98,12 @@ fun CalendarHost(
     var showSettings by rememberSaveable { mutableStateOf(false) }
     val onOpenSettings = { showSettings = true }
 
+    // Full-text search — its own overlay, opened from each calendar screen's
+    // top bar. Sits below the detail/edit overlays so tapping a result reveals
+    // the detail on top and backing out returns to the results.
+    var showSearch by rememberSaveable { mutableStateOf(false) }
+    val onOpenSearch = { showSearch = true }
+
     // Calendar manager (reached from Settings) — its own overlay so it slides
     // over Settings and survives view switches.
     var showCalendars by rememberSaveable { mutableStateOf(false) }
@@ -137,16 +144,37 @@ fun CalendarHost(
         }
     }
 
+    // Close every overlay that can sit over the calendar, so an externally
+    // requested destination (a widget/shortcut/QS-tile launch) is revealed on
+    // top instead of underneath whatever the user had open.
+    fun dismissCoveringOverlays() {
+        showSettings = false
+        showCalendars = false
+        detailKey = null
+        editKey = null
+        importUri = null
+        importForm = null
+    }
+
     // A home-screen widget launch asks to open a date (→ day view) or start a
     // create. Handled once and cleared, mirroring [requestedDetailKey].
     LaunchedEffect(widgetNavRequest) {
         when (val req = widgetNavRequest) {
             is WidgetNavRequest.OpenDate -> {
+                // Reveal the day view: drop any overlay that would cover it, so
+                // an external date-open doesn't land under an open Settings/form.
+                dismissCoveringOverlays()
+                createDateIso = null
                 pendingDayIso = req.dateIso
                 view = CalendarView.Day
                 onWidgetNavConsumed()
             }
             is WidgetNavRequest.Create -> {
+                // External "new event" entries (QS tile / launcher shortcut /
+                // widget) must land on top of whatever is open — the form overlay
+                // sits below Settings/calendars in the Box, so without this it
+                // would open hidden underneath them.
+                dismissCoveringOverlays()
                 val iso = req.dateIso ?: Clock.System.now()
                     .toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
                 heldCreateIso = iso
@@ -168,6 +196,7 @@ fun CalendarHost(
                 onSelectView = onSelectView,
                 onEventClick = onEventClick,
                 onOpenSettings = onOpenSettings,
+                onOpenSearch = onOpenSearch,
                 onCreateEvent = onCreateEvent,
             )
             CalendarView.Day -> DayScreen(
@@ -175,6 +204,7 @@ fun CalendarHost(
                 onSelectView = onSelectView,
                 onEventClick = onEventClick,
                 onOpenSettings = onOpenSettings,
+                onOpenSearch = onOpenSearch,
                 onCreateEvent = onCreateEvent,
                 initialDateIso = pendingDayIso,
             )
@@ -183,6 +213,7 @@ fun CalendarHost(
                 onSelectView = onSelectView,
                 onOpenDay = onOpenDay,
                 onOpenSettings = onOpenSettings,
+                onOpenSearch = onOpenSearch,
                 onCreateEvent = onCreateEvent,
             )
             CalendarView.Agenda -> AgendaScreen(
@@ -190,7 +221,21 @@ fun CalendarHost(
                 onSelectView = onSelectView,
                 onEventClick = onEventClick,
                 onOpenSettings = onOpenSettings,
+                onOpenSearch = onOpenSearch,
                 onCreateEvent = onCreateEvent,
+            )
+        }
+
+        // Search overlay — below detail/edit in the Box so a tapped result's
+        // detail screen draws on top, and closing it returns to the results.
+        AnimatedVisibility(
+            visible = showSearch,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            SearchScreen(
+                onBack = { showSearch = false },
+                onEventClick = onEventClick,
             )
         }
 
