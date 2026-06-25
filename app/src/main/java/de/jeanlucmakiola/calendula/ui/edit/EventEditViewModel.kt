@@ -121,10 +121,18 @@ class EventEditViewModel @Inject constructor(
         val allowColorOnUnsupported: Boolean,
     )
 
-    /** Writable calendars — the only valid event targets. */
-    private val writableCalendars: Flow<List<CalendarSource>> = repository.calendars()
-        .map { calendars -> calendars.filter { it.canModifyContents } }
-        .catch { emit(emptyList()) }
+    /**
+     * Writable calendars — the only valid event targets. Disabled calendars are
+     * excluded, so you can't create into a calendar you've removed from the app;
+     * a last-used preselect landing on a now-disabled calendar falls back to the
+     * first remaining writable one (handled by [resolvedCalendarId] and [state]).
+     */
+    private val writableCalendars: Flow<List<CalendarSource>> = combine(
+        repository.calendars(),
+        prefs.disabledCalendarIds,
+    ) { calendars, disabled ->
+        calendars.filter { it.canModifyContents && it.id !in disabled }
+    }.catch { emit(emptyList()) }
 
     /** The target calendar id, resolved exactly as the form shows it. */
     private val resolvedCalendarId: Flow<Long?> = combine(

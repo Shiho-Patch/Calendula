@@ -171,6 +171,74 @@ class CalendarRepositoryImplTest {
     }
 
     @Test
+    fun `instances drops events whose calendar the user disabled`(@TempDir tempDir: Path) = runTest {
+        val prefs = newPrefs(tempDir)
+        prefs.setDisabledCalendarIds(setOf(2L))
+        val fake = FakeCalendarDataSource().apply {
+            instancesResult = { _, _ ->
+                listOf(
+                    makeEvent(10L, "Enabled", calendarId = 1L),
+                    makeEvent(11L, "Disabled", calendarId = 2L),
+                )
+            }
+        }
+        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
+
+        val range = Instant.fromEpochMilliseconds(0)..Instant.fromEpochMilliseconds(10_000L)
+        repo.instances(range).test {
+            assertThat(awaitItem().map { it.title }).containsExactly("Enabled")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `instances applies the union of hidden and disabled sets`(@TempDir tempDir: Path) = runTest {
+        val prefs = newPrefs(tempDir)
+        prefs.setHiddenCalendarIds(setOf(2L))
+        prefs.setDisabledCalendarIds(setOf(3L))
+        val fake = FakeCalendarDataSource().apply {
+            instancesResult = { _, _ ->
+                listOf(
+                    makeEvent(10L, "Shown", calendarId = 1L),
+                    makeEvent(11L, "Hidden", calendarId = 2L),
+                    makeEvent(12L, "Disabled", calendarId = 3L),
+                )
+            }
+        }
+        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
+
+        val range = Instant.fromEpochMilliseconds(0)..Instant.fromEpochMilliseconds(10_000L)
+        repo.instances(range).test {
+            assertThat(awaitItem().map { it.title }).containsExactly("Shown")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `instances re-emits when the disabled set changes`(@TempDir tempDir: Path) = runTest {
+        val prefs = newPrefs(tempDir)
+        val fake = FakeCalendarDataSource().apply {
+            instancesResult = { _, _ ->
+                listOf(
+                    makeEvent(10L, "A", calendarId = 1L),
+                    makeEvent(11L, "B", calendarId = 2L),
+                )
+            }
+        }
+        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
+
+        val range = Instant.fromEpochMilliseconds(0)..Instant.fromEpochMilliseconds(10_000L)
+        repo.instances(range).test {
+            assertThat(awaitItem().map { it.title }).containsExactly("A", "B").inOrder()
+
+            prefs.setDisabledCalendarIds(setOf(2L))
+
+            assertThat(awaitItem().map { it.title }).containsExactly("A")
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `createEvent delegates and returns the new id`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource().apply { nextInsertId = 77L }
         val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)

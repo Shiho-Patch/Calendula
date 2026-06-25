@@ -128,7 +128,9 @@ fun CollapsingScaffold(
  * One row in a grouped list: an M3 [ListItem] over a tonal [Surface] whose
  * corner radii come from its [position] (so a run of rows reads as a single
  * rounded card). Corners round further on press. A null [onClick] makes the
- * row non-interactive (e.g. read-only entries).
+ * row non-interactive (e.g. read-only entries). [dimmed] fades the headline and
+ * summary to the M3 disabled emphasis while leaving the [trailing] control at
+ * full opacity — for rows that are present but switched off.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -138,6 +140,7 @@ fun GroupedRow(
     modifier: Modifier = Modifier,
     summary: String? = null,
     selected: Boolean = false,
+    dimmed: Boolean = false,
     minHeight: Dp = 72.dp,
     leading: @Composable (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
@@ -168,6 +171,16 @@ fun GroupedRow(
             leadingIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
             supportingColor = MaterialTheme.colorScheme.onSecondaryContainer,
             trailingIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        )
+    } else if (dimmed) {
+        // M3 disabled emphasis (0.38α) on the text/leading; the trailing control
+        // stays full-opacity so the toggle reads as live even on a faded row.
+        val muted = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        ListItemDefaults.colors(
+            containerColor = Color.Transparent,
+            headlineColor = muted,
+            leadingIconColor = muted,
+            supportingColor = muted,
         )
     } else {
         ListItemDefaults.colors(containerColor = Color.Transparent)

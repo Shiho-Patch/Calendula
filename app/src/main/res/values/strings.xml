@@ -317,6 +317,8 @@
     <string name="calendars_local_header">Your calendars</string>
     <string name="calendars_local_empty">No local calendars yet. Create one to keep events on this device only.</string>
     <string name="calendars_add">Add calendar</string>
+    <string name="calendars_disable_hint">Turn a calendar off to remove it from the app — its events, filters and pickers. Nothing is deleted, and you can turn it back on here anytime.</string>
+    <string name="calendars_show_in_app_a11y">Show \"%1$s\" in the app</string>
     <string name="calendars_synced_header">Synced calendars</string>
     <string name="calendars_synced_hint">These come from accounts on your device. Create and edit them in their own app.</string>
     <string name="calendars_manage_in_app">Manage</string>
