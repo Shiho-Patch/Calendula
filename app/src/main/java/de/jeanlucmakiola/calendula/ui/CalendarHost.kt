@@ -26,6 +26,7 @@ import de.jeanlucmakiola.calendula.ui.calendars.CalendarsScreen
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.drillToDay
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
+import de.jeanlucmakiola.calendula.ui.common.selectView
 import de.jeanlucmakiola.calendula.ui.common.viewBaseStack
 import de.jeanlucmakiola.calendula.ui.day.DayScreen
 import de.jeanlucmakiola.calendula.ui.detail.EventDetailScreen
@@ -46,11 +47,12 @@ import kotlin.time.Clock
  * pill in their top bars writes back here via [onSelectView].
  *
  * The stack's bottom is the user's [CalendarHostViewModel.defaultView] home view.
- * A lateral move (pill / drawer / a widget establishing its own view) replaces
- * the non-home top; a date tap drills the day view on top. Pressing back pops
- * one level, and the base-level [BackHandler] hands off to the system to exit
- * once only the home view remains. So back from a widget-opened screen returns
- * to that widget's view, then home, then out.
+ * A lateral switch (pill / drawer) builds a visit history so back retraces it
+ * (see [selectView]); a widget launch resets the stack to its own view; a date
+ * tap drills the day view on top. Pressing back pops one level, and the
+ * base-level [BackHandler] hands off to the system to exit once only the home
+ * view remains. So back from a widget-opened screen returns to that widget's
+ * view, then home; and back through pill switches walks the views in reverse.
  *
  * [requestedDetailKey] is an externally requested occurrence (a tapped
  * reminder notification routed through MainActivity): it opens the detail
@@ -79,7 +81,7 @@ fun CalendarHost(
         mutableStateOf(listOf(defaultView))
     }
     val view = viewStack.last()
-    val onSelectView: (CalendarView) -> Unit = { viewStack = viewBaseStack(defaultView, it) }
+    val onSelectView: (CalendarView) -> Unit = { viewStack = viewStack.selectView(it) }
 
     // Tapping a day in the month grid opens the day view anchored to that date.
     var pendingDayIso by rememberSaveable { mutableStateOf<String?>(null) }

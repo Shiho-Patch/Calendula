@@ -303,8 +303,16 @@ private fun WeekRow(
 
 @Composable
 private fun DayNumber(date: LocalDate, isToday: Boolean, inMonth: Boolean, colW: Dp) {
+    val context = LocalContext.current
     Box(
-        modifier = GlanceModifier.width(colW).height(DAY_NUMBER_HEIGHT),
+        modifier = GlanceModifier
+            .width(colW)
+            .height(DAY_NUMBER_HEIGHT)
+            // Tap a day number to open that day, rooted in the month view so back
+            // returns to the month grid.
+            .clickable(
+                actionStartActivity(MainActivity.openDateIntent(context, date, CalendarView.Month)),
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -356,7 +364,24 @@ private fun LaneRow(week: MonthWeek, lane: Int, dark: Boolean, colW: Dp) {
 @Composable
 private fun SpanBar(event: EventInstance, dark: Boolean, width: Dp) {
     val context = LocalContext.current
-    Box(modifier = GlanceModifier.width(width).height(LANE_HEIGHT).padding(horizontal = 1.dp)) {
+    Box(
+        modifier = GlanceModifier
+            .width(width)
+            .height(LANE_HEIGHT)
+            .padding(horizontal = 1.dp)
+            // Tap an event bar to open its detail, rooted in the month view.
+            .clickable(
+                actionStartActivity(
+                    MainActivity.openEventIntent(
+                        context = context,
+                        eventId = event.eventId,
+                        beginMillis = event.start.toEpochMilliseconds(),
+                        endMillis = event.end.toEpochMilliseconds(),
+                        source = CalendarView.Month,
+                    ),
+                ),
+            ),
+    ) {
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()

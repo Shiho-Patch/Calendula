@@ -12,14 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Appearance) lets you pick Month, Week, Day or Agenda as the view shown each
   time you start the app, instead of always opening on Week. Thanks to
   @devinside for the suggestion ([#1]).
+- The month widget is now interactive: tap any day to open it, or tap an event to
+  open its details. Previously only the month's prev/next/today controls
+  responded. Thanks to @devinside for spotting this ([#2]).
 
 ### Fixed
-- Home-screen widgets now back out the way you came in. Opening a day or event
-  from the Agenda widget keeps you in the agenda context, and the Month widget
-  keeps you in the month context — pressing Back returns to that view instead of
-  dropping you on the week view. The app now keeps a proper view history: Back
-  steps from a drilled-in day to the view you opened it from, then to your
-  default view, then leaves the app. Thanks to @devinside for reporting ([#2]).
+- Home-screen widgets now back out the way you came in. A day or event opened
+  from the Agenda widget keeps you in the agenda context, and from the Month
+  widget in the month context — pressing Back returns there instead of dropping
+  you on the week view. More broadly, the app now keeps a real view history:
+  switching views and drilling into a day are retraced by Back one step at a
+  time, down to your default view before the app exits. Thanks to @devinside for
+  reporting ([#2]).
 
 ## [2.8.0] — 2026-06-23
 

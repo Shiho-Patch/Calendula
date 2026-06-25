@@ -12,25 +12,44 @@ import org.junit.jupiter.api.Test
 class ViewBackStackTest {
 
     @Test
-    fun `lateral move to the home view collapses to just the home`() {
+    fun `a widget whose view is the home view resets to just the home`() {
         assertThat(viewBaseStack(CalendarView.Week, CalendarView.Week))
             .containsExactly(CalendarView.Week)
     }
 
     @Test
-    fun `lateral move to a non-home view layers it over the home`() {
+    fun `a widget launch resets to its view over the home`() {
         assertThat(viewBaseStack(CalendarView.Week, CalendarView.Month))
             .containsExactly(CalendarView.Week, CalendarView.Month)
             .inOrder()
     }
 
     @Test
-    fun `a lateral move never grows past one level above home`() {
-        // Switching pill targets in turn replaces the top rather than stacking.
-        val afterMonth = viewBaseStack(CalendarView.Week, CalendarView.Month)
-        val afterAgenda = viewBaseStack(CalendarView.Week, CalendarView.Agenda)
-        assertThat(afterMonth).hasSize(2)
-        assertThat(afterAgenda).containsExactly(CalendarView.Week, CalendarView.Agenda).inOrder()
+    fun `pill switches build a visit history that back retraces`() {
+        // Agenda → Day → Week → Month, each a new view, stacks the full history.
+        val stack = listOf(CalendarView.Agenda)
+            .selectView(CalendarView.Day)
+            .selectView(CalendarView.Week)
+            .selectView(CalendarView.Month)
+        assertThat(stack).containsExactly(
+            CalendarView.Agenda, CalendarView.Day, CalendarView.Week, CalendarView.Month,
+        ).inOrder()
+        // Back walks the views in reverse, not straight to the home view.
+        assertThat(stack.dropLast(1).last()).isEqualTo(CalendarView.Week)
+    }
+
+    @Test
+    fun `selecting an already-visited view collapses the loop back to it`() {
+        val stack = listOf(CalendarView.Week, CalendarView.Agenda, CalendarView.Day)
+            .selectView(CalendarView.Agenda)
+        assertThat(stack).containsExactly(CalendarView.Week, CalendarView.Agenda).inOrder()
+    }
+
+    @Test
+    fun `selecting the home view collapses to just the home`() {
+        val stack = listOf(CalendarView.Week, CalendarView.Agenda, CalendarView.Day)
+            .selectView(CalendarView.Week)
+        assertThat(stack).containsExactly(CalendarView.Week)
     }
 
     @Test
