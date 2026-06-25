@@ -13,6 +13,11 @@ Reads, writes, and reminds — on top of the system calendar, with zero network 
 <img src="https://img.shields.io/badge/Kotlin-Compose-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin + Compose">
 <img src="https://img.shields.io/badge/Material%203-Expressive-4285F4" alt="Material 3 Expressive">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License"></a>
+<a href="https://ko-fi.com/jeanlucmakiola"><img src="https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=kofi&logoColor=white" alt="Support development on Ko-fi"></a>
+</p>
+
+<p>
+<a href="https://f-droid.org/packages/de.jeanlucmakiola.calendula/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80"></a>
 </p>
 
 <p>
@@ -68,13 +73,20 @@ database, no sync stack reinvented.
 
 ## 📦 Install
 
-Calendula ships through a self-hosted F-Droid repository; every version tag
-is built, signed, and published there automatically.
+### F-Droid (recommended)
 
-1. Install an F-Droid client ([F-Droid](https://f-droid.org), Droid-ify, Neo
-   Store, …).
-2. Add the repository — open this link on your phone, or paste it under
-   *Settings → Repositories → Add*:
+Calendula is on the **official [F-Droid](https://f-droid.org) repository** —
+just search for **Calendula** in any F-Droid client, or
+[install it from f-droid.org](https://f-droid.org/packages/de.jeanlucmakiola.calendula/).
+
+### Self-hosted repo (latest builds)
+
+New versions are built, signed, and published to a self-hosted repository the
+moment each tag lands — usually a few days ahead of the official repo, which
+rebuilds on F-Droid's own schedule. Add it for the freshest builds:
+
+1. In your F-Droid client, open *Settings → Repositories → Add* (or open the
+   link below on your phone):
 
    ```
    https://apps.dev.jeanlucmakiola.de/dev/fdroid/repo?fingerprint=C2C0640402BF458FC0ED957AF0B37AA4C14022E72F89CE90B5965B458CF73425
@@ -84,10 +96,10 @@ is built, signed, and published there automatically.
    fingerprint (SHA-256):
    `C2C0 6404 02BF 458F C0ED 957A F0B3 7AA4 C140 22E7 2F89 CE90 B596 5B45 8CF7 3425`</sub>
 
-3. Refresh, search for **Calendula**, install. Updates arrive like any
-   other F-Droid app.
+2. Refresh, search for **Calendula**, install.
 
-Alternatively, build from source — see below.
+Both channels share the same signing key, so you can switch between them
+without reinstalling. Or build from source — see below.
 
 ## 🛠 Building
 
@@ -114,17 +126,6 @@ Shipped: read (v1.0), write (v1.1–v2.0), reminder delivery (v1.4).
 Next up: power-user features — widget, search, tablet layouts. The living
 roadmap is in [.planning/ROADMAP.md](.planning/ROADMAP.md), the release
 history in [CHANGELOG.md](CHANGELOG.md).
-
-## 💛 Support
-
-Calendula is free, open source, and built by one person in their own time —
-with no ads, no tracking, and no internet permission. If it makes your days a
-little calmer and you'd like to support its continued development, you can buy
-me a coffee:
-
-[**☕ ko-fi.com/jeanlucmakiola**](https://ko-fi.com/jeanlucmakiola)
-
-Entirely optional, always appreciated. 🌼
 
 ## 📜 License
 
