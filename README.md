@@ -16,6 +16,12 @@ Reads, writes, and reminds — on top of the system calendar, with zero network 
 </p>
 
 <p>
+<a href="https://f-droid.org/packages/de.jeanlucmakiola.calendula/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="56"></a>
+&nbsp;
+<a href="https://ko-fi.com/jeanlucmakiola"><img src="https://storage.ko-fi.com/cdn/brandasset/v2/support_me_on_kofi_badge_beige.png" alt="Support me on Ko-fi" height="56"></a>
+</p>
+
+<p>
 <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01-week.png" width="19%" alt="Week view">&nbsp;
 <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02-month.png" width="19%" alt="Month view">&nbsp;
 <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04-detail.png" width="19%" alt="Event detail">&nbsp;
@@ -68,13 +74,20 @@ database, no sync stack reinvented.
 
 ## 📦 Install
 
-Calendula ships through a self-hosted F-Droid repository; every version tag
-is built, signed, and published there automatically.
+### F-Droid (recommended)
 
-1. Install an F-Droid client ([F-Droid](https://f-droid.org), Droid-ify, Neo
-   Store, …).
-2. Add the repository — open this link on your phone, or paste it under
-   *Settings → Repositories → Add*:
+Calendula is on the **official [F-Droid](https://f-droid.org) repository** —
+just search for **Calendula** in any F-Droid client, or
+[install it from f-droid.org](https://f-droid.org/packages/de.jeanlucmakiola.calendula/).
+
+### Self-hosted repo (latest builds)
+
+New versions are built, signed, and published to a self-hosted repository the
+moment each tag lands — usually a few days ahead of the official repo, which
+rebuilds on F-Droid's own schedule. Add it for the freshest builds:
+
+1. In your F-Droid client, open *Settings → Repositories → Add* (or open the
+   link below on your phone):
 
    ```
    https://apps.dev.jeanlucmakiola.de/dev/fdroid/repo?fingerprint=C2C0640402BF458FC0ED957AF0B37AA4C14022E72F89CE90B5965B458CF73425
@@ -84,36 +97,16 @@ is built, signed, and published there automatically.
    fingerprint (SHA-256):
    `C2C0 6404 02BF 458F C0ED 957A F0B3 7AA4 C140 22E7 2F89 CE90 B596 5B45 8CF7 3425`</sub>
 
-3. Refresh, search for **Calendula**, install. Updates arrive like any
-   other F-Droid app.
+2. Refresh, search for **Calendula**, install.
 
-Alternatively, build from source — see below.
+Both channels share the same signing key, so you can switch between them
+without reinstalling. Or build from source — see below.
 
-## 🛠 Building
+## 📚 Documentation
 
-Requires Android SDK 36+ and JDK 17. The Gradle wrapper is checked in:
-
-```bash
-./gradlew assembleDebug   # debug APK
-./gradlew test            # JVM unit tests
-./gradlew lint            # Android lint
-```
-
-If your default JDK is not 17, set `JAVA_HOME` explicitly.
-
-## 🏗 Architecture
-
-Single-activity Compose app, layered `UI → Repository → DataSource →
-CalendarContract`, observer-driven refresh, JVM-first tests. The full tour —
-including the recurring-write and reminder pipelines — lives in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## 🗺 Roadmap
-
-Shipped: read (v1.0), write (v1.1–v2.0), reminder delivery (v1.4).
-Next up: power-user features — widget, search, tablet layouts. The living
-roadmap is in [.planning/ROADMAP.md](.planning/ROADMAP.md), the release
-history in [CHANGELOG.md](CHANGELOG.md).
+- **[Building from source](docs/BUILDING.md)** — requirements and Gradle tasks
+- **[Architecture](docs/ARCHITECTURE.md)** — the layered design and key pipelines
+- **[Roadmap](.planning/ROADMAP.md)** — what's shipped and what's next
 
 ## 📜 License
 

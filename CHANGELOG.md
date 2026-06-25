@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.0] — Unreleased
+
+### Added
+- An optional way to support development. Settings → About now has a "Support
+  development" button that opens Ko-fi in your browser. It's a plain donation
+  link with no perks attached, and it needs no new permissions — Calendula still
+  has no internet access of its own and just hands the link to your browser.
+
 ## [2.9.0] — 2026-06-25
 
 ### Added

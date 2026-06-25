@@ -315,6 +315,7 @@
     <string name="settings_license_value">MIT</string>
     <string name="settings_about_author">von Jean-Luc Makiola</string>
     <string name="settings_about_source">Quellcode</string>
+    <string name="settings_about_support">Entwicklung unterstützen</string>
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_logo_desc">Calendula-App-Symbol</string>
     <string name="settings_report_problem">Problem melden</string>
