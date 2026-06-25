@@ -1,6 +1,7 @@
 package de.jeanlucmakiola.calendula.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -23,6 +24,7 @@ import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaScreen
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarsScreen
+import de.jeanlucmakiola.calendula.ui.common.calendarFadeThrough
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.drillToDay
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
@@ -239,40 +241,50 @@ fun CalendarHost(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        when (view) {
-            CalendarView.Week -> WeekScreen(
-                selectedView = view,
-                onSelectView = onSelectView,
-                onEventClick = onEventClick,
-                onOpenSettings = onOpenSettings,
-                onOpenSearch = onOpenSearch,
-                onCreateEvent = onCreateEvent,
-            )
-            CalendarView.Day -> DayScreen(
-                selectedView = view,
-                onSelectView = onSelectView,
-                onEventClick = onEventClick,
-                onOpenSettings = onOpenSettings,
-                onOpenSearch = onOpenSearch,
-                onCreateEvent = onCreateEvent,
-                initialDateIso = pendingDayIso,
-            )
-            CalendarView.Month -> MonthScreen(
-                selectedView = view,
-                onSelectView = onSelectView,
-                onOpenDay = onOpenDay,
-                onOpenSettings = onOpenSettings,
-                onOpenSearch = onOpenSearch,
-                onCreateEvent = onCreateEvent,
-            )
-            CalendarView.Agenda -> AgendaScreen(
-                selectedView = view,
-                onSelectView = onSelectView,
-                onEventClick = onEventClick,
-                onOpenSettings = onOpenSettings,
-                onOpenSearch = onOpenSearch,
-                onCreateEvent = onCreateEvent,
-            )
+        // Switching between the peer views (month/week/day/agenda) is lateral
+        // navigation, so it fades through rather than sliding — paging *within* a
+        // view keeps the directional slide. AnimatedContent keyed on the view type.
+        val viewSwitch = calendarFadeThrough()
+        AnimatedContent(
+            targetState = view,
+            transitionSpec = { viewSwitch },
+            label = "view-switch",
+        ) { currentView ->
+            when (currentView) {
+                CalendarView.Week -> WeekScreen(
+                    selectedView = currentView,
+                    onSelectView = onSelectView,
+                    onEventClick = onEventClick,
+                    onOpenSettings = onOpenSettings,
+                    onOpenSearch = onOpenSearch,
+                    onCreateEvent = onCreateEvent,
+                )
+                CalendarView.Day -> DayScreen(
+                    selectedView = currentView,
+                    onSelectView = onSelectView,
+                    onEventClick = onEventClick,
+                    onOpenSettings = onOpenSettings,
+                    onOpenSearch = onOpenSearch,
+                    onCreateEvent = onCreateEvent,
+                    initialDateIso = pendingDayIso,
+                )
+                CalendarView.Month -> MonthScreen(
+                    selectedView = currentView,
+                    onSelectView = onSelectView,
+                    onOpenDay = onOpenDay,
+                    onOpenSettings = onOpenSettings,
+                    onOpenSearch = onOpenSearch,
+                    onCreateEvent = onCreateEvent,
+                )
+                CalendarView.Agenda -> AgendaScreen(
+                    selectedView = currentView,
+                    onSelectView = onSelectView,
+                    onEventClick = onEventClick,
+                    onOpenSettings = onOpenSettings,
+                    onOpenSearch = onOpenSearch,
+                    onCreateEvent = onCreateEvent,
+                )
+            }
         }
 
         // Search overlay — below detail/edit in the Box so a tapped result's

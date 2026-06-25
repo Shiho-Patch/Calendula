@@ -1,6 +1,5 @@
 package de.jeanlucmakiola.calendula.ui.search
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +48,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.common.calendarAnimateItem
+import de.jeanlucmakiola.calendula.ui.common.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.Position
@@ -88,10 +89,8 @@ fun SearchScreen(
         focusRequester.requestFocus()
         keyboard?.show()
     }
-    BackHandler(onBack = onBack)
-
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.predictiveBack(onBack = onBack),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             TopAppBar(
@@ -174,6 +173,7 @@ private fun SearchResults(
             SearchResultRow(
                 event = event,
                 position = positionOf(index, events.size),
+                modifier = calendarAnimateItem(),
                 onClick = { onEventClick(event) },
             )
         }
@@ -184,10 +184,12 @@ private fun SearchResults(
 private fun SearchResultRow(
     event: EventInstance,
     position: Position,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
     GroupedRow(
+        modifier = modifier,
         title = event.title,
         summary = searchSummary(event),
         position = position,
