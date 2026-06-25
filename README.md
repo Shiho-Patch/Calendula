@@ -16,7 +16,7 @@ Reads, writes, and reminds — on top of the system calendar, with zero network 
 </p>
 
 <p>
-<a href="https://f-droid.org/packages/de.jeanlucmakiola.calendula/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="64"></a>
+<a href="https://f-droid.org/packages/de.jeanlucmakiola.calendula/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="46"></a>
 &nbsp;
 <a href="https://ko-fi.com/jeanlucmakiola"><img src="https://storage.ko-fi.com/cdn/kofi2.png?v=3" alt="Support me on Ko-fi" height="46"></a>
 </p>
