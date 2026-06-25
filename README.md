@@ -101,31 +101,11 @@ rebuilds on F-Droid's own schedule. Add it for the freshest builds:
 Both channels share the same signing key, so you can switch between them
 without reinstalling. Or build from source — see below.
 
-## 🛠 Building
+## 📚 Documentation
 
-Requires Android SDK 36+ and JDK 17. The Gradle wrapper is checked in:
-
-```bash
-./gradlew assembleDebug   # debug APK
-./gradlew test            # JVM unit tests
-./gradlew lint            # Android lint
-```
-
-If your default JDK is not 17, set `JAVA_HOME` explicitly.
-
-## 🏗 Architecture
-
-Single-activity Compose app, layered `UI → Repository → DataSource →
-CalendarContract`, observer-driven refresh, JVM-first tests. The full tour —
-including the recurring-write and reminder pipelines — lives in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## 🗺 Roadmap
-
-Shipped: read (v1.0), write (v1.1–v2.0), reminder delivery (v1.4).
-Next up: power-user features — widget, search, tablet layouts. The living
-roadmap is in [.planning/ROADMAP.md](.planning/ROADMAP.md), the release
-history in [CHANGELOG.md](CHANGELOG.md).
+- **[Building from source](docs/BUILDING.md)** — requirements and Gradle tasks
+- **[Architecture](docs/ARCHITECTURE.md)** — the layered design and key pipelines
+- **[Roadmap](.planning/ROADMAP.md)** — what's shipped and what's next
 
 ## 📜 License
 
