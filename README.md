@@ -15,11 +15,10 @@ Reads, writes, and reminds — on top of the system calendar, with zero network 
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License"></a>
 </p>
 
-<p>
-<a href="https://f-droid.org/packages/de.jeanlucmakiola.calendula/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80"></a>
-&nbsp;
-<a href="https://ko-fi.com/jeanlucmakiola"><img src="https://storage.ko-fi.com/cdn/kofi2.png?v=3" alt="Support me on Ko-fi" height="56"></a>
-</p>
+<table align="center"><tr>
+<td valign="middle"><a href="https://f-droid.org/packages/de.jeanlucmakiola.calendula/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80"></a></td>
+<td valign="middle"><a href="https://ko-fi.com/jeanlucmakiola"><img src="https://storage.ko-fi.com/cdn/kofi2.png?v=3" alt="Support me on Ko-fi" height="56"></a></td>
+</tr></table>
 
 <p>
 <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01-week.png" width="19%" alt="Week view">&nbsp;
