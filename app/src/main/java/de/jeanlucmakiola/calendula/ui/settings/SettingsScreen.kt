@@ -90,6 +90,8 @@ import de.jeanlucmakiola.calendula.ui.crash.openIssueTracker
 import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
+import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.labelRes
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.OptionPicker
 import de.jeanlucmakiola.calendula.ui.common.Position
@@ -404,6 +406,7 @@ private fun AppearanceScreen(
 ) {
     var showTheme by remember { mutableStateOf(false) }
     var showWeekStart by remember { mutableStateOf(false) }
+    var showDefaultView by remember { mutableStateOf(false) }
 
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_appearance),
@@ -414,6 +417,12 @@ private fun AppearanceScreen(
             summary = themeLabel(state.themeMode),
             position = Position.Top,
             onClick = { showTheme = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_default_view),
+            summary = stringResource(state.defaultView.labelRes),
+            position = Position.Middle,
+            onClick = { showDefaultView = true },
         )
         GroupedRow(
             title = stringResource(R.string.settings_dynamic_color),
@@ -462,6 +471,16 @@ private fun AppearanceScreen(
             label = { weekStartLabel(it) },
             onSelect = viewModel::setWeekStart,
             onDismiss = { showWeekStart = false },
+        )
+    }
+    if (showDefaultView) {
+        OptionPicker(
+            title = stringResource(R.string.settings_default_view),
+            options = IMPLEMENTED_VIEWS,
+            selected = state.defaultView,
+            label = { stringResource(it.labelRes) },
+            onSelect = viewModel::setDefaultView,
+            onDismiss = { showDefaultView = false },
         )
     }
 }
