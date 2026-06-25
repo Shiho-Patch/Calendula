@@ -115,6 +115,17 @@ Next up: power-user features — widget, search, tablet layouts. The living
 roadmap is in [.planning/ROADMAP.md](.planning/ROADMAP.md), the release
 history in [CHANGELOG.md](CHANGELOG.md).
 
+## 💛 Support
+
+Calendula is free, open source, and built by one person in their own time —
+with no ads, no tracking, and no internet permission. If it makes your days a
+little calmer and you'd like to support its continued development, you can buy
+me a coffee:
+
+[**☕ ko-fi.com/jeanlucmakiola**](https://ko-fi.com/jeanlucmakiola)
+
+Entirely optional, always appreciated. 🌼
+
 ## 📜 License
 
 [MIT](LICENSE) — Jean-Luc Makiola, 2026
