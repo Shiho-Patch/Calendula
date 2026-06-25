@@ -50,4 +50,34 @@ class CalendarPrefsTest {
         }
         assertThat(prefs.hiddenCalendarIds.first()).isEqualTo(setOf(1L, 3L))
     }
+
+    @Test
+    fun `disabledCalendarIds defaults to empty when unset`(@TempDir tempDir: Path) = runTest {
+        val prefs = CalendarPrefs(newDataStore(tempDir))
+        assertThat(prefs.disabledCalendarIds.first()).isEmpty()
+    }
+
+    @Test
+    fun `setDisabledCalendarIds round-trips through DataStore`(@TempDir tempDir: Path) = runTest {
+        val prefs = CalendarPrefs(newDataStore(tempDir))
+        prefs.setDisabledCalendarIds(setOf(1L, 42L, 7L))
+        assertThat(prefs.disabledCalendarIds.first()).isEqualTo(setOf(1L, 42L, 7L))
+    }
+
+    @Test
+    fun `setting empty disabled set clears storage`(@TempDir tempDir: Path) = runTest {
+        val prefs = CalendarPrefs(newDataStore(tempDir))
+        prefs.setDisabledCalendarIds(setOf(1L))
+        prefs.setDisabledCalendarIds(emptySet())
+        assertThat(prefs.disabledCalendarIds.first()).isEmpty()
+    }
+
+    @Test
+    fun `hidden and disabled sets are stored independently`(@TempDir tempDir: Path) = runTest {
+        val prefs = CalendarPrefs(newDataStore(tempDir))
+        prefs.setHiddenCalendarIds(setOf(1L))
+        prefs.setDisabledCalendarIds(setOf(2L))
+        assertThat(prefs.hiddenCalendarIds.first()).isEqualTo(setOf(1L))
+        assertThat(prefs.disabledCalendarIds.first()).isEqualTo(setOf(2L))
+    }
 }

@@ -308,6 +308,7 @@
     <string name="settings_license_value">MIT</string>
     <string name="settings_about_author">by Jean-Luc Makiola</string>
     <string name="settings_about_source">Source</string>
+    <string name="settings_about_support">Support development</string>
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_logo_desc">Calendula app icon</string>
     <string name="settings_report_problem">Report a problem</string>
@@ -318,6 +319,8 @@
     <string name="calendars_local_header">Your calendars</string>
     <string name="calendars_local_empty">No local calendars yet. Create one to keep events on this device only.</string>
     <string name="calendars_add">Add calendar</string>
+    <string name="calendars_disable_hint">Turn a calendar off to remove it from the app — its events, filters and pickers. Nothing is deleted, and you can turn it back on here anytime.</string>
+    <string name="calendars_show_in_app_a11y">Show \"%1$s\" in the app</string>
     <string name="calendars_synced_header">Synced calendars</string>
     <string name="calendars_synced_hint">These come from accounts on your device. Create and edit them in their own app.</string>
     <string name="calendars_manage_in_app">Manage</string>
@@ -378,6 +381,7 @@
 
     <string name="about_source_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula</string>
     <string name="about_license_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula/src/branch/main/LICENSE</string>
+    <string name="about_support_url" translatable="false">https://ko-fi.com/jeanlucmakiola</string>
 
     <!-- Crash reporting: a captured report the user can submit, by hand, as a
          Gitea issue (the app sends nothing automatically). -->
