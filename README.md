@@ -13,11 +13,12 @@ Reads, writes, and reminds — on top of the system calendar, with zero network 
 <img src="https://img.shields.io/badge/Kotlin-Compose-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin + Compose">
 <img src="https://img.shields.io/badge/Material%203-Expressive-4285F4" alt="Material 3 Expressive">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License"></a>
-<a href="https://ko-fi.com/jeanlucmakiola"><img src="https://img.shields.io/badge/Ko--fi-Buy%20me%20a%20coffee-FF5E5B?logo=kofi&logoColor=white" alt="Support development on Ko-fi"></a>
 </p>
 
 <p>
 <a href="https://f-droid.org/packages/de.jeanlucmakiola.calendula/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="80"></a>
+&nbsp;
+<a href="https://ko-fi.com/jeanlucmakiola"><img src="https://ko-fi.com/img/githubbutton_sm.svg" alt="Support me on Ko-fi" height="56"></a>
 </p>
 
 <p>
