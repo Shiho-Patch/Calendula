@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Nothing is deleted and no other app is affected — it's a Calendula-only view
   choice — so you can re-enable it any time from the same screen, where disabled
   calendars stay listed but dimmed.
+- An optional way to support development. Settings → About now has a "Support
+  development" button that opens Ko-fi in your browser. It's a plain donation
+  link with no perks attached, and it needs no new permissions — Calendula still
+  has no internet access of its own and just hands the link to your browser.
 
 ## [2.9.0] — 2026-06-25
 

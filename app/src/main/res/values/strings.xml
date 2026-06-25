@@ -308,6 +308,7 @@
     <string name="settings_license_value">MIT</string>
     <string name="settings_about_author">by Jean-Luc Makiola</string>
     <string name="settings_about_source">Source</string>
+    <string name="settings_about_support">Support development</string>
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_logo_desc">Calendula app icon</string>
     <string name="settings_report_problem">Report a problem</string>
@@ -380,6 +381,7 @@
 
     <string name="about_source_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula</string>
     <string name="about_license_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula/src/branch/main/LICENSE</string>
+    <string name="about_support_url" translatable="false">https://ko-fi.com/jeanlucmakiola</string>
 
     <!-- Crash reporting: a captured report the user can submit, by hand, as a
          Gitea issue (the app sends nothing automatically). -->

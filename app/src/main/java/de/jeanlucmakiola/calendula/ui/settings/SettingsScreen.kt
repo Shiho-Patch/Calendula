@@ -42,11 +42,13 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -292,6 +294,7 @@ private fun AboutCard() {
     val context = LocalContext.current
     val sourceUrl = stringResource(R.string.about_source_url)
     val licenseUrl = stringResource(R.string.about_license_url)
+    val supportUrl = stringResource(R.string.about_support_url)
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -349,6 +352,19 @@ private fun AboutCard() {
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.settings_license))
                 }
+            }
+            Spacer(Modifier.height(8.dp))
+            FilledTonalButton(
+                onClick = { openUrl(context, supportUrl) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    Icons.Default.Favorite,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.settings_about_support))
             }
         }
     }
