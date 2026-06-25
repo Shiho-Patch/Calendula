@@ -1,7 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.imports
 
 import android.net.Uri
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.ics.IcsParseWarning
+import de.jeanlucmakiola.calendula.ui.common.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.OptionCard
 
 /**
@@ -57,7 +57,6 @@ fun ImportScreen(
 ) {
     LaunchedEffect(uri) { viewModel.load(uri) }
     val state by viewModel.state.collectAsStateWithLifecycle()
-    BackHandler(onBack = onClose)
 
     // A single event isn't shown here — it opens the create form for review.
     LaunchedEffect(state) {
@@ -65,7 +64,9 @@ fun ImportScreen(
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .predictiveBack(onBack = onClose)
+            .fillMaxSize(),
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.import_title)) },

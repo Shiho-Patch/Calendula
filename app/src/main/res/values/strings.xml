@@ -264,6 +264,7 @@
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
+    <string name="settings_default_view">Default view</string>
     <string name="settings_dynamic_color">Dynamic colour</string>
     <string name="settings_dynamic_color_unavailable">Requires Android 12 or newer</string>
     <string name="settings_week_start">Week starts on</string>
@@ -299,7 +300,7 @@
     <string name="settings_language">App language</string>
     <string name="settings_language_auto">System default</string>
     <!-- Hub category subtitles -->
-    <string name="settings_appearance_subtitle">Theme, dynamic colour, week start</string>
+    <string name="settings_appearance_subtitle">Theme, default view, week start</string>
     <string name="settings_event_form_subtitle">Default fields for new events</string>
     <string name="settings_notifications_subtitle">Event reminders</string>
     <string name="settings_section_about">About</string>

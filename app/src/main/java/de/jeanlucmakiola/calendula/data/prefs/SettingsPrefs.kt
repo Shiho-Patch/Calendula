@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.DayOfWeek
@@ -67,6 +68,20 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setWeekStart(pref: WeekStartPref) {
         store.edit { it[WEEK_START_KEY] = pref.name }
+    }
+
+    /**
+     * The calendar view the app opens on (M1). Defaults to [CalendarView.Week] —
+     * the historical hard-coded startup view — so existing users see no change
+     * until they pick another. Also the bottom of the in-app view back stack, so
+     * back from any other view returns here before exiting.
+     */
+    val defaultView: Flow<CalendarView> = store.data.map { prefs ->
+        prefs[DEFAULT_VIEW_KEY].toEnum(CalendarView.Week)
+    }
+
+    suspend fun setDefaultView(view: CalendarView) {
+        store.edit { it[DEFAULT_VIEW_KEY] = view.name }
     }
 
     /**
@@ -244,6 +259,7 @@ class SettingsPrefs @Inject constructor(
         internal val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
         internal val WEEK_START_KEY = stringPreferencesKey("week_start")
+        internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
         internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
         internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")
         internal val REMINDER_ONBOARDING_KEY = booleanPreferencesKey("reminder_onboarding_done")

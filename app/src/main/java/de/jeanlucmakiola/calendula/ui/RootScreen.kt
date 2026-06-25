@@ -2,6 +2,9 @@ package de.jeanlucmakiola.calendula.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
+import androidx.compose.animation.Crossfade
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
@@ -20,6 +23,7 @@ import de.jeanlucmakiola.calendula.ui.permission.PermissionScreen
 import de.jeanlucmakiola.calendula.ui.permission.ReminderOnboardingScreen
 import de.jeanlucmakiola.calendula.ui.permission.ReminderOnboardingViewModel
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RootScreen(
     modifier: Modifier = Modifier,
@@ -51,32 +55,40 @@ fun RootScreen(
         onDispose { lifecycle.removeObserver(obs) }
     }
 
-    if (hasPermission) {
-        // Second onboarding gate (v1.4, one-time): reminder notifications.
-        // Null until DataStore's first emission — render nothing for that
-        // frame instead of flashing the wrong screen.
-        val reminderOnboarding: ReminderOnboardingViewModel = hiltViewModel()
-        val onboardingDone by reminderOnboarding.onboardingDone.collectAsStateWithLifecycle()
-        when (onboardingDone) {
-            true -> CalendarHost(
+    // Cross-fade the one-time onboarding gates so granting permission / finishing
+    // onboarding eases into the next screen instead of snapping. A fade carries no
+    // spatial motion, so it stays appropriate under "remove animations" too.
+    val gateSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    Crossfade(targetState = hasPermission, animationSpec = gateSpec, label = "permissionGate") { granted ->
+        if (granted) {
+            // Second onboarding gate (v1.4, one-time): reminder notifications.
+            // Null until DataStore's first emission — render nothing for that
+            // frame instead of flashing the wrong screen.
+            val reminderOnboarding: ReminderOnboardingViewModel = hiltViewModel()
+            val onboardingDone by reminderOnboarding.onboardingDone.collectAsStateWithLifecycle()
+            Crossfade(targetState = onboardingDone, animationSpec = gateSpec, label = "onboardingGate") { done ->
+                when (done) {
+                    true -> CalendarHost(
+                        modifier = modifier,
+                        requestedDetailKey = requestedDetailKey,
+                        onDetailKeyConsumed = onDetailKeyConsumed,
+                        widgetNavRequest = widgetNavRequest,
+                        onWidgetNavConsumed = onWidgetNavConsumed,
+                        requestedImportUri = requestedImportUri,
+                        onImportConsumed = onImportConsumed,
+                    )
+                    false -> ReminderOnboardingScreen(
+                        onFinished = reminderOnboarding::finish,
+                        modifier = modifier,
+                    )
+                    null -> {}
+                }
+            }
+        } else {
+            PermissionScreen(
+                onGranted = { hasPermission = true },
                 modifier = modifier,
-                requestedDetailKey = requestedDetailKey,
-                onDetailKeyConsumed = onDetailKeyConsumed,
-                widgetNavRequest = widgetNavRequest,
-                onWidgetNavConsumed = onWidgetNavConsumed,
-                requestedImportUri = requestedImportUri,
-                onImportConsumed = onImportConsumed,
             )
-            false -> ReminderOnboardingScreen(
-                onFinished = reminderOnboarding::finish,
-                modifier = modifier,
-            )
-            null -> {}
         }
-    } else {
-        PermissionScreen(
-            onGranted = { hasPermission = true },
-            modifier = modifier,
-        )
     }
 }

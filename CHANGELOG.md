@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] — 2026-06-25
+
+### Added
+- Choose the view Calendula opens on. A new **Default view** setting (Settings →
+  Appearance) lets you pick Month, Week, Day or Agenda as the view shown each
+  time you start the app, instead of always opening on Week. Thanks to
+  @devinside for the suggestion ([#1]).
+- The month widget is now interactive: tap any day to open it, or tap an event to
+  open its details. Previously only the month's prev/next/today controls
+  responded. Thanks to @devinside for spotting this ([#2]).
+- Predictive back. Swiping back from a screen — an event, the editor, search or
+  settings — now follows your finger, shrinking the screen to preview what's
+  behind so you can see where Back will take you before you let go; slide it back
+  to cancel. The preview needs Android 14 or newer; on older versions Back works
+  as before.
+- Respect for "Remove animations". If you've turned animations off in your
+  device's Accessibility settings, Calendula now honours it everywhere: motion
+  collapses to a quick fade and the back preview is skipped.
+
+### Changed
+- Smoother, more consistent motion throughout. Expanding sections, list updates
+  in search and agenda, and the onboarding screens now animate the same way
+  across the app, instead of some places sliding or growing while others popped
+  in. Switching between Month, Week, Day and Agenda now cross-fades rather than
+  snapping, while paging within a view keeps its slide.
+
+### Fixed
+- Home-screen widgets now back out the way you came in. A day or event opened
+  from the Agenda widget keeps you in the agenda context, and from the Month
+  widget in the month context — pressing Back returns there instead of dropping
+  you on the week view. More broadly, the app now keeps a real view history:
+  switching views and drilling into a day are retraced by Back one step at a
+  time, down to your default view before the app exits. Thanks to @devinside for
+  reporting ([#2]).
+
 ## [2.8.0] — 2026-06-23
 
 ### Added
@@ -572,3 +607,6 @@ automatically, with zero telemetry and no internet permission.
 - Gitea release workflow: signed release APK + F-Droid metadata sync to Hetzner
 - F-Droid metadata stubs (DE + EN short/full descriptions)
 - `.planning/` project-tracking documents
+
+[#1]: https://codeberg.org/jlmakiola/calendula/issues/1
+[#2]: https://codeberg.org/jlmakiola/calendula/issues/2

@@ -47,6 +47,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.common.calendarAnimateItem
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
@@ -190,6 +191,7 @@ private fun AgendaList(
                 AgendaEventRow(
                     event = event,
                     position = positionOf(index, day.events.size),
+                    modifier = calendarAnimateItem(),
                     onClick = { onEventClick(event) },
                 )
             }
@@ -221,11 +223,13 @@ private fun AgendaDayHeader(date: LocalDate, today: LocalDate) {
 private fun AgendaEventRow(
     event: EventInstance,
     position: Position,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     GroupedRow(
+        modifier = modifier,
         title = title,
         summary = agendaTimeSummary(event),
         position = position,

@@ -8,14 +8,9 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.ContactsContract
 import android.util.Patterns
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -63,7 +58,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -121,6 +115,9 @@ import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.SimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.parseSimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.toRRule
+import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
+import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
+import de.jeanlucmakiola.calendula.ui.common.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.CALENDAR_COLOR_PALETTE
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
@@ -202,8 +199,6 @@ fun EventEditScreen(
         viewModel.reset()
         onClose()
     }
-    BackHandler(onBack = close)
-
     // The event vanished between the detail screen and the edit tap — fall
     // back to the detail screen, which shows its own failure state.
     LaunchedEffect(loadFailed) {
@@ -253,6 +248,7 @@ fun EventEditScreen(
     }
 
     Scaffold(
+        modifier = Modifier.predictiveBack(onBack = close),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
@@ -410,7 +406,6 @@ private enum class PickerTarget { StartDate, StartTime, EndDate, EndTime }
  * spring open with the expressive spatial spec instead of popping in.
  * (Initially-visible sections render without animating.)
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun OptionalFormSection(
     visible: Boolean,
@@ -418,10 +413,8 @@ private fun OptionalFormSection(
 ) {
     AnimatedVisibility(
         visible = visible,
-        enter = expandVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
-            fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
-        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
-            fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+        enter = calendarExpandEnter(),
+        exit = calendarCollapseExit(),
     ) {
         Column(modifier = Modifier.fillMaxWidth(), content = content)
     }

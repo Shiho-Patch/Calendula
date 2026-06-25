@@ -22,6 +22,7 @@ import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.ui.RootScreen
 import de.jeanlucmakiola.calendula.ui.WidgetNavRequest
+import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportActivity
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
 import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
@@ -140,18 +141,38 @@ class MainActivity : AppCompatActivity() {
         return uri.takeIf { it.scheme == "content" || it.scheme == "file" }
     }
 
-    private fun Intent.navRequestOrNull(): WidgetNavRequest? = when {
-        // Launcher long-press "New event" shortcut. Static shortcut intents
-        // can't carry typed extras, so the action alone signals create-on-today.
-        action == ACTION_NEW_EVENT -> WidgetNavRequest.Create(null)
-        getBooleanExtra(EXTRA_CREATE, false) ->
-            WidgetNavRequest.Create(getStringExtra(EXTRA_DATE_ISO))
-        getStringExtra(EXTRA_DATE_ISO) != null ->
-            WidgetNavRequest.OpenDate(getStringExtra(EXTRA_DATE_ISO)!!)
-        else -> null
+    private fun Intent.navRequestOrNull(): WidgetNavRequest? {
+        val source = sourceViewOrNull()
+        val eventId = getLongExtra(EXTRA_EVENT_ID, -1L)
+        return when {
+            // Launcher long-press "New event" shortcut. Static shortcut intents
+            // can't carry typed extras, so the action alone signals create-on-today.
+            action == ACTION_NEW_EVENT -> WidgetNavRequest.Create(null)
+            getBooleanExtra(EXTRA_CREATE, false) ->
+                WidgetNavRequest.Create(getStringExtra(EXTRA_DATE_ISO))
+            // A widget event tap carries both the occurrence and its source view;
+            // reminders (no source) fall through to [detailKeyOrNull] instead.
+            source != null && eventId != -1L -> WidgetNavRequest.OpenEvent(
+                eventId = eventId,
+                beginMillis = getLongExtra(EXTRA_BEGIN_MILLIS, 0L),
+                endMillis = getLongExtra(EXTRA_END_MILLIS, 0L),
+                source = source,
+            )
+            source != null && getStringExtra(EXTRA_DATE_ISO) != null ->
+                WidgetNavRequest.OpenDate(getStringExtra(EXTRA_DATE_ISO)!!, source)
+            else -> null
+        }
     }
 
+    /** The view the launching widget represents, if any (see [EXTRA_SOURCE_VIEW]). */
+    private fun Intent.sourceViewOrNull(): CalendarView? =
+        getStringExtra(EXTRA_SOURCE_VIEW)
+            ?.let { name -> CalendarView.entries.firstOrNull { it.name == name } }
+
     private fun Intent.detailKeyOrNull(): LongArray? {
+        // A widget event tap (source present) is routed through [navRequestOrNull]
+        // so it can also set the base view; only sourceless reminder taps land here.
+        if (sourceViewOrNull() != null) return null
         val eventId = getLongExtra(EXTRA_EVENT_ID, -1L)
         if (eventId == -1L) return null
         return longArrayOf(
@@ -167,6 +188,10 @@ class MainActivity : AppCompatActivity() {
         private const val EXTRA_END_MILLIS = "de.jeanlucmakiola.calendula.extra.END"
         private const val EXTRA_DATE_ISO = "de.jeanlucmakiola.calendula.extra.DATE_ISO"
         private const val EXTRA_CREATE = "de.jeanlucmakiola.calendula.extra.CREATE"
+
+        // The [CalendarView] (by name) of the widget a launch came from. Roots the
+        // in-app back stack in that view; absent for non-widget launches (reminders).
+        private const val EXTRA_SOURCE_VIEW = "de.jeanlucmakiola.calendula.extra.SOURCE_VIEW"
 
         // Fired by the launcher long-press "New event" shortcut (res/xml/
         // shortcuts.xml hardcodes this string — keep the two in sync).
@@ -190,13 +215,34 @@ class MainActivity : AppCompatActivity() {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
 
-        /** Open the day view anchored on [date] (home-screen widgets). */
-        fun openDateIntent(context: Context, date: LocalDate): Intent =
+        /**
+         * Open the day view anchored on [date], drilled in over the launching
+         * widget's [source] view (home-screen widgets). Backing out of the day
+         * returns to [source], then to the default home view.
+         */
+        fun openDateIntent(context: Context, date: LocalDate, source: CalendarView): Intent =
             Intent(context, MainActivity::class.java).apply {
                 data = "calendula://date/$date".toUri()
                 putExtra(EXTRA_DATE_ISO, date.toString())
+                putExtra(EXTRA_SOURCE_VIEW, source.name)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+
+        /**
+         * Open one occurrence's detail from a widget event tap, rooting the back
+         * stack in the widget's [source] view. Same occurrence-key shape as
+         * [eventDetailIntent]; the [source] extra is what distinguishes a widget
+         * tap (sets the base view) from a reminder tap (leaves it untouched).
+         */
+        fun openEventIntent(
+            context: Context,
+            eventId: Long,
+            beginMillis: Long,
+            endMillis: Long,
+            source: CalendarView,
+        ): Intent = eventDetailIntent(context, eventId, beginMillis, endMillis).apply {
+            putExtra(EXTRA_SOURCE_VIEW, source.name)
+        }
 
         /** Open the create-event form prefilled for [date] (home-screen widgets). */
         fun openCreateIntent(context: Context, date: LocalDate): Intent =

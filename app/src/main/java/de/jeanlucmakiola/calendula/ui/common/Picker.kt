@@ -173,7 +173,11 @@ fun ReminderDefaultPicker(
             },
             onClick = { customExpanded = !customExpanded },
         )
-        AnimatedVisibility(visible = customExpanded) {
+        AnimatedVisibility(
+            visible = customExpanded,
+            enter = calendarExpandEnter(),
+            exit = calendarCollapseExit(),
+        ) {
             CustomReminderEditor(
                 amountText = amountText,
                 onAmountChange = { amountText = it },
