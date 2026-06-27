@@ -6,11 +6,14 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,20 +29,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Notes
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -61,20 +65,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.ui.common.CALENDAR_COLOR_PALETTE
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
+import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
 import de.jeanlucmakiola.calendula.ui.common.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
@@ -82,7 +91,6 @@ import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.Position
 import de.jeanlucmakiola.calendula.ui.common.pastelize
-import de.jeanlucmakiola.calendula.ui.common.positionOf
 import java.time.LocalDate
 
 /** Sentinel [editorId] meaning "the editor is composing a new calendar". */
@@ -148,6 +156,7 @@ fun CalendarsScreen(
             onAdd = { editorSession++; editorId = NEW_CALENDAR_ID },
             onEdit = { calendar -> editorSession++; editorId = calendar.id },
             onSetDisabled = viewModel::setDisabled,
+            onSetAccountDisabled = viewModel::setAccountDisabled,
         )
     }
 }
@@ -166,9 +175,14 @@ private fun CalendarsList(
     onAdd: () -> Unit,
     onEdit: (CalendarSource) -> Unit,
     onSetDisabled: (Long, Boolean) -> Unit,
+    onSetAccountDisabled: (Collection<Long>, Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    // Accounts the user has folded shut; empty = all expanded (keeps every
+    // calendar visible by default, the section is collapsible for tidiness).
+    var collapsedAccounts by remember { mutableStateOf(emptySet<String>()) }
+    var localExpanded by remember { mutableStateOf(true) }
     val writeErrorText = stringResource(R.string.calendars_write_error)
 
     LaunchedEffect(error) {
@@ -208,38 +222,55 @@ private fun CalendarsList(
         onBack = onBack,
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) {
-        // Local (device-only) calendars — the calendars the app owns. The
-        // "Add calendar" entry closes the group as its final row.
-        SectionHeader(stringResource(R.string.calendars_local_header))
-        if (local.isEmpty()) {
-            HintText(stringResource(R.string.calendars_local_empty))
-        }
+        // What the per-calendar / per-account switches below actually do.
         HintText(stringResource(R.string.calendars_disable_hint))
-        val localCount = local.size + 1
-        local.forEachIndexed { index, calendar ->
-            val disabled = calendar.id in disabledIds
-            GroupedRow(
-                title = calendar.displayName,
-                summary = calendar.description,
-                position = positionOf(index, localCount),
-                dimmed = disabled,
-                leading = { CalendarColorChip(calendar.color, dimIf(disabled)) },
-                trailing = {
-                    EnableSwitch(
-                        calendarName = calendar.displayName,
-                        enabled = !disabled,
-                        onToggle = { enabled -> onSetDisabled(calendar.id, !enabled) },
+
+        // Local (device-only) calendars — one collapsible group. The header's
+        // "+" adds a calendar; the switch enables/disables them all at once;
+        // tapping a calendar row opens its editor.
+        val localDisabled = local.isNotEmpty() && local.all { it.id in disabledIds }
+        CalendarGroup(
+            title = stringResource(R.string.calendars_local_header),
+            expanded = localExpanded,
+            headerDisabled = localDisabled,
+            leading = { Box(dimIf(localDisabled)) { LeadingAvatar(Icons.Default.PhoneAndroid) } },
+            manageIcon = Icons.Default.Add,
+            manageLabel = stringResource(R.string.calendars_add),
+            onManage = onAdd,
+            manageConnectsBelow = local.isNotEmpty(),
+            onToggleExpand = { localExpanded = !localExpanded },
+            showToggleAll = local.isNotEmpty(),
+            allEnabled = local.none { it.id in disabledIds },
+            toggleAllLabel = stringResource(
+                R.string.calendars_account_toggle_all_a11y,
+                stringResource(R.string.calendars_local_header),
+            ),
+            onToggleAll = { enabled -> onSetAccountDisabled(local.map { it.id }, !enabled) },
+        ) {
+            if (local.isEmpty()) {
+                HintText(stringResource(R.string.calendars_local_empty))
+            } else {
+                local.forEachIndexed { index, calendar ->
+                    val disabled = calendar.id in disabledIds
+                    GroupedRow(
+                        title = calendar.displayName,
+                        summary = calendar.description,
+                        position = if (index == local.lastIndex) Position.Bottom else Position.Middle,
+                        container = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        dimmed = disabled,
+                        leading = { CalendarColorChip(calendar.color, dimIf(disabled)) },
+                        trailing = {
+                            EnableSwitch(
+                                calendarName = calendar.displayName,
+                                enabled = !disabled,
+                                onToggle = { enabled -> onSetDisabled(calendar.id, !enabled) },
+                            )
+                        },
+                        onClick = { onEdit(calendar) },
                     )
-                },
-                onClick = { onEdit(calendar) },
-            )
+                }
+            }
         }
-        GroupedRow(
-            title = stringResource(R.string.calendars_add),
-            position = positionOf(local.size, localCount),
-            leading = { AddAvatar() },
-            onClick = onAdd,
-        )
 
         // Backup — local calendars have no sync, so a .ics export is their only
         // safety net. Offered only when there is something to back up.
@@ -259,40 +290,60 @@ private fun CalendarsList(
 
         Spacer(Modifier.height(16.dp))
 
-        // Synced calendars — read-only, grouped by account, each with a
-        // per-account "manage in source app" link.
+        // Synced calendars — read-only, grouped by account. Each account is a
+        // collapsible group whose header opens the source app (icon) and toggles
+        // all of its calendars at once (switch).
         SectionHeader(stringResource(R.string.calendars_synced_header))
         HintText(stringResource(R.string.calendars_synced_hint))
         synced
             .groupBy { it.accountName.ifBlank { it.accountType } }
             .forEach { (account, cals) ->
-                AccountHeader(account = account, accountType = cals.first().accountType)
-                cals.forEachIndexed { index, calendar ->
-                    val disabled = calendar.id in disabledIds
-                    GroupedRow(
-                        title = calendar.displayName,
-                        position = positionOf(index, cals.size),
-                        dimmed = disabled,
-                        leading = { CalendarColorChip(calendar.color, dimIf(disabled)) },
-                        trailing = {
-                            EnableSwitch(
-                                calendarName = calendar.displayName,
-                                enabled = !disabled,
-                                onToggle = { enabled -> onSetDisabled(calendar.id, !enabled) },
-                            )
-                        },
-                    )
+                val expanded = account !in collapsedAccounts
+                val accountType = cals.first().accountType
+                val accountDisabled = cals.all { it.id in disabledIds }
+                Spacer(Modifier.height(16.dp))
+                CalendarGroup(
+                    title = account,
+                    expanded = expanded,
+                    headerDisabled = accountDisabled,
+                    leading = { Box(dimIf(accountDisabled)) { SourceLogo(accountType) } },
+                    manageIcon = Icons.AutoMirrored.Filled.OpenInNew,
+                    manageLabel = stringResource(R.string.calendars_manage_account_a11y, account),
+                    onManage = {
+                        runCatching { context.startActivity(sourceAppIntent(context, accountType)) }
+                    },
+                    manageConnectsBelow = true,
+                    onToggleExpand = {
+                        collapsedAccounts = if (expanded) {
+                            collapsedAccounts + account
+                        } else {
+                            collapsedAccounts - account
+                        }
+                    },
+                    showToggleAll = true,
+                    allEnabled = cals.none { it.id in disabledIds },
+                    toggleAllLabel = stringResource(R.string.calendars_account_toggle_all_a11y, account),
+                    onToggleAll = { enabled -> onSetAccountDisabled(cals.map { it.id }, !enabled) },
+                ) {
+                    cals.forEachIndexed { index, calendar ->
+                        val disabled = calendar.id in disabledIds
+                        GroupedRow(
+                            title = calendar.displayName,
+                            position = if (index == cals.lastIndex) Position.Bottom else Position.Middle,
+                            container = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            dimmed = disabled,
+                            leading = { CalendarColorChip(calendar.color, dimIf(disabled)) },
+                            trailing = {
+                                EnableSwitch(
+                                    calendarName = calendar.displayName,
+                                    enabled = !disabled,
+                                    onToggle = { enabled -> onSetDisabled(calendar.id, !enabled) },
+                                )
+                            },
+                        )
+                    }
                 }
             }
-        Spacer(Modifier.height(8.dp))
-        GroupedRow(
-            title = stringResource(R.string.calendars_add_account),
-            position = Position.Alone,
-            leading = { AddAvatar() },
-            onClick = {
-                runCatching { context.startActivity(Intent(Settings.ACTION_ADD_ACCOUNT)) }
-            },
-        )
     }
 }
 
@@ -498,32 +549,121 @@ private fun EditorCard(
     }
 }
 
+/**
+ * One collapsible calendar group rendered as a connected card. The header row is
+ * the card's top (tap to expand/collapse): a [leading] source mark (the account
+ * app's logo, or a device chip for local), the group [title] and — when
+ * [showToggleAll] — a "toggle all" [Switch] that enables or disables every
+ * calendar in the group at once.
+ *
+ * When expanded, the body opens with a differentiated management row
+ * ([manageIcon] / [manageLabel] → [onManage]: add a calendar, or open the source
+ * app) above the plain calendar rows supplied by [body]; [manageConnectsBelow]
+ * is false when no calendar rows follow it, so it rounds off as the card's foot.
+ *
+ * An active group gets a tinted header; once [headerDisabled] (every calendar in
+ * the group switched off) the header drops to a plain, dimmed row so the whole
+ * group reads as off — not just its switch.
+ */
 @Composable
-private fun AccountHeader(account: String, accountType: String) {
-    val context = LocalContext.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 28.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun CalendarGroup(
+    title: String,
+    expanded: Boolean,
+    headerDisabled: Boolean,
+    leading: @Composable () -> Unit,
+    manageIcon: ImageVector,
+    manageLabel: String,
+    onManage: () -> Unit,
+    manageConnectsBelow: Boolean,
+    onToggleExpand: () -> Unit,
+    showToggleAll: Boolean,
+    allEnabled: Boolean,
+    toggleAllLabel: String,
+    onToggleAll: (Boolean) -> Unit,
+    body: @Composable ColumnScope.() -> Unit,
+) {
+    GroupedRow(
+        title = title,
+        position = if (expanded) Position.Top else Position.Alone,
+        // The account header keeps the standard row colour; the options it reveals
+        // sit one tone darker, so the group reads as a header over nested content.
+        dimmed = headerDisabled,
+        leading = leading,
+        trailing = if (showToggleAll) {
+            {
+                Switch(
+                    checked = allEnabled,
+                    onCheckedChange = onToggleAll,
+                    modifier = Modifier.semantics { contentDescription = toggleAllLabel },
+                )
+            }
+        } else {
+            null
+        },
+        onClick = onToggleExpand,
+    )
+    AnimatedVisibility(
+        visible = expanded,
+        enter = calendarExpandEnter(),
+        exit = calendarCollapseExit(),
     ) {
-        Text(
-            text = account,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f),
-        )
-        OutlinedButton(onClick = {
-            runCatching { context.startActivity(sourceAppIntent(context, accountType)) }
-        }) {
-            Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(stringResource(R.string.calendars_manage_in_app))
+        Column {
+            GroupedRow(
+                title = manageLabel,
+                position = if (manageConnectsBelow) Position.Middle else Position.Bottom,
+                container = MaterialTheme.colorScheme.surfaceContainerHighest,
+                dimmed = headerDisabled,
+                leading = { Icon(manageIcon, contentDescription = null) },
+                onClick = onManage,
+            )
+            body()
         }
     }
 }
 
-/** Neutral circular chip carrying an arbitrary icon — matches [AddAvatar]'s shape. */
+/**
+ * The source app's launcher icon (Google Calendar, DAVx5, Nextcloud, …) as a
+ * round 40dp chip, so each synced account is recognisable at a glance. We load
+ * whatever app owns the account from [PackageManager] rather than bundling brand
+ * logos — always accurate, nothing to license. Falls back to a neutral cloud
+ * chip when no installed app resolves for the account.
+ */
+@Composable
+private fun SourceLogo(accountType: String) {
+    val context = LocalContext.current
+    val logo = remember(accountType) { sourceAppLogo(context, accountType) }
+    if (logo != null) {
+        Image(
+            bitmap = logo,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape),
+        )
+    } else {
+        LeadingAvatar(Icons.Default.Cloud)
+    }
+}
+
+/** The launcher icon of the app backing [accountType], preferring the human-facing app. */
+private fun sourceAppLogo(context: Context, accountType: String): ImageBitmap? {
+    val pm = context.packageManager
+    val candidates = buildList {
+        curatedSourcePackage(accountType)?.let { add(it) }
+        AccountManager.get(context).authenticatorTypes
+            .firstOrNull { it.type.equals(accountType, ignoreCase = true) }
+            ?.packageName
+            ?.let { add(it) }
+    }
+    for (pkg in candidates) {
+        val bitmap = runCatching { pm.getApplicationIcon(pkg).toBitmap() }.getOrNull()
+        if (bitmap != null) return bitmap.asImageBitmap()
+    }
+    return null
+}
+
+/** Neutral circular chip carrying an arbitrary icon (e.g. the local-device mark). */
 @Composable
 private fun LeadingAvatar(icon: ImageVector) {
     Box(
@@ -535,25 +675,6 @@ private fun LeadingAvatar(icon: ImageVector) {
     ) {
         Icon(
             icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(22.dp),
-        )
-    }
-}
-
-/** Neutral circular chip with a "+" — the leading icon for add-actions. */
-@Composable
-private fun AddAvatar() {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            Icons.Default.Add,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(22.dp),

@@ -123,6 +123,19 @@ class CalendarsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Enable or disable every calendar of one account in a single write — the
+     * "toggle all" affordance on an account header. Done as one set update so the
+     * per-calendar [setDisabled] calls can't race each other.
+     */
+    fun setAccountDisabled(ids: Collection<Long>, disabled: Boolean) {
+        viewModelScope.launch {
+            val current = prefs.disabledCalendarIds.first()
+            val next = if (disabled) current + ids else current - ids.toSet()
+            if (next != current) prefs.setDisabledCalendarIds(next)
+        }
+    }
+
     private inline fun write(crossinline block: suspend () -> Unit) {
         viewModelScope.launch {
             try {
