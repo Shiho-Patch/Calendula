@@ -309,6 +309,7 @@
     <string name="reminder_custom_amount">Amount</string>
     <string name="reminder_custom_with_value">Custom (%1$s)</string>
     <string name="reminder_custom_set">Set</string>
+    <string name="settings_calendar_reminders_title">Per-calendar reminders</string>
     <string name="settings_calendar_reminders_hint">Override the default per calendar — separately for timed and all-day events. A calendar can keep the default, drop it, or set its own.</string>
     <string name="settings_calendar_reminder_inherits">Default (%1$s)</string>
     <string name="settings_reliable_delivery">Reliable delivery</string>
@@ -345,7 +346,10 @@
     <string name="calendars_show_in_app_a11y">Show \"%1$s\" in the app</string>
     <string name="calendars_synced_header">Synced calendars</string>
     <string name="calendars_synced_hint">These come from accounts on your device. Create and edit them in their own app.</string>
-    <string name="calendars_manage_in_app">Manage</string>
+    <string name="calendars_manage_in_app">Manage in app</string>
+    <string name="calendars_account_menu_a11y">More options for %1$s</string>
+    <string name="calendars_enable_all">Enable all</string>
+    <string name="calendars_disable_all">Disable all</string>
     <string name="calendars_add_account">Add account</string>
     <string name="calendars_new_title">New calendar</string>
     <string name="calendars_edit_title">Edit calendar</string>

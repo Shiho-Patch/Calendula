@@ -140,6 +140,7 @@ fun GroupedRow(
     summary: String? = null,
     selected: Boolean = false,
     dimmed: Boolean = false,
+    container: Color? = null,
     minHeight: Dp = 72.dp,
     leading: @Composable (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
@@ -198,10 +199,10 @@ fun GroupedRow(
         .fillMaxWidth()
         .padding(horizontal = 16.dp)
         .then(gap)
-    val containerColor = if (selected) {
-        MaterialTheme.colorScheme.secondaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh
+    val containerColor = when {
+        selected -> MaterialTheme.colorScheme.secondaryContainer
+        container != null -> container
+        else -> MaterialTheme.colorScheme.surfaceContainerHigh
     }
     if (onClick != null) {
         Surface(

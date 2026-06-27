@@ -39,6 +39,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -109,6 +110,8 @@ import de.jeanlucmakiola.calendula.ui.common.positionOf
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.calendula.ui.common.eventFormFieldIcon
+import de.jeanlucmakiola.calendula.ui.common.eventFormFieldLabel
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
 import java.time.format.TextStyle as JavaTextStyle
@@ -220,6 +223,12 @@ private fun SettingsHub(
             onClick = onManageCalendars,
         )
         LanguageRow(position = Position.Middle)
+        // One-tap add of the "New event" Quick Settings tile. The system prompt
+        // is API 33+; on older versions the tile is still addable manually from
+        // the QS editor, so the row simply doesn't appear here.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            QuickSettingsTileRow(position = Position.Middle)
+        }
         ReportProblemRow(position = Position.Bottom)
 
         AppVersionText()
@@ -259,6 +268,24 @@ private fun ReportProblemRow(position: Position) {
             onDismiss = { report = null },
         )
     }
+}
+
+/**
+ * Asks the system to add the "New event" Quick Settings tile (API 33+). A
+ * top-level action row, like [ReportProblemRow] — the tile is a system-surface
+ * shortcut, not part of any one settings category.
+ */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@Composable
+private fun QuickSettingsTileRow(position: Position) {
+    val context = LocalContext.current
+    GroupedRow(
+        title = stringResource(R.string.settings_qs_tile),
+        summary = stringResource(R.string.settings_qs_tile_hint),
+        position = position,
+        leading = { CategoryIcon(Icons.Default.Dashboard, ChipAccent.Neutral) },
+        onClick = { requestAddQsTile(context) },
+    )
 }
 
 @Composable
@@ -612,8 +639,17 @@ private fun EventFormScreen(
         fields.forEachIndexed { index, field ->
             val checked = field in state.defaultFormFields
             GroupedRow(
-                title = stringResource(formFieldLabel(field)),
+                title = stringResource(eventFormFieldLabel(field)),
                 position = positionOf(index, fields.size),
+                // Same icon the field carries in the new-event form, so a toggle
+                // is easy to match to the field it controls.
+                leading = {
+                    Icon(
+                        imageVector = eventFormFieldIcon(field),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
                 trailing = {
                     Switch(
                         checked = checked,
@@ -644,20 +680,6 @@ private fun EventFormScreen(
                 )
             },
         )
-
-        // One-tap add of the "New event" Quick Settings tile. The system prompt
-        // is API 33+; on older versions the tile is still addable manually from
-        // the QS editor, so the row simply doesn't appear there.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Spacer(Modifier.height(24.dp))
-            val context = LocalContext.current
-            GroupedRow(
-                title = stringResource(R.string.settings_qs_tile),
-                summary = stringResource(R.string.settings_qs_tile_hint),
-                position = Position.Alone,
-                onClick = { requestAddQsTile(context) },
-            )
-        }
     }
 }
 
@@ -709,6 +731,7 @@ private fun NotificationsScreen(
     var showAllDayReminderTime by remember { mutableStateOf(false) }
     var showSnooze by remember { mutableStateOf(false) }
     var overrideDialog by remember { mutableStateOf<OverrideTarget?>(null) }
+    var calendarSectionExpanded by remember { mutableStateOf(false) }
     var expandedCalendars by remember { mutableStateOf(emptySet<Long>()) }
 
     CollapsingScaffold(
@@ -746,69 +769,11 @@ private fun NotificationsScreen(
             onClick = { showAllDayReminderTime = true },
         )
 
-        // Per-calendar overrides: each writable calendar may keep, drop, or
-        // replace the global default — separately for timed and all-day events.
-        if (state.writableCalendars.isNotEmpty()) {
-            Spacer(Modifier.height(24.dp))
-            Text(
-                text = stringResource(R.string.settings_calendar_reminders_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-            state.writableCalendars.forEach { calendar ->
-                Spacer(Modifier.height(16.dp))
-                val expanded = calendar.id in expandedCalendars
-                // Calendar card; tapping expands it into a grouped list of three
-                // (the card + the timed and all-day override rows).
-                GroupedRow(
-                    title = calendar.displayName,
-                    position = if (expanded) Position.Top else Position.Alone,
-                    leading = { CalendarColorChip(calendar.color) },
-                    trailing = {
-                        Icon(
-                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    },
-                    onClick = {
-                        expandedCalendars = if (expanded) {
-                            expandedCalendars - calendar.id
-                        } else {
-                            expandedCalendars + calendar.id
-                        }
-                    },
-                )
-                AnimatedVisibility(
-                    visible = expanded,
-                    enter = calendarExpandEnter(),
-                    exit = calendarCollapseExit(),
-                ) {
-                    Column {
-                        val timed = state.perCalendarReminderOverride.choiceFor(calendar.id)
-                        GroupedRow(
-                            title = stringResource(R.string.settings_default_reminder),
-                            summary = calendarOverrideSummary(timed, state.defaultReminderMinutes),
-                            position = Position.Middle,
-                            onClick = { overrideDialog = OverrideTarget(calendar.id, isAllDay = false) },
-                        )
-                        val allDay = state.perCalendarAllDayReminderOverride.choiceFor(calendar.id)
-                        GroupedRow(
-                            title = stringResource(R.string.settings_default_reminder_allday),
-                            summary = calendarOverrideSummary(allDay, state.defaultAllDayReminderMinutes),
-                            position = Position.Bottom,
-                            onClick = { overrideDialog = OverrideTarget(calendar.id, isAllDay = true) },
-                        )
-                    }
-                }
-            }
-        }
-
-        // Delivery reliability: Android's battery optimisation can delay or drop
-        // the calendar provider's reminder broadcast. A soft, optional exemption
-        // (system-settings deep-link, no special permission) improves on-time
-        // delivery; shown as live status, reversible by the user at any time.
+        // Delivery reliability + snooze: both are global reminder-delivery
+        // settings, so they sit with the defaults above rather than below the
+        // long per-calendar list. Reliability is a soft, optional battery-
+        // optimisation exemption (system-settings deep-link, no special
+        // permission); shown as live status, reversible at any time.
         Spacer(Modifier.height(24.dp))
         val batteryExempt = rememberBatteryOptimizationExempt()
         GroupedRow(
@@ -818,7 +783,7 @@ private fun NotificationsScreen(
             } else {
                 stringResource(R.string.settings_reliable_delivery_hint)
             },
-            position = Position.Alone,
+            position = Position.Top,
             trailing = if (batteryExempt) {
                 {
                     Icon(
@@ -834,13 +799,88 @@ private fun NotificationsScreen(
         )
 
         // Snooze: how long the notification's "Snooze" action defers a reminder.
-        Spacer(Modifier.height(24.dp))
         GroupedRow(
             title = stringResource(R.string.settings_snooze_duration),
             summary = snoozeDurationLabel(state.snoozeMinutes),
-            position = Position.Alone,
+            position = Position.Bottom,
             onClick = { showSnooze = true },
         )
+
+        // Per-calendar overrides: the whole section folds behind one header to
+        // keep the screen tidy. Expanded, each writable calendar gets its own
+        // expandable card that may keep, drop, or replace the global default —
+        // separately for timed and all-day events.
+        if (state.writableCalendars.isNotEmpty()) {
+            Spacer(Modifier.height(24.dp))
+            GroupedRow(
+                title = stringResource(R.string.settings_calendar_reminders_title),
+                summary = stringResource(R.string.settings_calendar_reminders_hint),
+                position = Position.Alone,
+                trailing = {
+                    Icon(
+                        imageVector = if (calendarSectionExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                },
+                onClick = { calendarSectionExpanded = !calendarSectionExpanded },
+            )
+            AnimatedVisibility(
+                visible = calendarSectionExpanded,
+                enter = calendarExpandEnter(),
+                exit = calendarCollapseExit(),
+            ) {
+                Column {
+                    state.writableCalendars.forEach { calendar ->
+                        Spacer(Modifier.height(16.dp))
+                        val expanded = calendar.id in expandedCalendars
+                        // Calendar card; tapping expands it into a grouped list
+                        // of three (the card + the timed and all-day rows).
+                        GroupedRow(
+                            title = calendar.displayName,
+                            position = if (expanded) Position.Top else Position.Alone,
+                            leading = { CalendarColorChip(calendar.color) },
+                            trailing = {
+                                Icon(
+                                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            onClick = {
+                                expandedCalendars = if (expanded) {
+                                    expandedCalendars - calendar.id
+                                } else {
+                                    expandedCalendars + calendar.id
+                                }
+                            },
+                        )
+                        AnimatedVisibility(
+                            visible = expanded,
+                            enter = calendarExpandEnter(),
+                            exit = calendarCollapseExit(),
+                        ) {
+                            Column {
+                                val timed = state.perCalendarReminderOverride.choiceFor(calendar.id)
+                                GroupedRow(
+                                    title = stringResource(R.string.settings_default_reminder),
+                                    summary = calendarOverrideSummary(timed, state.defaultReminderMinutes),
+                                    position = Position.Middle,
+                                    onClick = { overrideDialog = OverrideTarget(calendar.id, isAllDay = false) },
+                                )
+                                val allDay = state.perCalendarAllDayReminderOverride.choiceFor(calendar.id)
+                                GroupedRow(
+                                    title = stringResource(R.string.settings_default_reminder_allday),
+                                    summary = calendarOverrideSummary(allDay, state.defaultAllDayReminderMinutes),
+                                    position = Position.Bottom,
+                                    onClick = { overrideDialog = OverrideTarget(calendar.id, isAllDay = true) },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     if (showSnooze) {
@@ -1059,17 +1099,6 @@ private fun CategoryIcon(icon: ImageVector, accent: ChipAccent) {
 private fun openUrl(context: Context, url: String) {
     val intent = Intent(Intent.ACTION_VIEW, url.toUri())
     runCatching { context.startActivity(intent) }
-}
-
-private fun formFieldLabel(field: EventFormField): Int = when (field) {
-    EventFormField.Location -> R.string.event_detail_location
-    EventFormField.Description -> R.string.event_detail_description
-    EventFormField.Reminders -> R.string.event_detail_reminders
-    EventFormField.Recurrence -> R.string.event_detail_recurrence
-    EventFormField.Availability -> R.string.event_edit_availability
-    EventFormField.Visibility -> R.string.event_edit_visibility
-    EventFormField.Color -> R.string.event_edit_color
-    EventFormField.Attendees -> R.string.event_edit_attendees
 }
 
 @Composable
