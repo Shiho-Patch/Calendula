@@ -36,11 +36,17 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -232,19 +238,15 @@ private fun CalendarsList(
         CalendarGroup(
             title = stringResource(R.string.calendars_local_header),
             expanded = localExpanded,
+            bodyHasRows = local.isNotEmpty(),
             headerDisabled = localDisabled,
             leading = { Box(dimIf(localDisabled)) { LeadingAvatar(Icons.Default.PhoneAndroid) } },
             manageIcon = Icons.Default.Add,
             manageLabel = stringResource(R.string.calendars_add),
             onManage = onAdd,
-            manageConnectsBelow = local.isNotEmpty(),
             onToggleExpand = { localExpanded = !localExpanded },
             showToggleAll = local.isNotEmpty(),
             allEnabled = local.none { it.id in disabledIds },
-            toggleAllLabel = stringResource(
-                R.string.calendars_account_toggle_all_a11y,
-                stringResource(R.string.calendars_local_header),
-            ),
             onToggleAll = { enabled -> onSetAccountDisabled(local.map { it.id }, !enabled) },
         ) {
             if (local.isEmpty()) {
@@ -305,14 +307,14 @@ private fun CalendarsList(
                 CalendarGroup(
                     title = account,
                     expanded = expanded,
+                    bodyHasRows = true,
                     headerDisabled = accountDisabled,
                     leading = { Box(dimIf(accountDisabled)) { SourceLogo(accountType) } },
                     manageIcon = Icons.AutoMirrored.Filled.OpenInNew,
-                    manageLabel = stringResource(R.string.calendars_manage_account_a11y, account),
+                    manageLabel = stringResource(R.string.calendars_manage_in_app),
                     onManage = {
                         runCatching { context.startActivity(sourceAppIntent(context, accountType)) }
                     },
-                    manageConnectsBelow = true,
                     onToggleExpand = {
                         collapsedAccounts = if (expanded) {
                             collapsedAccounts + account
@@ -322,7 +324,6 @@ private fun CalendarsList(
                     },
                     showToggleAll = true,
                     allEnabled = cals.none { it.id in disabledIds },
-                    toggleAllLabel = stringResource(R.string.calendars_account_toggle_all_a11y, account),
                     onToggleAll = { enabled -> onSetAccountDisabled(cals.map { it.id }, !enabled) },
                 ) {
                     cals.forEachIndexed { index, calendar ->
@@ -552,53 +553,50 @@ private fun EditorCard(
 /**
  * One collapsible calendar group rendered as a connected card. The header row is
  * the card's top (tap to expand/collapse): a [leading] source mark (the account
- * app's logo, or a device chip for local), the group [title] and — when
- * [showToggleAll] — a "toggle all" [Switch] that enables or disables every
- * calendar in the group at once.
+ * app's logo, or a device chip for local), the group [title] and a trailing
+ * overflow (⋮) menu holding the account-level actions — enable/disable every
+ * calendar at once (when [showToggleAll]) and the manage/add action
+ * ([manageIcon] / [manageLabel] → [onManage]). The group's calendars render as
+ * the rows below via [body].
  *
- * When expanded, the body opens with a differentiated management row
- * ([manageIcon] / [manageLabel] → [onManage]: add a calendar, or open the source
- * app) above the plain calendar rows supplied by [body]; [manageConnectsBelow]
- * is false when no calendar rows follow it, so it rounds off as the card's foot.
- *
- * An active group gets a tinted header; once [headerDisabled] (every calendar in
- * the group switched off) the header drops to a plain, dimmed row so the whole
- * group reads as off — not just its switch.
+ * The header keeps the standard row colour; the calendars it reveals sit one tone
+ * darker, so the group reads as a header over nested content. Once [headerDisabled]
+ * (every calendar switched off) the header fades to the disabled emphasis so the
+ * whole group reads as off — not just via the menu. [bodyHasRows] is false when no
+ * calendar rows follow (e.g. an empty local group), so the header stays a
+ * standalone card rather than a top edge with nothing beneath it.
  */
 @Composable
 private fun CalendarGroup(
     title: String,
     expanded: Boolean,
+    bodyHasRows: Boolean,
     headerDisabled: Boolean,
     leading: @Composable () -> Unit,
     manageIcon: ImageVector,
     manageLabel: String,
     onManage: () -> Unit,
-    manageConnectsBelow: Boolean,
     onToggleExpand: () -> Unit,
     showToggleAll: Boolean,
     allEnabled: Boolean,
-    toggleAllLabel: String,
     onToggleAll: (Boolean) -> Unit,
     body: @Composable ColumnScope.() -> Unit,
 ) {
     GroupedRow(
         title = title,
-        position = if (expanded) Position.Top else Position.Alone,
-        // The account header keeps the standard row colour; the options it reveals
-        // sit one tone darker, so the group reads as a header over nested content.
+        position = if (expanded && bodyHasRows) Position.Top else Position.Alone,
         dimmed = headerDisabled,
         leading = leading,
-        trailing = if (showToggleAll) {
-            {
-                Switch(
-                    checked = allEnabled,
-                    onCheckedChange = onToggleAll,
-                    modifier = Modifier.semantics { contentDescription = toggleAllLabel },
-                )
-            }
-        } else {
-            null
+        trailing = {
+            CalendarGroupMenu(
+                title = title,
+                showToggleAll = showToggleAll,
+                allEnabled = allEnabled,
+                onToggleAll = onToggleAll,
+                manageIcon = manageIcon,
+                manageLabel = manageLabel,
+                onManage = onManage,
+            )
         },
         onClick = onToggleExpand,
     )
@@ -607,16 +605,76 @@ private fun CalendarGroup(
         enter = calendarExpandEnter(),
         exit = calendarCollapseExit(),
     ) {
-        Column {
-            GroupedRow(
-                title = manageLabel,
-                position = if (manageConnectsBelow) Position.Middle else Position.Bottom,
-                container = MaterialTheme.colorScheme.surfaceContainerHighest,
-                dimmed = headerDisabled,
-                leading = { Icon(manageIcon, contentDescription = null) },
-                onClick = onManage,
+        Column(content = body)
+    }
+}
+
+/**
+ * The account header's overflow (⋮) menu: the two account-level actions that
+ * don't fit on one line — "Enable/Disable all" (when [showToggleAll]) and the
+ * manage/add action. A rounded, tonal dropdown matching the app's surfaces, with
+ * the two actions divided for clear separation.
+ */
+@Composable
+private fun CalendarGroupMenu(
+    title: String,
+    showToggleAll: Boolean,
+    allEnabled: Boolean,
+    onToggleAll: (Boolean) -> Unit,
+    manageIcon: ImageVector,
+    manageLabel: String,
+    onManage: () -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(
+                Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.calendars_account_menu_a11y, title),
             )
-            body()
+        }
+        DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            shape = RoundedCornerShape(20.dp),
+            // A distinct tone + a lifted shadow so the menu reads as floating
+            // above the cards (which sit at surfaceContainerHigh) rather than
+            // blending into them.
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            tonalElevation = 0.dp,
+            shadowElevation = 6.dp,
+        ) {
+            if (showToggleAll) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(
+                                if (allEnabled) R.string.calendars_disable_all
+                                else R.string.calendars_enable_all,
+                            ),
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            if (allEnabled) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = null,
+                        )
+                    },
+                    onClick = {
+                        open = false
+                        onToggleAll(!allEnabled)
+                    },
+                )
+                HorizontalDivider(Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+            }
+            DropdownMenuItem(
+                text = { Text(manageLabel) },
+                leadingIcon = { Icon(manageIcon, contentDescription = null) },
+                onClick = {
+                    open = false
+                    onManage()
+                },
+            )
         }
     }
 }
