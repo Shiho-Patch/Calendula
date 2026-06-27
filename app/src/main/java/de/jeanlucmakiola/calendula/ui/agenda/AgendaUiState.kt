@@ -57,5 +57,7 @@ sealed interface AgendaUiState {
         val range: AgendaRange,
         /** True when [range] is a temporary in-view override of the saved default. */
         val rangeIsOverride: Boolean,
+        /** Last day the current [range] covers (inclusive), for the range header. */
+        val rangeEnd: LocalDate,
     ) : AgendaUiState
 }

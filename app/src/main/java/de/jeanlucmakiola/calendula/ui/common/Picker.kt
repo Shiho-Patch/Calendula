@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -283,9 +284,11 @@ private fun SelectedCheck() {
 }
 
 /**
- * Agenda-range picker, full-screen: the fixed 1 day / 1 week / 1 month windows
- * as grouped rows, plus a "Custom" row that expands an inline day-count editor
- * (1–365). Mirrors [ReminderDefaultPicker]'s custom-expand pattern.
+ * Agenda-range picker, full-screen. Two grouped lists — the calendar-aligned
+ * options (today / this week / this month) and the rolling windows (next 7 / 30
+ * days), with a "Custom" row that expands an inline day-count editor (1–365).
+ * When [currentWindow] is given, a header shows the concrete span in effect.
+ * Mirrors [ReminderDefaultPicker]'s custom-expand pattern.
  */
 @Composable
 fun AgendaRangePicker(
@@ -294,40 +297,50 @@ fun AgendaRangePicker(
     selected: AgendaRange,
     onSelect: (AgendaRange) -> Unit,
     onDismiss: () -> Unit,
+    currentWindow: String? = null,
 ) {
-    val presets = listOf(
-        AgendaRange.Day,
-        AgendaRange.ThisWeek,
-        AgendaRange.ThisMonth,
-        AgendaRange.Week,
-        AgendaRange.Month,
-    )
+    val calendarAligned = listOf(AgendaRange.Day, AgendaRange.ThisWeek, AgendaRange.ThisMonth)
+    val rolling = listOf(AgendaRange.Week, AgendaRange.Month)
+    val rollingRowCount = rolling.size + 1 // + the custom row
     val customSelected = selected is AgendaRange.Custom
-    val rowCount = presets.size + 1 // + the custom row
 
     var customExpanded by rememberSaveable { mutableStateOf(false) }
     var amountText by rememberSaveable {
         mutableStateOf((selected as? AgendaRange.Custom)?.days?.toString() ?: "")
     }
 
+    val rangeRow: @Composable (AgendaRange, Position) -> Unit = { option, position ->
+        val isSelected = option == selected
+        GroupedRow(
+            title = agendaRangeLabel(option),
+            position = position,
+            selected = isSelected,
+            trailing = if (isSelected) {
+                { SelectedCheck() }
+            } else {
+                null
+            },
+            onClick = {
+                onSelect(option)
+                onDismiss()
+            },
+        )
+    }
+
     FullScreenPicker(title = title, onDismiss = onDismiss) {
+        if (currentWindow != null) AgendaRangeHeader(currentWindow)
         PickerDescription(description)
-        presets.forEachIndexed { index, option ->
-            val isSelected = option == selected
-            GroupedRow(
-                title = agendaRangeLabel(option),
-                position = positionOf(index, rowCount),
-                selected = isSelected,
-                trailing = if (isSelected) {
-                    { SelectedCheck() }
-                } else {
-                    null
-                },
-                onClick = {
-                    onSelect(option)
-                    onDismiss()
-                },
-            )
+
+        // Calendar-aligned windows.
+        calendarAligned.forEachIndexed { index, option ->
+            rangeRow(option, positionOf(index, calendarAligned.size))
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Rolling windows + custom.
+        rolling.forEachIndexed { index, option ->
+            rangeRow(option, positionOf(index, rollingRowCount))
         }
         GroupedRow(
             title = if (customSelected) {
@@ -335,7 +348,7 @@ fun AgendaRangePicker(
             } else {
                 stringResource(R.string.agenda_range_custom)
             },
-            position = if (customExpanded) Position.Top else positionOf(presets.size, rowCount),
+            position = if (customExpanded) Position.Top else positionOf(rolling.size, rollingRowCount),
             selected = customSelected,
             trailing = if (customSelected) {
                 { SelectedCheck() }
@@ -358,6 +371,23 @@ fun AgendaRangePicker(
                 },
             )
         }
+    }
+}
+
+/** The "Showing all events for <span>" header at the top of the range picker. */
+@Composable
+private fun AgendaRangeHeader(window: String) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text(
+            text = stringResource(R.string.agenda_range_showing_label),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = window,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 

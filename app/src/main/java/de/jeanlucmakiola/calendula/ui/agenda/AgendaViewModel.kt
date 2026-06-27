@@ -123,12 +123,17 @@ class AgendaViewModel @Inject constructor(
         }
         val anchor = params.anchor
         val days = groupAgendaDays(anchor, instances, zone)
+        val rangeEnd = anchor.plus(
+            params.range.dayCount(anchor, params.weekStart) - 1,
+            DateTimeUnit.DAY,
+        )
         return AgendaUiState.Success(
             anchor = anchor,
             today = todayDate,
             days = days,
             range = params.range,
             rangeIsOverride = params.rangeIsOverride,
+            rangeEnd = rangeEnd,
         )
     }
 }

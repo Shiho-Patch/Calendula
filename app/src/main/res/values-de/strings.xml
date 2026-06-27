@@ -294,6 +294,7 @@
     <string name="agenda_range_custom">Benutzerdefiniert…</string>
     <string name="agenda_range_custom_hint">Tage</string>
     <string name="agenda_range_override_hint">Nur vorübergehend — wird beim erneuten Öffnen von Calendula auf deinen gespeicherten Zeitraum zurückgesetzt.</string>
+    <string name="agenda_range_showing_label">Alle Termine für</string>
     <plurals name="agenda_range_days">
         <item quantity="one">%d Tag</item>
         <item quantity="other">%d Tage</item>

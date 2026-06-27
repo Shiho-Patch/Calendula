@@ -176,12 +176,16 @@ fun AgendaScreen(
     }
 
     if (showRangePicker) {
+        val locale = currentLocale()
         AgendaRangePicker(
             title = stringResource(R.string.settings_agenda_range),
             description = stringResource(R.string.agenda_range_override_hint),
             selected = successState?.range ?: AgendaRange.Month,
             onSelect = viewModel::setRangeOverride,
             onDismiss = { showRangePicker = false },
+            currentWindow = successState?.let {
+                agendaRangeWindowSummary(it.range, it.anchor, it.rangeEnd, locale)
+            },
         )
     }
 }
