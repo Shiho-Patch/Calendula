@@ -514,8 +514,32 @@ private fun AppearanceScreen(
         GroupedRow(
             title = stringResource(R.string.settings_agenda_widget_range),
             summary = agendaRangeLabel(state.agendaWidgetRange),
-            position = Position.Bottom,
+            position = Position.Middle,
             onClick = { showAgendaWidgetRange = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_agenda_range_title),
+            summary = stringResource(R.string.settings_agenda_range_title_hint),
+            position = Position.Middle,
+            trailing = {
+                Switch(
+                    checked = state.agendaShowRangeBanner,
+                    onCheckedChange = viewModel::setAgendaShowRangeBanner,
+                )
+            },
+            onClick = { viewModel.setAgendaShowRangeBanner(!state.agendaShowRangeBanner) },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_agenda_range_button),
+            summary = stringResource(R.string.settings_agenda_range_button_hint),
+            position = Position.Bottom,
+            trailing = {
+                Switch(
+                    checked = state.agendaShowRangePill,
+                    onCheckedChange = viewModel::setAgendaShowRangePill,
+                )
+            },
+            onClick = { viewModel.setAgendaShowRangePill(!state.agendaShowRangePill) },
         )
     }
 

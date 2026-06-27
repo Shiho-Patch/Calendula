@@ -287,7 +287,6 @@ private fun SelectedCheck() {
  * Agenda-range picker, full-screen. Two grouped lists — the calendar-aligned
  * options (today / this week / this month) and the rolling windows (next 7 / 30
  * days), with a "Custom" row that expands an inline day-count editor (1–365).
- * When [currentWindow] is given, a header shows the concrete span in effect.
  * Mirrors [ReminderDefaultPicker]'s custom-expand pattern.
  */
 @Composable
@@ -297,7 +296,6 @@ fun AgendaRangePicker(
     selected: AgendaRange,
     onSelect: (AgendaRange) -> Unit,
     onDismiss: () -> Unit,
-    currentWindow: String? = null,
 ) {
     val calendarAligned = listOf(AgendaRange.Day, AgendaRange.ThisWeek, AgendaRange.ThisMonth)
     val rolling = listOf(AgendaRange.Week, AgendaRange.Month)
@@ -328,7 +326,6 @@ fun AgendaRangePicker(
     }
 
     FullScreenPicker(title = title, onDismiss = onDismiss) {
-        if (currentWindow != null) AgendaRangeHeader(currentWindow)
         PickerDescription(description)
 
         // Calendar-aligned windows.
@@ -371,23 +368,6 @@ fun AgendaRangePicker(
                 },
             )
         }
-    }
-}
-
-/** The "Showing all events for <span>" header at the top of the range picker. */
-@Composable
-private fun AgendaRangeHeader(window: String) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(
-            text = stringResource(R.string.agenda_range_showing_label),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = window,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
     }
 }
 

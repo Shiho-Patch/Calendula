@@ -43,7 +43,12 @@ class AgendaViewModel @Inject constructor(
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
-    private val screenRange = settingsPrefs.agendaScreenRange
+    // The saved agenda range plus the banner/pill visibility toggles.
+    private val agendaSettings = combine(
+        settingsPrefs.agendaScreenRange,
+        settingsPrefs.agendaShowRangeBanner,
+        settingsPrefs.agendaShowRangePill,
+    ) { range, showBanner, showPill -> AgendaSettings(range, showBanner, showPill) }
 
     // First day of the week, for the calendar-aligned "this week" range.
     private val weekStartDay = settingsPrefs.weekStart
@@ -63,12 +68,14 @@ class AgendaViewModel @Inject constructor(
     private val _rangeOverride = MutableStateFlow<AgendaRange?>(null)
 
     val state: StateFlow<AgendaUiState> =
-        combine(_anchor, screenRange, _rangeOverride, weekStartDay) { anchor, default, override, weekStart ->
+        combine(_anchor, agendaSettings, _rangeOverride, weekStartDay) { anchor, settings, override, weekStart ->
             AgendaParams(
                 anchor = anchor,
-                range = override ?: default,
-                rangeIsOverride = override != null && override != default,
+                range = override ?: settings.range,
+                rangeIsOverride = override != null && override != settings.range,
                 weekStart = weekStart,
+                showRangeBanner = settings.showBanner,
+                showRangePill = settings.showPill,
             )
         }
         .flatMapLatest { params ->
@@ -106,11 +113,19 @@ class AgendaViewModel @Inject constructor(
         _rangeOverride.value = range
     }
 
+    private data class AgendaSettings(
+        val range: AgendaRange,
+        val showBanner: Boolean,
+        val showPill: Boolean,
+    )
+
     private data class AgendaParams(
         val anchor: LocalDate,
         val range: AgendaRange,
         val rangeIsOverride: Boolean,
         val weekStart: DayOfWeek,
+        val showRangeBanner: Boolean,
+        val showRangePill: Boolean,
     )
 
     private fun buildState(
@@ -134,6 +149,8 @@ class AgendaViewModel @Inject constructor(
             range = params.range,
             rangeIsOverride = params.rangeIsOverride,
             rangeEnd = rangeEnd,
+            showRangeBanner = params.showRangeBanner,
+            showRangePill = params.showRangePill,
         )
     }
 }

@@ -150,17 +150,27 @@ fun AgendaScreen(
             },
         ) { innerPadding ->
             Box(modifier = Modifier.fillMaxSize()) {
-                AgendaContent(
-                    state = state,
-                    onRetry = viewModel::goToToday,
-                    onEventClick = onEventClick,
+                Column(
                     modifier = Modifier
-                        .padding(innerPadding)
-                        .fillMaxSize(),
-                )
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                ) {
+                    // A header naming the concrete window currently shown.
+                    successState?.takeIf { it.showRangeBanner }?.let { s ->
+                        AgendaRangeBanner(range = s.range, start = s.anchor, end = s.rangeEnd)
+                    }
+                    AgendaContent(
+                        state = state,
+                        onRetry = viewModel::goToToday,
+                        onEventClick = onEventClick,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                    )
+                }
                 // A bottom-left pill to peek at a different range for this
                 // session, mirroring the FAB column on the right.
-                successState?.let { s ->
+                successState?.takeIf { it.showRangePill }?.let { s ->
                     AgendaRangePill(
                         range = s.range,
                         isOverride = s.rangeIsOverride,
@@ -176,16 +186,12 @@ fun AgendaScreen(
     }
 
     if (showRangePicker) {
-        val locale = currentLocale()
         AgendaRangePicker(
             title = stringResource(R.string.settings_agenda_range),
             description = stringResource(R.string.agenda_range_override_hint),
             selected = successState?.range ?: AgendaRange.Month,
             onSelect = viewModel::setRangeOverride,
             onDismiss = { showRangePicker = false },
-            currentWindow = successState?.let {
-                agendaRangeWindowSummary(it.range, it.anchor, it.rangeEnd, locale)
-            },
         )
     }
 }
@@ -233,6 +239,33 @@ private fun AgendaRangePill(
                 style = MaterialTheme.typography.labelLarge,
             )
         }
+    }
+}
+
+/**
+ * A header naming the concrete window currently shown, e.g. "Showing all events
+ * for · Today, 27 Jun 2026" / "This week, 27 Jun – 3 Jul" / "This month, June 2026".
+ */
+@Composable
+private fun AgendaRangeBanner(
+    range: AgendaRange,
+    start: LocalDate,
+    end: LocalDate,
+    modifier: Modifier = Modifier,
+) {
+    val locale = currentLocale()
+    val window = agendaRangeWindowSummary(range, start, end, locale)
+    Column(modifier = modifier.padding(horizontal = 28.dp, vertical = 8.dp)) {
+        Text(
+            text = stringResource(R.string.agenda_range_showing_label),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = "${agendaRangeLabel(range)}, $window",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
     }
 }
 

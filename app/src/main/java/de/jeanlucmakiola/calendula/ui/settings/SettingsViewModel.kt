@@ -84,13 +84,19 @@ class SettingsViewModel @Inject constructor(
             ) { view, screenRange, widgetRange, timeFormat, showHourLines ->
                 ViewSettings(view, screenRange, widgetRange, timeFormat, showHourLines)
             },
-        ) { base, defaults, overrides, views ->
+            combine(
+                prefs.agendaShowRangeBanner,
+                prefs.agendaShowRangePill,
+            ) { banner, pill -> banner to pill },
+        ) { base, defaults, overrides, views, agendaToggles ->
             base.copy(
                 defaultView = views.defaultView,
                 agendaScreenRange = views.agendaScreenRange,
                 agendaWidgetRange = views.agendaWidgetRange,
                 timeFormat = views.timeFormat,
                 showHourLines = views.showHourLines,
+                agendaShowRangeBanner = agendaToggles.first,
+                agendaShowRangePill = agendaToggles.second,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -146,6 +152,14 @@ class SettingsViewModel @Inject constructor(
 
     fun setAgendaWidgetRange(range: AgendaRange) {
         viewModelScope.launch { prefs.setAgendaWidgetRange(range) }
+    }
+
+    fun setAgendaShowRangeBanner(enabled: Boolean) {
+        viewModelScope.launch { prefs.setAgendaShowRangeBanner(enabled) }
+    }
+
+    fun setAgendaShowRangePill(enabled: Boolean) {
+        viewModelScope.launch { prefs.setAgendaShowRangePill(enabled) }
     }
 
     fun setTimeFormat(pref: TimeFormatPref) {

@@ -28,6 +28,10 @@ data class SettingsUiState(
     val agendaScreenRange: AgendaRange = AgendaRange.Month,
     /** How far ahead the agenda widget shows events (v2.11). */
     val agendaWidgetRange: AgendaRange = AgendaRange.Month,
+    /** Whether the agenda shows its range-header banner (v2.11). */
+    val agendaShowRangeBanner: Boolean = true,
+    /** Whether the agenda shows the bottom-left range pill (v2.11). */
+    val agendaShowRangePill: Boolean = true,
     /** The calendar view the app opens on, and the home of the view back stack (M1). */
     val defaultView: CalendarView = CalendarView.Week,
     /** Optional event-form fields shown by default (rest behind "more fields"). */

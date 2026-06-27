@@ -279,6 +279,10 @@
     <string name="settings_agenda_range_hint">How far ahead the Agenda screen lists events.</string>
     <string name="settings_agenda_widget_range">Agenda widget range</string>
     <string name="settings_agenda_widget_range_hint">How far ahead the agenda home-screen widget lists events.</string>
+    <string name="settings_agenda_range_title">Range title</string>
+    <string name="settings_agenda_range_title_hint">Show a header naming the dates the agenda is showing</string>
+    <string name="settings_agenda_range_button">Range button</string>
+    <string name="settings_agenda_range_button_hint">Show a button in the agenda to switch the range for the session</string>
     <string name="agenda_range_day">Today</string>
     <string name="agenda_range_this_week">This week</string>
     <string name="agenda_range_this_month">This month</string>

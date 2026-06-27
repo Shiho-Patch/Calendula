@@ -286,6 +286,10 @@
     <string name="settings_agenda_range_hint">Wie weit im Voraus die Agenda-Ansicht Termine anzeigt.</string>
     <string name="settings_agenda_widget_range">Agenda-Widget-Zeitraum</string>
     <string name="settings_agenda_widget_range_hint">Wie weit im Voraus das Agenda-Widget auf dem Startbildschirm Termine anzeigt.</string>
+    <string name="settings_agenda_range_title">Zeitraum-Titel</string>
+    <string name="settings_agenda_range_title_hint">Eine Überschrift anzeigen, die den dargestellten Zeitraum benennt</string>
+    <string name="settings_agenda_range_button">Zeitraum-Schaltfläche</string>
+    <string name="settings_agenda_range_button_hint">Eine Schaltfläche in der Agenda anzeigen, um den Zeitraum für die Sitzung zu wechseln</string>
     <string name="agenda_range_day">Heute</string>
     <string name="agenda_range_this_week">Diese Woche</string>
     <string name="agenda_range_this_month">Dieser Monat</string>
