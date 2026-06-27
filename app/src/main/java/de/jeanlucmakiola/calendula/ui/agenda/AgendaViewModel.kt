@@ -43,12 +43,11 @@ class AgendaViewModel @Inject constructor(
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
-    // The saved agenda range plus the banner/pill visibility toggles.
+    // The saved agenda range plus the range-bar visibility toggle.
     private val agendaSettings = combine(
         settingsPrefs.agendaScreenRange,
-        settingsPrefs.agendaShowRangeBanner,
-        settingsPrefs.agendaShowRangePill,
-    ) { range, showBanner, showPill -> AgendaSettings(range, showBanner, showPill) }
+        settingsPrefs.agendaShowRangeBar,
+    ) { range, showBar -> AgendaSettings(range, showBar) }
 
     // First day of the week, for the calendar-aligned "this week" range.
     private val weekStartDay = settingsPrefs.weekStart
@@ -74,8 +73,7 @@ class AgendaViewModel @Inject constructor(
                 range = override ?: settings.range,
                 rangeIsOverride = override != null && override != settings.range,
                 weekStart = weekStart,
-                showRangeBanner = settings.showBanner,
-                showRangePill = settings.showPill,
+                showRangeBar = settings.showBar,
             )
         }
         .flatMapLatest { params ->
@@ -115,8 +113,7 @@ class AgendaViewModel @Inject constructor(
 
     private data class AgendaSettings(
         val range: AgendaRange,
-        val showBanner: Boolean,
-        val showPill: Boolean,
+        val showBar: Boolean,
     )
 
     private data class AgendaParams(
@@ -124,8 +121,7 @@ class AgendaViewModel @Inject constructor(
         val range: AgendaRange,
         val rangeIsOverride: Boolean,
         val weekStart: DayOfWeek,
-        val showRangeBanner: Boolean,
-        val showRangePill: Boolean,
+        val showRangeBar: Boolean,
     )
 
     private fun buildState(
@@ -149,8 +145,7 @@ class AgendaViewModel @Inject constructor(
             range = params.range,
             rangeIsOverride = params.rangeIsOverride,
             rangeEnd = rangeEnd,
-            showRangeBanner = params.showRangeBanner,
-            showRangePill = params.showRangePill,
+            showRangeBar = params.showRangeBar,
         )
     }
 }

@@ -137,22 +137,16 @@ class SettingsPrefs @Inject constructor(
         store.edit { it[AGENDA_WIDGET_RANGE_KEY] = range.storageValue() }
     }
 
-    /** Whether the agenda shows its range-header banner (v2.11). Default ON. */
-    val agendaShowRangeBanner: Flow<Boolean> = store.data.map { prefs ->
-        prefs[AGENDA_SHOW_RANGE_BANNER_KEY] ?: true
+    /**
+     * Whether the agenda shows its top range bar — the "showing …" header and
+     * the session range switcher (v2.11). Default ON.
+     */
+    val agendaShowRangeBar: Flow<Boolean> = store.data.map { prefs ->
+        prefs[AGENDA_SHOW_RANGE_BAR_KEY] ?: true
     }
 
-    suspend fun setAgendaShowRangeBanner(enabled: Boolean) {
-        store.edit { it[AGENDA_SHOW_RANGE_BANNER_KEY] = enabled }
-    }
-
-    /** Whether the agenda shows the bottom-left range pill (v2.11). Default ON. */
-    val agendaShowRangePill: Flow<Boolean> = store.data.map { prefs ->
-        prefs[AGENDA_SHOW_RANGE_PILL_KEY] ?: true
-    }
-
-    suspend fun setAgendaShowRangePill(enabled: Boolean) {
-        store.edit { it[AGENDA_SHOW_RANGE_PILL_KEY] = enabled }
+    suspend fun setAgendaShowRangeBar(enabled: Boolean) {
+        store.edit { it[AGENDA_SHOW_RANGE_BAR_KEY] = enabled }
     }
 
     /**
@@ -346,8 +340,7 @@ class SettingsPrefs @Inject constructor(
         internal val WEEK_START_KEY = stringPreferencesKey("week_start")
         internal val AGENDA_SCREEN_RANGE_KEY = stringPreferencesKey("agenda_screen_range")
         internal val AGENDA_WIDGET_RANGE_KEY = stringPreferencesKey("agenda_widget_range")
-        internal val AGENDA_SHOW_RANGE_BANNER_KEY = booleanPreferencesKey("agenda_show_range_banner")
-        internal val AGENDA_SHOW_RANGE_PILL_KEY = booleanPreferencesKey("agenda_show_range_pill")
+        internal val AGENDA_SHOW_RANGE_BAR_KEY = booleanPreferencesKey("agenda_show_range_bar")
         internal val TIME_FORMAT_KEY = stringPreferencesKey("time_format")
         internal val SHOW_HOUR_LINES_KEY = booleanPreferencesKey("show_hour_lines")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")

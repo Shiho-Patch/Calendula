@@ -155,32 +155,25 @@ fun AgendaScreen(
                     .padding(innerPadding),
             ) {
                 // One bar at the top: the "showing …" header on the left and the
-                // session range pill on the right (each toggleable independently).
-                val s = successState
-                if (s != null && (s.showRangeBanner || s.showRangePill)) {
+                // session range switcher on the right (one settings toggle).
+                successState?.takeIf { it.showRangeBar }?.let { s ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(start = 28.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
                     ) {
-                        if (s.showRangeBanner) {
-                            AgendaRangeBanner(
-                                range = s.range,
-                                start = s.anchor,
-                                end = s.rangeEnd,
-                                modifier = Modifier.weight(1f),
-                            )
-                        } else {
-                            Spacer(Modifier.weight(1f))
-                        }
-                        if (s.showRangePill) {
-                            AgendaRangePill(
-                                range = s.range,
-                                isOverride = s.rangeIsOverride,
-                                onClick = { showRangePicker = true },
-                            )
-                        }
+                        AgendaRangeBanner(
+                            range = s.range,
+                            start = s.anchor,
+                            end = s.rangeEnd,
+                            modifier = Modifier.weight(1f),
+                        )
+                        AgendaRangePill(
+                            range = s.range,
+                            isOverride = s.rangeIsOverride,
+                            onClick = { showRangePicker = true },
+                        )
                     }
                 }
                 AgendaContent(

@@ -59,9 +59,7 @@ sealed interface AgendaUiState {
         val rangeIsOverride: Boolean,
         /** Last day the current [range] covers (inclusive), for the range header. */
         val rangeEnd: LocalDate,
-        /** Whether to show the range header banner (settings toggle, on by default). */
-        val showRangeBanner: Boolean,
-        /** Whether to show the bottom-left range pill (settings toggle, on by default). */
-        val showRangePill: Boolean,
+        /** Whether to show the top range bar — header + switcher (toggle, on by default). */
+        val showRangeBar: Boolean,
     ) : AgendaUiState
 }
