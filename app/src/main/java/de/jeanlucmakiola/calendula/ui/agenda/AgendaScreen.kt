@@ -58,6 +58,9 @@ import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.ui.common.positionOf
+import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
+import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -338,15 +341,17 @@ private fun agendaTimeSummary(event: EventInstance): String {
     val time = if (event.isAllDay) {
         stringResource(R.string.event_detail_all_day)
     } else {
-        "${formatTime(event.start)} – ${formatTime(event.end)}"
+        val is24Hour = LocalUse24HourFormat.current
+        val locale = currentLocale()
+        "${formatTime(event.start, is24Hour, locale)} – ${formatTime(event.end, is24Hour, locale)}"
     }
     val location = event.location?.takeIf { it.isNotBlank() }
     return if (location != null) "$time · $location" else time
 }
 
-private fun formatTime(instant: Instant): String {
+private fun formatTime(instant: Instant, is24Hour: Boolean, locale: Locale): String {
     val t = instant.toLocalDateTime(zone).time
-    return "%02d:%02d".format(t.hour, t.minute)
+    return formatTimeOfDay(t.hour, t.minute, is24Hour, locale)
 }
 
 private fun formatAgendaDate(date: LocalDate): String {

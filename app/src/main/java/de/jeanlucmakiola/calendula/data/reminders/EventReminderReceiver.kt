@@ -46,7 +46,7 @@ class EventReminderReceiver : BroadcastReceiver() {
                 if (settingsPrefs.remindersEnabled.first()) {
                     val now = System.currentTimeMillis()
                     val due = alertStore.dueAlerts(now)
-                    due.forEach(notifier::post)
+                    due.forEach { notifier.post(it) }
                     alertStore.markFired(due.map { it.alertId }, now)
                 }
             } finally {

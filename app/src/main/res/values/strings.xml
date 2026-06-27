@@ -271,6 +271,10 @@
     <string name="settings_week_start_auto">Automatic</string>
     <string name="settings_week_start_monday">Monday</string>
     <string name="settings_week_start_sunday">Sunday</string>
+    <string name="settings_time_format">Time format</string>
+    <string name="settings_time_format_auto">Automatic</string>
+    <string name="settings_time_format_12h">12-hour (2:00 PM)</string>
+    <string name="settings_time_format_24h">24-hour (14:00)</string>
     <string name="settings_section_event_form">New event form</string>
     <string name="settings_form_fields_hint">Fields shown by default — everything else sits behind \"More fields\"</string>
     <string name="settings_color_unsupported">Allow colors on unsupported calendars</string>

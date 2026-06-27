@@ -2,6 +2,7 @@ package de.jeanlucmakiola.calendula.ui.settings
 
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
+import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
@@ -18,6 +19,8 @@ data class SettingsUiState(
     val dynamicColor: Boolean = true,
     val dynamicColorAvailable: Boolean = true,
     val weekStart: WeekStartPref = WeekStartPref.AUTO,
+    /** Clock convention for time labels (v2.11). AUTO follows the system setting. */
+    val timeFormat: TimeFormatPref = TimeFormatPref.AUTO,
     /** The calendar view the app opens on, and the home of the view back stack (M1). */
     val defaultView: CalendarView = CalendarView.Week,
     /** Optional event-form fields shown by default (rest behind "more fields"). */

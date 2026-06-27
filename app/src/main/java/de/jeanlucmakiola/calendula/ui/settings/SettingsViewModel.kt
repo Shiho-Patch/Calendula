@@ -8,6 +8,7 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
+import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
@@ -73,10 +74,11 @@ class SettingsViewModel @Inject constructor(
             ) { overrides, allDayOverrides, calendars ->
                 ReminderOverrides(overrides, allDayOverrides, calendars)
             },
-            prefs.defaultView,
-        ) { base, defaults, overrides, defaultView ->
+            combine(prefs.defaultView, prefs.timeFormat) { view, timeFormat -> view to timeFormat },
+        ) { base, defaults, overrides, viewAndTimeFormat ->
             base.copy(
-                defaultView = defaultView,
+                defaultView = viewAndTimeFormat.first,
+                timeFormat = viewAndTimeFormat.second,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -116,6 +118,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setWeekStart(pref: WeekStartPref) {
         viewModelScope.launch { prefs.setWeekStart(pref) }
+    }
+
+    fun setTimeFormat(pref: TimeFormatPref) {
+        viewModelScope.launch { prefs.setTimeFormat(pref) }
     }
 
     fun setDefaultView(view: CalendarView) {

@@ -132,6 +132,8 @@ import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
 import de.jeanlucmakiola.calendula.ui.common.ReminderUnit
 import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
+import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.reminderUnitLabel
 import de.jeanlucmakiola.calendula.ui.common.pastelize
@@ -1891,8 +1893,9 @@ private fun ScheduleRow(
     val dateFormat = remember(locale) {
         DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
     }
-    val timeFormat = remember(locale) {
-        DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)
+    val use24Hour = LocalUse24HourFormat.current
+    val timeFormat = remember(locale, use24Hour) {
+        timeOfDayFormatter(use24Hour, locale)
     }
     // Tappable values read as links (primary), like the location on the
     // detail screen; errors flip them to the error colour.

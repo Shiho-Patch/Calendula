@@ -26,8 +26,22 @@ class ReminderTimeTextTest {
             isAllDay = false,
             zone = berlin,
             locale = Locale.GERMANY,
+            is24Hour = true,
         )
         assertThat(text).isEqualTo("09:30 – 10:00")
+    }
+
+    @Test
+    fun `12-hour preference renders an am-pm time range`() {
+        val text = reminderTimeText(
+            beginMillis = millisAt(LocalDateTime.of(2026, 6, 11, 14, 0), berlin),
+            endMillis = millisAt(LocalDateTime.of(2026, 6, 11, 15, 0), berlin),
+            isAllDay = false,
+            zone = berlin,
+            locale = Locale.US,
+            is24Hour = false,
+        )
+        assertThat(text).isEqualTo("2:00 PM – 3:00 PM")
     }
 
     @Test
@@ -38,6 +52,7 @@ class ReminderTimeTextTest {
             isAllDay = false,
             zone = berlin,
             locale = Locale.GERMANY,
+            is24Hour = true,
         )
         assertThat(text).contains("11.06.2026")
         assertThat(text).contains("12.06.2026")
@@ -54,6 +69,7 @@ class ReminderTimeTextTest {
             // 02:00 in Berlin — naive local reading would shift the day.
             zone = berlin,
             locale = Locale.GERMANY,
+            is24Hour = true,
         )
         assertThat(text).isEqualTo("11.06.2026")
     }
@@ -66,6 +82,7 @@ class ReminderTimeTextTest {
             isAllDay = true,
             zone = berlin,
             locale = Locale.GERMANY,
+            is24Hour = true,
         )
         assertThat(text).isEqualTo("11.06.2026 – 12.06.2026")
     }
@@ -79,6 +96,7 @@ class ReminderTimeTextTest {
             isAllDay = true,
             zone = berlin,
             locale = Locale.GERMANY,
+            is24Hour = true,
         )
         assertThat(text).isEqualTo("11.06.2026")
     }

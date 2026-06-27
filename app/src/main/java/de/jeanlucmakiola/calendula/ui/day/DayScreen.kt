@@ -80,7 +80,10 @@ import de.jeanlucmakiola.calendula.ui.common.rememberReduceMotion
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
-import de.jeanlucmakiola.calendula.ui.week.MINUTES_PER_DAY
+import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
+import de.jeanlucmakiola.calendula.ui.common.formatHourLabel
+import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.week.TimedBlock
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -466,6 +469,8 @@ private fun Timeline(
 ) {
     val totalHeight = HOUR_HEIGHT * 24
     val dark = isSystemInDarkTheme()
+    val use24Hour = LocalUse24HourFormat.current
+    val locale = currentLocale()
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Gutter and day column are two scroll viewports that SHARE one scroll
@@ -488,7 +493,7 @@ private fun Timeline(
                     ) {
                         if (h > 0) {
                             Text(
-                                text = "%02d".format(h),
+                                text = formatHourLabel(h, use24Hour, locale),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier
@@ -589,7 +594,10 @@ private fun EventBlock(
     modifier: Modifier = Modifier,
 ) {
     val title = block.event.title.ifBlank { stringResource(R.string.event_untitled) }
-    val timeLabel = "${minToHm(block.startMin)}–${minToHm(block.endMin)}"
+    val use24Hour = LocalUse24HourFormat.current
+    val locale = currentLocale()
+    val timeLabel = "${minToHm(block.startMin, use24Hour, locale)}–" +
+        minToHm(block.endMin, use24Hour, locale)
     val showTime = block.endMin - block.startMin >= 45
     Box(
         modifier = modifier
@@ -635,8 +643,8 @@ private fun DayLoading() {
     }
 }
 
-private fun minToHm(min: Int): String =
-    if (min >= MINUTES_PER_DAY) "24:00" else "%02d:%02d".format(min / 60, min % 60)
+private fun minToHm(min: Int, is24Hour: Boolean, locale: Locale): String =
+    formatMinuteOfDay(min, is24Hour, locale)
 
 private fun formatDayTitle(date: LocalDate): String {
     val locale = Locale.getDefault()

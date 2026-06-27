@@ -54,6 +54,8 @@ import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.Position
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
+import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.ui.common.positionOf
 import java.time.Instant as JavaInstant
@@ -217,12 +219,11 @@ private fun searchSummary(event: EventInstance): String {
     val dateText = remember(locale) {
         DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
     }.format(start)
+    val use24Hour = LocalUse24HourFormat.current
     val timeText = if (event.isAllDay) {
         stringResource(R.string.event_detail_all_day)
     } else {
-        remember(locale) {
-            DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)
-        }.format(start)
+        remember(locale, use24Hour) { timeOfDayFormatter(use24Hour, locale) }.format(start)
     }
     val base = "$dateText · $timeText"
     return event.location?.takeIf { it.isNotBlank() }?.let { "$base · $it" } ?: base
