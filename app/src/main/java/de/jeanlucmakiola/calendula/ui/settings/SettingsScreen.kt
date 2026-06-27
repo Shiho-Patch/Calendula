@@ -84,6 +84,7 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
+import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.qs.NewEventTileService
@@ -107,7 +108,10 @@ import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
 import de.jeanlucmakiola.calendula.ui.common.positionOf
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
+import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
+import java.time.format.TextStyle as JavaTextStyle
 import java.util.Calendar
 
 /** The settings sub-screens reached from the hub's category rows. */
@@ -426,6 +430,7 @@ private fun AppearanceScreen(
 ) {
     var showTheme by remember { mutableStateOf(false) }
     var showWeekStart by remember { mutableStateOf(false) }
+    var showTimeFormat by remember { mutableStateOf(false) }
     var showDefaultView by remember { mutableStateOf(false) }
     var showAgendaScreenRange by remember { mutableStateOf(false) }
     var showAgendaWidgetRange by remember { mutableStateOf(false) }
@@ -434,17 +439,12 @@ private fun AppearanceScreen(
         title = stringResource(R.string.settings_section_appearance),
         onBack = onBack,
     ) {
+        // Theme & colour
         GroupedRow(
             title = stringResource(R.string.settings_theme),
             summary = themeLabel(state.themeMode),
             position = Position.Top,
             onClick = { showTheme = true },
-        )
-        GroupedRow(
-            title = stringResource(R.string.settings_default_view),
-            summary = stringResource(state.defaultView.labelRes),
-            position = Position.Middle,
-            onClick = { showDefaultView = true },
         )
         GroupedRow(
             title = stringResource(R.string.settings_dynamic_color),
@@ -453,7 +453,7 @@ private fun AppearanceScreen(
             } else {
                 stringResource(R.string.settings_dynamic_color_unavailable)
             },
-            position = Position.Middle,
+            position = Position.Bottom,
             trailing = {
                 Switch(
                     checked = state.dynamicColor,
@@ -467,16 +467,52 @@ private fun AppearanceScreen(
                 null
             },
         )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Calendar layout
+        GroupedRow(
+            title = stringResource(R.string.settings_default_view),
+            summary = stringResource(state.defaultView.labelRes),
+            position = Position.Top,
+            onClick = { showDefaultView = true },
+        )
         GroupedRow(
             title = stringResource(R.string.settings_week_start),
             summary = weekStartLabel(state.weekStart),
-            position = Position.Middle,
+            position = Position.Bottom,
             onClick = { showWeekStart = true },
         )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Timeline display
+        GroupedRow(
+            title = stringResource(R.string.settings_time_format),
+            summary = timeFormatLabel(state.timeFormat),
+            position = Position.Top,
+            onClick = { showTimeFormat = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_hour_lines),
+            summary = stringResource(R.string.settings_hour_lines_summary),
+            position = Position.Bottom,
+            trailing = {
+                Switch(
+                    checked = state.showHourLines,
+                    onCheckedChange = viewModel::setShowHourLines,
+                )
+            },
+            onClick = { viewModel.setShowHourLines(!state.showHourLines) },
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Agenda
         GroupedRow(
             title = stringResource(R.string.settings_agenda_range),
             summary = agendaRangeLabel(state.agendaScreenRange),
-            position = Position.Middle,
+            position = Position.Top,
             onClick = { showAgendaScreenRange = true },
         )
         GroupedRow(
@@ -500,7 +536,7 @@ private fun AppearanceScreen(
     if (showWeekStart) {
         OptionPicker(
             title = stringResource(R.string.settings_week_start),
-            options = WeekStartPref.entries,
+            options = WEEK_START_OPTIONS,
             selected = state.weekStart,
             label = { weekStartLabel(it) },
             onSelect = viewModel::setWeekStart,
@@ -510,6 +546,7 @@ private fun AppearanceScreen(
     if (showAgendaScreenRange) {
         AgendaRangePicker(
             title = stringResource(R.string.settings_agenda_range),
+            description = stringResource(R.string.settings_agenda_range_hint),
             selected = state.agendaScreenRange,
             onSelect = viewModel::setAgendaScreenRange,
             onDismiss = { showAgendaScreenRange = false },
@@ -518,9 +555,20 @@ private fun AppearanceScreen(
     if (showAgendaWidgetRange) {
         AgendaRangePicker(
             title = stringResource(R.string.settings_agenda_widget_range),
+            description = stringResource(R.string.settings_agenda_widget_range_hint),
             selected = state.agendaWidgetRange,
             onSelect = viewModel::setAgendaWidgetRange,
             onDismiss = { showAgendaWidgetRange = false },
+        )
+    }
+    if (showTimeFormat) {
+        OptionPicker(
+            title = stringResource(R.string.settings_time_format),
+            options = TimeFormatPref.entries,
+            selected = state.timeFormat,
+            label = { timeFormatLabel(it) },
+            onSelect = viewModel::setTimeFormat,
+            onDismiss = { showTimeFormat = false },
         )
     }
     if (showDefaultView) {
@@ -1025,12 +1073,25 @@ private fun themeLabel(mode: ThemeMode): String = stringResource(
     },
 )
 
+/** Picker options: "Follow system" first, then Monday…Sunday in ISO order. */
+private val WEEK_START_OPTIONS: List<WeekStartPref> =
+    listOf(WeekStartPref.Auto) + DayOfWeek.entries.map { WeekStartPref.Day(it) }
+
 @Composable
-private fun weekStartLabel(pref: WeekStartPref): String = stringResource(
+private fun weekStartLabel(pref: WeekStartPref): String = when (pref) {
+    WeekStartPref.Auto -> stringResource(R.string.settings_week_start_auto)
+    // Localised full weekday name, so any of the seven days reads naturally
+    // without a per-day string resource.
+    is WeekStartPref.Day -> java.time.DayOfWeek.of(pref.day.ordinal + 1)
+        .getDisplayName(JavaTextStyle.FULL, currentLocale())
+}
+
+@Composable
+private fun timeFormatLabel(pref: TimeFormatPref): String = stringResource(
     when (pref) {
-        WeekStartPref.AUTO -> R.string.settings_week_start_auto
-        WeekStartPref.MONDAY -> R.string.settings_week_start_monday
-        WeekStartPref.SUNDAY -> R.string.settings_week_start_sunday
+        TimeFormatPref.AUTO -> R.string.settings_time_format_auto
+        TimeFormatPref.TWELVE_HOUR -> R.string.settings_time_format_12h
+        TimeFormatPref.TWENTY_FOUR_HOUR -> R.string.settings_time_format_24h
     },
 )
 

@@ -8,6 +8,7 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
+import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
@@ -78,12 +79,18 @@ class SettingsViewModel @Inject constructor(
                 prefs.defaultView,
                 prefs.agendaScreenRange,
                 prefs.agendaWidgetRange,
-            ) { view, screenRange, widgetRange -> ViewSettings(view, screenRange, widgetRange) },
+                prefs.timeFormat,
+                prefs.showHourLines,
+            ) { view, screenRange, widgetRange, timeFormat, showHourLines ->
+                ViewSettings(view, screenRange, widgetRange, timeFormat, showHourLines)
+            },
         ) { base, defaults, overrides, views ->
             base.copy(
                 defaultView = views.defaultView,
                 agendaScreenRange = views.agendaScreenRange,
                 agendaWidgetRange = views.agendaWidgetRange,
+                timeFormat = views.timeFormat,
+                showHourLines = views.showHourLines,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -117,6 +124,8 @@ class SettingsViewModel @Inject constructor(
         val defaultView: CalendarView,
         val agendaScreenRange: AgendaRange,
         val agendaWidgetRange: AgendaRange,
+        val timeFormat: TimeFormatPref,
+        val showHourLines: Boolean,
     )
 
     fun setThemeMode(mode: ThemeMode) {
@@ -137,6 +146,14 @@ class SettingsViewModel @Inject constructor(
 
     fun setAgendaWidgetRange(range: AgendaRange) {
         viewModelScope.launch { prefs.setAgendaWidgetRange(range) }
+    }
+
+    fun setTimeFormat(pref: TimeFormatPref) {
+        viewModelScope.launch { prefs.setTimeFormat(pref) }
+    }
+
+    fun setShowHourLines(enabled: Boolean) {
+        viewModelScope.launch { prefs.setShowHourLines(enabled) }
     }
 
     fun setDefaultView(view: CalendarView) {

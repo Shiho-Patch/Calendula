@@ -95,6 +95,8 @@ import de.jeanlucmakiola.calendula.ui.common.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.OptionCard
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
+import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.ui.common.recurrenceText
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
@@ -781,7 +783,7 @@ private fun formatWhen(
     val zid = ZoneId.of(zone.id)
     val dateFull = DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(locale)
     val dateMedium = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
-    val timeShort = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)
+    val timeShort = timeOfDayFormatter(LocalUse24HourFormat.current, locale)
 
     val startLdt = instance.start.toJavaLocalDateTime(zid)
     val allDayLabel = stringResource(R.string.event_detail_all_day)

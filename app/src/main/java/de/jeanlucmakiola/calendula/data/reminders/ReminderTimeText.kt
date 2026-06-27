@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.data.reminders
 
+import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -25,6 +26,7 @@ fun reminderTimeText(
     isAllDay: Boolean,
     zone: ZoneId,
     locale: Locale,
+    is24Hour: Boolean,
 ): String {
     if (isAllDay) {
         val dateFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
@@ -40,16 +42,18 @@ fun reminderTimeText(
         }
     }
 
-    val timeFormat = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)
+    val timeFormat = timeOfDayFormatter(is24Hour, locale)
     val begin = Instant.ofEpochMilli(beginMillis).atZone(zone)
     val end = Instant.ofEpochMilli(endMillis).atZone(zone)
     return if (begin.toLocalDate() == end.toLocalDate()) {
         timeFormat.format(begin) + RANGE + timeFormat.format(end)
     } else {
-        val dateTimeFormat = DateTimeFormatter
-            .ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
-            .withLocale(locale)
-        dateTimeFormat.format(begin) + RANGE + dateTimeFormat.format(end)
+        // Cross-day: medium date + the chosen short time, joined per side. Built
+        // from the two formatters (not ofLocalizedDateTime) so the 12/24h choice
+        // applies to the time portion too.
+        val dateFormat = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
+        val dateTime = { z: java.time.ZonedDateTime -> "${dateFormat.format(z)}, ${timeFormat.format(z)}" }
+        dateTime(begin) + RANGE + dateTime(end)
     }
 }
 

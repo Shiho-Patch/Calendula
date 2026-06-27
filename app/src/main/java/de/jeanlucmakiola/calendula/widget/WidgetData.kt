@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import de.jeanlucmakiola.calendula.data.prefs.is24Hour
 import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaDay
@@ -44,7 +45,12 @@ internal fun Context.hasCalendarPermission(): Boolean =
 sealed interface AgendaWidgetData {
     /** Calendar permission not granted — the widget can't read events. */
     data object NeedsPermission : AgendaWidgetData
-    data class Ready(val today: LocalDate, val days: List<AgendaDay>) : AgendaWidgetData
+    data class Ready(
+        val today: LocalDate,
+        val days: List<AgendaDay>,
+        /** Resolved clock convention for event time labels (the time-format pref). */
+        val is24Hour: Boolean,
+    ) : AgendaWidgetData
 }
 
 /**
@@ -95,7 +101,13 @@ internal suspend fun Context.loadAgendaWidgetData(): AgendaWidgetData {
     val weekStart = prefs.weekStart.first().resolveFirstDay(Locale.getDefault())
     val window = agendaRange(anchor, range.dayCount(anchor, weekStart) - 1, zone)
     val instances = ep.calendarRepository().instances(window).first()
-    return AgendaWidgetData.Ready(today = anchor, days = groupAgendaDays(anchor, instances, zone))
+    val is24Hour = prefs.timeFormat.first()
+        .is24Hour(android.text.format.DateFormat.is24HourFormat(this))
+    return AgendaWidgetData.Ready(
+        today = anchor,
+        days = groupAgendaDays(anchor, instances, zone),
+        is24Hour = is24Hour,
+    )
 }
 
 /** One-shot wide read backing the month widget's grid for any nearby month. */

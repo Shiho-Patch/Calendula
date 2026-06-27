@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.0] — 2026-06-27
+
+### Added
+- Start the week on any day. The **Week starts on** setting (Settings →
+  Appearance) now offers every weekday — not just Monday or Sunday — alongside
+  the automatic, locale-based default. Thanks to @zmaherdev for the suggestion
+  ([#3]).
+- Choose a 12- or 24-hour clock. A new **Time format** setting (Settings →
+  Appearance) lets you force a 12-hour (2:00 PM) or 24-hour (14:00) clock, or
+  follow the system setting automatically. It applies everywhere times appear —
+  the week and day timelines, agenda, event details, search and reminders — so
+  the format is now consistent across the whole app. Thanks to @zmaherdev for
+  the suggestion ([#6]).
+- Optional hour lines in the timeline. A new **Hour lines** switch (Settings →
+  Appearance) draws a faint separator at each hour in the week and day views,
+  making it easier to see when events start and end. Off by default. Thanks to
+  @zmaherdev for the suggestion ([#5]).
+- Limit how far ahead the agenda looks. New **Agenda range** and **Agenda widget
+  range** settings (Settings → Appearance) let the agenda screen and its widget
+  each show just today, the rest of this week, the rest of this month, a rolling
+  7 or 30 days, or a custom number of days. "This week" follows your week-start
+  preference. Thanks to @zmaherdev for the suggestion ([#4]).
+
 ## [2.10.0] — 2026-06-25
 
 ### Added
@@ -627,3 +650,7 @@ automatically, with zero telemetry and no internet permission.
 
 [#1]: https://codeberg.org/jlmakiola/calendula/issues/1
 [#2]: https://codeberg.org/jlmakiola/calendula/issues/2
+[#3]: https://codeberg.org/jlmakiola/calendula/issues/3
+[#4]: https://codeberg.org/jlmakiola/calendula/issues/4
+[#5]: https://codeberg.org/jlmakiola/calendula/issues/5
+[#6]: https://codeberg.org/jlmakiola/calendula/issues/6

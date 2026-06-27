@@ -262,6 +262,17 @@ private fun CustomReminderEditor(
     }
 }
 
+/** A short explanatory paragraph shown under a picker's title, above the rows. */
+@Composable
+private fun PickerDescription(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+    )
+}
+
 @Composable
 private fun SelectedCheck() {
     Icon(
@@ -279,6 +290,7 @@ private fun SelectedCheck() {
 @Composable
 fun AgendaRangePicker(
     title: String,
+    description: String,
     selected: AgendaRange,
     onSelect: (AgendaRange) -> Unit,
     onDismiss: () -> Unit,
@@ -299,6 +311,7 @@ fun AgendaRangePicker(
     }
 
     FullScreenPicker(title = title, onDismiss = onDismiss) {
+        PickerDescription(description)
         presets.forEachIndexed { index, option ->
             val isSelected = option == selected
             GroupedRow(

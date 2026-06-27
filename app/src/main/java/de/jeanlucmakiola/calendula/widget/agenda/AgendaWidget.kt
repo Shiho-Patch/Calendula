@@ -42,6 +42,7 @@ import de.jeanlucmakiola.calendula.MainActivity
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.widget.AgendaWidgetData
 import de.jeanlucmakiola.calendula.widget.CalendulaGlanceTheme
@@ -115,7 +116,7 @@ private fun AgendaWidgetBody(data: AgendaWidgetData, dark: Boolean) {
                         items(rows.size) { index ->
                             when (val row = rows[index]) {
                                 is AgendaRow.Header -> DayHeaderRow(row.date, row.today)
-                                is AgendaRow.Event -> EventRow(row.event, dark)
+                                is AgendaRow.Event -> EventRow(row.event, dark, data.is24Hour)
                             }
                         }
                     }
@@ -195,7 +196,7 @@ private fun DayHeaderRow(date: LocalDate, today: LocalDate) {
 }
 
 @Composable
-private fun EventRow(event: EventInstance, dark: Boolean) {
+private fun EventRow(event: EventInstance, dark: Boolean, is24Hour: Boolean) {
     val context = androidx.glance.LocalContext.current
     val title = event.title.ifBlank { context.getString(R.string.event_untitled) }
     Row(
@@ -230,7 +231,7 @@ private fun EventRow(event: EventInstance, dark: Boolean) {
                 style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 14.sp),
             )
             Text(
-                text = eventTimeSummary(context, event),
+                text = eventTimeSummary(context, event, is24Hour),
                 maxLines = 1,
                 style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp),
             )
@@ -269,17 +270,17 @@ private fun agendaDayLabel(context: Context, date: LocalDate, today: LocalDate):
     return if (relative != null) "$relative · $formatted" else formatted
 }
 
-private fun eventTimeSummary(context: Context, event: EventInstance): String {
+private fun eventTimeSummary(context: Context, event: EventInstance, is24Hour: Boolean): String {
     val time = if (event.isAllDay) {
         context.getString(R.string.event_detail_all_day)
     } else {
-        "${formatTime(event.start)} – ${formatTime(event.end)}"
+        "${formatTime(event.start, is24Hour)} – ${formatTime(event.end, is24Hour)}"
     }
     val location = event.location?.takeIf { it.isNotBlank() }
     return if (location != null) "$time · $location" else time
 }
 
-private fun formatTime(instant: Instant): String {
+private fun formatTime(instant: Instant, is24Hour: Boolean): String {
     val t = instant.toLocalDateTime(zone()).time
-    return "%02d:%02d".format(t.hour, t.minute)
+    return formatTimeOfDay(t.hour, t.minute, is24Hour, Locale.getDefault())
 }
