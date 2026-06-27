@@ -86,8 +86,10 @@ fun <T> OptionPicker(
     label: @Composable (T) -> String,
     onSelect: (T) -> Unit,
     onDismiss: () -> Unit,
+    header: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     FullScreenPicker(title = title, onDismiss = onDismiss) {
+        header?.invoke(this)
         options.forEachIndexed { index, option ->
             val isSelected = option == selected
             GroupedRow(

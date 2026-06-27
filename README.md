@@ -118,7 +118,7 @@ language. Translations are managed on a self-hosted **Weblate**:
 
 No coding needed — register on the Weblate server, pick (or request) a language,
 and translate the strings in your browser. You can also reach this link in the
-app under **Settings → Help translate**.
+app from the top of **Settings → App language**.
 
 ## 📜 License
 
