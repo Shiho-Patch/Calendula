@@ -19,16 +19,25 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.widget.agenda.AgendaWidget
 import de.jeanlucmakiola.calendula.widget.month.MonthWidget
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+private const val WIDGET_REFRESH_DEBOUNCE_MS = 350L
+
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefs: SettingsPrefs,
@@ -114,6 +123,31 @@ class SettingsViewModel @Inject constructor(
             initialValue = SettingsUiState(dynamicColorAvailable = dynamicColorAvailable),
         )
 
+    init {
+        // Push widget redraws when their backing prefs change, debounced so a
+        // rapid flip-and-flip-back settles to one update of the final value
+        // (two racing updateAll calls can otherwise leave the widget stale).
+        // drop(1) skips the value present at startup — nothing to refresh yet.
+        prefs.agendaWidgetRange
+            .drop(1)
+            .debounce(WIDGET_REFRESH_DEBOUNCE_MS)
+            .distinctUntilChanged()
+            .onEach { AgendaWidget().updateAll(appContext) }
+            .launchIn(viewModelScope)
+
+        // Both widgets depend on the week start (month weekday header; the
+        // agenda widget's "this week" range).
+        prefs.weekStart
+            .drop(1)
+            .debounce(WIDGET_REFRESH_DEBOUNCE_MS)
+            .distinctUntilChanged()
+            .onEach {
+                AgendaWidget().updateAll(appContext)
+                MonthWidget().updateAll(appContext)
+            }
+            .launchIn(viewModelScope)
+    }
+
     private data class ReminderDefaults(
         val allowColor: Boolean,
         val defaultReminder: Int?,
@@ -145,13 +179,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setWeekStart(pref: WeekStartPref) {
-        viewModelScope.launch {
-            prefs.setWeekStart(pref)
-            // Both widgets depend on the week start (month weekday header; the
-            // agenda widget's "this week" range), so push a redraw.
-            AgendaWidget().updateAll(appContext)
-            MonthWidget().updateAll(appContext)
-        }
+        viewModelScope.launch { prefs.setWeekStart(pref) }
     }
 
     fun setAgendaScreenRange(range: AgendaRange) {
@@ -159,12 +187,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setAgendaWidgetRange(range: AgendaRange) {
-        viewModelScope.launch {
-            prefs.setAgendaWidgetRange(range)
-            // Push the new range to the placed widget immediately, instead of
-            // waiting for the next data-change / midnight / periodic refresh.
-            AgendaWidget().updateAll(appContext)
-        }
+        viewModelScope.launch { prefs.setAgendaWidgetRange(range) }
     }
 
     fun setAgendaShowRangeBar(enabled: Boolean) {
