@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import java.util.Locale
@@ -56,17 +57,31 @@ class AgendaViewModel @Inject constructor(
     private val _anchor = MutableStateFlow(todayDate)
     val anchor: StateFlow<LocalDate> = _anchor
 
+    // A transient, in-view override of the saved agenda range. Held in memory
+    // (not persisted), so it survives view switches and rotation within the
+    // session but resets to the saved default when the app is relaunched.
+    private val _rangeOverride = MutableStateFlow<AgendaRange?>(null)
+
     val state: StateFlow<AgendaUiState> =
-        combine(_anchor, screenRange, weekStartDay) { anchor, range, weekStart ->
-            Triple(anchor, range, weekStart)
+        combine(_anchor, screenRange, _rangeOverride, weekStartDay) { anchor, default, override, weekStart ->
+            AgendaParams(
+                anchor = anchor,
+                range = override ?: default,
+                rangeIsOverride = override != null && override != default,
+                weekStart = weekStart,
+            )
         }
-        .flatMapLatest { (anchor, range, weekStart) ->
-            val window = agendaRange(anchor, range.dayCount(anchor, weekStart) - 1, zone)
+        .flatMapLatest { params ->
+            val window = agendaRange(
+                params.anchor,
+                params.range.dayCount(params.anchor, params.weekStart) - 1,
+                zone,
+            )
             combine(
                 repository.calendars(),
                 repository.instances(window),
             ) { calendars, instances ->
-                buildState(anchor, calendars, instances)
+                buildState(params, calendars, instances)
             }
         }
         .catch { emit(AgendaUiState.Failure(FailureReason.ProviderUnavailable)) }
@@ -86,16 +101,35 @@ class AgendaViewModel @Inject constructor(
         _anchor.value = date
     }
 
+    /** Temporarily override the agenda range for this session (the bottom-left pill). */
+    fun setRangeOverride(range: AgendaRange) {
+        _rangeOverride.value = range
+    }
+
+    private data class AgendaParams(
+        val anchor: LocalDate,
+        val range: AgendaRange,
+        val rangeIsOverride: Boolean,
+        val weekStart: DayOfWeek,
+    )
+
     private fun buildState(
-        anchor: LocalDate,
+        params: AgendaParams,
         calendars: List<CalendarSource>,
         instances: List<EventInstance>,
     ): AgendaUiState {
         if (calendars.isEmpty()) {
             return AgendaUiState.Failure(FailureReason.NoCalendarsConfigured)
         }
+        val anchor = params.anchor
         val days = groupAgendaDays(anchor, instances, zone)
-        return AgendaUiState.Success(anchor = anchor, today = todayDate, days = days)
+        return AgendaUiState.Success(
+            anchor = anchor,
+            today = todayDate,
+            days = days,
+            range = params.range,
+            rangeIsOverride = params.rangeIsOverride,
+        )
     }
 }
 

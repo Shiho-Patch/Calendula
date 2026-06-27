@@ -53,5 +53,9 @@ sealed interface AgendaUiState {
         val anchor: LocalDate,
         val today: LocalDate,
         val days: List<AgendaDay>,
+        /** The range currently in effect — the saved default or a session override. */
+        val range: AgendaRange,
+        /** True when [range] is a temporary in-view override of the saved default. */
+        val rangeIsOverride: Boolean,
     ) : AgendaUiState
 }

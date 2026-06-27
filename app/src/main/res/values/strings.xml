@@ -286,6 +286,7 @@
     <string name="agenda_range_month">Next 30 days</string>
     <string name="agenda_range_custom">Custom…</string>
     <string name="agenda_range_custom_hint">Days</string>
+    <string name="agenda_range_override_hint">Just for now — resets to your saved range when you reopen Calendula.</string>
     <plurals name="agenda_range_days">
         <item quantity="one">%d day</item>
         <item quantity="other">%d days</item>
