@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
@@ -327,6 +328,52 @@ class SettingsPrefs @Inject constructor(
         }
     }
 
+    // --- Automatic backup (issue #8) ------------------------------------
+
+    /** Whether periodic automatic `.ics` export of local calendars is on. Default OFF. */
+    val autoBackupEnabled: Flow<Boolean> = store.data.map { it[AUTO_BACKUP_ENABLED_KEY] ?: false }
+
+    suspend fun setAutoBackupEnabled(enabled: Boolean) {
+        store.edit { it[AUTO_BACKUP_ENABLED_KEY] = enabled }
+    }
+
+    /** Export interval in minutes. Default daily; floored at [MIN_BACKUP_INTERVAL]. */
+    val autoBackupIntervalMinutes: Flow<Long> = store.data.map { prefs ->
+        (prefs[AUTO_BACKUP_INTERVAL_KEY] ?: DEFAULT_BACKUP_INTERVAL).coerceAtLeast(MIN_BACKUP_INTERVAL)
+    }
+
+    suspend fun setAutoBackupIntervalMinutes(minutes: Long) {
+        store.edit { it[AUTO_BACKUP_INTERVAL_KEY] = minutes.coerceAtLeast(MIN_BACKUP_INTERVAL) }
+    }
+
+    /** Persisted SAF tree Uri of the destination folder, or null if unset. */
+    val autoBackupFolderUri: Flow<String?> = store.data.map { it[AUTO_BACKUP_FOLDER_KEY] }
+
+    suspend fun setAutoBackupFolderUri(uri: String?) {
+        store.edit { prefs ->
+            if (uri == null) prefs.remove(AUTO_BACKUP_FOLDER_KEY) else prefs[AUTO_BACKUP_FOLDER_KEY] = uri
+        }
+    }
+
+    /** Outcome of the last automatic run, for the settings status line. */
+    val autoBackupStatus: Flow<BackupStatus> = store.data.map { prefs ->
+        BackupStatus(
+            lastRun = prefs[AUTO_BACKUP_LAST_RUN_KEY] ?: 0L,
+            lastSuccess = prefs[AUTO_BACKUP_LAST_SUCCESS_KEY] ?: true,
+            consecutiveFailures = prefs[AUTO_BACKUP_FAILURES_KEY] ?: 0,
+        )
+    }
+
+    /** Record an automatic run's outcome; resets the failure streak on success. */
+    suspend fun recordAutoBackupRun(success: Boolean, atMillis: Long) {
+        store.edit { prefs ->
+            prefs[AUTO_BACKUP_LAST_RUN_KEY] = atMillis
+            prefs[AUTO_BACKUP_LAST_SUCCESS_KEY] = success
+            val failures = prefs[AUTO_BACKUP_FAILURES_KEY] ?: 0
+            prefs[AUTO_BACKUP_FAILURES_KEY] = if (success) 0 else failures + 1
+        }
+    }
+
     private fun parseFormFields(stored: String?): Set<EventFormField> = when (stored) {
         null -> DEFAULT_FORM_FIELDS
         else -> stored.split(',')
@@ -366,8 +413,26 @@ class SettingsPrefs @Inject constructor(
             stringPreferencesKey("per_calendar_allday_reminder_override")
         internal val DEFAULT_FORM_FIELDS =
             setOf(EventFormField.Location, EventFormField.Description)
+        internal val AUTO_BACKUP_ENABLED_KEY = booleanPreferencesKey("auto_backup_enabled")
+        internal val AUTO_BACKUP_INTERVAL_KEY = longPreferencesKey("auto_backup_interval_minutes")
+        internal val AUTO_BACKUP_FOLDER_KEY = stringPreferencesKey("auto_backup_folder_uri")
+        internal val AUTO_BACKUP_LAST_RUN_KEY = longPreferencesKey("auto_backup_last_run")
+        internal val AUTO_BACKUP_LAST_SUCCESS_KEY = booleanPreferencesKey("auto_backup_last_success")
+        internal val AUTO_BACKUP_FAILURES_KEY = intPreferencesKey("auto_backup_failures")
+        /** Default automatic-backup interval: daily. */
+        const val DEFAULT_BACKUP_INTERVAL = 1_440L
+        /** Floor for the automatic-backup interval (also above WorkManager's 15-min limit). */
+        const val MIN_BACKUP_INTERVAL = 30L
     }
 }
+
+/** Snapshot of the automatic backup's last outcome (see [SettingsPrefs.autoBackupStatus]). */
+data class BackupStatus(
+    /** Epoch millis of the last run, or 0 if it has never run. */
+    val lastRun: Long,
+    val lastSuccess: Boolean,
+    val consecutiveFailures: Int,
+)
 
 /** A calendar's reminder-default override (see [SettingsPrefs.perCalendarReminderOverride]). */
 sealed interface CalendarReminderOverride {
