@@ -106,7 +106,10 @@ import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
 import de.jeanlucmakiola.calendula.ui.common.positionOf
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
+import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
+import java.time.format.TextStyle as JavaTextStyle
 import java.util.Calendar
 
 /** The settings sub-screens reached from the hub's category rows. */
@@ -504,7 +507,7 @@ private fun AppearanceScreen(
     if (showWeekStart) {
         OptionPicker(
             title = stringResource(R.string.settings_week_start),
-            options = WeekStartPref.entries,
+            options = WEEK_START_OPTIONS,
             selected = state.weekStart,
             label = { weekStartLabel(it) },
             onSelect = viewModel::setWeekStart,
@@ -1023,14 +1026,18 @@ private fun themeLabel(mode: ThemeMode): String = stringResource(
     },
 )
 
+/** Picker options: "Follow system" first, then Monday…Sunday in ISO order. */
+private val WEEK_START_OPTIONS: List<WeekStartPref> =
+    listOf(WeekStartPref.Auto) + DayOfWeek.entries.map { WeekStartPref.Day(it) }
+
 @Composable
-private fun weekStartLabel(pref: WeekStartPref): String = stringResource(
-    when (pref) {
-        WeekStartPref.AUTO -> R.string.settings_week_start_auto
-        WeekStartPref.MONDAY -> R.string.settings_week_start_monday
-        WeekStartPref.SUNDAY -> R.string.settings_week_start_sunday
-    },
-)
+private fun weekStartLabel(pref: WeekStartPref): String = when (pref) {
+    WeekStartPref.Auto -> stringResource(R.string.settings_week_start_auto)
+    // Localised full weekday name, so any of the seven days reads naturally
+    // without a per-day string resource.
+    is WeekStartPref.Day -> java.time.DayOfWeek.of(pref.day.ordinal + 1)
+        .getDisplayName(JavaTextStyle.FULL, currentLocale())
+}
 
 @Composable
 private fun timeFormatLabel(pref: TimeFormatPref): String = stringResource(

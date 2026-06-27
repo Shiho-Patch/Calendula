@@ -18,7 +18,7 @@ data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val dynamicColorAvailable: Boolean = true,
-    val weekStart: WeekStartPref = WeekStartPref.AUTO,
+    val weekStart: WeekStartPref = WeekStartPref.Auto,
     /** Clock convention for time labels (v2.11). AUTO follows the system setting. */
     val timeFormat: TimeFormatPref = TimeFormatPref.AUTO,
     /** Whether the week/day timeline draws an hour separator line (v2.11). */
