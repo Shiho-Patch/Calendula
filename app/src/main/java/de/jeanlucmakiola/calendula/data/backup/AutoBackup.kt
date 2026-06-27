@@ -55,6 +55,9 @@ object BackupScheduler {
         val workManager = WorkManager.getInstance(context)
         if (!enabled || !hasFolder) {
             workManager.cancelUniqueWork(WORK_NAME)
+            // Also cancel any pending immediate run — otherwise a failing run-now
+            // keeps retrying after the user has turned backup off.
+            workManager.cancelUniqueWork(WORK_NAME_NOW)
             return
         }
         // WorkManager's own floor is 15 min; the UI floors the user choice at 30.
@@ -106,6 +109,9 @@ class BackupWorker(
     override suspend fun doWork(): Result {
         val deps = EntryPointAccessors.fromApplication(applicationContext, Deps::class.java)
         val prefs = deps.settingsPrefs()
+        // Respect the toggle even for already-queued work: if backup was turned
+        // off, no-op (and don't retry) so a lingering run can't revive itself.
+        if (!prefs.autoBackupEnabled.first()) return Result.success()
         val folder = prefs.autoBackupFolderUri.first()
             ?: return Result.failure() // nothing to write to — leave scheduling to settings
         val now = System.currentTimeMillis()
