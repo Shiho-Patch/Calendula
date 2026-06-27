@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Field icons in the event-form settings. Each optional-field toggle (Settings →
   Event form) now shows the same icon the field uses in the new-event form, so
   the list is easier to scan.
+- Help translate Calendula. A new **Settings → Help translate** link opens the
+  project's Weblate, where you can add or improve a language in your browser — no
+  coding needed. Contributions in any language are welcome.
 
 ### Changed
 - Tidied **Settings → Appearance** into clearer groups (theme & colour, calendar,

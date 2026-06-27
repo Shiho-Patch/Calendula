@@ -68,7 +68,8 @@ database, no sync stack reinvented.
 
 - Real Material 3 Expressive throughout — dynamic color (Android 12+),
   expressive motion and shapes, light/dark theme
-- German and English UI, per-app language setting
+- German and English UI, per-app language setting — and [open to community
+  translations](#-translations)
 - **Zero telemetry, zero analytics, no internet permission** — your data
   never leaves the device
 
@@ -107,6 +108,17 @@ without reinstalling. Or build from source — see below.
 - **[Building from source](docs/BUILDING.md)** — requirements and Gradle tasks
 - **[Architecture](docs/ARCHITECTURE.md)** — the layered design and key pipelines
 - **[Roadmap](.planning/ROADMAP.md)** — what's shipped and what's next
+
+## 🌍 Translations
+
+Calendula ships in German and English, and you're warmly invited to add your
+language. Translations are managed on a self-hosted **Weblate**:
+
+**→ [Help translate Calendula](https://weblate.dev.jeanlucmakiola.de/engage/calendula/)**
+
+No coding needed — register on the Weblate server, pick (or request) a language,
+and translate the strings in your browser. You can also reach this link in the
+app under **Settings → Help translate**.
 
 ## 📜 License
 

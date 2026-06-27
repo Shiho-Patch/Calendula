@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -223,6 +224,7 @@ private fun SettingsHub(
             onClick = onManageCalendars,
         )
         LanguageRow(position = Position.Middle)
+        HelpTranslateRow(position = Position.Middle)
         // One-tap add of the "New event" Quick Settings tile. The system prompt
         // is API 33+; on older versions the tile is still addable manually from
         // the QS editor, so the row simply doesn't appear here.
@@ -285,6 +287,20 @@ private fun QuickSettingsTileRow(position: Position) {
         position = position,
         leading = { CategoryIcon(Icons.Default.Dashboard, ChipAccent.Neutral) },
         onClick = { requestAddQsTile(context) },
+    )
+}
+
+/** Opens the project's Weblate engage page so users can contribute translations. */
+@Composable
+private fun HelpTranslateRow(position: Position) {
+    val context = LocalContext.current
+    val url = stringResource(R.string.about_translate_url)
+    GroupedRow(
+        title = stringResource(R.string.settings_translate),
+        summary = stringResource(R.string.settings_translate_hint),
+        position = position,
+        leading = { CategoryIcon(Icons.Default.Translate, ChipAccent.Neutral) },
+        onClick = { openUrl(context, url) },
     )
 }
 

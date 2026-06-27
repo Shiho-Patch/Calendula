@@ -330,6 +330,8 @@
     <string name="settings_section_language">Language</string>
     <string name="settings_language">App language</string>
     <string name="settings_language_auto">System default</string>
+    <string name="settings_translate">Help translate</string>
+    <string name="settings_translate_hint">Add or improve a language on Weblate</string>
     <!-- Hub category subtitles -->
     <string name="settings_appearance_subtitle">Theme, default view, week start</string>
     <string name="settings_event_form_subtitle">Default fields for new events</string>
@@ -436,6 +438,7 @@
     <string name="about_source_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula</string>
     <string name="about_license_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula/src/branch/main/LICENSE</string>
     <string name="about_support_url" translatable="false">https://ko-fi.com/jeanlucmakiola</string>
+    <string name="about_translate_url" translatable="false">https://weblate.dev.jeanlucmakiola.de/engage/calendula/</string>
 
     <!-- Crash reporting: a captured report the user can submit, by hand, as a
          Gitea issue (the app sends nothing automatically). -->
