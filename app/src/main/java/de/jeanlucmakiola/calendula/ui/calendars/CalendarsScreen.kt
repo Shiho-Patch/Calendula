@@ -4,6 +4,7 @@ import android.accounts.AccountManager
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -76,18 +78,26 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.net.toUri
+import androidx.documentfile.provider.DocumentFile
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.prefs.BackupStatus
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.ui.common.CALENDAR_COLOR_PALETTE
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.DialogAmountField
+import de.jeanlucmakiola.calendula.ui.common.DialogUnitDropdown
 import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
 import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
 import de.jeanlucmakiola.calendula.ui.common.predictiveBack
@@ -118,6 +128,7 @@ fun CalendarsScreen(
     val disabledIds by viewModel.disabledCalendarIds.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val backupResult by viewModel.backupResult.collectAsStateWithLifecycle()
+    val autoBackup by viewModel.autoBackup.collectAsStateWithLifecycle()
 
     // null = list; NEW_CALENDAR_ID = create; any other id = edit that calendar.
     // [editorSession] bumps on every open so the editor's field state resets for
@@ -158,6 +169,10 @@ fun CalendarsScreen(
             backupResult = backupResult,
             onExportBackup = viewModel::exportBackup,
             onConsumeBackupResult = viewModel::consumeBackupResult,
+            autoBackup = autoBackup,
+            onSetAutoBackupEnabled = viewModel::setAutoBackupEnabled,
+            onSetAutoBackupInterval = viewModel::setAutoBackupIntervalMinutes,
+            onSetAutoBackupFolder = viewModel::setAutoBackupFolder,
             onBack = onBack,
             onAdd = { editorSession++; editorId = NEW_CALENDAR_ID },
             onEdit = { calendar -> editorSession++; editorId = calendar.id },
@@ -177,6 +192,10 @@ private fun CalendarsList(
     backupResult: BackupResult?,
     onExportBackup: (android.net.Uri) -> Unit,
     onConsumeBackupResult: () -> Unit,
+    autoBackup: AutoBackupUiState,
+    onSetAutoBackupEnabled: (Boolean) -> Unit,
+    onSetAutoBackupInterval: (Long) -> Unit,
+    onSetAutoBackupFolder: (android.net.Uri) -> Unit,
     onBack: () -> Unit,
     onAdd: () -> Unit,
     onEdit: (CalendarSource) -> Unit,
@@ -203,6 +222,13 @@ private fun CalendarsList(
     val createBackup = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/calendar"),
     ) { uri -> uri?.let(onExportBackup) }
+
+    // SAF folder picker for the automatic-backup destination; the VM persists the
+    // write grant so background runs can keep writing to it.
+    val pickFolder = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree(),
+    ) { uri -> uri?.let(onSetAutoBackupFolder) }
+    var showInterval by remember { mutableStateOf(false) }
 
     val backupFailedText = stringResource(R.string.calendars_backup_failed)
     LaunchedEffect(backupResult) {
@@ -280,14 +306,42 @@ private fun CalendarsList(
             Spacer(Modifier.height(16.dp))
             SectionHeader(stringResource(R.string.calendars_backup_header))
             HintText(stringResource(R.string.calendars_backup_hint))
+            // One connected card: the one-time export on top, then automatic
+            // backup (and its folder/interval rows when on).
             GroupedRow(
                 title = stringResource(R.string.calendars_backup_action),
-                position = Position.Alone,
+                position = Position.Top,
                 leading = { LeadingAvatar(Icons.Default.FileDownload) },
                 onClick = {
                     runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
                 },
             )
+            GroupedRow(
+                title = stringResource(R.string.calendars_auto_backup),
+                summary = stringResource(R.string.calendars_auto_backup_hint),
+                position = if (autoBackup.enabled) Position.Middle else Position.Bottom,
+                leading = { LeadingAvatar(Icons.Default.Schedule) },
+                trailing = {
+                    Switch(checked = autoBackup.enabled, onCheckedChange = onSetAutoBackupEnabled)
+                },
+                onClick = { onSetAutoBackupEnabled(!autoBackup.enabled) },
+            )
+            if (autoBackup.enabled) {
+                GroupedRow(
+                    title = stringResource(R.string.calendars_auto_backup_folder),
+                    summary = rememberFolderName(autoBackup.folderUri)
+                        ?: stringResource(R.string.calendars_auto_backup_folder_unset),
+                    position = Position.Middle,
+                    onClick = { runCatching { pickFolder.launch(null) } },
+                )
+                GroupedRow(
+                    title = stringResource(R.string.calendars_auto_backup_interval),
+                    summary = backupIntervalLabel(autoBackup.intervalMinutes),
+                    position = Position.Bottom,
+                    onClick = { showInterval = true },
+                )
+                HintText(backupStatusText(autoBackup.status))
+            }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -345,6 +399,14 @@ private fun CalendarsList(
                     }
                 }
             }
+    }
+
+    if (showInterval) {
+        BackupIntervalDialog(
+            currentMinutes = autoBackup.intervalMinutes,
+            onConfirm = onSetAutoBackupInterval,
+            onDismiss = { showInterval = false },
+        )
     }
 }
 
@@ -759,6 +821,95 @@ private fun HintText(text: String) {
         modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
     )
 }
+
+/** Readable name of the persisted backup folder, resolved from its tree Uri. */
+@Composable
+private fun rememberFolderName(uriString: String?): String? {
+    val context = LocalContext.current
+    return remember(uriString) {
+        uriString?.let {
+            runCatching { DocumentFile.fromTreeUri(context, it.toUri())?.name }.getOrNull()
+        }
+    }
+}
+
+/** "Every 30 minutes" / "Every 2 hours" / "Every day" — the interval in its largest whole unit. */
+@Composable
+private fun backupIntervalLabel(minutes: Long): String {
+    val duration = when {
+        minutes % MINUTES_PER_WEEK == 0L ->
+            pluralStringResource(R.plurals.duration_weeks, (minutes / MINUTES_PER_WEEK).toInt(), (minutes / MINUTES_PER_WEEK).toInt())
+        minutes % MINUTES_PER_DAY == 0L ->
+            pluralStringResource(R.plurals.duration_days, (minutes / MINUTES_PER_DAY).toInt(), (minutes / MINUTES_PER_DAY).toInt())
+        minutes % 60L == 0L ->
+            pluralStringResource(R.plurals.duration_hours, (minutes / 60L).toInt(), (minutes / 60L).toInt())
+        else ->
+            pluralStringResource(R.plurals.duration_minutes, minutes.toInt(), minutes.toInt())
+    }
+    return stringResource(R.string.calendars_auto_backup_every, duration)
+}
+
+/** "Last backup: 5 minutes ago" / "… failed" / "No automatic backup yet". */
+@Composable
+private fun backupStatusText(status: BackupStatus): String {
+    if (status.lastRun == 0L) return stringResource(R.string.calendars_auto_backup_status_never)
+    val relative = DateUtils.getRelativeTimeSpanString(
+        status.lastRun, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS,
+    ).toString()
+    return if (status.lastSuccess) {
+        stringResource(R.string.calendars_auto_backup_status_ok, relative)
+    } else {
+        stringResource(R.string.calendars_auto_backup_status_failed, relative)
+    }
+}
+
+/** Amount + unit picker for the backup interval (floored at 30 minutes). */
+@Composable
+private fun BackupIntervalDialog(
+    currentMinutes: Long,
+    onConfirm: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // minutes-per-unit for each entry; pick the largest unit the current value divides into.
+    val unitMinutes = remember { listOf(1L, 60L, MINUTES_PER_DAY, MINUTES_PER_WEEK) }
+    val units = stringArrayResource(R.array.backup_interval_units).toList()
+    val initialUnit = unitMinutes.indexOfLast { currentMinutes % it == 0L }.coerceAtLeast(0)
+    var amount by rememberSaveable { mutableStateOf((currentMinutes / unitMinutes[initialUnit]).toString()) }
+    var unitIndex by rememberSaveable { mutableStateOf(initialUnit) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.calendars_auto_backup_interval)) },
+        text = {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    DialogAmountField(value = amount, onValueChange = { amount = it }, placeholder = "1")
+                    Spacer(Modifier.width(12.dp))
+                    DialogUnitDropdown(label = units[unitIndex], entries = units) { unitIndex = it }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.calendars_auto_backup_interval_min),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val value = amount.toLongOrNull()?.coerceAtLeast(1L) ?: 1L
+                onConfirm((value * unitMinutes[unitIndex]).coerceAtLeast(SettingsPrefs.MIN_BACKUP_INTERVAL))
+                onDismiss()
+            }) { Text(stringResource(R.string.reminder_custom_set)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
+        },
+    )
+}
+
+private const val MINUTES_PER_DAY = 1_440L
+private const val MINUTES_PER_WEEK = 10_080L
 
 /**
  * Pick the app to open for managing a synced calendar's account. The account's
