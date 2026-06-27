@@ -271,6 +271,17 @@
     <string name="settings_week_start_auto">Automatic</string>
     <string name="settings_week_start_monday">Monday</string>
     <string name="settings_week_start_sunday">Sunday</string>
+    <string name="settings_agenda_range">Agenda range</string>
+    <string name="settings_agenda_widget_range">Agenda widget range</string>
+    <string name="agenda_range_day">1 day</string>
+    <string name="agenda_range_week">1 week</string>
+    <string name="agenda_range_month">1 month</string>
+    <string name="agenda_range_custom">Custom…</string>
+    <string name="agenda_range_custom_hint">Days</string>
+    <plurals name="agenda_range_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
     <string name="settings_section_event_form">New event form</string>
     <string name="settings_form_fields_hint">Fields shown by default — everything else sits behind \"More fields\"</string>
     <string name="settings_color_unsupported">Allow colors on unsupported calendars</string>

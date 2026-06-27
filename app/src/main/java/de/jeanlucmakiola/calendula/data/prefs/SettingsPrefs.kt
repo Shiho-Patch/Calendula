@@ -7,6 +7,9 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
+import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
+import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -68,6 +71,28 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setWeekStart(pref: WeekStartPref) {
         store.edit { it[WEEK_START_KEY] = pref.name }
+    }
+
+    /**
+     * How far ahead the in-app Agenda screen shows events (v2.11). Defaults to
+     * [AgendaRange.Month] — a month of upcoming events. Independent of the
+     * widget's [agendaWidgetRange].
+     */
+    val agendaScreenRange: Flow<AgendaRange> = store.data.map { prefs ->
+        parseAgendaRange(prefs[AGENDA_SCREEN_RANGE_KEY], AgendaRange.Month)
+    }
+
+    suspend fun setAgendaScreenRange(range: AgendaRange) {
+        store.edit { it[AGENDA_SCREEN_RANGE_KEY] = range.storageValue() }
+    }
+
+    /** How far ahead the agenda **widget** shows events (v2.11). Defaults to Month. */
+    val agendaWidgetRange: Flow<AgendaRange> = store.data.map { prefs ->
+        parseAgendaRange(prefs[AGENDA_WIDGET_RANGE_KEY], AgendaRange.Month)
+    }
+
+    suspend fun setAgendaWidgetRange(range: AgendaRange) {
+        store.edit { it[AGENDA_WIDGET_RANGE_KEY] = range.storageValue() }
     }
 
     /**
@@ -259,6 +284,8 @@ class SettingsPrefs @Inject constructor(
         internal val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
         internal val WEEK_START_KEY = stringPreferencesKey("week_start")
+        internal val AGENDA_SCREEN_RANGE_KEY = stringPreferencesKey("agenda_screen_range")
+        internal val AGENDA_WIDGET_RANGE_KEY = stringPreferencesKey("agenda_widget_range")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
         internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
         internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")

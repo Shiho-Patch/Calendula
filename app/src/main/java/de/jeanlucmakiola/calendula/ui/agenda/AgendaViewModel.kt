@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
@@ -30,15 +31,15 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 import javax.inject.Inject
 
-/** How far ahead the agenda loads events from its anchor day. */
-internal const val AGENDA_WINDOW_DAYS = 60
-
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class AgendaViewModel @Inject constructor(
     private val repository: CalendarRepository,
+    settingsPrefs: SettingsPrefs,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
+
+    private val screenRange = settingsPrefs.agendaScreenRange
 
     private val zone = TimeZone.currentSystemDefault()
 
@@ -48,12 +49,13 @@ class AgendaViewModel @Inject constructor(
     private val _anchor = MutableStateFlow(todayDate)
     val anchor: StateFlow<LocalDate> = _anchor
 
-    val state: StateFlow<AgendaUiState> = _anchor
-        .flatMapLatest { anchor ->
-            val range = agendaRange(anchor, AGENDA_WINDOW_DAYS, zone)
+    val state: StateFlow<AgendaUiState> =
+        combine(_anchor, screenRange) { anchor, range -> anchor to range }
+        .flatMapLatest { (anchor, range) ->
+            val window = agendaRange(anchor, range.dayCount() - 1, zone)
             combine(
                 repository.calendars(),
-                repository.instances(range),
+                repository.instances(window),
             ) { calendars, instances ->
                 buildState(anchor, calendars, instances)
             }

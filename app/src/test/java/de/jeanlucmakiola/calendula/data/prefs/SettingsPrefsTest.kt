@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DayOfWeek
@@ -47,6 +48,18 @@ class SettingsPrefsTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
         prefs.setWeekStart(WeekStartPref.SUNDAY)
         assertThat(prefs.weekStart.first()).isEqualTo(WeekStartPref.SUNDAY)
+    }
+
+    @Test
+    fun `agenda ranges default to month and round-trip independently`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.agendaScreenRange.first()).isEqualTo(AgendaRange.Month)
+        assertThat(prefs.agendaWidgetRange.first()).isEqualTo(AgendaRange.Month)
+
+        prefs.setAgendaScreenRange(AgendaRange.Custom(14))
+        prefs.setAgendaWidgetRange(AgendaRange.Week)
+        assertThat(prefs.agendaScreenRange.first()).isEqualTo(AgendaRange.Custom(14))
+        assertThat(prefs.agendaWidgetRange.first()).isEqualTo(AgendaRange.Week)
     }
 
     @Test

@@ -278,6 +278,17 @@
     <string name="settings_week_start_auto">Automatisch</string>
     <string name="settings_week_start_monday">Montag</string>
     <string name="settings_week_start_sunday">Sonntag</string>
+    <string name="settings_agenda_range">Agenda-Zeitraum</string>
+    <string name="settings_agenda_widget_range">Agenda-Widget-Zeitraum</string>
+    <string name="agenda_range_day">1 Tag</string>
+    <string name="agenda_range_week">1 Woche</string>
+    <string name="agenda_range_month">1 Monat</string>
+    <string name="agenda_range_custom">Benutzerdefiniert…</string>
+    <string name="agenda_range_custom_hint">Tage</string>
+    <plurals name="agenda_range_days">
+        <item quantity="one">%d Tag</item>
+        <item quantity="other">%d Tage</item>
+    </plurals>
     <string name="settings_section_event_form">Termin-Formular</string>
     <string name="settings_form_fields_hint">Standardmäßig angezeigte Felder — alles Weitere liegt hinter \"Weitere Felder\"</string>
     <string name="settings_color_unsupported">Farben auf nicht unterstützten Kalendern erlauben</string>

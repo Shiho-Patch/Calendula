@@ -8,6 +8,7 @@ import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaDay
 import de.jeanlucmakiola.calendula.ui.agenda.agendaRange
+import de.jeanlucmakiola.calendula.ui.agenda.dayCount
 import de.jeanlucmakiola.calendula.ui.agenda.groupAgendaDays
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.DateTimeUnit
@@ -22,9 +23,6 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import java.util.Locale
 import kotlin.time.Clock
-
-/** How far ahead the agenda widget loads (a month of upcoming events). */
-private const val AGENDA_WIDGET_DAYS = 30
 
 /**
  * How far either side of today the month widget pre-loads. The displayed month
@@ -91,8 +89,10 @@ internal suspend fun Context.loadAgendaWidgetData(): AgendaWidgetData {
     if (!hasCalendarPermission()) return AgendaWidgetData.NeedsPermission
     val zone = systemZone()
     val anchor = today(zone)
-    val repo = widgetEntryPoint().calendarRepository()
-    val instances = repo.instances(agendaRange(anchor, AGENDA_WIDGET_DAYS, zone)).first()
+    val ep = widgetEntryPoint()
+    val range = ep.settingsPrefs().agendaWidgetRange.first()
+    val window = agendaRange(anchor, range.dayCount() - 1, zone)
+    val instances = ep.calendarRepository().instances(window).first()
     return AgendaWidgetData.Ready(today = anchor, days = groupAgendaDays(anchor, instances, zone))
 }
 

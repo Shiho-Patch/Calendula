@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -37,6 +38,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 
 /**
  * Shared full-screen scaffold for selection pickers: a full-bleed [Dialog] that
@@ -267,6 +269,130 @@ private fun SelectedCheck() {
         contentDescription = null,
         tint = MaterialTheme.colorScheme.primary,
     )
+}
+
+/**
+ * Agenda-range picker, full-screen: the fixed 1 day / 1 week / 1 month windows
+ * as grouped rows, plus a "Custom" row that expands an inline day-count editor
+ * (1–365). Mirrors [ReminderDefaultPicker]'s custom-expand pattern.
+ */
+@Composable
+fun AgendaRangePicker(
+    title: String,
+    selected: AgendaRange,
+    onSelect: (AgendaRange) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val presets = listOf(AgendaRange.Day, AgendaRange.Week, AgendaRange.Month)
+    val customSelected = selected is AgendaRange.Custom
+    val rowCount = presets.size + 1 // + the custom row
+
+    var customExpanded by rememberSaveable { mutableStateOf(false) }
+    var amountText by rememberSaveable {
+        mutableStateOf((selected as? AgendaRange.Custom)?.days?.toString() ?: "")
+    }
+
+    FullScreenPicker(title = title, onDismiss = onDismiss) {
+        presets.forEachIndexed { index, option ->
+            val isSelected = option == selected
+            GroupedRow(
+                title = agendaRangeLabel(option),
+                position = positionOf(index, rowCount),
+                selected = isSelected,
+                trailing = if (isSelected) {
+                    { SelectedCheck() }
+                } else {
+                    null
+                },
+                onClick = {
+                    onSelect(option)
+                    onDismiss()
+                },
+            )
+        }
+        GroupedRow(
+            title = if (customSelected) {
+                agendaRangeLabel(selected)
+            } else {
+                stringResource(R.string.agenda_range_custom)
+            },
+            position = if (customExpanded) Position.Top else positionOf(presets.size, rowCount),
+            selected = customSelected,
+            trailing = if (customSelected) {
+                { SelectedCheck() }
+            } else {
+                null
+            },
+            onClick = { customExpanded = !customExpanded },
+        )
+        AnimatedVisibility(
+            visible = customExpanded,
+            enter = calendarExpandEnter(),
+            exit = calendarCollapseExit(),
+        ) {
+            CustomDaysEditor(
+                amountText = amountText,
+                onAmountChange = { amountText = it },
+                onConfirm = { days ->
+                    onSelect(AgendaRange.Custom(days))
+                    onDismiss()
+                },
+            )
+        }
+    }
+}
+
+/** The expanded "Custom" day-count editor: an amount field (1–365) and Set. */
+@Composable
+private fun CustomDaysEditor(
+    amountText: String,
+    onAmountChange: (String) -> Unit,
+    onConfirm: (Int) -> Unit,
+) {
+    val days = amountText.toIntOrNull()
+        ?.takeIf { it in AgendaRange.MIN_CUSTOM_DAYS..AgendaRange.MAX_CUSTOM_DAYS }
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 22.dp, bottomEnd = 22.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DialogAmountField(
+                value = amountText,
+                onValueChange = onAmountChange,
+                placeholder = "30",
+            )
+            Spacer(Modifier.width(16.dp))
+            Text(
+                text = days?.let { pluralStringResource(R.plurals.agenda_range_days, it, it) }
+                    ?: stringResource(R.string.agenda_range_custom_hint),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.width(16.dp))
+            FilledTonalButton(
+                onClick = { days?.let(onConfirm) },
+                enabled = days != null,
+            ) {
+                Text(stringResource(R.string.reminder_custom_set))
+            }
+        }
+    }
+}
+
+/** Human label for an [AgendaRange] (used by the picker rows and settings summary). */
+@Composable
+fun agendaRangeLabel(range: AgendaRange): String = when (range) {
+    AgendaRange.Day -> stringResource(R.string.agenda_range_day)
+    AgendaRange.Week -> stringResource(R.string.agenda_range_week)
+    AgendaRange.Month -> stringResource(R.string.agenda_range_month)
+    is AgendaRange.Custom -> pluralStringResource(R.plurals.agenda_range_days, range.days, range.days)
 }
 
 @Composable

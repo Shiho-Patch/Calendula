@@ -11,6 +11,7 @@ import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -73,10 +74,16 @@ class SettingsViewModel @Inject constructor(
             ) { overrides, allDayOverrides, calendars ->
                 ReminderOverrides(overrides, allDayOverrides, calendars)
             },
-            prefs.defaultView,
-        ) { base, defaults, overrides, defaultView ->
+            combine(
+                prefs.defaultView,
+                prefs.agendaScreenRange,
+                prefs.agendaWidgetRange,
+            ) { view, screenRange, widgetRange -> ViewSettings(view, screenRange, widgetRange) },
+        ) { base, defaults, overrides, views ->
             base.copy(
-                defaultView = defaultView,
+                defaultView = views.defaultView,
+                agendaScreenRange = views.agendaScreenRange,
+                agendaWidgetRange = views.agendaWidgetRange,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -106,6 +113,12 @@ class SettingsViewModel @Inject constructor(
         val calendars: List<CalendarSource>,
     )
 
+    private data class ViewSettings(
+        val defaultView: CalendarView,
+        val agendaScreenRange: AgendaRange,
+        val agendaWidgetRange: AgendaRange,
+    )
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { prefs.setThemeMode(mode) }
     }
@@ -116,6 +129,14 @@ class SettingsViewModel @Inject constructor(
 
     fun setWeekStart(pref: WeekStartPref) {
         viewModelScope.launch { prefs.setWeekStart(pref) }
+    }
+
+    fun setAgendaScreenRange(range: AgendaRange) {
+        viewModelScope.launch { prefs.setAgendaScreenRange(range) }
+    }
+
+    fun setAgendaWidgetRange(range: AgendaRange) {
+        viewModelScope.launch { prefs.setAgendaWidgetRange(range) }
     }
 
     fun setDefaultView(view: CalendarView) {

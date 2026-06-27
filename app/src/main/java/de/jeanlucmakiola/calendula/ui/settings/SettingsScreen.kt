@@ -92,6 +92,8 @@ import de.jeanlucmakiola.calendula.ui.crash.openIssueTracker
 import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
 import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
 import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
+import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
+import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
@@ -425,6 +427,8 @@ private fun AppearanceScreen(
     var showTheme by remember { mutableStateOf(false) }
     var showWeekStart by remember { mutableStateOf(false) }
     var showDefaultView by remember { mutableStateOf(false) }
+    var showAgendaScreenRange by remember { mutableStateOf(false) }
+    var showAgendaWidgetRange by remember { mutableStateOf(false) }
 
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_appearance),
@@ -466,8 +470,20 @@ private fun AppearanceScreen(
         GroupedRow(
             title = stringResource(R.string.settings_week_start),
             summary = weekStartLabel(state.weekStart),
-            position = Position.Bottom,
+            position = Position.Middle,
             onClick = { showWeekStart = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_agenda_range),
+            summary = agendaRangeLabel(state.agendaScreenRange),
+            position = Position.Middle,
+            onClick = { showAgendaScreenRange = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_agenda_widget_range),
+            summary = agendaRangeLabel(state.agendaWidgetRange),
+            position = Position.Bottom,
+            onClick = { showAgendaWidgetRange = true },
         )
     }
 
@@ -489,6 +505,22 @@ private fun AppearanceScreen(
             label = { weekStartLabel(it) },
             onSelect = viewModel::setWeekStart,
             onDismiss = { showWeekStart = false },
+        )
+    }
+    if (showAgendaScreenRange) {
+        AgendaRangePicker(
+            title = stringResource(R.string.settings_agenda_range),
+            selected = state.agendaScreenRange,
+            onSelect = viewModel::setAgendaScreenRange,
+            onDismiss = { showAgendaScreenRange = false },
+        )
+    }
+    if (showAgendaWidgetRange) {
+        AgendaRangePicker(
+            title = stringResource(R.string.settings_agenda_widget_range),
+            selected = state.agendaWidgetRange,
+            onSelect = viewModel::setAgendaWidgetRange,
+            onDismiss = { showAgendaWidgetRange = false },
         )
     }
     if (showDefaultView) {
