@@ -7,6 +7,9 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
+import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
+import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -110,6 +113,40 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setShowHourLines(enabled: Boolean) {
         store.edit { it[SHOW_HOUR_LINES_KEY] = enabled }
+    }
+
+    /**
+     * How far ahead the in-app Agenda screen shows events (v2.11). Defaults to
+     * [AgendaRange.Month] — a month of upcoming events. Independent of the
+     * widget's [agendaWidgetRange].
+     */
+    val agendaScreenRange: Flow<AgendaRange> = store.data.map { prefs ->
+        parseAgendaRange(prefs[AGENDA_SCREEN_RANGE_KEY], AgendaRange.Month)
+    }
+
+    suspend fun setAgendaScreenRange(range: AgendaRange) {
+        store.edit { it[AGENDA_SCREEN_RANGE_KEY] = range.storageValue() }
+    }
+
+    /** How far ahead the agenda **widget** shows events (v2.11). Defaults to Month. */
+    val agendaWidgetRange: Flow<AgendaRange> = store.data.map { prefs ->
+        parseAgendaRange(prefs[AGENDA_WIDGET_RANGE_KEY], AgendaRange.Month)
+    }
+
+    suspend fun setAgendaWidgetRange(range: AgendaRange) {
+        store.edit { it[AGENDA_WIDGET_RANGE_KEY] = range.storageValue() }
+    }
+
+    /**
+     * Whether the agenda shows its top range bar — the "showing …" header and
+     * the session range switcher (v2.11). Default ON.
+     */
+    val agendaShowRangeBar: Flow<Boolean> = store.data.map { prefs ->
+        prefs[AGENDA_SHOW_RANGE_BAR_KEY] ?: true
+    }
+
+    suspend fun setAgendaShowRangeBar(enabled: Boolean) {
+        store.edit { it[AGENDA_SHOW_RANGE_BAR_KEY] = enabled }
     }
 
     /**
@@ -301,6 +338,9 @@ class SettingsPrefs @Inject constructor(
         internal val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
         internal val WEEK_START_KEY = stringPreferencesKey("week_start")
+        internal val AGENDA_SCREEN_RANGE_KEY = stringPreferencesKey("agenda_screen_range")
+        internal val AGENDA_WIDGET_RANGE_KEY = stringPreferencesKey("agenda_widget_range")
+        internal val AGENDA_SHOW_RANGE_BAR_KEY = booleanPreferencesKey("agenda_show_range_bar")
         internal val TIME_FORMAT_KEY = stringPreferencesKey("time_format")
         internal val SHOW_HOUR_LINES_KEY = booleanPreferencesKey("show_hour_lines")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")

@@ -3,7 +3,7 @@ name: Feature request
 about: Suggest an idea or improvement
 title: ""
 labels:
-  - enhancement
+  - feat
 ---
 
 ### What would you like Calendula to do?

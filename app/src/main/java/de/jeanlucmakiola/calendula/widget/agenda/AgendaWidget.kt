@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -24,6 +25,8 @@ import androidx.glance.appwidget.lazy.items
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.updateAll
 import androidx.glance.background
+import androidx.glance.currentState
+import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
@@ -41,6 +44,9 @@ import androidx.glance.text.TextStyle
 import de.jeanlucmakiola.calendula.MainActivity
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
+import de.jeanlucmakiola.calendula.ui.agenda.dayCount
+import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
 import de.jeanlucmakiola.calendula.ui.common.pastelize
@@ -63,7 +69,19 @@ import java.util.Locale
  * of events grouped under day headers (the Google "Schedule" widget model).
  * Reuses the app's [groupAgendaDays] grouping so it matches the in-app agenda.
  */
+/**
+ * Per-instance Glance state key holding the agenda range (as [AgendaRange.storageValue]).
+ * The range is read reactively in the composition ([currentState]) so a settings
+ * change is reflected by plain recomposition — `updateAll` does NOT reliably
+ * re-run the `provideGlance` preamble for a live widget session, so loading the
+ * range there and slicing it would silently keep the stale value (mirrors the
+ * month widget's MONTH_INDEX_KEY approach).
+ */
+internal val AGENDA_RANGE_KEY = stringPreferencesKey("agenda_range")
+
 class AgendaWidget : GlanceAppWidget() {
+
+    override val stateDefinition = PreferencesGlanceStateDefinition
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val data = context.loadAgendaWidgetData()
@@ -102,12 +120,21 @@ private fun AgendaWidgetBody(data: AgendaWidgetData, dark: Boolean) {
         Spacer(GlanceModifier.height(4.dp))
         when (data) {
             AgendaWidgetData.NeedsPermission -> WidgetMessage(R.string.widget_needs_permission)
-            is AgendaWidgetData.Ready ->
-                if (data.days.isEmpty()) {
+            is AgendaWidgetData.Ready -> {
+                // Range read reactively from per-instance Glance state (falls back
+                // to the saved pref for a freshly placed widget), then the wide
+                // pre-loaded window is sliced to it — pure recomposition.
+                val range = parseAgendaRange(currentState(AGENDA_RANGE_KEY), data.savedRange)
+                val rangeEnd = data.today.plus(
+                    range.dayCount(data.today, data.weekStart) - 1,
+                    DateTimeUnit.DAY,
+                )
+                val visibleDays = data.days.filter { it.date <= rangeEnd }
+                if (visibleDays.isEmpty()) {
                     WidgetMessage(R.string.agenda_empty_title)
                 } else {
                     val rows = buildList {
-                        data.days.forEach { day ->
+                        visibleDays.forEach { day ->
                             add(AgendaRow.Header(day.date, data.today))
                             day.events.forEach { add(AgendaRow.Event(it)) }
                         }
@@ -121,6 +148,7 @@ private fun AgendaWidgetBody(data: AgendaWidgetData, dark: Boolean) {
                         }
                     }
                 }
+            }
         }
     }
 }

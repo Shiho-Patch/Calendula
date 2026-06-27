@@ -93,6 +93,8 @@ import de.jeanlucmakiola.calendula.ui.crash.openIssueTracker
 import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
 import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
 import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
+import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
+import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
@@ -430,22 +432,19 @@ private fun AppearanceScreen(
     var showWeekStart by remember { mutableStateOf(false) }
     var showTimeFormat by remember { mutableStateOf(false) }
     var showDefaultView by remember { mutableStateOf(false) }
+    var showAgendaScreenRange by remember { mutableStateOf(false) }
+    var showAgendaWidgetRange by remember { mutableStateOf(false) }
 
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_appearance),
         onBack = onBack,
     ) {
+        // Theme & colour
         GroupedRow(
             title = stringResource(R.string.settings_theme),
             summary = themeLabel(state.themeMode),
             position = Position.Top,
             onClick = { showTheme = true },
-        )
-        GroupedRow(
-            title = stringResource(R.string.settings_default_view),
-            summary = stringResource(state.defaultView.labelRes),
-            position = Position.Middle,
-            onClick = { showDefaultView = true },
         )
         GroupedRow(
             title = stringResource(R.string.settings_dynamic_color),
@@ -454,7 +453,7 @@ private fun AppearanceScreen(
             } else {
                 stringResource(R.string.settings_dynamic_color_unavailable)
             },
-            position = Position.Middle,
+            position = Position.Bottom,
             trailing = {
                 Switch(
                     checked = state.dynamicColor,
@@ -467,6 +466,16 @@ private fun AppearanceScreen(
             } else {
                 null
             },
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Calendar — view, week, and timeline formatting
+        GroupedRow(
+            title = stringResource(R.string.settings_default_view),
+            summary = stringResource(state.defaultView.labelRes),
+            position = Position.Top,
+            onClick = { showDefaultView = true },
         )
         GroupedRow(
             title = stringResource(R.string.settings_week_start),
@@ -492,6 +501,34 @@ private fun AppearanceScreen(
             },
             onClick = { viewModel.setShowHourLines(!state.showHourLines) },
         )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Agenda
+        GroupedRow(
+            title = stringResource(R.string.settings_agenda_range),
+            summary = agendaRangeLabel(state.agendaScreenRange),
+            position = Position.Top,
+            onClick = { showAgendaScreenRange = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_agenda_widget_range),
+            summary = agendaRangeLabel(state.agendaWidgetRange),
+            position = Position.Middle,
+            onClick = { showAgendaWidgetRange = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_agenda_range_bar),
+            summary = stringResource(R.string.settings_agenda_range_bar_hint),
+            position = Position.Bottom,
+            trailing = {
+                Switch(
+                    checked = state.agendaShowRangeBar,
+                    onCheckedChange = viewModel::setAgendaShowRangeBar,
+                )
+            },
+            onClick = { viewModel.setAgendaShowRangeBar(!state.agendaShowRangeBar) },
+        )
     }
 
     if (showTheme) {
@@ -512,6 +549,24 @@ private fun AppearanceScreen(
             label = { weekStartLabel(it) },
             onSelect = viewModel::setWeekStart,
             onDismiss = { showWeekStart = false },
+        )
+    }
+    if (showAgendaScreenRange) {
+        AgendaRangePicker(
+            title = stringResource(R.string.settings_agenda_range),
+            description = stringResource(R.string.settings_agenda_range_hint),
+            selected = state.agendaScreenRange,
+            onSelect = viewModel::setAgendaScreenRange,
+            onDismiss = { showAgendaScreenRange = false },
+        )
+    }
+    if (showAgendaWidgetRange) {
+        AgendaRangePicker(
+            title = stringResource(R.string.settings_agenda_widget_range),
+            description = stringResource(R.string.settings_agenda_widget_range_hint),
+            selected = state.agendaWidgetRange,
+            onSelect = viewModel::setAgendaWidgetRange,
+            onDismiss = { showAgendaWidgetRange = false },
         )
     }
     if (showTimeFormat) {

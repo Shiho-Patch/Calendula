@@ -1,9 +1,14 @@
 package de.jeanlucmakiola.calendula.ui.settings
 
+import android.content.Context
 import android.os.Build
+import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
@@ -12,7 +17,12 @@ import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
+import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_RANGE_KEY
+import de.jeanlucmakiola.calendula.widget.agenda.AgendaWidget
+import de.jeanlucmakiola.calendula.widget.month.MonthWidget
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,12 +31,15 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefs: SettingsPrefs,
     repository: CalendarRepository,
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     private val dynamicColorAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -74,13 +87,24 @@ class SettingsViewModel @Inject constructor(
             ) { overrides, allDayOverrides, calendars ->
                 ReminderOverrides(overrides, allDayOverrides, calendars)
             },
-            combine(prefs.defaultView, prefs.timeFormat) { view, timeFormat -> view to timeFormat },
-            prefs.showHourLines,
-        ) { base, defaults, overrides, viewAndTimeFormat, showHourLines ->
+            combine(
+                prefs.defaultView,
+                prefs.agendaScreenRange,
+                prefs.agendaWidgetRange,
+                prefs.timeFormat,
+                prefs.showHourLines,
+            ) { view, screenRange, widgetRange, timeFormat, showHourLines ->
+                ViewSettings(view, screenRange, widgetRange, timeFormat, showHourLines)
+            },
+            prefs.agendaShowRangeBar,
+        ) { base, defaults, overrides, views, showRangeBar ->
             base.copy(
-                defaultView = viewAndTimeFormat.first,
-                timeFormat = viewAndTimeFormat.second,
-                showHourLines = showHourLines,
+                defaultView = views.defaultView,
+                agendaScreenRange = views.agendaScreenRange,
+                agendaWidgetRange = views.agendaWidgetRange,
+                timeFormat = views.timeFormat,
+                showHourLines = views.showHourLines,
+                agendaShowRangeBar = showRangeBar,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -96,6 +120,12 @@ class SettingsViewModel @Inject constructor(
             initialValue = SettingsUiState(dynamicColorAvailable = dynamicColorAvailable),
         )
 
+    // Serialises widget redraws so a rapid flip-and-flip-back can't run two
+    // updateAll calls at once — concurrent calls coalesce around a stale read
+    // and can leave the widget on the intermediate value. Held sequentially,
+    // the last call reads the final committed pref and renders it.
+    private val widgetRefreshMutex = Mutex()
+
     private data class ReminderDefaults(
         val allowColor: Boolean,
         val defaultReminder: Int?,
@@ -110,6 +140,14 @@ class SettingsViewModel @Inject constructor(
         val calendars: List<CalendarSource>,
     )
 
+    private data class ViewSettings(
+        val defaultView: CalendarView,
+        val agendaScreenRange: AgendaRange,
+        val agendaWidgetRange: AgendaRange,
+        val timeFormat: TimeFormatPref,
+        val showHourLines: Boolean,
+    )
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { prefs.setThemeMode(mode) }
     }
@@ -119,7 +157,40 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setWeekStart(pref: WeekStartPref) {
-        viewModelScope.launch { prefs.setWeekStart(pref) }
+        viewModelScope.launch {
+            prefs.setWeekStart(pref)
+            // Both widgets depend on the week start (month weekday header; the
+            // agenda widget's "this week" range).
+            widgetRefreshMutex.withLock {
+                AgendaWidget().updateAll(appContext)
+                MonthWidget().updateAll(appContext)
+            }
+        }
+    }
+
+    fun setAgendaScreenRange(range: AgendaRange) {
+        viewModelScope.launch { prefs.setAgendaScreenRange(range) }
+    }
+
+    fun setAgendaWidgetRange(range: AgendaRange) {
+        viewModelScope.launch {
+            prefs.setAgendaWidgetRange(range)
+            widgetRefreshMutex.withLock {
+                // Push the range into each instance's Glance state and recompose.
+                // The widget reads it via currentState, so this reflects reliably
+                // even when updateAll only recomposes a live session (it does not
+                // re-run provideGlance's data preamble).
+                val manager = GlanceAppWidgetManager(appContext)
+                manager.getGlanceIds(AgendaWidget::class.java).forEach { id ->
+                    updateAppWidgetState(appContext, id) { it[AGENDA_RANGE_KEY] = range.storageValue() }
+                }
+                AgendaWidget().updateAll(appContext)
+            }
+        }
+    }
+
+    fun setAgendaShowRangeBar(enabled: Boolean) {
+        viewModelScope.launch { prefs.setAgendaShowRangeBar(enabled) }
     }
 
     fun setTimeFormat(pref: TimeFormatPref) {

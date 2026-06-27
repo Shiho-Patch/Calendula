@@ -5,6 +5,7 @@ title: "Crash: "
 labels:
   - bug
   - crash
+  - priority:high
 ---
 
 <!--
