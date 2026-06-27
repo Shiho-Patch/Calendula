@@ -1,9 +1,12 @@
 package de.jeanlucmakiola.calendula.ui.settings
 
+import android.content.Context
 import android.os.Build
+import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
@@ -14,6 +17,8 @@ import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.widget.agenda.AgendaWidget
+import de.jeanlucmakiola.calendula.widget.month.MonthWidget
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +33,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val prefs: SettingsPrefs,
     repository: CalendarRepository,
+    @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     private val dynamicColorAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
@@ -139,7 +145,13 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setWeekStart(pref: WeekStartPref) {
-        viewModelScope.launch { prefs.setWeekStart(pref) }
+        viewModelScope.launch {
+            prefs.setWeekStart(pref)
+            // Both widgets depend on the week start (month weekday header; the
+            // agenda widget's "this week" range), so push a redraw.
+            AgendaWidget().updateAll(appContext)
+            MonthWidget().updateAll(appContext)
+        }
     }
 
     fun setAgendaScreenRange(range: AgendaRange) {
@@ -147,7 +159,12 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setAgendaWidgetRange(range: AgendaRange) {
-        viewModelScope.launch { prefs.setAgendaWidgetRange(range) }
+        viewModelScope.launch {
+            prefs.setAgendaWidgetRange(range)
+            // Push the new range to the placed widget immediately, instead of
+            // waiting for the next data-change / midnight / periodic refresh.
+            AgendaWidget().updateAll(appContext)
+        }
     }
 
     fun setAgendaShowRangeBar(enabled: Boolean) {
