@@ -2,6 +2,8 @@ package de.jeanlucmakiola.calendula.ui.settings
 
 import android.content.Context
 import android.os.Build
+import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.glance.appwidget.state.updateAppWidgetState
 import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,7 +18,9 @@ import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
+import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_RANGE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AgendaWidget
 import de.jeanlucmakiola.calendula.widget.month.MonthWidget
 import kotlinx.coroutines.flow.Flow
@@ -171,7 +175,17 @@ class SettingsViewModel @Inject constructor(
     fun setAgendaWidgetRange(range: AgendaRange) {
         viewModelScope.launch {
             prefs.setAgendaWidgetRange(range)
-            widgetRefreshMutex.withLock { AgendaWidget().updateAll(appContext) }
+            widgetRefreshMutex.withLock {
+                // Push the range into each instance's Glance state and recompose.
+                // The widget reads it via currentState, so this reflects reliably
+                // even when updateAll only recomposes a live session (it does not
+                // re-run provideGlance's data preamble).
+                val manager = GlanceAppWidgetManager(appContext)
+                manager.getGlanceIds(AgendaWidget::class.java).forEach { id ->
+                    updateAppWidgetState(appContext, id) { it[AGENDA_RANGE_KEY] = range.storageValue() }
+                }
+                AgendaWidget().updateAll(appContext)
+            }
         }
     }
 
