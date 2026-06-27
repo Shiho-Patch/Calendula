@@ -149,38 +149,48 @@ fun AgendaScreen(
                 )
             },
         ) { innerPadding ->
-            Box(modifier = Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                ) {
-                    // A header naming the concrete window currently shown.
-                    successState?.takeIf { it.showRangeBanner }?.let { s ->
-                        AgendaRangeBanner(range = s.range, start = s.anchor, end = s.rangeEnd)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            ) {
+                // One bar at the top: the "showing …" header on the left and the
+                // session range pill on the right (each toggleable independently).
+                val s = successState
+                if (s != null && (s.showRangeBanner || s.showRangePill)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 28.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                    ) {
+                        if (s.showRangeBanner) {
+                            AgendaRangeBanner(
+                                range = s.range,
+                                start = s.anchor,
+                                end = s.rangeEnd,
+                                modifier = Modifier.weight(1f),
+                            )
+                        } else {
+                            Spacer(Modifier.weight(1f))
+                        }
+                        if (s.showRangePill) {
+                            AgendaRangePill(
+                                range = s.range,
+                                isOverride = s.rangeIsOverride,
+                                onClick = { showRangePicker = true },
+                            )
+                        }
                     }
-                    AgendaContent(
-                        state = state,
-                        onRetry = viewModel::goToToday,
-                        onEventClick = onEventClick,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                    )
                 }
-                // A bottom-left pill to peek at a different range for this
-                // session, mirroring the FAB column on the right.
-                successState?.takeIf { it.showRangePill }?.let { s ->
-                    AgendaRangePill(
-                        range = s.range,
-                        isOverride = s.rangeIsOverride,
-                        onClick = { showRangePicker = true },
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(innerPadding)
-                            .padding(16.dp),
-                    )
-                }
+                AgendaContent(
+                    state = state,
+                    onRetry = viewModel::goToToday,
+                    onEventClick = onEventClick,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                )
             }
         }
     }
@@ -255,7 +265,7 @@ private fun AgendaRangeBanner(
 ) {
     val locale = currentLocale()
     val window = agendaRangeWindowSummary(range, start, end, locale)
-    Column(modifier = modifier.padding(horizontal = 28.dp, vertical = 8.dp)) {
+    Column(modifier = modifier) {
         Text(
             text = stringResource(R.string.agenda_range_showing_label),
             style = MaterialTheme.typography.labelMedium,
