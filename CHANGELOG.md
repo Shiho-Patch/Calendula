@@ -30,10 +30,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   top naming the exact dates in view, with a button to switch the range just for
   the current session (it resets when you reopen the app); the bar can be turned
   off. Thanks to @zmaherdev for the suggestion ([#4]).
+- Automatic backup of local calendars. A new **Automatic backup** option
+  (Settings → Calendars → Backup) periodically exports your local calendars to an
+  `.ics` file in a folder you choose, on an interval you set (from 30 minutes up).
+  Useful for file-based syncing such as Syncthing, or simply as a safety net — it
+  is a one-way export and never touches your synced accounts. Thanks to @shield
+  for the discussion that inspired it ([#7], [#8]).
+- Field icons in the event-form settings. Each optional-field toggle (Settings →
+  Event form) now shows the same icon the field uses in the new-event form, so
+  the list is easier to scan.
 
 ### Changed
 - Tidied **Settings → Appearance** into clearer groups (theme & colour, calendar,
   agenda), and the agenda's empty state now reads "You're all caught up".
+- Reworked **Settings → Calendars**. Local and synced calendars are now grouped
+  into collapsible, source-branded cards — each account shows its app's icon —
+  with a per-account menu to enable or disable all of its calendars at once or
+  open the account in its source app.
+- Reorganised **Settings → Notifications**: reliable-delivery and snooze settings
+  moved up with the other global reminder options, and the per-calendar reminder
+  overrides now fold into a single expandable section.
+- Moved **Add Quick Settings tile** out of the event-form section to its own
+  top-level entry in Settings.
 
 ## [2.10.0] — 2026-06-25
 
@@ -661,3 +679,5 @@ automatically, with zero telemetry and no internet permission.
 [#4]: https://codeberg.org/jlmakiola/calendula/issues/4
 [#5]: https://codeberg.org/jlmakiola/calendula/issues/5
 [#6]: https://codeberg.org/jlmakiola/calendula/issues/6
+[#7]: https://codeberg.org/jlmakiola/calendula/issues/7
+[#8]: https://codeberg.org/jlmakiola/calendula/issues/8
