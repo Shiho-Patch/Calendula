@@ -470,7 +470,7 @@ private fun AppearanceScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Calendar layout
+        // Calendar — view, week, and timeline formatting
         GroupedRow(
             title = stringResource(R.string.settings_default_view),
             summary = stringResource(state.defaultView.labelRes),
@@ -480,17 +480,13 @@ private fun AppearanceScreen(
         GroupedRow(
             title = stringResource(R.string.settings_week_start),
             summary = weekStartLabel(state.weekStart),
-            position = Position.Bottom,
+            position = Position.Middle,
             onClick = { showWeekStart = true },
         )
-
-        Spacer(Modifier.height(16.dp))
-
-        // Timeline display
         GroupedRow(
             title = stringResource(R.string.settings_time_format),
             summary = timeFormatLabel(state.timeFormat),
-            position = Position.Top,
+            position = Position.Middle,
             onClick = { showTimeFormat = true },
         )
         GroupedRow(
