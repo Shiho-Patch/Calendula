@@ -20,8 +20,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DrawerValue
@@ -376,7 +376,7 @@ private fun AgendaEmpty(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
-            imageVector = Icons.Filled.EventAvailable,
+            imageVector = Icons.Filled.Coffee,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(48.dp),
@@ -385,13 +385,6 @@ private fun AgendaEmpty(modifier: Modifier = Modifier) {
         Text(
             text = stringResource(R.string.agenda_empty_title),
             style = MaterialTheme.typography.titleMedium,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = stringResource(R.string.agenda_empty_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
     }

@@ -230,8 +230,7 @@
     <string name="agenda_today_action">Heute</string>
     <string name="agenda_header_today">Heute</string>
     <string name="agenda_header_tomorrow">Morgen</string>
-    <string name="agenda_empty_title">Nichts geplant</string>
-    <string name="agenda_empty_subtitle">Anstehende Termine erscheinen hier.</string>
+    <string name="agenda_empty_title">Alles erledigt</string>
 
     <!-- Terminsuche -->
     <string name="search_action">Suchen</string>
@@ -298,7 +297,7 @@
     <string name="agenda_range_custom">Benutzerdefiniert…</string>
     <string name="agenda_range_custom_hint">Tage</string>
     <string name="agenda_range_override_hint">Nur vorübergehend — wird beim erneuten Öffnen von Calendula auf deinen gespeicherten Zeitraum zurückgesetzt.</string>
-    <string name="agenda_range_showing_label">Alle Termine für</string>
+    <string name="agenda_range_showing_label">Alle anstehenden Termine für</string>
     <plurals name="agenda_range_days">
         <item quantity="one">%d Tag</item>
         <item quantity="other">%d Tage</item>
