@@ -50,6 +50,22 @@ class SettingsPrefsTest {
     }
 
     @Test
+    fun `time format defaults to auto and round-trips`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.timeFormat.first()).isEqualTo(TimeFormatPref.AUTO)
+        prefs.setTimeFormat(TimeFormatPref.TWELVE_HOUR)
+        assertThat(prefs.timeFormat.first()).isEqualTo(TimeFormatPref.TWELVE_HOUR)
+    }
+
+    @Test
+    fun `hour lines default off and round-trips`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.showHourLines.first()).isFalse()
+        prefs.setShowHourLines(true)
+        assertThat(prefs.showHourLines.first()).isTrue()
+    }
+
+    @Test
     fun `garbage stored enum falls back to default`(@TempDir tempDir: Path) = runTest {
         val store = newDataStore(tempDir)
         val prefs = SettingsPrefs(store)

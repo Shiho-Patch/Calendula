@@ -96,6 +96,18 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * Whether the week/day timeline draws a faint separator line at each hour
+     * (v2.11). Defaults to OFF — the historical clean look; users opt in.
+     */
+    val showHourLines: Flow<Boolean> = store.data.map { prefs ->
+        prefs[SHOW_HOUR_LINES_KEY] ?: false
+    }
+
+    suspend fun setShowHourLines(enabled: Boolean) {
+        store.edit { it[SHOW_HOUR_LINES_KEY] = enabled }
+    }
+
+    /**
      * The calendar view the app opens on (M1). Defaults to [CalendarView.Week] —
      * the historical hard-coded startup view — so existing users see no change
      * until they pick another. Also the bottom of the in-app view back stack, so
@@ -285,6 +297,7 @@ class SettingsPrefs @Inject constructor(
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
         internal val WEEK_START_KEY = stringPreferencesKey("week_start")
         internal val TIME_FORMAT_KEY = stringPreferencesKey("time_format")
+        internal val SHOW_HOUR_LINES_KEY = booleanPreferencesKey("show_hour_lines")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
         internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
         internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")

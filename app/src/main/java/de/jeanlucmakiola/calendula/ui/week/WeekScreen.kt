@@ -84,8 +84,10 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.calendula.ui.common.rememberReduceMotion
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
+import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.formatHourLabel
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
+import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.calendula.ui.common.pastelize
@@ -655,6 +657,8 @@ private fun DayColumnCard(
     modifier: Modifier = Modifier,
 ) {
     val hourPx = with(LocalDensity.current) { HOUR_HEIGHT.toPx() }
+    val showHourLines = LocalShowHourLines.current
+    val hourLineColor = MaterialTheme.colorScheme.outlineVariant
     Card(
         // Plain rectangular columns — the soft corners come from the outer
         // rounded scroll viewport, so inner rounding would look odd at the edges.
@@ -667,6 +671,9 @@ private fun DayColumnCard(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
+                // Faint hour separators sit over the column background but under
+                // the event blocks (drawBehind paints before the children).
+                .hourSeparatorLines(showHourLines, hourPx, hourLineColor)
                 // Tap an empty slot to create an event there; taps on event
                 // blocks are consumed by their own handler first. Snaps to hour.
                 .pointerInput(date) {

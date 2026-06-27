@@ -21,6 +21,8 @@ data class SettingsUiState(
     val weekStart: WeekStartPref = WeekStartPref.AUTO,
     /** Clock convention for time labels (v2.11). AUTO follows the system setting. */
     val timeFormat: TimeFormatPref = TimeFormatPref.AUTO,
+    /** Whether the week/day timeline draws an hour separator line (v2.11). */
+    val showHourLines: Boolean = false,
     /** The calendar view the app opens on, and the home of the view back stack (M1). */
     val defaultView: CalendarView = CalendarView.Week,
     /** Optional event-form fields shown by default (rest behind "more fields"). */
