@@ -283,7 +283,13 @@ fun AgendaRangePicker(
     onSelect: (AgendaRange) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val presets = listOf(AgendaRange.Day, AgendaRange.Week, AgendaRange.Month)
+    val presets = listOf(
+        AgendaRange.Day,
+        AgendaRange.ThisWeek,
+        AgendaRange.ThisMonth,
+        AgendaRange.Week,
+        AgendaRange.Month,
+    )
     val customSelected = selected is AgendaRange.Custom
     val rowCount = presets.size + 1 // + the custom row
 
@@ -390,6 +396,8 @@ private fun CustomDaysEditor(
 @Composable
 fun agendaRangeLabel(range: AgendaRange): String = when (range) {
     AgendaRange.Day -> stringResource(R.string.agenda_range_day)
+    AgendaRange.ThisWeek -> stringResource(R.string.agenda_range_this_week)
+    AgendaRange.ThisMonth -> stringResource(R.string.agenda_range_this_month)
     AgendaRange.Week -> stringResource(R.string.agenda_range_week)
     AgendaRange.Month -> stringResource(R.string.agenda_range_month)
     is AgendaRange.Custom -> pluralStringResource(R.plurals.agenda_range_days, range.days, range.days)

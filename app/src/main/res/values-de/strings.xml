@@ -280,9 +280,11 @@
     <string name="settings_week_start_sunday">Sonntag</string>
     <string name="settings_agenda_range">Agenda-Zeitraum</string>
     <string name="settings_agenda_widget_range">Agenda-Widget-Zeitraum</string>
-    <string name="agenda_range_day">1 Tag</string>
-    <string name="agenda_range_week">1 Woche</string>
-    <string name="agenda_range_month">1 Monat</string>
+    <string name="agenda_range_day">Heute</string>
+    <string name="agenda_range_this_week">Diese Woche</string>
+    <string name="agenda_range_this_month">Dieser Monat</string>
+    <string name="agenda_range_week">Nächste 7 Tage</string>
+    <string name="agenda_range_month">Nächste 30 Tage</string>
     <string name="agenda_range_custom">Benutzerdefiniert…</string>
     <string name="agenda_range_custom_hint">Tage</string>
     <plurals name="agenda_range_days">

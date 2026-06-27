@@ -6,6 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
+import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
@@ -18,10 +19,12 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import java.util.Locale
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.atTime
 import kotlinx.datetime.plus
@@ -41,6 +44,10 @@ class AgendaViewModel @Inject constructor(
 
     private val screenRange = settingsPrefs.agendaScreenRange
 
+    // First day of the week, for the calendar-aligned "this week" range.
+    private val weekStartDay = settingsPrefs.weekStart
+        .map { it.resolveFirstDay(Locale.getDefault()) }
+
     private val zone = TimeZone.currentSystemDefault()
 
     private val todayDate: LocalDate
@@ -50,9 +57,11 @@ class AgendaViewModel @Inject constructor(
     val anchor: StateFlow<LocalDate> = _anchor
 
     val state: StateFlow<AgendaUiState> =
-        combine(_anchor, screenRange) { anchor, range -> anchor to range }
-        .flatMapLatest { (anchor, range) ->
-            val window = agendaRange(anchor, range.dayCount() - 1, zone)
+        combine(_anchor, screenRange, weekStartDay) { anchor, range, weekStart ->
+            Triple(anchor, range, weekStart)
+        }
+        .flatMapLatest { (anchor, range, weekStart) ->
+            val window = agendaRange(anchor, range.dayCount(anchor, weekStart) - 1, zone)
             combine(
                 repository.calendars(),
                 repository.instances(window),

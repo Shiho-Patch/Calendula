@@ -273,9 +273,11 @@
     <string name="settings_week_start_sunday">Sunday</string>
     <string name="settings_agenda_range">Agenda range</string>
     <string name="settings_agenda_widget_range">Agenda widget range</string>
-    <string name="agenda_range_day">1 day</string>
-    <string name="agenda_range_week">1 week</string>
-    <string name="agenda_range_month">1 month</string>
+    <string name="agenda_range_day">Today</string>
+    <string name="agenda_range_this_week">This week</string>
+    <string name="agenda_range_this_month">This month</string>
+    <string name="agenda_range_week">Next 7 days</string>
+    <string name="agenda_range_month">Next 30 days</string>
     <string name="agenda_range_custom">Custom…</string>
     <string name="agenda_range_custom_hint">Days</string>
     <plurals name="agenda_range_days">

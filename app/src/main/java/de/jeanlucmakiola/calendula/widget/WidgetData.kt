@@ -90,8 +90,10 @@ internal suspend fun Context.loadAgendaWidgetData(): AgendaWidgetData {
     val zone = systemZone()
     val anchor = today(zone)
     val ep = widgetEntryPoint()
-    val range = ep.settingsPrefs().agendaWidgetRange.first()
-    val window = agendaRange(anchor, range.dayCount() - 1, zone)
+    val prefs = ep.settingsPrefs()
+    val range = prefs.agendaWidgetRange.first()
+    val weekStart = prefs.weekStart.first().resolveFirstDay(Locale.getDefault())
+    val window = agendaRange(anchor, range.dayCount(anchor, weekStart) - 1, zone)
     val instances = ep.calendarRepository().instances(window).first()
     return AgendaWidgetData.Ready(today = anchor, days = groupAgendaDays(anchor, instances, zone))
 }
