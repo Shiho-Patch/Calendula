@@ -306,21 +306,20 @@ private fun CalendarsList(
             Spacer(Modifier.height(16.dp))
             SectionHeader(stringResource(R.string.calendars_backup_header))
             HintText(stringResource(R.string.calendars_backup_hint))
+            // One connected card: the one-time export on top, then automatic
+            // backup (and its folder/interval rows when on).
             GroupedRow(
                 title = stringResource(R.string.calendars_backup_action),
-                position = Position.Alone,
+                position = Position.Top,
                 leading = { LeadingAvatar(Icons.Default.FileDownload) },
                 onClick = {
                     runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
                 },
             )
-
-            // Automatic periodic export to a chosen folder (issue #8).
-            Spacer(Modifier.height(16.dp))
             GroupedRow(
                 title = stringResource(R.string.calendars_auto_backup),
                 summary = stringResource(R.string.calendars_auto_backup_hint),
-                position = if (autoBackup.enabled) Position.Top else Position.Alone,
+                position = if (autoBackup.enabled) Position.Middle else Position.Bottom,
                 leading = { LeadingAvatar(Icons.Default.Schedule) },
                 trailing = {
                     Switch(checked = autoBackup.enabled, onCheckedChange = onSetAutoBackupEnabled)
