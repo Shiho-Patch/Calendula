@@ -19,8 +19,14 @@ import javax.inject.Singleton
 /** Light/dark override. SYSTEM follows the device setting. */
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
-/** Week-start override. AUTO derives the first day from the active locale. */
-enum class WeekStartPref { AUTO, MONDAY, SUNDAY }
+/**
+ * Week-start override. [Auto] derives the first day from the active locale;
+ * [Day] pins a specific weekday (any of the seven).
+ */
+sealed interface WeekStartPref {
+    data object Auto : WeekStartPref
+    data class Day(val day: DayOfWeek) : WeekStartPref
+}
 
 /**
  * Clock convention for time-of-day labels. AUTO follows the device's 24-hour
@@ -39,14 +45,13 @@ fun TimeFormatPref.is24Hour(systemIs24Hour: Boolean): Boolean = when (this) {
 }
 
 /**
- * Resolve the preference to a concrete first-day-of-week. AUTO reads the
- * locale's convention (e.g. Monday in DE, Sunday in en-US).
+ * Resolve the preference to a concrete first-day-of-week. [WeekStartPref.Auto]
+ * reads the locale's convention (e.g. Monday in DE, Sunday in en-US).
  */
 fun WeekStartPref.resolveFirstDay(locale: Locale): DayOfWeek = when (this) {
-    WeekStartPref.MONDAY -> DayOfWeek.MONDAY
-    WeekStartPref.SUNDAY -> DayOfWeek.SUNDAY
+    is WeekStartPref.Day -> day
     // java.time.DayOfWeek.value is ISO 1..7 (Mon..Sun) — same numbering kotlinx uses.
-    WeekStartPref.AUTO -> DayOfWeek(WeekFields.of(locale).firstDayOfWeek.value)
+    WeekStartPref.Auto -> DayOfWeek(WeekFields.of(locale).firstDayOfWeek.value)
 }
 
 /**
@@ -71,7 +76,7 @@ class SettingsPrefs @Inject constructor(
     }
 
     val weekStart: Flow<WeekStartPref> = store.data.map { prefs ->
-        prefs[WEEK_START_KEY].toEnum(WeekStartPref.AUTO)
+        parseWeekStart(prefs[WEEK_START_KEY])
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
@@ -83,7 +88,7 @@ class SettingsPrefs @Inject constructor(
     }
 
     suspend fun setWeekStart(pref: WeekStartPref) {
-        store.edit { it[WEEK_START_KEY] = pref.name }
+        store.edit { it[WEEK_START_KEY] = pref.storageValue() }
     }
 
     /** Clock convention for time-of-day labels (v2.11). Defaults to AUTO (system). */
@@ -355,6 +360,25 @@ private fun MutableMap<Long, Int?>.applyOverride(
         CalendarReminderOverride.None -> put(calendarId, null)
         is CalendarReminderOverride.Minutes -> put(calendarId, override.minutes)
     }
+}
+
+/** Sentinel stored for [WeekStartPref.Auto]; days store their [DayOfWeek.name]. */
+private const val WEEK_START_AUTO = "AUTO"
+
+private fun WeekStartPref.storageValue(): String = when (this) {
+    WeekStartPref.Auto -> WEEK_START_AUTO
+    is WeekStartPref.Day -> day.name
+}
+
+/**
+ * Parse the stored week-start value. "AUTO"/null/garbage → [WeekStartPref.Auto];
+ * a [DayOfWeek] name → [WeekStartPref.Day]. The legacy "MONDAY"/"SUNDAY" enum
+ * values migrate transparently, since both are valid day names.
+ */
+private fun parseWeekStart(stored: String?): WeekStartPref = when (stored) {
+    null, WEEK_START_AUTO -> WeekStartPref.Auto
+    else -> DayOfWeek.entries.firstOrNull { it.name == stored }
+        ?.let { WeekStartPref.Day(it) } ?: WeekStartPref.Auto
 }
 
 private const val NONE = "none"

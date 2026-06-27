@@ -269,8 +269,6 @@
     <string name="settings_dynamic_color_unavailable">Requires Android 12 or newer</string>
     <string name="settings_week_start">Week starts on</string>
     <string name="settings_week_start_auto">Automatic</string>
-    <string name="settings_week_start_monday">Monday</string>
-    <string name="settings_week_start_sunday">Sunday</string>
     <string name="settings_time_format">Time format</string>
     <string name="settings_time_format_auto">Automatic</string>
     <string name="settings_time_format_12h">12-hour (2:00 PM)</string>
