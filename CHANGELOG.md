@@ -22,11 +22,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Appearance) draws a faint separator at each hour in the week and day views,
   making it easier to see when events start and end. Off by default. Thanks to
   @zmaherdev for the suggestion ([#5]).
-- Limit how far ahead the agenda looks. New **Agenda range** and **Agenda widget
-  range** settings (Settings → Appearance) let the agenda screen and its widget
-  each show just today, the rest of this week, the rest of this month, a rolling
-  7 or 30 days, or a custom number of days. "This week" follows your week-start
-  preference. Thanks to @zmaherdev for the suggestion ([#4]).
+- Limit how far ahead the agenda looks, and switch it on the fly. New **Agenda
+  range** and **Agenda widget range** settings (Settings → Appearance) let the
+  agenda screen and its home-screen widget each show just today, the rest of this
+  week, the rest of this month, a rolling 7 or 30 days, or a custom number of
+  days — "This week" follows your week-start. The agenda also gains a bar at the
+  top naming the exact dates in view, with a button to switch the range just for
+  the current session (it resets when you reopen the app); the bar can be turned
+  off. Thanks to @zmaherdev for the suggestion ([#4]).
+
+### Changed
+- Tidied **Settings → Appearance** into clearer groups (theme & colour, calendar,
+  agenda), and the agenda's empty state now reads "You're all caught up".
 
 ## [2.10.0] — 2026-06-25
 
