@@ -1,13 +1,19 @@
 package de.jeanlucmakiola.calendula.ui.calendars
 
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import de.jeanlucmakiola.calendula.data.backup.BackupScheduler
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.ics.IcsExporter
+import de.jeanlucmakiola.calendula.data.prefs.BackupStatus
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.ics.IcsWriter
 import kotlinx.coroutines.CoroutineDispatcher
@@ -16,6 +22,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
@@ -33,9 +40,11 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class CalendarsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val repository: CalendarRepository,
     private val icsExporter: IcsExporter,
     private val prefs: CalendarPrefs,
+    private val settingsPrefs: SettingsPrefs,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -62,6 +71,22 @@ class CalendarsViewModel @Inject constructor(
                 started = SharingStarted.WhileSubscribed(5_000L),
                 initialValue = emptySet(),
             )
+
+    /** Automatic-backup settings + last-run status, for the Backup section UI. */
+    val autoBackup: StateFlow<AutoBackupUiState> = combine(
+        settingsPrefs.autoBackupEnabled,
+        settingsPrefs.autoBackupIntervalMinutes,
+        settingsPrefs.autoBackupFolderUri,
+        settingsPrefs.autoBackupStatus,
+    ) { enabled, interval, folder, status ->
+        AutoBackupUiState(enabled, interval, folder, status)
+    }
+        .flowOn(io)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = AutoBackupUiState(),
+        )
 
     private val _error = MutableStateFlow(false)
     val error: StateFlow<Boolean> = _error.asStateFlow()
@@ -123,6 +148,63 @@ class CalendarsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Enable or disable every calendar of one account in a single write — the
+     * "toggle all" affordance on an account header. Done as one set update so the
+     * per-calendar [setDisabled] calls can't race each other.
+     */
+    fun setAccountDisabled(ids: Collection<Long>, disabled: Boolean) {
+        viewModelScope.launch {
+            val current = prefs.disabledCalendarIds.first()
+            val next = if (disabled) current + ids else current - ids.toSet()
+            if (next != current) prefs.setDisabledCalendarIds(next)
+        }
+    }
+
+    // --- Automatic backup (issue #8) ------------------------------------
+
+    fun setAutoBackupEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsPrefs.setAutoBackupEnabled(enabled)
+            reschedule()
+            // Give immediate feedback when turning it on with a folder already set.
+            if (enabled && settingsPrefs.autoBackupFolderUri.first() != null) {
+                BackupScheduler.runNow(context)
+            }
+        }
+    }
+
+    fun setAutoBackupIntervalMinutes(minutes: Long) {
+        viewModelScope.launch {
+            settingsPrefs.setAutoBackupIntervalMinutes(minutes)
+            reschedule()
+        }
+    }
+
+    /** Persist the chosen destination folder (taking a durable write grant) and run once. */
+    fun setAutoBackupFolder(uri: Uri) {
+        viewModelScope.launch {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            }
+            settingsPrefs.setAutoBackupFolderUri(uri.toString())
+            reschedule()
+            if (settingsPrefs.autoBackupEnabled.first()) BackupScheduler.runNow(context)
+        }
+    }
+
+    private suspend fun reschedule() {
+        BackupScheduler.apply(
+            context = context,
+            enabled = settingsPrefs.autoBackupEnabled.first(),
+            intervalMinutes = settingsPrefs.autoBackupIntervalMinutes.first(),
+            hasFolder = settingsPrefs.autoBackupFolderUri.first() != null,
+        )
+    }
+
     private inline fun write(crossinline block: suspend () -> Unit) {
         viewModelScope.launch {
             try {
@@ -135,6 +217,14 @@ class CalendarsViewModel @Inject constructor(
         }
     }
 }
+
+/** Automatic-backup settings + last-run status for the Backup section. */
+data class AutoBackupUiState(
+    val enabled: Boolean = false,
+    val intervalMinutes: Long = SettingsPrefs.DEFAULT_BACKUP_INTERVAL,
+    val folderUri: String? = null,
+    val status: BackupStatus = BackupStatus(lastRun = 0L, lastSuccess = true, consecutiveFailures = 0),
+)
 
 /** Outcome of a whole-calendar backup, surfaced once to the screen. */
 sealed interface BackupResult {

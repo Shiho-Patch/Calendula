@@ -5,8 +5,12 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
+import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
+import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -19,18 +23,39 @@ import javax.inject.Singleton
 /** Light/dark override. SYSTEM follows the device setting. */
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
-/** Week-start override. AUTO derives the first day from the active locale. */
-enum class WeekStartPref { AUTO, MONDAY, SUNDAY }
+/**
+ * Week-start override. [Auto] derives the first day from the active locale;
+ * [Day] pins a specific weekday (any of the seven).
+ */
+sealed interface WeekStartPref {
+    data object Auto : WeekStartPref
+    data class Day(val day: DayOfWeek) : WeekStartPref
+}
 
 /**
- * Resolve the preference to a concrete first-day-of-week. AUTO reads the
- * locale's convention (e.g. Monday in DE, Sunday in en-US).
+ * Clock convention for time-of-day labels. AUTO follows the device's 24-hour
+ * system setting; the others force a 12- or 24-hour clock app-wide.
+ */
+enum class TimeFormatPref { AUTO, TWELVE_HOUR, TWENTY_FOUR_HOUR }
+
+/**
+ * Resolve to a concrete 24-hour flag. AUTO defers to [systemIs24Hour] (the
+ * device's `DateFormat.is24HourFormat` value).
+ */
+fun TimeFormatPref.is24Hour(systemIs24Hour: Boolean): Boolean = when (this) {
+    TimeFormatPref.AUTO -> systemIs24Hour
+    TimeFormatPref.TWELVE_HOUR -> false
+    TimeFormatPref.TWENTY_FOUR_HOUR -> true
+}
+
+/**
+ * Resolve the preference to a concrete first-day-of-week. [WeekStartPref.Auto]
+ * reads the locale's convention (e.g. Monday in DE, Sunday in en-US).
  */
 fun WeekStartPref.resolveFirstDay(locale: Locale): DayOfWeek = when (this) {
-    WeekStartPref.MONDAY -> DayOfWeek.MONDAY
-    WeekStartPref.SUNDAY -> DayOfWeek.SUNDAY
+    is WeekStartPref.Day -> day
     // java.time.DayOfWeek.value is ISO 1..7 (Mon..Sun) — same numbering kotlinx uses.
-    WeekStartPref.AUTO -> DayOfWeek(WeekFields.of(locale).firstDayOfWeek.value)
+    WeekStartPref.Auto -> DayOfWeek(WeekFields.of(locale).firstDayOfWeek.value)
 }
 
 /**
@@ -55,7 +80,7 @@ class SettingsPrefs @Inject constructor(
     }
 
     val weekStart: Flow<WeekStartPref> = store.data.map { prefs ->
-        prefs[WEEK_START_KEY].toEnum(WeekStartPref.AUTO)
+        parseWeekStart(prefs[WEEK_START_KEY])
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
@@ -67,7 +92,62 @@ class SettingsPrefs @Inject constructor(
     }
 
     suspend fun setWeekStart(pref: WeekStartPref) {
-        store.edit { it[WEEK_START_KEY] = pref.name }
+        store.edit { it[WEEK_START_KEY] = pref.storageValue() }
+    }
+
+    /** Clock convention for time-of-day labels (v2.11). Defaults to AUTO (system). */
+    val timeFormat: Flow<TimeFormatPref> = store.data.map { prefs ->
+        prefs[TIME_FORMAT_KEY].toEnum(TimeFormatPref.AUTO)
+    }
+
+    suspend fun setTimeFormat(pref: TimeFormatPref) {
+        store.edit { it[TIME_FORMAT_KEY] = pref.name }
+    }
+
+    /**
+     * Whether the week/day timeline draws a faint separator line at each hour
+     * (v2.11). Defaults to OFF — the historical clean look; users opt in.
+     */
+    val showHourLines: Flow<Boolean> = store.data.map { prefs ->
+        prefs[SHOW_HOUR_LINES_KEY] ?: false
+    }
+
+    suspend fun setShowHourLines(enabled: Boolean) {
+        store.edit { it[SHOW_HOUR_LINES_KEY] = enabled }
+    }
+
+    /**
+     * How far ahead the in-app Agenda screen shows events (v2.11). Defaults to
+     * [AgendaRange.Month] — a month of upcoming events. Independent of the
+     * widget's [agendaWidgetRange].
+     */
+    val agendaScreenRange: Flow<AgendaRange> = store.data.map { prefs ->
+        parseAgendaRange(prefs[AGENDA_SCREEN_RANGE_KEY], AgendaRange.Month)
+    }
+
+    suspend fun setAgendaScreenRange(range: AgendaRange) {
+        store.edit { it[AGENDA_SCREEN_RANGE_KEY] = range.storageValue() }
+    }
+
+    /** How far ahead the agenda **widget** shows events (v2.11). Defaults to Month. */
+    val agendaWidgetRange: Flow<AgendaRange> = store.data.map { prefs ->
+        parseAgendaRange(prefs[AGENDA_WIDGET_RANGE_KEY], AgendaRange.Month)
+    }
+
+    suspend fun setAgendaWidgetRange(range: AgendaRange) {
+        store.edit { it[AGENDA_WIDGET_RANGE_KEY] = range.storageValue() }
+    }
+
+    /**
+     * Whether the agenda shows its top range bar — the "showing …" header and
+     * the session range switcher (v2.11). Default ON.
+     */
+    val agendaShowRangeBar: Flow<Boolean> = store.data.map { prefs ->
+        prefs[AGENDA_SHOW_RANGE_BAR_KEY] ?: true
+    }
+
+    suspend fun setAgendaShowRangeBar(enabled: Boolean) {
+        store.edit { it[AGENDA_SHOW_RANGE_BAR_KEY] = enabled }
     }
 
     /**
@@ -248,6 +328,52 @@ class SettingsPrefs @Inject constructor(
         }
     }
 
+    // --- Automatic backup (issue #8) ------------------------------------
+
+    /** Whether periodic automatic `.ics` export of local calendars is on. Default OFF. */
+    val autoBackupEnabled: Flow<Boolean> = store.data.map { it[AUTO_BACKUP_ENABLED_KEY] ?: false }
+
+    suspend fun setAutoBackupEnabled(enabled: Boolean) {
+        store.edit { it[AUTO_BACKUP_ENABLED_KEY] = enabled }
+    }
+
+    /** Export interval in minutes. Default daily; floored at [MIN_BACKUP_INTERVAL]. */
+    val autoBackupIntervalMinutes: Flow<Long> = store.data.map { prefs ->
+        (prefs[AUTO_BACKUP_INTERVAL_KEY] ?: DEFAULT_BACKUP_INTERVAL).coerceAtLeast(MIN_BACKUP_INTERVAL)
+    }
+
+    suspend fun setAutoBackupIntervalMinutes(minutes: Long) {
+        store.edit { it[AUTO_BACKUP_INTERVAL_KEY] = minutes.coerceAtLeast(MIN_BACKUP_INTERVAL) }
+    }
+
+    /** Persisted SAF tree Uri of the destination folder, or null if unset. */
+    val autoBackupFolderUri: Flow<String?> = store.data.map { it[AUTO_BACKUP_FOLDER_KEY] }
+
+    suspend fun setAutoBackupFolderUri(uri: String?) {
+        store.edit { prefs ->
+            if (uri == null) prefs.remove(AUTO_BACKUP_FOLDER_KEY) else prefs[AUTO_BACKUP_FOLDER_KEY] = uri
+        }
+    }
+
+    /** Outcome of the last automatic run, for the settings status line. */
+    val autoBackupStatus: Flow<BackupStatus> = store.data.map { prefs ->
+        BackupStatus(
+            lastRun = prefs[AUTO_BACKUP_LAST_RUN_KEY] ?: 0L,
+            lastSuccess = prefs[AUTO_BACKUP_LAST_SUCCESS_KEY] ?: true,
+            consecutiveFailures = prefs[AUTO_BACKUP_FAILURES_KEY] ?: 0,
+        )
+    }
+
+    /** Record an automatic run's outcome; resets the failure streak on success. */
+    suspend fun recordAutoBackupRun(success: Boolean, atMillis: Long) {
+        store.edit { prefs ->
+            prefs[AUTO_BACKUP_LAST_RUN_KEY] = atMillis
+            prefs[AUTO_BACKUP_LAST_SUCCESS_KEY] = success
+            val failures = prefs[AUTO_BACKUP_FAILURES_KEY] ?: 0
+            prefs[AUTO_BACKUP_FAILURES_KEY] = if (success) 0 else failures + 1
+        }
+    }
+
     private fun parseFormFields(stored: String?): Set<EventFormField> = when (stored) {
         null -> DEFAULT_FORM_FIELDS
         else -> stored.split(',')
@@ -259,6 +385,11 @@ class SettingsPrefs @Inject constructor(
         internal val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
         internal val WEEK_START_KEY = stringPreferencesKey("week_start")
+        internal val AGENDA_SCREEN_RANGE_KEY = stringPreferencesKey("agenda_screen_range")
+        internal val AGENDA_WIDGET_RANGE_KEY = stringPreferencesKey("agenda_widget_range")
+        internal val AGENDA_SHOW_RANGE_BAR_KEY = booleanPreferencesKey("agenda_show_range_bar")
+        internal val TIME_FORMAT_KEY = stringPreferencesKey("time_format")
+        internal val SHOW_HOUR_LINES_KEY = booleanPreferencesKey("show_hour_lines")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
         internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
         internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")
@@ -282,8 +413,26 @@ class SettingsPrefs @Inject constructor(
             stringPreferencesKey("per_calendar_allday_reminder_override")
         internal val DEFAULT_FORM_FIELDS =
             setOf(EventFormField.Location, EventFormField.Description)
+        internal val AUTO_BACKUP_ENABLED_KEY = booleanPreferencesKey("auto_backup_enabled")
+        internal val AUTO_BACKUP_INTERVAL_KEY = longPreferencesKey("auto_backup_interval_minutes")
+        internal val AUTO_BACKUP_FOLDER_KEY = stringPreferencesKey("auto_backup_folder_uri")
+        internal val AUTO_BACKUP_LAST_RUN_KEY = longPreferencesKey("auto_backup_last_run")
+        internal val AUTO_BACKUP_LAST_SUCCESS_KEY = booleanPreferencesKey("auto_backup_last_success")
+        internal val AUTO_BACKUP_FAILURES_KEY = intPreferencesKey("auto_backup_failures")
+        /** Default automatic-backup interval: daily. */
+        const val DEFAULT_BACKUP_INTERVAL = 1_440L
+        /** Floor for the automatic-backup interval (also above WorkManager's 15-min limit). */
+        const val MIN_BACKUP_INTERVAL = 30L
     }
 }
+
+/** Snapshot of the automatic backup's last outcome (see [SettingsPrefs.autoBackupStatus]). */
+data class BackupStatus(
+    /** Epoch millis of the last run, or 0 if it has never run. */
+    val lastRun: Long,
+    val lastSuccess: Boolean,
+    val consecutiveFailures: Int,
+)
 
 /** A calendar's reminder-default override (see [SettingsPrefs.perCalendarReminderOverride]). */
 sealed interface CalendarReminderOverride {
@@ -329,6 +478,25 @@ private fun MutableMap<Long, Int?>.applyOverride(
         CalendarReminderOverride.None -> put(calendarId, null)
         is CalendarReminderOverride.Minutes -> put(calendarId, override.minutes)
     }
+}
+
+/** Sentinel stored for [WeekStartPref.Auto]; days store their [DayOfWeek.name]. */
+private const val WEEK_START_AUTO = "AUTO"
+
+private fun WeekStartPref.storageValue(): String = when (this) {
+    WeekStartPref.Auto -> WEEK_START_AUTO
+    is WeekStartPref.Day -> day.name
+}
+
+/**
+ * Parse the stored week-start value. "AUTO"/null/garbage → [WeekStartPref.Auto];
+ * a [DayOfWeek] name → [WeekStartPref.Day]. The legacy "MONDAY"/"SUNDAY" enum
+ * values migrate transparently, since both are valid day names.
+ */
+private fun parseWeekStart(stored: String?): WeekStartPref = when (stored) {
+    null, WEEK_START_AUTO -> WeekStartPref.Auto
+    else -> DayOfWeek.entries.firstOrNull { it.name == stored }
+        ?.let { WeekStartPref.Day(it) } ?: WeekStartPref.Auto
 }
 
 private const val NONE = "none"

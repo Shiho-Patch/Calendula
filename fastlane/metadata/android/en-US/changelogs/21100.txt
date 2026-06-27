@@ -1,0 +1,50 @@
+### Added
+- Start the week on any day. The **Week starts on** setting (Settings →
+  Appearance) now offers every weekday — not just Monday or Sunday — alongside
+  the automatic, locale-based default. Thanks to @zmaherdev for the suggestion
+  ([#3]).
+- Choose a 12- or 24-hour clock. A new **Time format** setting (Settings →
+  Appearance) lets you force a 12-hour (2:00 PM) or 24-hour (14:00) clock, or
+  follow the system setting automatically. It applies everywhere times appear —
+  the week and day timelines, agenda, event details, search and reminders — so
+  the format is now consistent across the whole app. Thanks to @zmaherdev for
+  the suggestion ([#6]).
+- Optional hour lines in the timeline. A new **Hour lines** switch (Settings →
+  Appearance) draws a faint separator at each hour in the week and day views,
+  making it easier to see when events start and end. Off by default. Thanks to
+  @zmaherdev for the suggestion ([#5]).
+- Limit how far ahead the agenda looks, and switch it on the fly. New **Agenda
+  range** and **Agenda widget range** settings (Settings → Appearance) let the
+  agenda screen and its home-screen widget each show just today, the rest of this
+  week, the rest of this month, a rolling 7 or 30 days, or a custom number of
+  days — "This week" follows your week-start. The agenda also gains a bar at the
+  top naming the exact dates in view, with a button to switch the range just for
+  the current session (it resets when you reopen the app); the bar can be turned
+  off. Thanks to @zmaherdev for the suggestion ([#4]).
+- Automatic backup of local calendars. A new **Automatic backup** option
+  (Settings → Calendars → Backup) periodically exports your local calendars to an
+  `.ics` file in a folder you choose, on an interval you set (from 30 minutes up).
+  Useful for file-based syncing such as Syncthing, or simply as a safety net — it
+  is a one-way export and never touches your synced accounts. Thanks to @shield
+  for the discussion that inspired it ([#7], [#8]).
+- Field icons in the event-form settings. Each optional-field toggle (Settings →
+  Event form) now shows the same icon the field uses in the new-event form, so
+  the list is easier to scan.
+- Help translate Calendula. A **Help translate** link at the top of **Settings →
+  App language** opens the project's Weblate, where you can add or improve a
+  language in your browser — no coding needed. Contributions in any language are
+  welcome.
+
+### Changed
+- Tidied **Settings → Appearance** into clearer groups (theme & colour, calendar,
+  agenda), and the agenda's empty state now reads "You're all caught up".
+- Reworked **Settings → Calendars**. Local and synced calendars are now grouped
+  into collapsible, source-branded cards — each account shows its app's icon —
+  with a per-account menu to enable or disable all of its calendars at once or
+  open the account in its source app.
+- Reorganised **Settings → Notifications**: reliable-delivery and snooze settings
+  moved up with the other global reminder options, and the per-calendar reminder
+  overrides now fold into a single expandable section.
+- Moved **Add Quick Settings tile** out of the event-form section to its own
+  top-level entry in Settings.
+

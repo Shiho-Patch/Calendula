@@ -9,10 +9,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.IntentCompat
 import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -20,7 +23,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
+import de.jeanlucmakiola.calendula.data.prefs.is24Hour
 import de.jeanlucmakiola.calendula.ui.RootScreen
+import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
+import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.WidgetNavRequest
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportActivity
@@ -81,19 +87,31 @@ class MainActivity : AppCompatActivity() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
             }
+            // The app-wide clock convention: the time-format preference resolved
+            // against the device's 24-hour system setting, provided once here so
+            // every time label reads it via LocalUse24HourFormat.
+            val context = LocalContext.current
+            val use24Hour = remember(settings.timeFormat, context) {
+                settings.timeFormat.is24Hour(android.text.format.DateFormat.is24HourFormat(context))
+            }
             CalendulaTheme(
                 darkTheme = darkTheme,
                 dynamicColor = settings.dynamicColor,
             ) {
-                RootScreen(
-                    modifier = Modifier.fillMaxSize(),
-                    requestedDetailKey = requestedDetailKey,
-                    onDetailKeyConsumed = { requestedDetailKey = null },
-                    widgetNavRequest = requestedNav,
-                    onWidgetNavConsumed = { requestedNav = null },
-                    requestedImportUri = requestedImportUri,
-                    onImportConsumed = { requestedImportUri = null },
-                )
+                CompositionLocalProvider(
+                    LocalUse24HourFormat provides use24Hour,
+                    LocalShowHourLines provides settings.showHourLines,
+                ) {
+                    RootScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        requestedDetailKey = requestedDetailKey,
+                        onDetailKeyConsumed = { requestedDetailKey = null },
+                        widgetNavRequest = requestedNav,
+                        onWidgetNavConsumed = { requestedNav = null },
+                        requestedImportUri = requestedImportUri,
+                        onImportConsumed = { requestedImportUri = null },
+                    )
+                }
                 pendingCrashReport?.let { report ->
                     CrashReportDialog(
                         report = report,

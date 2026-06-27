@@ -4,13 +4,17 @@ import android.accounts.AccountManager
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,20 +30,28 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Notes
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -61,20 +73,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.drawable.toBitmap
+import androidx.core.net.toUri
+import androidx.documentfile.provider.DocumentFile
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.prefs.BackupStatus
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.ui.common.CALENDAR_COLOR_PALETTE
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.DialogAmountField
+import de.jeanlucmakiola.calendula.ui.common.DialogUnitDropdown
+import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
+import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
 import de.jeanlucmakiola.calendula.ui.common.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
@@ -82,7 +107,6 @@ import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.Position
 import de.jeanlucmakiola.calendula.ui.common.pastelize
-import de.jeanlucmakiola.calendula.ui.common.positionOf
 import java.time.LocalDate
 
 /** Sentinel [editorId] meaning "the editor is composing a new calendar". */
@@ -104,6 +128,7 @@ fun CalendarsScreen(
     val disabledIds by viewModel.disabledCalendarIds.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val backupResult by viewModel.backupResult.collectAsStateWithLifecycle()
+    val autoBackup by viewModel.autoBackup.collectAsStateWithLifecycle()
 
     // null = list; NEW_CALENDAR_ID = create; any other id = edit that calendar.
     // [editorSession] bumps on every open so the editor's field state resets for
@@ -144,10 +169,15 @@ fun CalendarsScreen(
             backupResult = backupResult,
             onExportBackup = viewModel::exportBackup,
             onConsumeBackupResult = viewModel::consumeBackupResult,
+            autoBackup = autoBackup,
+            onSetAutoBackupEnabled = viewModel::setAutoBackupEnabled,
+            onSetAutoBackupInterval = viewModel::setAutoBackupIntervalMinutes,
+            onSetAutoBackupFolder = viewModel::setAutoBackupFolder,
             onBack = onBack,
             onAdd = { editorSession++; editorId = NEW_CALENDAR_ID },
             onEdit = { calendar -> editorSession++; editorId = calendar.id },
             onSetDisabled = viewModel::setDisabled,
+            onSetAccountDisabled = viewModel::setAccountDisabled,
         )
     }
 }
@@ -162,13 +192,22 @@ private fun CalendarsList(
     backupResult: BackupResult?,
     onExportBackup: (android.net.Uri) -> Unit,
     onConsumeBackupResult: () -> Unit,
+    autoBackup: AutoBackupUiState,
+    onSetAutoBackupEnabled: (Boolean) -> Unit,
+    onSetAutoBackupInterval: (Long) -> Unit,
+    onSetAutoBackupFolder: (android.net.Uri) -> Unit,
     onBack: () -> Unit,
     onAdd: () -> Unit,
     onEdit: (CalendarSource) -> Unit,
     onSetDisabled: (Long, Boolean) -> Unit,
+    onSetAccountDisabled: (Collection<Long>, Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+    // Accounts the user has folded shut; empty = all expanded (keeps every
+    // calendar visible by default, the section is collapsible for tidiness).
+    var collapsedAccounts by remember { mutableStateOf(emptySet<String>()) }
+    var localExpanded by remember { mutableStateOf(true) }
     val writeErrorText = stringResource(R.string.calendars_write_error)
 
     LaunchedEffect(error) {
@@ -183,6 +222,13 @@ private fun CalendarsList(
     val createBackup = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/calendar"),
     ) { uri -> uri?.let(onExportBackup) }
+
+    // SAF folder picker for the automatic-backup destination; the VM persists the
+    // write grant so background runs can keep writing to it.
+    val pickFolder = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree(),
+    ) { uri -> uri?.let(onSetAutoBackupFolder) }
+    var showInterval by remember { mutableStateOf(false) }
 
     val backupFailedText = stringResource(R.string.calendars_backup_failed)
     LaunchedEffect(backupResult) {
@@ -208,70 +254,37 @@ private fun CalendarsList(
         onBack = onBack,
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) {
-        // Local (device-only) calendars — the calendars the app owns. The
-        // "Add calendar" entry closes the group as its final row.
-        SectionHeader(stringResource(R.string.calendars_local_header))
-        if (local.isEmpty()) {
-            HintText(stringResource(R.string.calendars_local_empty))
-        }
+        // What the per-calendar / per-account switches below actually do.
         HintText(stringResource(R.string.calendars_disable_hint))
-        val localCount = local.size + 1
-        local.forEachIndexed { index, calendar ->
-            val disabled = calendar.id in disabledIds
-            GroupedRow(
-                title = calendar.displayName,
-                summary = calendar.description,
-                position = positionOf(index, localCount),
-                dimmed = disabled,
-                leading = { CalendarColorChip(calendar.color, dimIf(disabled)) },
-                trailing = {
-                    EnableSwitch(
-                        calendarName = calendar.displayName,
-                        enabled = !disabled,
-                        onToggle = { enabled -> onSetDisabled(calendar.id, !enabled) },
-                    )
-                },
-                onClick = { onEdit(calendar) },
-            )
-        }
-        GroupedRow(
-            title = stringResource(R.string.calendars_add),
-            position = positionOf(local.size, localCount),
-            leading = { AddAvatar() },
-            onClick = onAdd,
-        )
 
-        // Backup — local calendars have no sync, so a .ics export is their only
-        // safety net. Offered only when there is something to back up.
-        if (local.isNotEmpty()) {
-            Spacer(Modifier.height(16.dp))
-            SectionHeader(stringResource(R.string.calendars_backup_header))
-            HintText(stringResource(R.string.calendars_backup_hint))
-            GroupedRow(
-                title = stringResource(R.string.calendars_backup_action),
-                position = Position.Alone,
-                leading = { LeadingAvatar(Icons.Default.FileDownload) },
-                onClick = {
-                    runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
-                },
-            )
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Synced calendars — read-only, grouped by account, each with a
-        // per-account "manage in source app" link.
-        SectionHeader(stringResource(R.string.calendars_synced_header))
-        HintText(stringResource(R.string.calendars_synced_hint))
-        synced
-            .groupBy { it.accountName.ifBlank { it.accountType } }
-            .forEach { (account, cals) ->
-                AccountHeader(account = account, accountType = cals.first().accountType)
-                cals.forEachIndexed { index, calendar ->
+        // Local (device-only) calendars — one collapsible group. The header's
+        // "+" adds a calendar; the switch enables/disables them all at once;
+        // tapping a calendar row opens its editor.
+        val localDisabled = local.isNotEmpty() && local.all { it.id in disabledIds }
+        CalendarGroup(
+            title = stringResource(R.string.calendars_local_header),
+            expanded = localExpanded,
+            bodyHasRows = local.isNotEmpty(),
+            headerDisabled = localDisabled,
+            leading = { Box(dimIf(localDisabled)) { LeadingAvatar(Icons.Default.PhoneAndroid) } },
+            manageIcon = Icons.Default.Add,
+            manageLabel = stringResource(R.string.calendars_add),
+            onManage = onAdd,
+            onToggleExpand = { localExpanded = !localExpanded },
+            showToggleAll = local.isNotEmpty(),
+            allEnabled = local.none { it.id in disabledIds },
+            onToggleAll = { enabled -> onSetAccountDisabled(local.map { it.id }, !enabled) },
+        ) {
+            if (local.isEmpty()) {
+                HintText(stringResource(R.string.calendars_local_empty))
+            } else {
+                local.forEachIndexed { index, calendar ->
                     val disabled = calendar.id in disabledIds
                     GroupedRow(
                         title = calendar.displayName,
-                        position = positionOf(index, cals.size),
+                        summary = calendar.description,
+                        position = if (index == local.lastIndex) Position.Bottom else Position.Middle,
+                        container = MaterialTheme.colorScheme.surfaceContainerHighest,
                         dimmed = disabled,
                         leading = { CalendarColorChip(calendar.color, dimIf(disabled)) },
                         trailing = {
@@ -281,17 +294,118 @@ private fun CalendarsList(
                                 onToggle = { enabled -> onSetDisabled(calendar.id, !enabled) },
                             )
                         },
+                        onClick = { onEdit(calendar) },
                     )
                 }
             }
-        Spacer(Modifier.height(8.dp))
-        GroupedRow(
-            title = stringResource(R.string.calendars_add_account),
-            position = Position.Alone,
-            leading = { AddAvatar() },
-            onClick = {
-                runCatching { context.startActivity(Intent(Settings.ACTION_ADD_ACCOUNT)) }
-            },
+        }
+
+        // Backup — local calendars have no sync, so a .ics export is their only
+        // safety net. Offered only when there is something to back up.
+        if (local.isNotEmpty()) {
+            Spacer(Modifier.height(16.dp))
+            SectionHeader(stringResource(R.string.calendars_backup_header))
+            HintText(stringResource(R.string.calendars_backup_hint))
+            // One connected card: the one-time export on top, then automatic
+            // backup (and its folder/interval rows when on).
+            GroupedRow(
+                title = stringResource(R.string.calendars_backup_action),
+                position = Position.Top,
+                leading = { LeadingAvatar(Icons.Default.FileDownload) },
+                onClick = {
+                    runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
+                },
+            )
+            GroupedRow(
+                title = stringResource(R.string.calendars_auto_backup),
+                summary = stringResource(R.string.calendars_auto_backup_hint),
+                position = if (autoBackup.enabled) Position.Middle else Position.Bottom,
+                leading = { LeadingAvatar(Icons.Default.Schedule) },
+                trailing = {
+                    Switch(checked = autoBackup.enabled, onCheckedChange = onSetAutoBackupEnabled)
+                },
+                onClick = { onSetAutoBackupEnabled(!autoBackup.enabled) },
+            )
+            if (autoBackup.enabled) {
+                GroupedRow(
+                    title = stringResource(R.string.calendars_auto_backup_folder),
+                    summary = rememberFolderName(autoBackup.folderUri)
+                        ?: stringResource(R.string.calendars_auto_backup_folder_unset),
+                    position = Position.Middle,
+                    onClick = { runCatching { pickFolder.launch(null) } },
+                )
+                GroupedRow(
+                    title = stringResource(R.string.calendars_auto_backup_interval),
+                    summary = backupIntervalLabel(autoBackup.intervalMinutes),
+                    position = Position.Bottom,
+                    onClick = { showInterval = true },
+                )
+                HintText(backupStatusText(autoBackup.status))
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Synced calendars — read-only, grouped by account. Each account is a
+        // collapsible group whose header opens the source app (icon) and toggles
+        // all of its calendars at once (switch).
+        SectionHeader(stringResource(R.string.calendars_synced_header))
+        HintText(stringResource(R.string.calendars_synced_hint))
+        synced
+            .groupBy { it.accountName.ifBlank { it.accountType } }
+            .forEach { (account, cals) ->
+                val expanded = account !in collapsedAccounts
+                val accountType = cals.first().accountType
+                val accountDisabled = cals.all { it.id in disabledIds }
+                Spacer(Modifier.height(16.dp))
+                CalendarGroup(
+                    title = account,
+                    expanded = expanded,
+                    bodyHasRows = true,
+                    headerDisabled = accountDisabled,
+                    leading = { Box(dimIf(accountDisabled)) { SourceLogo(accountType) } },
+                    manageIcon = Icons.AutoMirrored.Filled.OpenInNew,
+                    manageLabel = stringResource(R.string.calendars_manage_in_app),
+                    onManage = {
+                        runCatching { context.startActivity(sourceAppIntent(context, accountType)) }
+                    },
+                    onToggleExpand = {
+                        collapsedAccounts = if (expanded) {
+                            collapsedAccounts + account
+                        } else {
+                            collapsedAccounts - account
+                        }
+                    },
+                    showToggleAll = true,
+                    allEnabled = cals.none { it.id in disabledIds },
+                    onToggleAll = { enabled -> onSetAccountDisabled(cals.map { it.id }, !enabled) },
+                ) {
+                    cals.forEachIndexed { index, calendar ->
+                        val disabled = calendar.id in disabledIds
+                        GroupedRow(
+                            title = calendar.displayName,
+                            position = if (index == cals.lastIndex) Position.Bottom else Position.Middle,
+                            container = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            dimmed = disabled,
+                            leading = { CalendarColorChip(calendar.color, dimIf(disabled)) },
+                            trailing = {
+                                EnableSwitch(
+                                    calendarName = calendar.displayName,
+                                    enabled = !disabled,
+                                    onToggle = { enabled -> onSetDisabled(calendar.id, !enabled) },
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+    }
+
+    if (showInterval) {
+        BackupIntervalDialog(
+            currentMinutes = autoBackup.intervalMinutes,
+            onConfirm = onSetAutoBackupInterval,
+            onDismiss = { showInterval = false },
         )
     }
 }
@@ -498,32 +612,178 @@ private fun EditorCard(
     }
 }
 
+/**
+ * One collapsible calendar group rendered as a connected card. The header row is
+ * the card's top (tap to expand/collapse): a [leading] source mark (the account
+ * app's logo, or a device chip for local), the group [title] and a trailing
+ * overflow (⋮) menu holding the account-level actions — enable/disable every
+ * calendar at once (when [showToggleAll]) and the manage/add action
+ * ([manageIcon] / [manageLabel] → [onManage]). The group's calendars render as
+ * the rows below via [body].
+ *
+ * The header keeps the standard row colour; the calendars it reveals sit one tone
+ * darker, so the group reads as a header over nested content. Once [headerDisabled]
+ * (every calendar switched off) the header fades to the disabled emphasis so the
+ * whole group reads as off — not just via the menu. [bodyHasRows] is false when no
+ * calendar rows follow (e.g. an empty local group), so the header stays a
+ * standalone card rather than a top edge with nothing beneath it.
+ */
 @Composable
-private fun AccountHeader(account: String, accountType: String) {
-    val context = LocalContext.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 28.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
+private fun CalendarGroup(
+    title: String,
+    expanded: Boolean,
+    bodyHasRows: Boolean,
+    headerDisabled: Boolean,
+    leading: @Composable () -> Unit,
+    manageIcon: ImageVector,
+    manageLabel: String,
+    onManage: () -> Unit,
+    onToggleExpand: () -> Unit,
+    showToggleAll: Boolean,
+    allEnabled: Boolean,
+    onToggleAll: (Boolean) -> Unit,
+    body: @Composable ColumnScope.() -> Unit,
+) {
+    GroupedRow(
+        title = title,
+        position = if (expanded && bodyHasRows) Position.Top else Position.Alone,
+        dimmed = headerDisabled,
+        leading = leading,
+        trailing = {
+            CalendarGroupMenu(
+                title = title,
+                showToggleAll = showToggleAll,
+                allEnabled = allEnabled,
+                onToggleAll = onToggleAll,
+                manageIcon = manageIcon,
+                manageLabel = manageLabel,
+                onManage = onManage,
+            )
+        },
+        onClick = onToggleExpand,
+    )
+    AnimatedVisibility(
+        visible = expanded,
+        enter = calendarExpandEnter(),
+        exit = calendarCollapseExit(),
     ) {
-        Text(
-            text = account,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(1f),
-        )
-        OutlinedButton(onClick = {
-            runCatching { context.startActivity(sourceAppIntent(context, accountType)) }
-        }) {
-            Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(stringResource(R.string.calendars_manage_in_app))
+        Column(content = body)
+    }
+}
+
+/**
+ * The account header's overflow (⋮) menu: the two account-level actions that
+ * don't fit on one line — "Enable/Disable all" (when [showToggleAll]) and the
+ * manage/add action. A rounded, tonal dropdown matching the app's surfaces, with
+ * the two actions divided for clear separation.
+ */
+@Composable
+private fun CalendarGroupMenu(
+    title: String,
+    showToggleAll: Boolean,
+    allEnabled: Boolean,
+    onToggleAll: (Boolean) -> Unit,
+    manageIcon: ImageVector,
+    manageLabel: String,
+    onManage: () -> Unit,
+) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(
+                Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.calendars_account_menu_a11y, title),
+            )
+        }
+        DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            shape = RoundedCornerShape(20.dp),
+            // A distinct tone + a lifted shadow so the menu reads as floating
+            // above the cards (which sit at surfaceContainerHigh) rather than
+            // blending into them.
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            tonalElevation = 0.dp,
+            shadowElevation = 6.dp,
+        ) {
+            if (showToggleAll) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            stringResource(
+                                if (allEnabled) R.string.calendars_disable_all
+                                else R.string.calendars_enable_all,
+                            ),
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            if (allEnabled) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = null,
+                        )
+                    },
+                    onClick = {
+                        open = false
+                        onToggleAll(!allEnabled)
+                    },
+                )
+                HorizontalDivider(Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+            }
+            DropdownMenuItem(
+                text = { Text(manageLabel) },
+                leadingIcon = { Icon(manageIcon, contentDescription = null) },
+                onClick = {
+                    open = false
+                    onManage()
+                },
+            )
         }
     }
 }
 
-/** Neutral circular chip carrying an arbitrary icon — matches [AddAvatar]'s shape. */
+/**
+ * The source app's launcher icon (Google Calendar, DAVx5, Nextcloud, …) as a
+ * round 40dp chip, so each synced account is recognisable at a glance. We load
+ * whatever app owns the account from [PackageManager] rather than bundling brand
+ * logos — always accurate, nothing to license. Falls back to a neutral cloud
+ * chip when no installed app resolves for the account.
+ */
+@Composable
+private fun SourceLogo(accountType: String) {
+    val context = LocalContext.current
+    val logo = remember(accountType) { sourceAppLogo(context, accountType) }
+    if (logo != null) {
+        Image(
+            bitmap = logo,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape),
+        )
+    } else {
+        LeadingAvatar(Icons.Default.Cloud)
+    }
+}
+
+/** The launcher icon of the app backing [accountType], preferring the human-facing app. */
+private fun sourceAppLogo(context: Context, accountType: String): ImageBitmap? {
+    val pm = context.packageManager
+    val candidates = buildList {
+        curatedSourcePackage(accountType)?.let { add(it) }
+        AccountManager.get(context).authenticatorTypes
+            .firstOrNull { it.type.equals(accountType, ignoreCase = true) }
+            ?.packageName
+            ?.let { add(it) }
+    }
+    for (pkg in candidates) {
+        val bitmap = runCatching { pm.getApplicationIcon(pkg).toBitmap() }.getOrNull()
+        if (bitmap != null) return bitmap.asImageBitmap()
+    }
+    return null
+}
+
+/** Neutral circular chip carrying an arbitrary icon (e.g. the local-device mark). */
 @Composable
 private fun LeadingAvatar(icon: ImageVector) {
     Box(
@@ -535,25 +795,6 @@ private fun LeadingAvatar(icon: ImageVector) {
     ) {
         Icon(
             icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(22.dp),
-        )
-    }
-}
-
-/** Neutral circular chip with a "+" — the leading icon for add-actions. */
-@Composable
-private fun AddAvatar() {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            Icons.Default.Add,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(22.dp),
@@ -580,6 +821,95 @@ private fun HintText(text: String) {
         modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
     )
 }
+
+/** Readable name of the persisted backup folder, resolved from its tree Uri. */
+@Composable
+private fun rememberFolderName(uriString: String?): String? {
+    val context = LocalContext.current
+    return remember(uriString) {
+        uriString?.let {
+            runCatching { DocumentFile.fromTreeUri(context, it.toUri())?.name }.getOrNull()
+        }
+    }
+}
+
+/** "Every 30 minutes" / "Every 2 hours" / "Every day" — the interval in its largest whole unit. */
+@Composable
+private fun backupIntervalLabel(minutes: Long): String {
+    val duration = when {
+        minutes % MINUTES_PER_WEEK == 0L ->
+            pluralStringResource(R.plurals.duration_weeks, (minutes / MINUTES_PER_WEEK).toInt(), (minutes / MINUTES_PER_WEEK).toInt())
+        minutes % MINUTES_PER_DAY == 0L ->
+            pluralStringResource(R.plurals.duration_days, (minutes / MINUTES_PER_DAY).toInt(), (minutes / MINUTES_PER_DAY).toInt())
+        minutes % 60L == 0L ->
+            pluralStringResource(R.plurals.duration_hours, (minutes / 60L).toInt(), (minutes / 60L).toInt())
+        else ->
+            pluralStringResource(R.plurals.duration_minutes, minutes.toInt(), minutes.toInt())
+    }
+    return stringResource(R.string.calendars_auto_backup_every, duration)
+}
+
+/** "Last backup: 5 minutes ago" / "… failed" / "No automatic backup yet". */
+@Composable
+private fun backupStatusText(status: BackupStatus): String {
+    if (status.lastRun == 0L) return stringResource(R.string.calendars_auto_backup_status_never)
+    val relative = DateUtils.getRelativeTimeSpanString(
+        status.lastRun, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS,
+    ).toString()
+    return if (status.lastSuccess) {
+        stringResource(R.string.calendars_auto_backup_status_ok, relative)
+    } else {
+        stringResource(R.string.calendars_auto_backup_status_failed, relative)
+    }
+}
+
+/** Amount + unit picker for the backup interval (floored at 30 minutes). */
+@Composable
+private fun BackupIntervalDialog(
+    currentMinutes: Long,
+    onConfirm: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // minutes-per-unit for each entry; pick the largest unit the current value divides into.
+    val unitMinutes = remember { listOf(1L, 60L, MINUTES_PER_DAY, MINUTES_PER_WEEK) }
+    val units = stringArrayResource(R.array.backup_interval_units).toList()
+    val initialUnit = unitMinutes.indexOfLast { currentMinutes % it == 0L }.coerceAtLeast(0)
+    var amount by rememberSaveable { mutableStateOf((currentMinutes / unitMinutes[initialUnit]).toString()) }
+    var unitIndex by rememberSaveable { mutableStateOf(initialUnit) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.calendars_auto_backup_interval)) },
+        text = {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    DialogAmountField(value = amount, onValueChange = { amount = it }, placeholder = "1")
+                    Spacer(Modifier.width(12.dp))
+                    DialogUnitDropdown(label = units[unitIndex], entries = units) { unitIndex = it }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.calendars_auto_backup_interval_min),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val value = amount.toLongOrNull()?.coerceAtLeast(1L) ?: 1L
+                onConfirm((value * unitMinutes[unitIndex]).coerceAtLeast(SettingsPrefs.MIN_BACKUP_INTERVAL))
+                onDismiss()
+            }) { Text(stringResource(R.string.reminder_custom_set)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
+        },
+    )
+}
+
+private const val MINUTES_PER_DAY = 1_440L
+private const val MINUTES_PER_WEEK = 10_080L
 
 /**
  * Pick the app to open for managing a synced calendar's account. The account's

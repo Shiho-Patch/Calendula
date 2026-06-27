@@ -28,8 +28,8 @@ android {
         // which builds this version and then creates the matching vX.Y.Z tag +
         // release itself (versionCode is pinned to MAJOR*10000 + MINOR*100 +
         // PATCH from versionName, e.g. 2.7.2 -> 20702). See docs/RELEASING.md.
-        versionCode = 21000
-        versionName = "2.10.0"
+        versionCode = 21100
+        versionName = "2.11.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -151,6 +151,9 @@ dependencies {
     ksp(libs.hilt.compiler)
 
     implementation(libs.androidx.datastore.preferences)
+
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.documentfile)
 
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)

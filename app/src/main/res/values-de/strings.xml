@@ -230,8 +230,7 @@
     <string name="agenda_today_action">Heute</string>
     <string name="agenda_header_today">Heute</string>
     <string name="agenda_header_tomorrow">Morgen</string>
-    <string name="agenda_empty_title">Nichts geplant</string>
-    <string name="agenda_empty_subtitle">Anstehende Termine erscheinen hier.</string>
+    <string name="agenda_empty_title">Alles erledigt</string>
 
     <!-- Terminsuche -->
     <string name="search_action">Suchen</string>
@@ -276,8 +275,31 @@
     <string name="settings_dynamic_color_unavailable">Erfordert Android 12 oder neuer</string>
     <string name="settings_week_start">Wochenstart</string>
     <string name="settings_week_start_auto">Automatisch</string>
-    <string name="settings_week_start_monday">Montag</string>
-    <string name="settings_week_start_sunday">Sonntag</string>
+    <string name="settings_time_format">Zeitformat</string>
+    <string name="settings_time_format_auto">Automatisch</string>
+    <string name="settings_time_format_12h">12-Stunden (2:00 PM)</string>
+    <string name="settings_time_format_24h">24-Stunden (14:00)</string>
+    <string name="settings_hour_lines">Stundenlinien</string>
+    <string name="settings_hour_lines_summary">Trennlinie zu jeder vollen Stunde in Wochen- und Tagesansicht anzeigen</string>
+    <string name="settings_agenda_range">Agenda-Zeitraum</string>
+    <string name="settings_agenda_range_hint">Wie weit im Voraus die Agenda-Ansicht Termine anzeigt.</string>
+    <string name="settings_agenda_widget_range">Agenda-Widget-Zeitraum</string>
+    <string name="settings_agenda_widget_range_hint">Wie weit im Voraus das Agenda-Widget auf dem Startbildschirm Termine anzeigt.</string>
+    <string name="settings_agenda_range_bar">Zeitraum-Leiste</string>
+    <string name="settings_agenda_range_bar_hint">Eine Leiste oben in der Agenda anzeigen, die den dargestellten Zeitraum benennt, mit einer Schaltfläche zum Wechseln des Zeitraums für die Sitzung</string>
+    <string name="agenda_range_day">Heute</string>
+    <string name="agenda_range_this_week">Diese Woche</string>
+    <string name="agenda_range_this_month">Dieser Monat</string>
+    <string name="agenda_range_week">Nächste 7 Tage</string>
+    <string name="agenda_range_month">Nächste 30 Tage</string>
+    <string name="agenda_range_custom">Benutzerdefiniert…</string>
+    <string name="agenda_range_custom_hint">Tage</string>
+    <string name="agenda_range_override_hint">Nur vorübergehend — wird beim erneuten Öffnen von Calendula auf deinen gespeicherten Zeitraum zurückgesetzt.</string>
+    <string name="agenda_range_showing_label">Alle anstehenden Termine für</string>
+    <plurals name="agenda_range_days">
+        <item quantity="one">%d Tag</item>
+        <item quantity="other">%d Tage</item>
+    </plurals>
     <string name="settings_section_event_form">Termin-Formular</string>
     <string name="settings_form_fields_hint">Standardmäßig angezeigte Felder — alles Weitere liegt hinter \"Weitere Felder\"</string>
     <string name="settings_color_unsupported">Farben auf nicht unterstützten Kalendern erlauben</string>

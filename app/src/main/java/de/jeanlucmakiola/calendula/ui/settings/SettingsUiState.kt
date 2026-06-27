@@ -2,9 +2,11 @@ package de.jeanlucmakiola.calendula.ui.settings
 
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
+import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 
 /**
@@ -17,7 +19,17 @@ data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val dynamicColorAvailable: Boolean = true,
-    val weekStart: WeekStartPref = WeekStartPref.AUTO,
+    val weekStart: WeekStartPref = WeekStartPref.Auto,
+    /** Clock convention for time labels (v2.11). AUTO follows the system setting. */
+    val timeFormat: TimeFormatPref = TimeFormatPref.AUTO,
+    /** Whether the week/day timeline draws an hour separator line (v2.11). */
+    val showHourLines: Boolean = false,
+    /** How far ahead the in-app Agenda screen shows events (v2.11). */
+    val agendaScreenRange: AgendaRange = AgendaRange.Month,
+    /** How far ahead the agenda widget shows events (v2.11). */
+    val agendaWidgetRange: AgendaRange = AgendaRange.Month,
+    /** Whether the agenda shows its top range bar — header + switcher (v2.11). */
+    val agendaShowRangeBar: Boolean = true,
     /** The calendar view the app opens on, and the home of the view back stack (M1). */
     val defaultView: CalendarView = CalendarView.Week,
     /** Optional event-form fields shown by default (rest behind "more fields"). */

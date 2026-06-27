@@ -4,9 +4,11 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import de.jeanlucmakiola.calendula.data.prefs.is24Hour
 import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaDay
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.agendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.groupAgendaDays
 import kotlinx.coroutines.flow.first
@@ -22,9 +24,6 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import java.util.Locale
 import kotlin.time.Clock
-
-/** How far ahead the agenda widget loads (a month of upcoming events). */
-private const val AGENDA_WIDGET_DAYS = 30
 
 /**
  * How far either side of today the month widget pre-loads. The displayed month
@@ -46,7 +45,22 @@ internal fun Context.hasCalendarPermission(): Boolean =
 sealed interface AgendaWidgetData {
     /** Calendar permission not granted — the widget can't read events. */
     data object NeedsPermission : AgendaWidgetData
-    data class Ready(val today: LocalDate, val days: List<AgendaDay>) : AgendaWidgetData
+    data class Ready(
+        val today: LocalDate,
+        /**
+         * Days with events across the **widest** selectable window. The displayed
+         * range is sliced from this in the composition (read reactively from
+         * Glance state), so a range change is pure recomposition rather than a
+         * flaky widget session restart — the same approach the month widget uses.
+         */
+        val days: List<AgendaDay>,
+        /** Resolved clock convention for event time labels (the time-format pref). */
+        val is24Hour: Boolean,
+        /** First day of the week, for the calendar-aligned "this week" range. */
+        val weekStart: DayOfWeek,
+        /** Saved range pref — the fallback when an instance has no Glance state yet. */
+        val savedRange: AgendaRange,
+    ) : AgendaWidgetData
 }
 
 /**
@@ -91,9 +105,24 @@ internal suspend fun Context.loadAgendaWidgetData(): AgendaWidgetData {
     if (!hasCalendarPermission()) return AgendaWidgetData.NeedsPermission
     val zone = systemZone()
     val anchor = today(zone)
-    val repo = widgetEntryPoint().calendarRepository()
-    val instances = repo.instances(agendaRange(anchor, AGENDA_WIDGET_DAYS, zone)).first()
-    return AgendaWidgetData.Ready(today = anchor, days = groupAgendaDays(anchor, instances, zone))
+    val ep = widgetEntryPoint()
+    val prefs = ep.settingsPrefs()
+    val savedRange = prefs.agendaWidgetRange.first()
+    val weekStart = prefs.weekStart.first().resolveFirstDay(Locale.getDefault())
+    // Load the widest selectable window once; the displayed range is sliced in
+    // the composition from Glance state, so changing the range is a plain
+    // recomposition and never depends on the widget session restarting.
+    val window = agendaRange(anchor, AgendaRange.MAX_CUSTOM_DAYS - 1, zone)
+    val instances = ep.calendarRepository().instances(window).first()
+    val is24Hour = prefs.timeFormat.first()
+        .is24Hour(android.text.format.DateFormat.is24HourFormat(this))
+    return AgendaWidgetData.Ready(
+        today = anchor,
+        days = groupAgendaDays(anchor, instances, zone),
+        is24Hour = is24Hour,
+        weekStart = weekStart,
+        savedRange = savedRange,
+    )
 }
 
 /** One-shot wide read backing the month widget's grid for any nearby month. */

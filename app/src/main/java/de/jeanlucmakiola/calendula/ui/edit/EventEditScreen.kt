@@ -43,7 +43,6 @@ import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Place
@@ -123,6 +122,8 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
 import de.jeanlucmakiola.calendula.ui.common.DialogAmountField
 import de.jeanlucmakiola.calendula.ui.common.DialogUnitDropdown
+import de.jeanlucmakiola.calendula.ui.common.eventFormFieldIcon
+import de.jeanlucmakiola.calendula.ui.common.eventFormFieldLabel
 import de.jeanlucmakiola.calendula.ui.common.MILLIS_PER_DAY
 import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.OptionCard
@@ -132,6 +133,8 @@ import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
 import de.jeanlucmakiola.calendula.ui.common.ReminderUnit
 import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
+import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.reminderUnitLabel
 import de.jeanlucmakiola.calendula.ui.common.pastelize
@@ -1017,9 +1020,9 @@ private fun FieldPickerDialog(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 hiddenFields.forEach { field ->
                     OptionCard(
-                        label = stringResource(fieldLabel(field)),
+                        label = stringResource(eventFormFieldLabel(field)),
                         onClick = { onSelect(field) },
-                        icon = fieldIcon(field),
+                        icon = eventFormFieldIcon(field),
                     )
                 }
             }
@@ -1636,28 +1639,6 @@ private fun readContactAddress(context: Context, uri: Uri): String? =
     }
 
 
-private fun fieldLabel(field: EventFormField): Int = when (field) {
-    EventFormField.Location -> R.string.event_detail_location
-    EventFormField.Description -> R.string.event_detail_description
-    EventFormField.Reminders -> R.string.event_detail_reminders
-    EventFormField.Recurrence -> R.string.event_detail_recurrence
-    EventFormField.Availability -> R.string.event_edit_availability
-    EventFormField.Visibility -> R.string.event_edit_visibility
-    EventFormField.Color -> R.string.event_edit_color
-    EventFormField.Attendees -> R.string.event_edit_attendees
-}
-
-private fun fieldIcon(field: EventFormField): ImageVector = when (field) {
-    EventFormField.Location -> Icons.Default.Place
-    EventFormField.Description -> Icons.AutoMirrored.Filled.Notes
-    EventFormField.Reminders -> Icons.Default.Notifications
-    EventFormField.Recurrence -> Icons.Default.Repeat
-    EventFormField.Availability -> Icons.Default.EventAvailable
-    EventFormField.Visibility -> Icons.Default.Lock
-    EventFormField.Color -> Icons.Default.Palette
-    EventFormField.Attendees -> Icons.Default.People
-}
-
 /**
  * Visibility selector: one card per level, each with its own icon; the
  * current level is highlighted. Tap picks and closes.
@@ -1891,8 +1872,9 @@ private fun ScheduleRow(
     val dateFormat = remember(locale) {
         DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
     }
-    val timeFormat = remember(locale) {
-        DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale)
+    val use24Hour = LocalUse24HourFormat.current
+    val timeFormat = remember(locale, use24Hour) {
+        timeOfDayFormatter(use24Hour, locale)
     }
     // Tappable values read as links (primary), like the location on the
     // detail screen; errors flip them to the error colour.
