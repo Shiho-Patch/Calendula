@@ -75,10 +75,12 @@ class SettingsViewModel @Inject constructor(
                 ReminderOverrides(overrides, allDayOverrides, calendars)
             },
             combine(prefs.defaultView, prefs.timeFormat) { view, timeFormat -> view to timeFormat },
-        ) { base, defaults, overrides, viewAndTimeFormat ->
+            prefs.showHourLines,
+        ) { base, defaults, overrides, viewAndTimeFormat, showHourLines ->
             base.copy(
                 defaultView = viewAndTimeFormat.first,
                 timeFormat = viewAndTimeFormat.second,
+                showHourLines = showHourLines,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -122,6 +124,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setTimeFormat(pref: TimeFormatPref) {
         viewModelScope.launch { prefs.setTimeFormat(pref) }
+    }
+
+    fun setShowHourLines(enabled: Boolean) {
+        viewModelScope.launch { prefs.setShowHourLines(enabled) }
     }
 
     fun setDefaultView(view: CalendarView) {

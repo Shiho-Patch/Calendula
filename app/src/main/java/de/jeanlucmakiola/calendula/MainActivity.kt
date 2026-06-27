@@ -25,6 +25,7 @@ import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.is24Hour
 import de.jeanlucmakiola.calendula.ui.RootScreen
+import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.WidgetNavRequest
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
@@ -97,7 +98,10 @@ class MainActivity : AppCompatActivity() {
                 darkTheme = darkTheme,
                 dynamicColor = settings.dynamicColor,
             ) {
-                CompositionLocalProvider(LocalUse24HourFormat provides use24Hour) {
+                CompositionLocalProvider(
+                    LocalUse24HourFormat provides use24Hour,
+                    LocalShowHourLines provides settings.showHourLines,
+                ) {
                     RootScreen(
                         modifier = Modifier.fillMaxSize(),
                         requestedDetailKey = requestedDetailKey,

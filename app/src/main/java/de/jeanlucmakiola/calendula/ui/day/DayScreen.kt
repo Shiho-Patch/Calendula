@@ -82,8 +82,10 @@ import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
+import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.formatHourLabel
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
+import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
 import de.jeanlucmakiola.calendula.ui.week.TimedBlock
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -539,6 +541,8 @@ private fun DayColumnCard(
     modifier: Modifier = Modifier,
 ) {
     val hourPx = with(LocalDensity.current) { HOUR_HEIGHT.toPx() }
+    val showHourLines = LocalShowHourLines.current
+    val hourLineColor = MaterialTheme.colorScheme.outlineVariant
     Card(
         // Plain rectangular column — the soft corners come from the outer
         // rounded scroll viewport, so inner rounding would look odd at the edges.
@@ -551,6 +555,9 @@ private fun DayColumnCard(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
+                // Faint hour separators sit over the column background but under
+                // the event blocks (drawBehind paints before the children).
+                .hourSeparatorLines(showHourLines, hourPx, hourLineColor)
                 // Tap an empty slot to create an event there. Taps on event
                 // blocks are consumed by their own click handler first, so this
                 // only fires on the column background. Snaps to the tapped hour.

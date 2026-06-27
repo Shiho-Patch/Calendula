@@ -477,8 +477,20 @@ private fun AppearanceScreen(
         GroupedRow(
             title = stringResource(R.string.settings_time_format),
             summary = timeFormatLabel(state.timeFormat),
-            position = Position.Bottom,
+            position = Position.Middle,
             onClick = { showTimeFormat = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_hour_lines),
+            summary = stringResource(R.string.settings_hour_lines_summary),
+            position = Position.Bottom,
+            trailing = {
+                Switch(
+                    checked = state.showHourLines,
+                    onCheckedChange = viewModel::setShowHourLines,
+                )
+            },
+            onClick = { viewModel.setShowHourLines(!state.showHourLines) },
         )
     }
 
