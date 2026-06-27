@@ -29,6 +29,22 @@ sealed interface WeekStartPref {
 }
 
 /**
+ * Clock convention for time-of-day labels. AUTO follows the device's 24-hour
+ * system setting; the others force a 12- or 24-hour clock app-wide.
+ */
+enum class TimeFormatPref { AUTO, TWELVE_HOUR, TWENTY_FOUR_HOUR }
+
+/**
+ * Resolve to a concrete 24-hour flag. AUTO defers to [systemIs24Hour] (the
+ * device's `DateFormat.is24HourFormat` value).
+ */
+fun TimeFormatPref.is24Hour(systemIs24Hour: Boolean): Boolean = when (this) {
+    TimeFormatPref.AUTO -> systemIs24Hour
+    TimeFormatPref.TWELVE_HOUR -> false
+    TimeFormatPref.TWENTY_FOUR_HOUR -> true
+}
+
+/**
  * Resolve the preference to a concrete first-day-of-week. [WeekStartPref.Auto]
  * reads the locale's convention (e.g. Monday in DE, Sunday in en-US).
  */
@@ -73,6 +89,15 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setWeekStart(pref: WeekStartPref) {
         store.edit { it[WEEK_START_KEY] = pref.storageValue() }
+    }
+
+    /** Clock convention for time-of-day labels (v2.11). Defaults to AUTO (system). */
+    val timeFormat: Flow<TimeFormatPref> = store.data.map { prefs ->
+        prefs[TIME_FORMAT_KEY].toEnum(TimeFormatPref.AUTO)
+    }
+
+    suspend fun setTimeFormat(pref: TimeFormatPref) {
+        store.edit { it[TIME_FORMAT_KEY] = pref.name }
     }
 
     /**
@@ -264,6 +289,7 @@ class SettingsPrefs @Inject constructor(
         internal val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
         internal val WEEK_START_KEY = stringPreferencesKey("week_start")
+        internal val TIME_FORMAT_KEY = stringPreferencesKey("time_format")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
         internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
         internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")

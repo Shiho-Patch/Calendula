@@ -276,6 +276,10 @@
     <string name="settings_dynamic_color_unavailable">Erfordert Android 12 oder neuer</string>
     <string name="settings_week_start">Wochenstart</string>
     <string name="settings_week_start_auto">Automatisch</string>
+    <string name="settings_time_format">Zeitformat</string>
+    <string name="settings_time_format_auto">Automatisch</string>
+    <string name="settings_time_format_12h">12-Stunden (2:00 PM)</string>
+    <string name="settings_time_format_24h">24-Stunden (14:00)</string>
     <string name="settings_section_event_form">Termin-Formular</string>
     <string name="settings_form_fields_hint">Standardmäßig angezeigte Felder — alles Weitere liegt hinter \"Weitere Felder\"</string>
     <string name="settings_color_unsupported">Farben auf nicht unterstützten Kalendern erlauben</string>

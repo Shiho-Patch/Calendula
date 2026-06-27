@@ -14,6 +14,9 @@ import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.MainActivity
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
+import de.jeanlucmakiola.calendula.data.prefs.is24Hour
+import kotlinx.coroutines.flow.first
 import java.time.ZoneId
 import java.util.Locale
 import javax.inject.Inject
@@ -29,6 +32,7 @@ import javax.inject.Singleton
 @Singleton
 class ReminderNotifier @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val settingsPrefs: SettingsPrefs,
 ) {
 
     /** False when the user declined `POST_NOTIFICATIONS` or muted the app. */
@@ -39,15 +43,18 @@ class ReminderNotifier @Inject constructor(
         return granted && NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
-    fun post(alert: ReminderAlert) {
+    suspend fun post(alert: ReminderAlert) {
         ensureChannel()
         val title = alert.title.ifBlank { context.getString(R.string.event_untitled) }
+        val is24Hour = settingsPrefs.timeFormat.first()
+            .is24Hour(android.text.format.DateFormat.is24HourFormat(context))
         val time = reminderTimeText(
             beginMillis = alert.beginMillis,
             endMillis = alert.endMillis,
             isAllDay = alert.isAllDay,
             zone = ZoneId.systemDefault(),
             locale = Locale.getDefault(),
+            is24Hour = is24Hour,
         )
         val text = listOfNotNull(time, alert.location).joinToString(" · ")
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)

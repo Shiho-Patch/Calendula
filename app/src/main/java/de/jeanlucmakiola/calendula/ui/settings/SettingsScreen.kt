@@ -84,6 +84,7 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
+import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.qs.NewEventTileService
@@ -427,6 +428,7 @@ private fun AppearanceScreen(
 ) {
     var showTheme by remember { mutableStateOf(false) }
     var showWeekStart by remember { mutableStateOf(false) }
+    var showTimeFormat by remember { mutableStateOf(false) }
     var showDefaultView by remember { mutableStateOf(false) }
 
     CollapsingScaffold(
@@ -469,8 +471,14 @@ private fun AppearanceScreen(
         GroupedRow(
             title = stringResource(R.string.settings_week_start),
             summary = weekStartLabel(state.weekStart),
-            position = Position.Bottom,
+            position = Position.Middle,
             onClick = { showWeekStart = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_time_format),
+            summary = timeFormatLabel(state.timeFormat),
+            position = Position.Bottom,
+            onClick = { showTimeFormat = true },
         )
     }
 
@@ -492,6 +500,16 @@ private fun AppearanceScreen(
             label = { weekStartLabel(it) },
             onSelect = viewModel::setWeekStart,
             onDismiss = { showWeekStart = false },
+        )
+    }
+    if (showTimeFormat) {
+        OptionPicker(
+            title = stringResource(R.string.settings_time_format),
+            options = TimeFormatPref.entries,
+            selected = state.timeFormat,
+            label = { timeFormatLabel(it) },
+            onSelect = viewModel::setTimeFormat,
+            onDismiss = { showTimeFormat = false },
         )
     }
     if (showDefaultView) {
@@ -1008,6 +1026,15 @@ private fun weekStartLabel(pref: WeekStartPref): String = when (pref) {
     is WeekStartPref.Day -> java.time.DayOfWeek.of(pref.day.ordinal + 1)
         .getDisplayName(JavaTextStyle.FULL, currentLocale())
 }
+
+@Composable
+private fun timeFormatLabel(pref: TimeFormatPref): String = stringResource(
+    when (pref) {
+        TimeFormatPref.AUTO -> R.string.settings_time_format_auto
+        TimeFormatPref.TWELVE_HOUR -> R.string.settings_time_format_12h
+        TimeFormatPref.TWENTY_FOUR_HOUR -> R.string.settings_time_format_24h
+    },
+)
 
 @Composable
 private fun languageLabel(tag: String?): String =
