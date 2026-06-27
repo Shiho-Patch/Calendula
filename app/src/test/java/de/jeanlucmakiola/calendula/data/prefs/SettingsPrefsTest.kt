@@ -25,7 +25,7 @@ class SettingsPrefsTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
         assertThat(prefs.themeMode.first()).isEqualTo(ThemeMode.SYSTEM)
         assertThat(prefs.dynamicColor.first()).isTrue()
-        assertThat(prefs.weekStart.first()).isEqualTo(WeekStartPref.AUTO)
+        assertThat(prefs.weekStart.first()).isEqualTo(WeekStartPref.Auto)
     }
 
     @Test
@@ -43,10 +43,34 @@ class SettingsPrefsTest {
     }
 
     @Test
-    fun `week start round-trips`(@TempDir tempDir: Path) = runTest {
+    fun `week start round-trips any day`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
-        prefs.setWeekStart(WeekStartPref.SUNDAY)
-        assertThat(prefs.weekStart.first()).isEqualTo(WeekStartPref.SUNDAY)
+        prefs.setWeekStart(WeekStartPref.Day(DayOfWeek.SATURDAY))
+        assertThat(prefs.weekStart.first()).isEqualTo(WeekStartPref.Day(DayOfWeek.SATURDAY))
+    }
+
+    @Test
+    fun `legacy MONDAY week-start value migrates to Day`(@TempDir tempDir: Path) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = SettingsPrefs(store)
+        store.updateData { p ->
+            val m = p.toMutablePreferences()
+            m[SettingsPrefs.WEEK_START_KEY] = "MONDAY"
+            m
+        }
+        assertThat(prefs.weekStart.first()).isEqualTo(WeekStartPref.Day(DayOfWeek.MONDAY))
+    }
+
+    @Test
+    fun `garbage week-start value falls back to Auto`(@TempDir tempDir: Path) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = SettingsPrefs(store)
+        store.updateData { p ->
+            val m = p.toMutablePreferences()
+            m[SettingsPrefs.WEEK_START_KEY] = "FUNDAY"
+            m
+        }
+        assertThat(prefs.weekStart.first()).isEqualTo(WeekStartPref.Auto)
     }
 
     @Test
@@ -252,13 +276,15 @@ class SettingsPrefsTest {
 
     @Test
     fun `explicit week-start prefs resolve regardless of locale`() {
-        assertThat(WeekStartPref.MONDAY.resolveFirstDay(Locale.US)).isEqualTo(DayOfWeek.MONDAY)
-        assertThat(WeekStartPref.SUNDAY.resolveFirstDay(Locale.GERMANY)).isEqualTo(DayOfWeek.SUNDAY)
+        assertThat(WeekStartPref.Day(DayOfWeek.MONDAY).resolveFirstDay(Locale.US))
+            .isEqualTo(DayOfWeek.MONDAY)
+        assertThat(WeekStartPref.Day(DayOfWeek.SATURDAY).resolveFirstDay(Locale.GERMANY))
+            .isEqualTo(DayOfWeek.SATURDAY)
     }
 
     @Test
     fun `auto week start follows the locale convention`() {
-        assertThat(WeekStartPref.AUTO.resolveFirstDay(Locale.GERMANY)).isEqualTo(DayOfWeek.MONDAY)
-        assertThat(WeekStartPref.AUTO.resolveFirstDay(Locale.US)).isEqualTo(DayOfWeek.SUNDAY)
+        assertThat(WeekStartPref.Auto.resolveFirstDay(Locale.GERMANY)).isEqualTo(DayOfWeek.MONDAY)
+        assertThat(WeekStartPref.Auto.resolveFirstDay(Locale.US)).isEqualTo(DayOfWeek.SUNDAY)
     }
 }

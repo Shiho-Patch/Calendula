@@ -17,7 +17,7 @@ data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val dynamicColorAvailable: Boolean = true,
-    val weekStart: WeekStartPref = WeekStartPref.AUTO,
+    val weekStart: WeekStartPref = WeekStartPref.Auto,
     /** The calendar view the app opens on, and the home of the view back stack (M1). */
     val defaultView: CalendarView = CalendarView.Week,
     /** Optional event-form fields shown by default (rest behind "more fields"). */
