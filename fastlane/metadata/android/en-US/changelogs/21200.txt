@@ -1,3 +1,14 @@
+### Added
+- See past events your way. Two new settings change how events that have already
+  ended are shown. **Past events** (Settings → Appearance → Agenda) lets the
+  agenda — both in the app and the home-screen "Upcoming" widget — keep them as
+  usual, dim them, or hide them from the list entirely. **Dim completed events**
+  (Settings → Appearance) separately fades finished events in the month and week
+  views. Both are off by default, an event only counts as finished once it has
+  actually ended (events still in progress are never dimmed), and the lists
+  update on their own as the day goes on. Thanks to @ptab for the suggestion
+  ([#12]).
+
 ### Changed
 - Readable titles on overlapping events. In the week and day views, events that
   overlap split a day into slim columns where the title used to be clipped to a
@@ -5,3 +16,4 @@
   fit, and the time is hidden on those narrow blocks so the name can fill the
   space — so you can tell events apart without opening each one. Thanks to @ptab
   for the suggestion ([#13]).
+
