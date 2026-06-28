@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Dim completed events** (Settings → Appearance) separately fades finished
   events in the month and week views. Both are off by default, an event only
   counts as finished once it has actually ended (events still in progress are
-  never dimmed), and the list updates on its own as the day goes on.
+  never dimmed), and the list updates on its own as the day goes on. Thanks to
+  @ptab for the suggestion ([#12]).
 
 ### Changed
 - Readable titles on overlapping events. In the week and day views, events that
@@ -725,4 +726,5 @@ automatically, with zero telemetry and no internet permission.
 [#8]: https://codeberg.org/jlmakiola/calendula/issues/8
 [#9]: https://codeberg.org/jlmakiola/calendula/issues/9
 [#10]: https://codeberg.org/jlmakiola/calendula/issues/10
+[#12]: https://codeberg.org/jlmakiola/calendula/issues/12
 [#13]: https://codeberg.org/jlmakiola/calendula/issues/13
