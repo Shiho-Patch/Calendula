@@ -1,0 +1,7 @@
+### Changed
+- Readable titles on overlapping events. In the week and day views, events that
+  overlap split a day into slim columns where the title used to be clipped to a
+  character or two. The title now wraps across as many lines as the block can
+  fit, and the time is hidden on those narrow blocks so the name can fill the
+  space — so you can tell events apart without opening each one. Thanks to @ptab
+  for the suggestion ([#13]).
