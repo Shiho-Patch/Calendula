@@ -16,6 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   counts as finished once it has actually ended (events still in progress are
   never dimmed), and the list updates on its own as the day goes on.
 
+### Changed
+- Readable titles on overlapping events. In the week and day views, events that
+  overlap split a day into slim columns where the title used to be clipped to a
+  character or two. The title now wraps across as many lines as the block can
+  fit, and the time is hidden on those narrow blocks so the name can fill the
+  space — so you can tell events apart without opening each one. Thanks to @ptab
+  for the suggestion ([#13]).
+
 ## [2.11.2] — 2026-06-28
 
 ### Added
@@ -717,3 +725,4 @@ automatically, with zero telemetry and no internet permission.
 [#8]: https://codeberg.org/jlmakiola/calendula/issues/8
 [#9]: https://codeberg.org/jlmakiola/calendula/issues/9
 [#10]: https://codeberg.org/jlmakiola/calendula/issues/10
+[#13]: https://codeberg.org/jlmakiola/calendula/issues/13
