@@ -196,7 +196,9 @@ fun CalendarHost(
                 dismissCoveringOverlays()
                 createDateIso = null
                 pendingDayIso = req.dateIso
-                viewStack = viewBaseStack(defaultView, req.source).drillToDay()
+                // No widget source (an external date tap) roots over the default
+                // home view, so backing out of the day returns home then exits.
+                viewStack = viewBaseStack(defaultView, req.source ?: defaultView).drillToDay()
                 onWidgetNavConsumed()
             }
             is WidgetNavRequest.OpenEvent -> {

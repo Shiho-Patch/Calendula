@@ -1,0 +1,6 @@
+### Fixed
+- Calendula can now be set as your default calendar app. It registers the
+  calendar-app intent filters the system uses, so it appears in the chooser when
+  you tap a date in a launcher or clock — and opening one takes you straight to
+  that day. Android has no way for an app to make itself the default, so you pick
+  it once from the system picker. Thanks to @abrossimow for the report ([#9]).

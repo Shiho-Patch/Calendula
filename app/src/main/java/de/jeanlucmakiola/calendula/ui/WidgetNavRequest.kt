@@ -13,8 +13,13 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
  * detail-key channel and leave the base view untouched.)
  */
 sealed interface WidgetNavRequest {
-    /** Open the day view anchored on [dateIso] (an ISO `yyyy-MM-dd` date), over [source]. */
-    data class OpenDate(val dateIso: String, val source: CalendarView) : WidgetNavRequest
+    /**
+     * Open the day view anchored on [dateIso] (an ISO `yyyy-MM-dd` date), over
+     * [source]. A null [source] means the request came from outside the app (a
+     * launcher/clock date tap, issue #9) rather than a widget, so it roots over
+     * the default home view instead of a widget's view.
+     */
+    data class OpenDate(val dateIso: String, val source: CalendarView?) : WidgetNavRequest
 
     /** Open one occurrence's detail (an agenda-widget event tap), over [source]. */
     data class OpenEvent(
