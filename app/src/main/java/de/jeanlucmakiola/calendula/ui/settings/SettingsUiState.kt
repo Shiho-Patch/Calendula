@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.settings
 
+import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
@@ -24,6 +25,10 @@ data class SettingsUiState(
     val timeFormat: TimeFormatPref = TimeFormatPref.AUTO,
     /** Whether the week/day timeline draws an hour separator line (v2.11). */
     val showHourLines: Boolean = false,
+    /** How the Agenda screen treats events that already ended today. */
+    val pastEventDisplay: PastEventDisplay = PastEventDisplay.SHOW,
+    /** Whether the month/week grids fade events that have already finished. */
+    val dimCompletedEvents: Boolean = false,
     /** How far ahead the in-app Agenda screen shows events (v2.11). */
     val agendaScreenRange: AgendaRange = AgendaRange.Month,
     /** How far ahead the agenda widget shows events (v2.11). */

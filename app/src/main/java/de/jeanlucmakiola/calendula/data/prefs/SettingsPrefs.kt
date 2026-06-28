@@ -39,6 +39,13 @@ sealed interface WeekStartPref {
 enum class TimeFormatPref { AUTO, TWELVE_HOUR, TWENTY_FOUR_HOUR }
 
 /**
+ * How the Agenda screen treats events that have already finished today: [SHOW]
+ * leaves them as-is (the historical behaviour), [DIM] fades them, [HIDE] drops
+ * them from the list entirely.
+ */
+enum class PastEventDisplay { SHOW, DIM, HIDE }
+
+/**
  * Resolve to a concrete 24-hour flag. AUTO defers to [systemIs24Hour] (the
  * device's `DateFormat.is24HourFormat` value).
  */
@@ -114,6 +121,31 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setShowHourLines(enabled: Boolean) {
         store.edit { it[SHOW_HOUR_LINES_KEY] = enabled }
+    }
+
+    /**
+     * How the Agenda screen treats events that already ended today. Defaults to
+     * [PastEventDisplay.SHOW] — the historical behaviour; users opt into dimming
+     * or hiding.
+     */
+    val pastEventDisplay: Flow<PastEventDisplay> = store.data.map { prefs ->
+        prefs[PAST_EVENT_DISPLAY_KEY].toEnum(PastEventDisplay.SHOW)
+    }
+
+    suspend fun setPastEventDisplay(mode: PastEventDisplay) {
+        store.edit { it[PAST_EVENT_DISPLAY_KEY] = mode.name }
+    }
+
+    /**
+     * Whether the month/week grids fade events that have already finished.
+     * Defaults to OFF — independent of the Agenda's [pastEventDisplay].
+     */
+    val dimCompletedEvents: Flow<Boolean> = store.data.map { prefs ->
+        prefs[DIM_COMPLETED_EVENTS_KEY] ?: false
+    }
+
+    suspend fun setDimCompletedEvents(enabled: Boolean) {
+        store.edit { it[DIM_COMPLETED_EVENTS_KEY] = enabled }
     }
 
     /**
@@ -404,6 +436,8 @@ class SettingsPrefs @Inject constructor(
         internal val AGENDA_SHOW_RANGE_BAR_KEY = booleanPreferencesKey("agenda_show_range_bar")
         internal val TIME_FORMAT_KEY = stringPreferencesKey("time_format")
         internal val SHOW_HOUR_LINES_KEY = booleanPreferencesKey("show_hour_lines")
+        internal val PAST_EVENT_DISPLAY_KEY = stringPreferencesKey("agenda_past_event_display")
+        internal val DIM_COMPLETED_EVENTS_KEY = booleanPreferencesKey("dim_completed_events")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
         internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
         internal val AUTOFOCUS_EVENT_TITLE_KEY = booleanPreferencesKey("autofocus_event_title")

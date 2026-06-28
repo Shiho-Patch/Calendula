@@ -34,7 +34,7 @@ private val LineThickness = 2.dp
  * the middle of a minute. Drives the "now" line in the day/week grids.
  */
 @Composable
-private fun rememberCurrentMinute(): State<Instant> {
+fun rememberCurrentMinute(): State<Instant> {
     val instant = remember { mutableStateOf(Clock.System.now()) }
     LaunchedEffect(Unit) {
         while (true) {

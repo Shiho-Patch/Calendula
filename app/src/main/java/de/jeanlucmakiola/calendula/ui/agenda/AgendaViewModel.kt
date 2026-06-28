@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
+import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.CalendarSource
@@ -52,6 +53,18 @@ class AgendaViewModel @Inject constructor(
     // First day of the week, for the calendar-aligned "this week" range.
     private val weekStartDay = settingsPrefs.weekStart
         .map { it.resolveFirstDay(Locale.getDefault()) }
+
+    /**
+     * How to treat events that already ended today (show / dim / hide). A display
+     * concern only, so it rides alongside the data state rather than re-querying;
+     * the screen combines it with a per-minute "now" to fade or drop past rows.
+     */
+    val pastEventDisplay: StateFlow<PastEventDisplay> = settingsPrefs.pastEventDisplay
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = PastEventDisplay.SHOW,
+        )
 
     private val zone = TimeZone.currentSystemDefault()
 

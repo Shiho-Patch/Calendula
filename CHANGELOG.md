@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- See past events your way. Two new settings change how events that have already
+  ended are shown. **Past events** (Settings → Appearance → Agenda) lets the
+  agenda keep them as usual, dim them, or hide them from the list entirely.
+  **Dim completed events** (Settings → Appearance) separately fades finished
+  events in the month and week views. Both are off by default, an event only
+  counts as finished once it has actually ended (events still in progress are
+  never dimmed), and the list updates on its own as the day goes on.
+
 ## [2.11.2] — 2026-06-28
 
 ### Added
