@@ -45,6 +45,12 @@ enum class TimeFormatPref { AUTO, TWELVE_HOUR, TWENTY_FOUR_HOUR }
  */
 enum class PastEventDisplay { SHOW, DIM, HIDE }
 
+/** Parse a stored [PastEventDisplay.name]; unknown/null falls back to [default]. */
+fun parsePastEventDisplay(
+    stored: String?,
+    default: PastEventDisplay = PastEventDisplay.SHOW,
+): PastEventDisplay = PastEventDisplay.entries.firstOrNull { it.name == stored } ?: default
+
 /**
  * Resolve to a concrete 24-hour flag. AUTO defers to [systemIs24Hour] (the
  * device's `DateFormat.is24HourFormat` value).

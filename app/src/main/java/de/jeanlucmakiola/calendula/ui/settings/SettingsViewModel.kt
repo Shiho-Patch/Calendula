@@ -21,6 +21,7 @@ import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_PAST_DISPLAY_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_RANGE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AgendaWidget
 import de.jeanlucmakiola.calendula.widget.month.MonthWidget
@@ -219,7 +220,19 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun setPastEventDisplay(mode: PastEventDisplay) {
-        viewModelScope.launch { prefs.setPastEventDisplay(mode) }
+        viewModelScope.launch {
+            prefs.setPastEventDisplay(mode)
+            // The agenda widget honours this setting too, so push it into each
+            // instance's Glance state and recompose — same reliable-update path as
+            // setAgendaWidgetRange (updateAll alone won't re-run the data preamble).
+            widgetRefreshMutex.withLock {
+                val manager = GlanceAppWidgetManager(appContext)
+                manager.getGlanceIds(AgendaWidget::class.java).forEach { id ->
+                    updateAppWidgetState(appContext, id) { it[AGENDA_PAST_DISPLAY_KEY] = mode.name }
+                }
+                AgendaWidget().updateAll(appContext)
+            }
+        }
     }
 
     fun setDimCompletedEvents(enabled: Boolean) {

@@ -10,12 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - See past events your way. Two new settings change how events that have already
   ended are shown. **Past events** (Settings → Appearance → Agenda) lets the
-  agenda keep them as usual, dim them, or hide them from the list entirely.
-  **Dim completed events** (Settings → Appearance) separately fades finished
-  events in the month and week views. Both are off by default, an event only
-  counts as finished once it has actually ended (events still in progress are
-  never dimmed), and the list updates on its own as the day goes on. Thanks to
-  @ptab for the suggestion ([#12]).
+  agenda — both in the app and the home-screen "Upcoming" widget — keep them as
+  usual, dim them, or hide them from the list entirely. **Dim completed events**
+  (Settings → Appearance) separately fades finished events in the month and week
+  views. Both are off by default, an event only counts as finished once it has
+  actually ended (events still in progress are never dimmed), and the lists
+  update on their own as the day goes on. Thanks to @ptab for the suggestion
+  ([#12]).
 
 ### Changed
 - Readable titles on overlapping events. In the week and day views, events that
