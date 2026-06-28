@@ -35,6 +35,9 @@ import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
 import de.jeanlucmakiola.calendula.ui.settings.SettingsViewModel
 import de.jeanlucmakiola.calendula.ui.theme.CalendulaTheme
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -156,10 +159,33 @@ class MainActivity : AppCompatActivity() {
             Intent.ACTION_SEND -> IntentCompat.getParcelableExtra(this, Intent.EXTRA_STREAM, Uri::class.java)
             else -> null
         } ?: return null
+        // The calendar "view time" Uri (a date tap) is also ACTION_VIEW/content;
+        // it's a navigation, not a file to import, so [navRequestOrNull] owns it.
+        if (uri.host == CALENDAR_PROVIDER_HOST) return null
         return uri.takeIf { it.scheme == "content" || it.scheme == "file" }
     }
 
+    /**
+     * The date a launcher/clock date tap points at, parsed from the AOSP calendar
+     * "view time" intent: ACTION_VIEW on `content://com.android.calendar/time/
+     * <epochMillis>`. Null for any other intent. The matching manifest filter is
+     * what lets users pick Calendula from the system calendar chooser (issue #9).
+     */
+    private fun Intent.calendarTimeDateOrNull(): LocalDate? {
+        if (action != Intent.ACTION_VIEW) return null
+        val uri = data ?: return null
+        if (uri.host != CALENDAR_PROVIDER_HOST) return null
+        val segments = uri.pathSegments
+        if (segments.firstOrNull() != "time") return null
+        val millis = segments.getOrNull(1)?.toLongOrNull() ?: return null
+        return Instant.fromEpochMilliseconds(millis)
+            .toLocalDateTime(TimeZone.currentSystemDefault()).date
+    }
+
     private fun Intent.navRequestOrNull(): WidgetNavRequest? {
+        // An external date tap (launcher/clock) has no widget source, so it opens
+        // the day view rooted over the default home view (OpenDate source = null).
+        calendarTimeDateOrNull()?.let { return WidgetNavRequest.OpenDate(it.toString(), source = null) }
         val source = sourceViewOrNull()
         val eventId = getLongExtra(EXTRA_EVENT_ID, -1L)
         return when {
@@ -201,6 +227,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+        // The calendar provider's authority/host. A date tap arrives as
+        // ACTION_VIEW on content://com.android.calendar/time/<epochMillis>.
+        private const val CALENDAR_PROVIDER_HOST = "com.android.calendar"
+
         private const val EXTRA_EVENT_ID = "de.jeanlucmakiola.calendula.extra.EVENT_ID"
         private const val EXTRA_BEGIN_MILLIS = "de.jeanlucmakiola.calendula.extra.BEGIN"
         private const val EXTRA_END_MILLIS = "de.jeanlucmakiola.calendula.extra.END"

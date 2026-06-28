@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.1] — 2026-06-28
+
+### Fixed
+- Calendula can now be set as your default calendar app. It registers the
+  calendar-app intent filters the system uses, so it appears in the chooser when
+  you tap a date in a launcher or clock — and opening one takes you straight to
+  that day. Android has no way for an app to make itself the default, so you pick
+  it once from the system picker. Thanks to @abrossimow for the report ([#9]).
+
 ## [2.11.0] — 2026-06-27
 
 ### Added
@@ -685,3 +694,4 @@ automatically, with zero telemetry and no internet permission.
 [#6]: https://codeberg.org/jlmakiola/calendula/issues/6
 [#7]: https://codeberg.org/jlmakiola/calendula/issues/7
 [#8]: https://codeberg.org/jlmakiola/calendula/issues/8
+[#9]: https://codeberg.org/jlmakiola/calendula/issues/9

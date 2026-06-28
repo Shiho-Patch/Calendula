@@ -59,6 +59,35 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Be selectable as the system calendar app. Android has no API for
+                 an app to make itself the default, so registering the filters
+                 launchers and the OS use is what lets the user pick Calendula
+                 from the system chooser when a date action fires (issue #9).
+                 APP_CALENDAR is the "open the calendar app" action; the VIEW
+                 filters below catch a tapped date. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.APP_CALENDAR" />
+            </intent-filter>
+            <!-- A launcher/clock date tap fires ACTION_VIEW on the provider's
+                 time Uri (content://com.android.calendar/time/<epochMillis>);
+                 some surfaces use the time/epoch mime type. We open the day view
+                 on that date (MainActivity.calendarTimeDateOrNull). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data
+                    android:scheme="content"
+                    android:host="com.android.calendar"
+                    android:pathPrefix="/time" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="time/epoch" />
+            </intent-filter>
+
             <!-- Open a .ics file (file manager / email attachment / browser). -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
