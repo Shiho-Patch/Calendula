@@ -302,6 +302,8 @@
     </plurals>
     <string name="settings_section_event_form">Termin-Formular</string>
     <string name="settings_form_fields_hint">Standardmäßig angezeigte Felder — alles Weitere liegt hinter \"Weitere Felder\"</string>
+    <string name="settings_autofocus_title">Titel bei neuem Termin fokussieren</string>
+    <string name="settings_autofocus_title_hint">Beim Anlegen eines neuen Termins den Cursor direkt ins Titelfeld setzen und die Tastatur öffnen.</string>
     <string name="settings_color_unsupported">Farben auf nicht unterstützten Kalendern erlauben</string>
     <string name="settings_color_unsupported_hint">Manche Kalender (z. B. bestimmte CalDAV) stellen keine Farbpalette bereit; eine eigene Terminfarbe wird dort bei der nächsten Synchronisierung unter Umständen verworfen oder überschrieben. Das ist eine Einschränkung dieser Kalender und kann von Calendula nicht behoben werden.</string>
     <string name="settings_section_notifications">Benachrichtigungen</string>

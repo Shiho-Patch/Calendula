@@ -119,6 +119,7 @@ class EventEditViewModel @Inject constructor(
         val lastUsed: Long?,
         val defaultFields: Set<EventFormField>,
         val allowColorOnUnsupported: Boolean,
+        val autofocusTitle: Boolean,
     )
 
     /**
@@ -160,6 +161,7 @@ class EventEditViewModel @Inject constructor(
             prefs.lastUsedCalendarId,
             settingsPrefs.defaultFormFields,
             settingsPrefs.allowColorOnUnsupportedCalendars,
+            settingsPrefs.autofocusEventTitle,
             ::ExternalInputs,
         ).flowOn(io),
         colorPalette,
@@ -178,6 +180,7 @@ class EventEditViewModel @Inject constructor(
             visibleFields = visibleFields,
             hiddenFields = (EventFormField.entries.toSet() - visibleFields).sorted(),
             isEditing = local.editTarget != null,
+            autofocusTitle = external.autofocusTitle,
             // A modified-occurrence exception can't carry its own rule, so
             // the scope dialog drops "only this event" after a rule change.
             recurrenceChanged = local.editTarget != null &&

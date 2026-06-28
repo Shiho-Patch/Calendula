@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Gavel
+import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
@@ -672,6 +673,30 @@ private fun EventFormScreen(
                 onClick = { viewModel.setFormFieldDefault(field, !checked) },
             )
         }
+
+        // Auto-focus the title on a new event (issue #10) — on by default, since
+        // most events get a title; raising the keyboard saves a tap. Off lets you
+        // set the time/calendar first without the keyboard in the way.
+        Spacer(Modifier.height(24.dp))
+        GroupedRow(
+            title = stringResource(R.string.settings_autofocus_title),
+            summary = stringResource(R.string.settings_autofocus_title_hint),
+            position = Position.Alone,
+            leading = {
+                Icon(
+                    imageVector = Icons.Default.Keyboard,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            trailing = {
+                Switch(
+                    checked = state.autofocusEventTitle,
+                    onCheckedChange = { viewModel.setAutofocusEventTitle(it) },
+                )
+            },
+            onClick = { viewModel.setAutofocusEventTitle(!state.autofocusEventTitle) },
+        )
 
         // Per-event colour on calendars that publish no colour set (some
         // CalDAV) — off by default, with the honest caveat that the colour may

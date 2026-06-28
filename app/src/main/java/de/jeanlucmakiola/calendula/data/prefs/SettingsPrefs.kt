@@ -183,6 +183,20 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * Whether opening the new-event form focuses the title field and raises the
+     * keyboard straight away (issue #10). Default ON — a new event almost always
+     * gets a title, so this saves a tap; users who set the time/calendar first
+     * can turn it off. Only the create form auto-focuses — editing never does.
+     */
+    val autofocusEventTitle: Flow<Boolean> = store.data.map { prefs ->
+        prefs[AUTOFOCUS_EVENT_TITLE_KEY] ?: true
+    }
+
+    suspend fun setAutofocusEventTitle(enabled: Boolean) {
+        store.edit { it[AUTOFOCUS_EVENT_TITLE_KEY] = enabled }
+    }
+
+    /**
      * Whether Calendula posts reminder notifications (v1.4). Defaults to ON —
      * for users whose only calendar app this is, reminders are essential; the
      * onboarding step and Settings warn about duplicates from a second app.
@@ -392,6 +406,7 @@ class SettingsPrefs @Inject constructor(
         internal val SHOW_HOUR_LINES_KEY = booleanPreferencesKey("show_hour_lines")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
         internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
+        internal val AUTOFOCUS_EVENT_TITLE_KEY = booleanPreferencesKey("autofocus_event_title")
         internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")
         internal val REMINDER_ONBOARDING_KEY = booleanPreferencesKey("reminder_onboarding_done")
         internal val ALLOW_COLOR_UNSUPPORTED_KEY =

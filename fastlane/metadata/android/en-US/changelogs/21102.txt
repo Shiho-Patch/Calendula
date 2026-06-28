@@ -1,0 +1,7 @@
+### Added
+- Jump straight to typing a title. When you start a new event, Calendula now puts
+  the cursor in the title field and opens the keyboard right away, so you can type
+  the name without an extra tap. It's on by default and only affects creating an
+  event — editing never grabs focus — and a new **Focus title on new event**
+  switch (Settings → New event form) turns it off. Thanks to @abrossimow for the
+  suggestion ([#10]).

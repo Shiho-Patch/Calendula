@@ -30,6 +30,12 @@ data class EventEditUiState(
     /** True while editing an existing event (the calendar is then fixed). */
     val isEditing: Boolean = false,
     /**
+     * Whether to focus the title and raise the keyboard when this is a fresh
+     * create form (issue #10). Mirrors the settings flag; the screen only acts
+     * on it for a new event with an empty title, never when editing/importing.
+     */
+    val autofocusTitle: Boolean = true,
+    /**
      * True while an edit changed the recurrence rule — the save-scope dialog
      * then drops "only this event" (an exception row can't carry a rule).
      */
