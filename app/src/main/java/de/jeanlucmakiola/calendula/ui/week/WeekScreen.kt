@@ -45,7 +45,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -55,6 +57,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
@@ -73,11 +76,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.hasEnded
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
+import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.NowLine
+import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
@@ -129,6 +136,14 @@ fun WeekScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val weekStart by viewModel.weekStartDate.collectAsStateWithLifecycle()
+    val dimCompleted by viewModel.dimCompletedEvents.collectAsStateWithLifecycle()
+    // The instant before which an event counts as completed, or null when dimming
+    // is off. derivedStateOf keeps the per-minute "now" from recomposing the
+    // screen while the setting is off (it stays null regardless of the tick).
+    val nowState = rememberCurrentMinute()
+    val dimCutoff by remember(dimCompleted) {
+        derivedStateOf { if (dimCompleted) nowState.value else null }
+    }
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -221,19 +236,21 @@ fun WeekScreen(
                 )
             },
         ) { innerPadding ->
-            WeekContent(
-                state = state,
-                slideDir = slideDir,
-                topSectionColor = topSectionColor,
-                onSwipeNext = goNext,
-                onSwipePrev = goPrev,
-                onRetry = jumpToToday,
-                onEventClick = onEventClick,
-                onCreateAt = { d, minutes -> onCreateEvent(d, minutes) },
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize(),
-            )
+            CompositionLocalProvider(LocalDimCutoff provides dimCutoff) {
+                WeekContent(
+                    state = state,
+                    slideDir = slideDir,
+                    topSectionColor = topSectionColor,
+                    onSwipeNext = goNext,
+                    onSwipePrev = goPrev,
+                    onRetry = jumpToToday,
+                    onEventClick = onEventClick,
+                    onCreateAt = { d, minutes -> onCreateEvent(d, minutes) },
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize(),
+                )
+            }
         }
     }
 }
@@ -550,8 +567,10 @@ private fun AllDayBar(
     modifier: Modifier = Modifier,
 ) {
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
+    val dimCutoff = LocalDimCutoff.current
+    val dimmed = dimCutoff != null && event.hasEnded(dimCutoff)
     Box(
-        modifier = modifier
+        modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
             .background(pastelize(event.color, dark), RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 2.dp)
@@ -738,8 +757,10 @@ private fun EventBlock(
     // single character on slim, overlapping blocks.
     val contentHeight = height - 4.dp - if (showTime) timeLineHeight else 0.dp
     val titleMaxLines = (contentHeight / titleLineHeight).toInt().coerceAtLeast(1)
+    val dimCutoff = LocalDimCutoff.current
+    val dimmed = dimCutoff != null && block.event.hasEnded(dimCutoff)
     Box(
-        modifier = modifier
+        modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
             .background(pastelize(block.event.color, dark), RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 2.dp)

@@ -59,6 +59,14 @@ class MonthViewModel @Inject constructor(
             initialValue = DayOfWeek.MONDAY,
         )
 
+    /** Whether to fade events that have already finished (display concern only). */
+    val dimCompletedEvents: StateFlow<Boolean> = settingsPrefs.dimCompletedEvents
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = false,
+        )
+
     private val todayDate: LocalDate
         get() = Clock.System.now().toLocalDateTime(zone).date
 

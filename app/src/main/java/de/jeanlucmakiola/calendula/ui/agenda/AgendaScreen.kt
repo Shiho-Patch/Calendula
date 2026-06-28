@@ -45,6 +45,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
@@ -53,7 +54,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.hasEnded
 import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.calendula.ui.common.calendarAnimateItem
@@ -61,12 +64,14 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.Position
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.ui.common.positionOf
+import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
@@ -96,6 +101,7 @@ fun AgendaScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val anchor by viewModel.anchor.collectAsStateWithLifecycle()
+    val pastDisplay by viewModel.pastEventDisplay.collectAsStateWithLifecycle()
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -178,6 +184,7 @@ fun AgendaScreen(
                 }
                 AgendaContent(
                     state = state,
+                    pastDisplay = pastDisplay,
                     onRetry = viewModel::goToToday,
                     onEventClick = onEventClick,
                     modifier = Modifier
@@ -275,6 +282,7 @@ private fun AgendaRangeBanner(
 @Composable
 private fun AgendaContent(
     state: AgendaUiState,
+    pastDisplay: PastEventDisplay,
     onRetry: () -> Unit,
     onEventClick: (EventInstance) -> Unit,
     modifier: Modifier = Modifier,
@@ -284,19 +292,42 @@ private fun AgendaContent(
         is AgendaUiState.Failure -> Box(modifier) {
             CalendarFailure(reason = state.reason, onRetry = onRetry)
         }
-        is AgendaUiState.Success ->
-            if (state.days.isEmpty()) {
+        is AgendaUiState.Success -> {
+            val now by rememberCurrentMinute()
+            // Hiding drops finished events — and any day they leave empty; dimming
+            // keeps them but fades the row. Recomputed each minute so events fall
+            // away (or fade) as they end while the screen stays open.
+            val days = if (pastDisplay == PastEventDisplay.HIDE) {
+                state.days.mapNotNull { day ->
+                    val remaining = day.events.filterNot { it.hasEnded(now) }
+                    if (remaining.isEmpty()) null else day.copy(events = remaining)
+                }
+            } else {
+                state.days
+            }
+            if (days.isEmpty()) {
                 AgendaEmpty(modifier)
             } else {
-                AgendaList(state = state, onEventClick = onEventClick, modifier = modifier)
+                AgendaList(
+                    days = days,
+                    today = state.today,
+                    dimPast = pastDisplay == PastEventDisplay.DIM,
+                    now = now,
+                    onEventClick = onEventClick,
+                    modifier = modifier,
+                )
             }
+        }
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AgendaList(
-    state: AgendaUiState.Success,
+    days: List<AgendaDay>,
+    today: LocalDate,
+    dimPast: Boolean,
+    now: Instant,
     onEventClick: (EventInstance) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -305,9 +336,9 @@ private fun AgendaList(
         // Bottom inset clears the FAB stack so the last row stays tappable.
         contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
     ) {
-        state.days.forEach { day ->
+        days.forEach { day ->
             stickyHeader(key = "header-${day.date}") {
-                AgendaDayHeader(date = day.date, today = state.today)
+                AgendaDayHeader(date = day.date, today = today)
             }
             itemsIndexed(
                 items = day.events,
@@ -316,6 +347,7 @@ private fun AgendaList(
                 AgendaEventRow(
                     event = event,
                     position = positionOf(index, day.events.size),
+                    dimmed = dimPast && event.hasEnded(now),
                     modifier = calendarAnimateItem(),
                     onClick = { onEventClick(event) },
                 )
@@ -348,13 +380,14 @@ private fun AgendaDayHeader(date: LocalDate, today: LocalDate) {
 private fun AgendaEventRow(
     event: EventInstance,
     position: Position,
+    dimmed: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     GroupedRow(
-        modifier = modifier,
+        modifier = if (dimmed) modifier.alpha(EventDimAlpha) else modifier,
         title = title,
         summary = agendaTimeSummary(event),
         position = position,

@@ -40,6 +40,14 @@ data class EventInstance(
     val location: String?,
 )
 
+/**
+ * Whether this event has finished relative to [now] — its end is at or before
+ * the current instant. An in-progress event (already started but not yet ended)
+ * is *not* considered ended. All-day events end at the exclusive next-midnight,
+ * so they only count as ended once their day is fully over.
+ */
+fun EventInstance.hasEnded(now: Instant): Boolean = end <= now
+
 data class EventDetail(
     val instance: EventInstance,
     val description: String?,
