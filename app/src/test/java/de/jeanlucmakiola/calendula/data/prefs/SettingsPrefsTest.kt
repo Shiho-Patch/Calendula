@@ -91,6 +91,14 @@ class SettingsPrefsTest {
     }
 
     @Test
+    fun `autofocus event title defaults on and round-trips`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.autofocusEventTitle.first()).isTrue()
+        prefs.setAutofocusEventTitle(false)
+        assertThat(prefs.autofocusEventTitle.first()).isFalse()
+    }
+
+    @Test
     fun `agenda ranges default to month and round-trip independently`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
         assertThat(prefs.agendaScreenRange.first()).isEqualTo(AgendaRange.Month)

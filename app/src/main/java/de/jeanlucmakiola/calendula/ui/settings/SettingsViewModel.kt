@@ -96,15 +96,20 @@ class SettingsViewModel @Inject constructor(
             ) { view, screenRange, widgetRange, timeFormat, showHourLines ->
                 ViewSettings(view, screenRange, widgetRange, timeFormat, showHourLines)
             },
-            prefs.agendaShowRangeBar,
-        ) { base, defaults, overrides, views, showRangeBar ->
+            combine(
+                prefs.agendaShowRangeBar,
+                prefs.autofocusEventTitle,
+                ::MiscSettings,
+            ),
+        ) { base, defaults, overrides, views, misc ->
             base.copy(
                 defaultView = views.defaultView,
                 agendaScreenRange = views.agendaScreenRange,
                 agendaWidgetRange = views.agendaWidgetRange,
                 timeFormat = views.timeFormat,
                 showHourLines = views.showHourLines,
-                agendaShowRangeBar = showRangeBar,
+                agendaShowRangeBar = misc.showRangeBar,
+                autofocusEventTitle = misc.autofocusEventTitle,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -146,6 +151,11 @@ class SettingsViewModel @Inject constructor(
         val agendaWidgetRange: AgendaRange,
         val timeFormat: TimeFormatPref,
         val showHourLines: Boolean,
+    )
+
+    private data class MiscSettings(
+        val showRangeBar: Boolean,
+        val autofocusEventTitle: Boolean,
     )
 
     fun setThemeMode(mode: ThemeMode) {
@@ -211,6 +221,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setRemindersEnabled(enabled: Boolean) {
         viewModelScope.launch { prefs.setRemindersEnabled(enabled) }
+    }
+
+    fun setAutofocusEventTitle(enabled: Boolean) {
+        viewModelScope.launch { prefs.setAutofocusEventTitle(enabled) }
     }
 
     fun setDefaultReminderMinutes(minutes: Int?) {

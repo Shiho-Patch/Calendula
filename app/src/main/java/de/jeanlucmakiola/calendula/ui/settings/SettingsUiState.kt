@@ -34,6 +34,8 @@ data class SettingsUiState(
     val defaultView: CalendarView = CalendarView.Week,
     /** Optional event-form fields shown by default (rest behind "more fields"). */
     val defaultFormFields: Set<EventFormField> = SettingsPrefs.DEFAULT_FORM_FIELDS,
+    /** Whether the new-event form auto-focuses the title and shows the keyboard (#10). */
+    val autofocusEventTitle: Boolean = true,
     /** Whether Calendula posts reminder notifications (v1.4). */
     val remindersEnabled: Boolean = true,
     /**

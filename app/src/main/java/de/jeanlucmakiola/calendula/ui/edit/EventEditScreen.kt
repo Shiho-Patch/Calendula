@@ -81,6 +81,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.isSpecified
@@ -479,6 +481,17 @@ private fun EventEditContent(
         ?: MaterialTheme.colorScheme.primary
     val gap = 12.dp
 
+    // Issue #10: on a fresh create form (setting on, nothing typed yet) focus the
+    // title and raise the keyboard so the user can type straight away. Keyed on
+    // Unit so it runs once per open — not on every keystroke — and guarded so
+    // editing or an imported/prefilled form never grabs focus.
+    val titleFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        if (state.autofocusTitle && !state.isEditing && form.title.isBlank()) {
+            runCatching { titleFocusRequester.requestFocus() }
+        }
+    }
+
     // Per-event colour applicability for the resolved calendar:
     //  - palette calendars (Google, …) and local calendars always support it;
     //  - synced calendars with no palette only when the user opted in, and even
@@ -506,6 +519,10 @@ private fun EventEditContent(
             placeholder = stringResource(R.string.event_edit_title_hint),
             textStyle = MaterialTheme.typography.headlineMedium
                 .copy(fontWeight = FontWeight.SemiBold),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .focusRequester(titleFocusRequester),
         )
         Spacer(Modifier.height(10.dp))
         Box(

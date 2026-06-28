@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.11.2] — 2026-06-28
+
+### Added
+- Jump straight to typing a title. When you start a new event, Calendula now puts
+  the cursor in the title field and opens the keyboard right away, so you can type
+  the name without an extra tap. It's on by default and only affects creating an
+  event — editing never grabs focus — and a new **Focus title on new event**
+  switch (Settings → New event form) turns it off. Thanks to @abrossimow for the
+  suggestion ([#10]).
+
 ## [2.11.1] — 2026-06-28
 
 ### Fixed
@@ -695,3 +705,4 @@ automatically, with zero telemetry and no internet permission.
 [#7]: https://codeberg.org/jlmakiola/calendula/issues/7
 [#8]: https://codeberg.org/jlmakiola/calendula/issues/8
 [#9]: https://codeberg.org/jlmakiola/calendula/issues/9
+[#10]: https://codeberg.org/jlmakiola/calendula/issues/10
