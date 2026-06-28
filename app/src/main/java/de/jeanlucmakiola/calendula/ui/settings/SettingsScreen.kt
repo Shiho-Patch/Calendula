@@ -86,6 +86,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
+import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
@@ -475,6 +476,7 @@ private fun AppearanceScreen(
     var showDefaultView by remember { mutableStateOf(false) }
     var showAgendaScreenRange by remember { mutableStateOf(false) }
     var showAgendaWidgetRange by remember { mutableStateOf(false) }
+    var showPastEvents by remember { mutableStateOf(false) }
 
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_appearance),
@@ -533,7 +535,7 @@ private fun AppearanceScreen(
         GroupedRow(
             title = stringResource(R.string.settings_hour_lines),
             summary = stringResource(R.string.settings_hour_lines_summary),
-            position = Position.Bottom,
+            position = Position.Middle,
             trailing = {
                 Switch(
                     checked = state.showHourLines,
@@ -542,15 +544,35 @@ private fun AppearanceScreen(
             },
             onClick = { viewModel.setShowHourLines(!state.showHourLines) },
         )
+        GroupedRow(
+            title = stringResource(R.string.settings_dim_completed),
+            summary = stringResource(R.string.settings_dim_completed_summary),
+            position = Position.Bottom,
+            trailing = {
+                Switch(
+                    checked = state.dimCompletedEvents,
+                    onCheckedChange = viewModel::setDimCompletedEvents,
+                )
+            },
+            onClick = { viewModel.setDimCompletedEvents(!state.dimCompletedEvents) },
+        )
 
         Spacer(Modifier.height(16.dp))
 
-        // Agenda
+        // Agenda — the only group labelled, so its agenda-specific rows are easy
+        // to pick out among the otherwise unheadered Appearance settings.
+        SectionHeader(stringResource(R.string.settings_agenda_header))
         GroupedRow(
             title = stringResource(R.string.settings_agenda_range),
             summary = agendaRangeLabel(state.agendaScreenRange),
             position = Position.Top,
             onClick = { showAgendaScreenRange = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_past_events),
+            summary = pastEventDisplayLabel(state.pastEventDisplay),
+            position = Position.Middle,
+            onClick = { showPastEvents = true },
         )
         GroupedRow(
             title = stringResource(R.string.settings_agenda_widget_range),
@@ -618,6 +640,16 @@ private fun AppearanceScreen(
             label = { timeFormatLabel(it) },
             onSelect = viewModel::setTimeFormat,
             onDismiss = { showTimeFormat = false },
+        )
+    }
+    if (showPastEvents) {
+        OptionPicker(
+            title = stringResource(R.string.settings_past_events),
+            options = PastEventDisplay.entries,
+            selected = state.pastEventDisplay,
+            label = { pastEventDisplayLabel(it) },
+            onSelect = viewModel::setPastEventDisplay,
+            onDismiss = { showPastEvents = false },
         )
     }
     if (showDefaultView) {
@@ -1167,6 +1199,26 @@ private fun timeFormatLabel(pref: TimeFormatPref): String = stringResource(
         TimeFormatPref.AUTO -> R.string.settings_time_format_auto
         TimeFormatPref.TWELVE_HOUR -> R.string.settings_time_format_12h
         TimeFormatPref.TWENTY_FOUR_HOUR -> R.string.settings_time_format_24h
+    },
+)
+
+/** A small primary-coloured group label, matching the Calendars settings screen. */
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
+private fun pastEventDisplayLabel(mode: PastEventDisplay): String = stringResource(
+    when (mode) {
+        PastEventDisplay.SHOW -> R.string.settings_past_events_show
+        PastEventDisplay.DIM -> R.string.settings_past_events_dim
+        PastEventDisplay.HIDE -> R.string.settings_past_events_hide
     },
 )
 

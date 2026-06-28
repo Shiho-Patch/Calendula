@@ -43,11 +43,15 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import de.jeanlucmakiola.calendula.MainActivity
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
+import de.jeanlucmakiola.calendula.data.prefs.parsePastEventDisplay
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.hasEnded
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.dayCount
 import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
 import de.jeanlucmakiola.calendula.ui.common.pastelize
 import de.jeanlucmakiola.calendula.widget.AgendaWidgetData
@@ -78,6 +82,14 @@ import java.util.Locale
  * month widget's MONTH_INDEX_KEY approach).
  */
 internal val AGENDA_RANGE_KEY = stringPreferencesKey("agenda_range")
+
+/**
+ * Per-instance Glance state key holding the past-event display mode (as
+ * [PastEventDisplay.name]). Read reactively in the composition for the same
+ * reason as [AGENDA_RANGE_KEY] — so toggling the setting reflects on the live
+ * widget without depending on the `provideGlance` preamble re-running.
+ */
+internal val AGENDA_PAST_DISPLAY_KEY = stringPreferencesKey("agenda_past_display")
 
 class AgendaWidget : GlanceAppWidget() {
 
@@ -125,11 +137,26 @@ private fun AgendaWidgetBody(data: AgendaWidgetData, dark: Boolean) {
                 // to the saved pref for a freshly placed widget), then the wide
                 // pre-loaded window is sliced to it — pure recomposition.
                 val range = parseAgendaRange(currentState(AGENDA_RANGE_KEY), data.savedRange)
+                val pastDisplay =
+                    parsePastEventDisplay(currentState(AGENDA_PAST_DISPLAY_KEY), data.savedPastDisplay)
                 val rangeEnd = data.today.plus(
                     range.dayCount(data.today, data.weekStart) - 1,
                     DateTimeUnit.DAY,
                 )
-                val visibleDays = data.days.filter { it.date <= rangeEnd }
+                // Slice to the chosen range, then drop finished events (and any day
+                // they leave empty) when the mode is Hide — so "Upcoming" really is.
+                val visibleDays = data.days
+                    .filter { it.date <= rangeEnd }
+                    .let { days ->
+                        if (pastDisplay == PastEventDisplay.HIDE) {
+                            days.mapNotNull { day ->
+                                val remaining = day.events.filterNot { it.hasEnded(data.now) }
+                                if (remaining.isEmpty()) null else day.copy(events = remaining)
+                            }
+                        } else {
+                            days
+                        }
+                    }
                 if (visibleDays.isEmpty()) {
                     WidgetMessage(R.string.agenda_empty_title)
                 } else {
@@ -143,7 +170,13 @@ private fun AgendaWidgetBody(data: AgendaWidgetData, dark: Boolean) {
                         items(rows.size) { index ->
                             when (val row = rows[index]) {
                                 is AgendaRow.Header -> DayHeaderRow(row.date, row.today)
-                                is AgendaRow.Event -> EventRow(row.event, dark, data.is24Hour)
+                                is AgendaRow.Event -> EventRow(
+                                    event = row.event,
+                                    dark = dark,
+                                    is24Hour = data.is24Hour,
+                                    dimmed = pastDisplay == PastEventDisplay.DIM &&
+                                        row.event.hasEnded(data.now),
+                                )
                             }
                         }
                     }
@@ -224,9 +257,15 @@ private fun DayHeaderRow(date: LocalDate, today: LocalDate) {
 }
 
 @Composable
-private fun EventRow(event: EventInstance, dark: Boolean, is24Hour: Boolean) {
+private fun EventRow(event: EventInstance, dark: Boolean, is24Hour: Boolean, dimmed: Boolean) {
     val context = androidx.glance.LocalContext.current
     val title = event.title.ifBlank { context.getString(R.string.event_untitled) }
+    // Glance has no generic alpha modifier, so dim by fading the colour stripe and
+    // dropping both text lines to the lower-emphasis on-surface-variant tone.
+    val stripeColor = pastelize(event.color, dark).let {
+        if (dimmed) it.copy(alpha = EventDimAlpha) else it
+    }
+    val titleColor = if (dimmed) GlanceTheme.colors.onSurfaceVariant else GlanceTheme.colors.onSurface
     Row(
         modifier = GlanceModifier
             .fillMaxWidth()
@@ -249,14 +288,14 @@ private fun EventRow(event: EventInstance, dark: Boolean, is24Hour: Boolean) {
                 .width(5.dp)
                 .height(36.dp)
                 .cornerRadius(3.dp)
-                .background(pastelize(event.color, dark)),
+                .background(stripeColor),
         ) {}
         Spacer(GlanceModifier.width(10.dp))
         Column(modifier = GlanceModifier.defaultWeight()) {
             Text(
                 text = title,
                 maxLines = 1,
-                style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 14.sp),
+                style = TextStyle(color = titleColor, fontSize = 14.sp),
             )
             Text(
                 text = eventTimeSummary(context, event, is24Hour),

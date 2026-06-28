@@ -282,6 +282,13 @@
     <string name="settings_time_format_24h">24-hour (14:00)</string>
     <string name="settings_hour_lines">Hour lines</string>
     <string name="settings_hour_lines_summary">Show a separator line at each hour in week and day view</string>
+    <string name="settings_dim_completed">Dim completed events</string>
+    <string name="settings_dim_completed_summary">Fade events that have already ended in month and week view</string>
+    <string name="settings_past_events">Past events</string>
+    <string name="settings_past_events_show">Show</string>
+    <string name="settings_past_events_dim">Dim</string>
+    <string name="settings_past_events_hide">Hide</string>
+    <string name="settings_agenda_header">Agenda</string>
     <string name="settings_agenda_range">Agenda range</string>
     <string name="settings_agenda_range_hint">How far ahead the Agenda screen lists events.</string>
     <string name="settings_agenda_widget_range">Agenda widget range</string>

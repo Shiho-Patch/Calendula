@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.is24Hour
 import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.EventInstance
@@ -24,6 +25,7 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import java.util.Locale
 import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * How far either side of today the month widget pre-loads. The displayed month
@@ -52,6 +54,8 @@ sealed interface AgendaWidgetData {
          * range is sliced from this in the composition (read reactively from
          * Glance state), so a range change is pure recomposition rather than a
          * flaky widget session restart — the same approach the month widget uses.
+         * Kept unfiltered: hiding/dimming finished events also happens reactively
+         * in the composition, against [now], for the same reliable-update reason.
          */
         val days: List<AgendaDay>,
         /** Resolved clock convention for event time labels (the time-format pref). */
@@ -60,6 +64,10 @@ sealed interface AgendaWidgetData {
         val weekStart: DayOfWeek,
         /** Saved range pref — the fallback when an instance has no Glance state yet. */
         val savedRange: AgendaRange,
+        /** Saved past-event display pref — the fallback before Glance state is set. */
+        val savedPastDisplay: PastEventDisplay,
+        /** Snapshot instant the data was read at, for "has this event ended?" tests. */
+        val now: Instant,
     ) : AgendaWidgetData
 }
 
@@ -108,6 +116,7 @@ internal suspend fun Context.loadAgendaWidgetData(): AgendaWidgetData {
     val ep = widgetEntryPoint()
     val prefs = ep.settingsPrefs()
     val savedRange = prefs.agendaWidgetRange.first()
+    val savedPastDisplay = prefs.pastEventDisplay.first()
     val weekStart = prefs.weekStart.first().resolveFirstDay(Locale.getDefault())
     // Load the widest selectable window once; the displayed range is sliced in
     // the composition from Glance state, so changing the range is a plain
@@ -122,6 +131,8 @@ internal suspend fun Context.loadAgendaWidgetData(): AgendaWidgetData {
         is24Hour = is24Hour,
         weekStart = weekStart,
         savedRange = savedRange,
+        savedPastDisplay = savedPastDisplay,
+        now = Clock.System.now(),
     )
 }
 

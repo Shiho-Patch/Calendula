@@ -11,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
+import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
@@ -20,6 +21,7 @@ import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_PAST_DISPLAY_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_RANGE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AgendaWidget
 import de.jeanlucmakiola.calendula.widget.month.MonthWidget
@@ -99,6 +101,8 @@ class SettingsViewModel @Inject constructor(
             combine(
                 prefs.agendaShowRangeBar,
                 prefs.autofocusEventTitle,
+                prefs.pastEventDisplay,
+                prefs.dimCompletedEvents,
                 ::MiscSettings,
             ),
         ) { base, defaults, overrides, views, misc ->
@@ -110,6 +114,8 @@ class SettingsViewModel @Inject constructor(
                 showHourLines = views.showHourLines,
                 agendaShowRangeBar = misc.showRangeBar,
                 autofocusEventTitle = misc.autofocusEventTitle,
+                pastEventDisplay = misc.pastEventDisplay,
+                dimCompletedEvents = misc.dimCompletedEvents,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -156,6 +162,8 @@ class SettingsViewModel @Inject constructor(
     private data class MiscSettings(
         val showRangeBar: Boolean,
         val autofocusEventTitle: Boolean,
+        val pastEventDisplay: PastEventDisplay,
+        val dimCompletedEvents: Boolean,
     )
 
     fun setThemeMode(mode: ThemeMode) {
@@ -209,6 +217,26 @@ class SettingsViewModel @Inject constructor(
 
     fun setShowHourLines(enabled: Boolean) {
         viewModelScope.launch { prefs.setShowHourLines(enabled) }
+    }
+
+    fun setPastEventDisplay(mode: PastEventDisplay) {
+        viewModelScope.launch {
+            prefs.setPastEventDisplay(mode)
+            // The agenda widget honours this setting too, so push it into each
+            // instance's Glance state and recompose — same reliable-update path as
+            // setAgendaWidgetRange (updateAll alone won't re-run the data preamble).
+            widgetRefreshMutex.withLock {
+                val manager = GlanceAppWidgetManager(appContext)
+                manager.getGlanceIds(AgendaWidget::class.java).forEach { id ->
+                    updateAppWidgetState(appContext, id) { it[AGENDA_PAST_DISPLAY_KEY] = mode.name }
+                }
+                AgendaWidget().updateAll(appContext)
+            }
+        }
+    }
+
+    fun setDimCompletedEvents(enabled: Boolean) {
+        viewModelScope.launch { prefs.setDimCompletedEvents(enabled) }
     }
 
     fun setDefaultView(view: CalendarView) {

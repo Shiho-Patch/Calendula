@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.0] — 2026-06-28
+
+### Added
+- See past events your way. Two new settings change how events that have already
+  ended are shown. **Past events** (Settings → Appearance → Agenda) lets the
+  agenda — both in the app and the home-screen "Upcoming" widget — keep them as
+  usual, dim them, or hide them from the list entirely. **Dim completed events**
+  (Settings → Appearance) separately fades finished events in the month and week
+  views. Both are off by default, an event only counts as finished once it has
+  actually ended (events still in progress are never dimmed), and the lists
+  update on their own as the day goes on. Thanks to @ptab for the suggestion
+  ([#12]).
+
+### Changed
+- Readable titles on overlapping events. In the week and day views, events that
+  overlap split a day into slim columns where the title used to be clipped to a
+  character or two. The title now wraps across as many lines as the block can
+  fit, and the time is hidden on those narrow blocks so the name can fill the
+  space — so you can tell events apart without opening each one. Thanks to @ptab
+  for the suggestion ([#13]).
+
 ## [2.11.2] — 2026-06-28
 
 ### Added
@@ -706,3 +727,5 @@ automatically, with zero telemetry and no internet permission.
 [#8]: https://codeberg.org/jlmakiola/calendula/issues/8
 [#9]: https://codeberg.org/jlmakiola/calendula/issues/9
 [#10]: https://codeberg.org/jlmakiola/calendula/issues/10
+[#12]: https://codeberg.org/jlmakiola/calendula/issues/12
+[#13]: https://codeberg.org/jlmakiola/calendula/issues/13
