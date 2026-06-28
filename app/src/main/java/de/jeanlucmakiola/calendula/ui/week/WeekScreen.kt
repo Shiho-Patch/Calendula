@@ -692,6 +692,7 @@ private fun DayColumnCard(
                 EventBlock(
                     block = block,
                     dark = dark,
+                    height = height,
                     onClick = { onEventClick(block.event) },
                     modifier = Modifier
                         .offset(x = laneWidth * block.lane, y = top)
@@ -712,6 +713,7 @@ private fun DayColumnCard(
 private fun EventBlock(
     block: TimedBlock,
     dark: Boolean,
+    height: Dp,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -720,7 +722,22 @@ private fun EventBlock(
     val locale = currentLocale()
     val timeLabel = "${minToHm(block.startMin, use24Hour, locale)}–" +
         minToHm(block.endMin, use24Hour, locale)
-    val showTime = block.endMin - block.startMin >= 45
+    // Only full-width (non-overlapping) blocks that are tall enough show the time.
+    // On narrow overlapping columns we drop it so the title can wrap to fill the
+    // whole block, mirroring Google Calendar.
+    val showTime = block.endMin - block.startMin >= 45 && block.laneCount == 1
+    val density = LocalDensity.current
+    val titleLineHeight = with(density) {
+        MaterialTheme.typography.labelMedium.lineHeight.toDp()
+    }
+    val timeLineHeight = with(density) {
+        MaterialTheme.typography.labelSmall.lineHeight.toDp()
+    }
+    // Wrap the title across as many lines as the block can fit (minus the 2.dp
+    // top/bottom padding and the reserved time line) instead of clipping it to a
+    // single character on slim, overlapping blocks.
+    val contentHeight = height - 4.dp - if (showTime) timeLineHeight else 0.dp
+    val titleMaxLines = (contentHeight / titleLineHeight).toInt().coerceAtLeast(1)
     Box(
         modifier = modifier
             .background(pastelize(block.event.color, dark), RoundedCornerShape(4.dp))
@@ -732,18 +749,15 @@ private fun EventBlock(
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelMedium,
-                maxLines = if (showTime) 1 else 2,
+                maxLines = titleMaxLines,
                 overflow = TextOverflow.Ellipsis,
                 color = Color.Black.copy(alpha = 0.85f),
             )
             if (showTime) {
-                // Narrow columns can't fit "13:00–14:00" on one line, so let it
-                // wrap to a second line (after the dash) instead of clipping the
-                // end time.
                 Text(
                     text = timeLabel,
                     style = MaterialTheme.typography.labelSmall,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = Color.Black.copy(alpha = 0.6f),
                 )
