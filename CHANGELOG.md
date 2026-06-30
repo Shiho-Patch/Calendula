@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Set more than one default reminder per calendar. A calendar's default
+  reminders — and the global defaults under Settings → Notifications — can now
+  hold several lead times instead of just one, so new events can start with, say,
+  a reminder a week before *and* one on the day. The reminder pickers are now
+  multi-select; per-calendar overrides can still inherit the global default or
+  turn reminders off entirely. Thanks to @moonj for the suggestion ([#14]).
+
+### Fixed
+- Editing a single occurrence of a recurring event works again. Choosing **Only
+  this event** and saving a change to one event in a repeating series silently
+  did nothing — the change was rejected and the edit form simply reappeared with
+  nothing applied. The edited occurrence is now stored correctly, so the change
+  lands on just that one event and leaves the rest of the series untouched
+  ([#16]).
+
 ## [2.12.0] — 2026-06-28
 
 ### Added
@@ -729,3 +747,5 @@ automatically, with zero telemetry and no internet permission.
 [#10]: https://codeberg.org/jlmakiola/calendula/issues/10
 [#12]: https://codeberg.org/jlmakiola/calendula/issues/12
 [#13]: https://codeberg.org/jlmakiola/calendula/issues/13
+[#14]: https://codeberg.org/jlmakiola/calendula/issues/14
+[#16]: https://codeberg.org/jlmakiola/calendula/issues/16
