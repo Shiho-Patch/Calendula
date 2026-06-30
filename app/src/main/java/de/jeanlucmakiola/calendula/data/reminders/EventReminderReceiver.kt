@@ -18,6 +18,17 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
+ * The due alerts that should actually surface as notifications: everything
+ * except alerts whose calendar the user has disabled in-app (mirroring the
+ * event filtering in CalendarRepositoryImpl). The caller still marks the full
+ * due set fired, so suppressed alerts are not re-broadcast by the provider.
+ */
+internal fun postableAlerts(
+    due: List<ReminderAlert>,
+    disabledCalendarIds: Set<Long>,
+): List<ReminderAlert> = due.filterNot { it.calendarId in disabledCalendarIds }
+
+/**
  * Becomes the app that turns the calendar provider's reminder alarms into
  * visible notifications (the Etar model — the provider broadcasts
  * `EVENT_REMINDER` at reminder time but posts nothing itself).
@@ -48,13 +59,11 @@ class EventReminderReceiver : BroadcastReceiver() {
                 if (settingsPrefs.remindersEnabled.first()) {
                     val now = System.currentTimeMillis()
                     val due = alertStore.dueAlerts(now)
-                    // Suppress reminders for calendars the user disabled in-app
-                    // (mirrors the event filtering in CalendarRepositoryImpl), but
-                    // still mark every due alert fired so the provider stops
-                    // re-broadcasting the suppressed ones.
                     val disabled = calendarPrefs.disabledCalendarIds.first()
-                    due.filterNot { it.calendarId in disabled }
-                        .forEach { notifier.post(it) }
+                    // Suppress reminders for disabled calendars, but still mark
+                    // every due alert fired so the provider stops re-broadcasting
+                    // the suppressed ones.
+                    postableAlerts(due, disabled).forEach { notifier.post(it) }
                     alertStore.markFired(due.map { it.alertId }, now)
                 }
             } finally {
