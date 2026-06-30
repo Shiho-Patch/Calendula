@@ -199,11 +199,12 @@ class EventWriteMapperTest {
         assertThat(values[CalendarContract.Events.TITLE]).isEqualTo("Moved")
         assertThat(values[CalendarContract.Events.EVENT_LOCATION]).isEqualTo("Berlin")
         assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_781_164_800_000L)
-        assertThat(values[CalendarContract.Events.DTEND])
-            .isEqualTo(1_781_164_800_000L + 5_400_000L)
-        // A single occurrence never carries its own rule.
+        // The occurrence's length travels as DURATION, never DTEND — the provider
+        // rejects DTEND on an exception ("Exceptions can't overwrite dtend") and
+        // derives the end from DTSTART + DURATION, clearing the inherited RRULE.
+        assertThat(values[CalendarContract.Events.DURATION]).isEqualTo("P5400S")
+        assertThat(values).doesNotContainKey(CalendarContract.Events.DTEND)
         assertThat(values).doesNotContainKey(CalendarContract.Events.RRULE)
-        assertThat(values).doesNotContainKey(CalendarContract.Events.DURATION)
     }
 
     @Test

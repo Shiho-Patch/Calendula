@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Debug-build resource overrides. Merged on top of src/main for the `debug`
+    build type only (release/releaseTest keep the production values), so the
+    debug app is unmistakable on the launcher: its own label, alongside the
+    real app thanks to the `.debug` applicationId suffix.
+-->
+<resources>
+    <string name="app_name">Calendula Debug</string>
+</resources>

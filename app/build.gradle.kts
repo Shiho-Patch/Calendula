@@ -90,6 +90,8 @@ android {
 
     buildFeatures {
         compose = true
+        // BuildConfig.DEBUG gates the in-app debug ribbon (see DebugRibbon).
+        buildConfig = true
     }
 
     // Don't embed AGP's dependency-metadata block in the APK signing block. It's
