@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   turn reminders off entirely. Thanks to @moonj for the suggestion ([#14]).
 
 ### Fixed
+- Disabled calendars no longer notify. Reminders for events in a calendar you
+  have disabled (Settings → Calendars) are now suppressed instead of still
+  popping up — matching how a disabled calendar's events already stay hidden
+  everywhere else in the app ([#17]).
 - Editing a single occurrence of a recurring event works again. Choosing **Only
   this event** and saving a change to one event in a repeating series silently
   did nothing — the change was rejected and the edit form simply reappeared with
@@ -749,3 +753,4 @@ automatically, with zero telemetry and no internet permission.
 [#13]: https://codeberg.org/jlmakiola/calendula/issues/13
 [#14]: https://codeberg.org/jlmakiola/calendula/issues/14
 [#16]: https://codeberg.org/jlmakiola/calendula/issues/16
+[#17]: https://codeberg.org/jlmakiola/calendula/issues/17
