@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.provider.CalendarContract
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
+import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,7 @@ class EventReminderReceiver : BroadcastReceiver() {
     @Inject lateinit var alertStore: ReminderAlertStore
     @Inject lateinit var notifier: ReminderNotifier
     @Inject lateinit var settingsPrefs: SettingsPrefs
+    @Inject lateinit var calendarPrefs: CalendarPrefs
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != CalendarContract.ACTION_EVENT_REMINDER) return
@@ -46,7 +48,13 @@ class EventReminderReceiver : BroadcastReceiver() {
                 if (settingsPrefs.remindersEnabled.first()) {
                     val now = System.currentTimeMillis()
                     val due = alertStore.dueAlerts(now)
-                    due.forEach { notifier.post(it) }
+                    // Suppress reminders for calendars the user disabled in-app
+                    // (mirrors the event filtering in CalendarRepositoryImpl), but
+                    // still mark every due alert fired so the provider stops
+                    // re-broadcasting the suppressed ones.
+                    val disabled = calendarPrefs.disabledCalendarIds.first()
+                    due.filterNot { it.calendarId in disabled }
+                        .forEach { notifier.post(it) }
                     alertStore.markFired(due.map { it.alertId }, now)
                 }
             } finally {
