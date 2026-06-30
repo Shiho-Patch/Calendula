@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -29,6 +30,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.WidgetNavRequest
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.DebugRibbon
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportActivity
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
 import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
@@ -101,19 +103,24 @@ class MainActivity : AppCompatActivity() {
                 darkTheme = darkTheme,
                 dynamicColor = settings.dynamicColor,
             ) {
-                CompositionLocalProvider(
-                    LocalUse24HourFormat provides use24Hour,
-                    LocalShowHourLines provides settings.showHourLines,
-                ) {
-                    RootScreen(
-                        modifier = Modifier.fillMaxSize(),
-                        requestedDetailKey = requestedDetailKey,
-                        onDetailKeyConsumed = { requestedDetailKey = null },
-                        widgetNavRequest = requestedNav,
-                        onWidgetNavConsumed = { requestedNav = null },
-                        requestedImportUri = requestedImportUri,
-                        onImportConsumed = { requestedImportUri = null },
-                    )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    CompositionLocalProvider(
+                        LocalUse24HourFormat provides use24Hour,
+                        LocalShowHourLines provides settings.showHourLines,
+                    ) {
+                        RootScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            requestedDetailKey = requestedDetailKey,
+                            onDetailKeyConsumed = { requestedDetailKey = null },
+                            widgetNavRequest = requestedNav,
+                            onWidgetNavConsumed = { requestedNav = null },
+                            requestedImportUri = requestedImportUri,
+                            onImportConsumed = { requestedImportUri = null },
+                        )
+                    }
+                    // A persistent corner marker so a debug build is never
+                    // mistaken for the production app; compiled out of release.
+                    if (BuildConfig.DEBUG) DebugRibbon()
                 }
                 pendingCrashReport?.let { report ->
                     CrashReportDialog(
