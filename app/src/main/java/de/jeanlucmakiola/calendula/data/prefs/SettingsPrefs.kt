@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
@@ -427,6 +428,95 @@ class SettingsPrefs @Inject constructor(
         }
     }
 
+    // --- Contact special dates (issue #15) ------------------------------
+
+    /** Master switch for the contact special-dates mirror. Default OFF (opt-in). */
+    val specialDatesEnabled: Flow<Boolean> = store.data.map { it[SPECIAL_DATES_ENABLED_KEY] ?: false }
+
+    suspend fun setSpecialDatesEnabled(enabled: Boolean) {
+        store.edit { it[SPECIAL_DATES_ENABLED_KEY] = enabled }
+    }
+
+    /** The date types the user wants mirrored (default: all three). */
+    val specialDatesTypes: Flow<Set<SpecialDateType>> = store.data.map { prefs ->
+        SpecialDateType.entries.filterTo(mutableSetOf()) { prefs[typeEnabledKey(it)] ?: true }
+    }
+
+    suspend fun setSpecialDateTypeEnabled(type: SpecialDateType, enabled: Boolean) {
+        store.edit { it[typeEnabledKey(type)] = enabled }
+    }
+
+    /** The managed calendar id per type, for the ones that currently exist. */
+    val specialDatesCalendars: Flow<Map<SpecialDateType, Long>> = store.data.map { prefs ->
+        SpecialDateType.entries.mapNotNull { type ->
+            prefs[calendarIdKey(type)]?.let { type to it }
+        }.toMap()
+    }
+
+    /** Every managed calendar id — the editor locks title/date/recurrence for their events. */
+    val managedCalendarIds: Flow<Set<Long>> = specialDatesCalendars.map { it.values.toSet() }
+
+    suspend fun setSpecialDatesCalendarId(type: SpecialDateType, calendarId: Long?) {
+        store.edit { prefs ->
+            if (calendarId == null) prefs.remove(calendarIdKey(type)) else prefs[calendarIdKey(type)] = calendarId
+        }
+    }
+
+    /**
+     * The title template per type ("{name}'s birthday"); an empty string means
+     * unset, so the settings screen can seed the localized default. `{name}` is
+     * the contact name, `{age}` the age at the upcoming date (empty when the
+     * birth year is unknown or [specialDatesShowAge] is off).
+     */
+    val specialDatesTitleTemplates: Flow<Map<SpecialDateType, String>> = store.data.map { prefs ->
+        SpecialDateType.entries.associateWith { prefs[titleTemplateKey(it)].orEmpty() }
+    }
+
+    suspend fun setSpecialDatesTitleTemplate(type: SpecialDateType, template: String) {
+        store.edit { it[titleTemplateKey(type)] = template }
+    }
+
+    /** Whether `{age}` resolves in the title (only meaningful when the year is known). Default ON. */
+    val specialDatesShowAge: Flow<Boolean> = store.data.map { it[SPECIAL_DATES_SHOW_AGE_KEY] ?: true }
+
+    suspend fun setSpecialDatesShowAge(enabled: Boolean) {
+        store.edit { it[SPECIAL_DATES_SHOW_AGE_KEY] = enabled }
+    }
+
+    /** Outcome of the last mirror sync, for the settings status line. */
+    val specialDatesStatus: Flow<SpecialDatesStatus> = store.data.map { prefs ->
+        SpecialDatesStatus(
+            lastRun = prefs[SPECIAL_DATES_LAST_RUN_KEY] ?: 0L,
+            stalled = prefs[SPECIAL_DATES_STALLED_KEY]
+                ?.let { name -> SpecialDatesStalledReason.entries.firstOrNull { it.name == name } },
+        )
+    }
+
+    /** Record a sync outcome; [stalled] non-null marks the feature paused (e.g. permission revoked). */
+    suspend fun recordSpecialDatesRun(atMillis: Long, stalled: SpecialDatesStalledReason?) {
+        store.edit { prefs ->
+            prefs[SPECIAL_DATES_LAST_RUN_KEY] = atMillis
+            if (stalled == null) prefs.remove(SPECIAL_DATES_STALLED_KEY) else prefs[SPECIAL_DATES_STALLED_KEY] = stalled.name
+        }
+    }
+
+    /** Epoch millis of the last foreground-triggered sync, to debounce ON_RESUME. */
+    val specialDatesLastForegroundSync: Flow<Long> =
+        store.data.map { it[SPECIAL_DATES_LAST_FG_SYNC_KEY] ?: 0L }
+
+    suspend fun setSpecialDatesLastForegroundSync(atMillis: Long) {
+        store.edit { it[SPECIAL_DATES_LAST_FG_SYNC_KEY] = atMillis }
+    }
+
+    private fun typeEnabledKey(type: SpecialDateType) =
+        booleanPreferencesKey("special_dates_type_${type.name}")
+
+    private fun calendarIdKey(type: SpecialDateType) =
+        longPreferencesKey("special_dates_calendar_${type.name}")
+
+    private fun titleTemplateKey(type: SpecialDateType) =
+        stringPreferencesKey("special_dates_title_${type.name}")
+
     private fun parseFormFields(stored: String?): Set<EventFormField> = when (stored) {
         null -> DEFAULT_FORM_FIELDS
         else -> stored.split(',')
@@ -479,7 +569,28 @@ class SettingsPrefs @Inject constructor(
         const val DEFAULT_BACKUP_INTERVAL = 1_440L
         /** Floor for the automatic-backup interval (also above WorkManager's 15-min limit). */
         const val MIN_BACKUP_INTERVAL = 30L
+
+        internal val SPECIAL_DATES_ENABLED_KEY = booleanPreferencesKey("special_dates_enabled")
+        internal val SPECIAL_DATES_SHOW_AGE_KEY = booleanPreferencesKey("special_dates_show_age")
+        internal val SPECIAL_DATES_LAST_RUN_KEY = longPreferencesKey("special_dates_last_run")
+        internal val SPECIAL_DATES_STALLED_KEY = stringPreferencesKey("special_dates_stalled_reason")
+        internal val SPECIAL_DATES_LAST_FG_SYNC_KEY =
+            longPreferencesKey("special_dates_last_foreground_sync")
     }
+}
+
+/** Snapshot of the special-dates mirror's last outcome (see [SettingsPrefs.specialDatesStatus]). */
+data class SpecialDatesStatus(
+    /** Epoch millis of the last sync, or 0 if it has never run. */
+    val lastRun: Long,
+    /** Non-null when the mirror is paused and why; null when healthy. */
+    val stalled: SpecialDatesStalledReason?,
+)
+
+/** Why the special-dates mirror is paused. */
+enum class SpecialDatesStalledReason {
+    /** READ_CONTACTS was revoked in system settings after the feature was enabled. */
+    PermissionRevoked,
 }
 
 /** Snapshot of the automatic backup's last outcome (see [SettingsPrefs.autoBackupStatus]). */

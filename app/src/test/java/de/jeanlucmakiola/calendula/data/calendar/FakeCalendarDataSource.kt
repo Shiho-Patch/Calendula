@@ -1,12 +1,15 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
+import android.provider.CalendarContract
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.domain.ics.IcsEvent
 import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
+import java.time.ZoneId
 
 /**
  * Test-only fake. Tunable via the three `var` properties; `tick()` simulates
@@ -139,6 +142,61 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     override fun deleteEvent(eventId: Long) {
         writeError?.let { throw it }
         deletedEventIds += eventId
+        managedEvents.values.forEach { rows -> rows.removeAll { it.eventId == eventId } }
+    }
+
+    // --- Managed special-dates surface (stateful, so a re-sync sees inserts) ---
+
+    var findManagedCalendarsResult: List<ManagedCalendarRow> = emptyList()
+    var nextManagedEventId: Long = 1_000L
+    private var managedCalendarSeq: Long = 700L
+    private val managedEvents = mutableMapOf<Long, MutableList<ManagedEventRow>>()
+
+    data class CreatedManagedCalendar(val displayName: String, val color: Int, val type: SpecialDateType)
+    val createdManagedCalendars = mutableListOf<CreatedManagedCalendar>()
+    val insertedManagedEvents = mutableListOf<Pair<EventForm, String>>()
+    val updatedManagedFields = mutableListOf<Pair<Long, Map<String, Any?>>>()
+
+    override fun createManagedCalendar(displayName: String, color: Int, type: SpecialDateType): Long {
+        writeError?.let { throw it }
+        createdManagedCalendars += CreatedManagedCalendar(displayName, color, type)
+        val id = managedCalendarSeq++
+        managedEvents.getOrPut(id) { mutableListOf() }
+        return id
+    }
+
+    override fun findManagedCalendars(): List<ManagedCalendarRow> = findManagedCalendarsResult
+
+    override fun queryManagedEvents(calendarId: Long): List<ManagedEventRow> =
+        managedEvents[calendarId]?.toList() ?: emptyList()
+
+    override fun insertManagedEvent(form: EventForm, uid: String, allDayReminderTimeMinutes: Int): Long {
+        writeError?.let { throw it }
+        insertedManagedEvents += form to uid
+        allDayReminderTimes += allDayReminderTimeMinutes
+        val id = nextManagedEventId++
+        val times = form.toWriteTimes(ZoneId.systemDefault())
+        managedEvents.getOrPut(requireNotNull(form.calendarId)) { mutableListOf() } +=
+            ManagedEventRow(id, uid, form.title.trim(), times.dtStartMillis, form.rrule)
+        return id
+    }
+
+    override fun updateManagedFields(eventId: Long, values: Map<String, Any?>) {
+        writeError?.let { throw it }
+        if (values.isEmpty()) return
+        updatedManagedFields += eventId to values
+        managedEvents.values.forEach { rows ->
+            val idx = rows.indexOfFirst { it.eventId == eventId }
+            if (idx >= 0) {
+                var row = rows[idx]
+                (values[CalendarContract.Events.TITLE] as? String)?.let { row = row.copy(title = it) }
+                (values[CalendarContract.Events.DTSTART] as? Long)?.let { row = row.copy(dtStartMillis = it) }
+                if (values.containsKey(CalendarContract.Events.RRULE)) {
+                    row = row.copy(rrule = values[CalendarContract.Events.RRULE] as? String)
+                }
+                rows[idx] = row
+            }
+        }
     }
 
     override fun deleteOccurrence(eventId: Long, beginMillis: Long) {
