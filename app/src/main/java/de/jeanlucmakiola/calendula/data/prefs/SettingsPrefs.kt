@@ -12,6 +12,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.DayOfWeek
@@ -102,6 +103,27 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setDynamicColor(enabled: Boolean) {
         store.edit { it[DYNAMIC_COLOR_KEY] = enabled }
+    }
+
+    /**
+     * Custom-font tokens per Material typeface role (issue #19). Stored as opaque
+     * strings — "system", "custom", or a bundled font's token — resolved to a
+     * FontFamily at the theme layer; an unknown token degrades to the default.
+     */
+    val brandFont: Flow<String> = store.data.map { prefs ->
+        prefs[BRAND_FONT_KEY] ?: FONT_SYSTEM_TOKEN
+    }
+
+    val plainFont: Flow<String> = store.data.map { prefs ->
+        prefs[PLAIN_FONT_KEY] ?: FONT_SYSTEM_TOKEN
+    }
+
+    suspend fun setBrandFont(token: String) {
+        store.edit { it[BRAND_FONT_KEY] = token }
+    }
+
+    suspend fun setPlainFont(token: String) {
+        store.edit { it[PLAIN_FONT_KEY] = token }
     }
 
     suspend fun setWeekStart(pref: WeekStartPref) {
@@ -436,6 +458,8 @@ class SettingsPrefs @Inject constructor(
     companion object {
         internal val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
+        internal val BRAND_FONT_KEY = stringPreferencesKey("brand_font")
+        internal val PLAIN_FONT_KEY = stringPreferencesKey("plain_font")
         internal val WEEK_START_KEY = stringPreferencesKey("week_start")
         internal val AGENDA_SCREEN_RANGE_KEY = stringPreferencesKey("agenda_screen_range")
         internal val AGENDA_WIDGET_RANGE_KEY = stringPreferencesKey("agenda_widget_range")

@@ -7,9 +7,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Icon
+import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -51,6 +53,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +63,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,6 +78,7 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -95,9 +100,11 @@ import de.jeanlucmakiola.calendula.qs.NewEventTileService
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
 import de.jeanlucmakiola.calendula.ui.crash.openIssueTracker
 import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
+import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
 import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
 import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
+import de.jeanlucmakiola.calendula.ui.common.FullScreenPicker
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
@@ -115,6 +122,10 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldIcon
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldLabel
+import de.jeanlucmakiola.calendula.ui.theme.BundledFont
+import de.jeanlucmakiola.calendula.ui.theme.FONT_CUSTOM_TOKEN
+import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
+import de.jeanlucmakiola.calendula.ui.theme.resolveFontFamily
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
 import java.time.format.TextStyle as JavaTextStyle
@@ -477,6 +488,18 @@ private fun AppearanceScreen(
     var showAgendaScreenRange by remember { mutableStateOf(false) }
     var showAgendaWidgetRange by remember { mutableStateOf(false) }
     var showPastEvents by remember { mutableStateOf(false) }
+    var showBrandFont by remember { mutableStateOf(false) }
+    var showPlainFont by remember { mutableStateOf(false) }
+
+    val fonts by viewModel.fontState.collectAsStateWithLifecycle()
+    // A picked file that didn't parse as a font: tell the user and keep the old choice.
+    val context = LocalContext.current
+    val importFailedMessage = stringResource(R.string.settings_font_import_failed)
+    LaunchedEffect(Unit) {
+        viewModel.fontImportFailed.collect {
+            Toast.makeText(context, importFailedMessage, Toast.LENGTH_LONG).show()
+        }
+    }
 
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_appearance),
@@ -509,6 +532,24 @@ private fun AppearanceScreen(
             } else {
                 null
             },
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Fonts — the two Material typeface roles, each independently choosable
+        // (issue #19). Headings = brand (display/headline); body = plain
+        // (title/body/label). Both default to the system typeface.
+        GroupedRow(
+            title = stringResource(R.string.settings_font_headings),
+            summary = fontLabel(fonts.brand),
+            position = Position.Top,
+            onClick = { showBrandFont = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_font_body),
+            summary = fontLabel(fonts.plain),
+            position = Position.Bottom,
+            onClick = { showPlainFont = true },
         )
 
         Spacer(Modifier.height(16.dp))
@@ -602,6 +643,26 @@ private fun AppearanceScreen(
             label = { themeLabel(it) },
             onSelect = viewModel::setThemeMode,
             onDismiss = { showTheme = false },
+        )
+    }
+    if (showBrandFont) {
+        FontPicker(
+            title = stringResource(R.string.settings_font_headings),
+            role = FontRole.BRAND,
+            selected = fonts.brand,
+            onSelect = { viewModel.setFont(FontRole.BRAND, it) },
+            onImport = { viewModel.importCustomFont(FontRole.BRAND, it) },
+            onDismiss = { showBrandFont = false },
+        )
+    }
+    if (showPlainFont) {
+        FontPicker(
+            title = stringResource(R.string.settings_font_body),
+            role = FontRole.PLAIN,
+            selected = fonts.plain,
+            onSelect = { viewModel.setFont(FontRole.PLAIN, it) },
+            onImport = { viewModel.importCustomFont(FontRole.PLAIN, it) },
+            onDismiss = { showPlainFont = false },
         )
     }
     if (showWeekStart) {
@@ -1179,6 +1240,128 @@ private fun themeLabel(mode: ThemeMode): String = stringResource(
         ThemeMode.DARK -> R.string.settings_theme_dark
     },
 )
+
+/** The summary label for a stored font token (issue #19). */
+@Composable
+private fun fontLabel(token: String): String = when (token) {
+    FONT_SYSTEM_TOKEN -> stringResource(R.string.settings_font_system)
+    FONT_CUSTOM_TOKEN -> stringResource(R.string.settings_font_custom_selected)
+    else -> BundledFont.fromToken(token)?.let { stringResource(it.labelRes) }
+        ?: stringResource(R.string.settings_font_system)
+}
+
+/**
+ * Full-screen font chooser for one [FontRole]: the system default, each bundled
+ * font (previewed in its own face), and "Choose file…" which opens the system
+ * picker to load a .ttf/.otf. Selecting a system/bundled option applies at once;
+ * a file is validated and imported by the caller, switching to the custom font
+ * on success.
+ */
+@Composable
+private fun FontPicker(
+    title: String,
+    role: FontRole,
+    selected: String,
+    onSelect: (String) -> Unit,
+    onImport: (Uri) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            onImport(uri)
+            onDismiss()
+        }
+    }
+
+    // System default + the bundled fonts + the "Choose file…" row.
+    val rowCount = BundledFont.entries.size + 2
+    val isCustom = selected == FONT_CUSTOM_TOKEN
+
+    FullScreenPicker(title = title, onDismiss = onDismiss) {
+        FontOptionRow(
+            label = stringResource(R.string.settings_font_system),
+            preview = FontFamily.Default,
+            selected = selected == FONT_SYSTEM_TOKEN,
+            position = positionOf(0, rowCount),
+            onClick = {
+                onSelect(FONT_SYSTEM_TOKEN)
+                onDismiss()
+            },
+        )
+        BundledFont.entries.forEachIndexed { index, font ->
+            FontOptionRow(
+                label = stringResource(font.labelRes),
+                preview = font.family,
+                selected = selected == font.token,
+                position = positionOf(index + 1, rowCount),
+                onClick = {
+                    onSelect(font.token)
+                    onDismiss()
+                },
+            )
+        }
+        FontOptionRow(
+            label = if (isCustom) {
+                stringResource(R.string.settings_font_custom_selected)
+            } else {
+                stringResource(R.string.settings_font_choose_file)
+            },
+            // A loaded font previews in its own face; otherwise show an upload cue.
+            preview = if (isCustom) resolveFontFamily(FONT_CUSTOM_TOKEN, role, context) else null,
+            leadingIcon = if (isCustom) null else Icons.Default.UploadFile,
+            selected = isCustom,
+            position = positionOf(rowCount - 1, rowCount),
+            onClick = { launcher.launch(arrayOf("*/*")) },
+        )
+    }
+}
+
+/**
+ * One row in the [FontPicker]: the font's name, a leading "Ag" sample rendered in
+ * the option's own [preview] face (or an [leadingIcon] cue when there's nothing
+ * to preview), and a check when it's the current selection.
+ */
+@Composable
+private fun FontOptionRow(
+    label: String,
+    preview: FontFamily?,
+    selected: Boolean,
+    position: Position,
+    onClick: () -> Unit,
+    leadingIcon: ImageVector? = null,
+) {
+    GroupedRow(
+        title = label,
+        position = position,
+        selected = selected,
+        leading = {
+            if (preview != null) {
+                Text(
+                    text = "Ag",
+                    fontFamily = preview,
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            } else if (leadingIcon != null) {
+                Icon(imageVector = leadingIcon, contentDescription = null)
+            }
+        },
+        trailing = if (selected) {
+            {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        } else {
+            null
+        },
+        onClick = onClick,
+    )
+}
 
 /** Picker options: "Follow system" first, then Monday…Sunday in ISO order. */
 private val WEEK_START_OPTIONS: List<WeekStartPref> =

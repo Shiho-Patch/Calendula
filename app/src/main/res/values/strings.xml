@@ -274,6 +274,15 @@
     <string name="settings_default_view">Default view</string>
     <string name="settings_dynamic_color">Dynamic colour</string>
     <string name="settings_dynamic_color_unavailable">Requires Android 12 or newer</string>
+    <string name="settings_font_headings">Headings font</string>
+    <string name="settings_font_body">Body font</string>
+    <string name="settings_font_system">System default</string>
+    <string name="font_atkinson_hyperlegible">Atkinson Hyperlegible</string>
+    <string name="font_lora">Lora</string>
+    <string name="font_jetbrains_mono">JetBrains Mono</string>
+    <string name="settings_font_choose_file">Choose file…</string>
+    <string name="settings_font_custom_selected">Custom font</string>
+    <string name="settings_font_import_failed">Couldn\'t read that file as a font</string>
     <string name="settings_week_start">Week starts on</string>
     <string name="settings_week_start_auto">Automatic</string>
     <string name="settings_time_format">Time format</string>

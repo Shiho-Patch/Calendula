@@ -1,6 +1,7 @@
 package de.jeanlucmakiola.calendula.ui.settings
 
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
@@ -10,6 +11,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
+import de.jeanlucmakiola.calendula.data.di.IoDispatcher
+import de.jeanlucmakiola.calendula.data.fonts.CustomFontStore
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
@@ -18,14 +21,20 @@ import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.theme.AppFontSettings
+import de.jeanlucmakiola.calendula.ui.theme.FONT_CUSTOM_TOKEN
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_PAST_DISPLAY_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_RANGE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AgendaWidget
 import de.jeanlucmakiola.calendula.widget.month.MonthWidget
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -35,12 +44,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefs: SettingsPrefs,
     repository: CalendarRepository,
+    @IoDispatcher private val io: CoroutineDispatcher,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -131,6 +142,27 @@ class SettingsViewModel @Inject constructor(
             initialValue = SettingsUiState(dynamicColorAvailable = dynamicColorAvailable),
         )
 
+    /**
+     * The app-wide custom-font choice (issue #19). Its own flow — both this
+     * screen and [MainActivity] (which builds the typography) read it
+     * independently of the main settings combine.
+     */
+    val fontState: StateFlow<AppFontSettings> = combine(
+        prefs.brandFont,
+        prefs.plainFont,
+    ) { brand, plain ->
+        AppFontSettings(brand = brand, plain = plain)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000L),
+        initialValue = AppFontSettings(),
+    )
+
+    // Emitted when a picked font file couldn't be read as a font; the screen
+    // surfaces it and the previous selection stays put.
+    private val _fontImportFailed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val fontImportFailed: SharedFlow<Unit> = _fontImportFailed
+
     // Serialises widget redraws so a rapid flip-and-flip-back can't run two
     // updateAll calls at once — concurrent calls coalesce around a stale read
     // and can leave the widget on the intermediate value. Held sequentially,
@@ -172,6 +204,31 @@ class SettingsViewModel @Inject constructor(
 
     fun setDynamicColor(enabled: Boolean) {
         viewModelScope.launch { prefs.setDynamicColor(enabled) }
+    }
+
+    fun setFont(role: FontRole, token: String) {
+        viewModelScope.launch {
+            when (role) {
+                FontRole.BRAND -> prefs.setBrandFont(token)
+                FontRole.PLAIN -> prefs.setPlainFont(token)
+            }
+        }
+    }
+
+    /**
+     * Import a user-picked font file for [role]. Copies and validates it off the
+     * main thread; on success the role switches to the custom font, otherwise the
+     * previous choice is kept and [fontImportFailed] fires.
+     */
+    fun importCustomFont(role: FontRole, uri: Uri) {
+        viewModelScope.launch {
+            val ok = withContext(io) { CustomFontStore.import(appContext, role, uri) }
+            if (ok) {
+                setFont(role, FONT_CUSTOM_TOKEN)
+            } else {
+                _fontImportFailed.emit(Unit)
+            }
+        }
     }
 
     fun setWeekStart(pref: WeekStartPref) {
