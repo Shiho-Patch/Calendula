@@ -409,4 +409,14 @@
     <string name="recurrence_with_until">%1$s fino a %2$s</string>
     <string name="recurrence_with_count">%1$s, %2$d volte</string>
     <string name="reminder_channel_description">Notifiche al momento del promemoria dei tuoi eventi</string>
+    <string name="agenda_header_today">Oggi</string>
+    <string name="widget_next_month">Mese prossimo</string>
+    <string name="widget_today">Oggi</string>
+    <string name="settings_title">Impostazioni</string>
+    <string name="settings_back">Indietro</string>
+    <string name="agenda_range_this_week">Questa settimana</string>
+    <string name="settings_reminders">Promemoria evento</string>
+    <string name="settings_default_reminder">Promemoria standard</string>
+    <string name="settings_notifications_subtitle">Promemoria evento</string>
+    <string name="shortcut_new_event_short">Nuovo evento</string>
 </resources>
