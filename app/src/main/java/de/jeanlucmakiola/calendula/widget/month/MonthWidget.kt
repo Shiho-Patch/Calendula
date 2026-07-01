@@ -304,6 +304,15 @@ private fun WeekRow(
     }
 }
 
+/**
+ * Open [date]'s day view rooted in the month view (so back returns to the month
+ * grid) — the same target the in-app month grid uses when a day cell is tapped.
+ * Shared by every tappable part of a day column so, as in the app, a tap anywhere
+ * on a day opens it; only an event bar on top opts out to open its own detail.
+ */
+private fun openDayAction(context: Context, date: LocalDate) =
+    actionStartActivity(MainActivity.openDateIntent(context, date, CalendarView.Month))
+
 @Composable
 private fun DayNumber(date: LocalDate, isToday: Boolean, inMonth: Boolean, colW: Dp) {
     val context = LocalContext.current
@@ -311,11 +320,7 @@ private fun DayNumber(date: LocalDate, isToday: Boolean, inMonth: Boolean, colW:
         modifier = GlanceModifier
             .width(colW)
             .height(DAY_NUMBER_HEIGHT)
-            // Tap a day number to open that day, rooted in the month view so back
-            // returns to the month grid.
-            .clickable(
-                actionStartActivity(MainActivity.openDateIntent(context, date, CalendarView.Month)),
-            ),
+            .clickable(openDayAction(context, date)),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -342,6 +347,7 @@ private fun DayNumber(date: LocalDate, isToday: Boolean, inMonth: Boolean, colW:
 
 @Composable
 private fun LaneRow(week: MonthWeek, lane: Int, dark: Boolean, colW: Dp) {
+    val context = LocalContext.current
     Row(modifier = GlanceModifier.fillMaxWidth()) {
         var col = 0
         while (col < 7) {
@@ -355,7 +361,14 @@ private fun LaneRow(week: MonthWeek, lane: Int, dark: Boolean, colW: Dp) {
                 if (timed != null) {
                     SpanBar(event = timed, dark = dark, width = colW)
                 } else {
-                    Box(GlanceModifier.width(colW).height(LANE_HEIGHT)) {}
+                    // Empty lane cell: a tap opens that day, so blank space in a
+                    // day column is a day-open target just like the number is.
+                    Box(
+                        GlanceModifier
+                            .width(colW)
+                            .height(LANE_HEIGHT)
+                            .clickable(openDayAction(context, week.days[col])),
+                    ) {}
                 }
                 col += 1
             }
@@ -404,14 +417,20 @@ private fun SpanBar(event: EventInstance, dark: Boolean, width: Dp) {
 
 @Composable
 private fun OverflowRow(week: MonthWeek, colW: Dp) {
+    val context = LocalContext.current
     Row(modifier = GlanceModifier.fillMaxWidth()) {
         week.days.forEachIndexed { col, date ->
             val shownSpans = week.spans.count { col in it.startCol..it.endCol && it.lane < MAX_LANES }
             val freeSlots = (MAX_LANES - shownSpans).coerceAtLeast(0)
             val timedShown = minOf(freeSlots, week.timedByDay[date].orEmpty().size)
             val hidden = (week.countByDay[date] ?: 0) - shownSpans - timedShown
+            // The overflow row is part of the day column too: tapping it (whether
+            // it shows "+N" or is blank) opens that day, same as the app.
             Box(
-                modifier = GlanceModifier.width(colW).height(LANE_HEIGHT),
+                modifier = GlanceModifier
+                    .width(colW)
+                    .height(LANE_HEIGHT)
+                    .clickable(openDayAction(context, date)),
                 contentAlignment = Alignment.CenterStart,
             ) {
                 if (hidden > 0) {
