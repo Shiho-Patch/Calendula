@@ -24,6 +24,7 @@ import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.EventStatus
 import de.jeanlucmakiola.calendula.domain.Reminder
+import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.domain.ics.IcsEvent
 import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
 import de.jeanlucmakiola.calendula.domain.rruleTruncatedAt
@@ -96,6 +97,41 @@ interface CalendarDataSource {
 
     /** Permanently delete a local calendar the app owns, with all its events. */
     fun deleteCalendar(id: Long)
+
+    /**
+     * Create a local calendar tagged as the special-dates mirror for [type]
+     * (a marker in `CAL_SYNC2`); returns its `Calendars._ID`. Otherwise a normal
+     * local calendar, so it inherits per-calendar colour/visibility/reminders.
+     */
+    fun createManagedCalendar(displayName: String, color: Int, type: SpecialDateType): Long
+
+    /**
+     * The app's special-dates calendars, found by their `CAL_SYNC2` marker.
+     * Lets the mirror re-adopt its calendars after the stored ids are lost, and
+     * detect when the user deleted one in system settings.
+     */
+    fun findManagedCalendars(): List<ManagedCalendarRow>
+
+    /**
+     * The managed events in [calendarId] (those carrying a `UID_2445`, not
+     * soft-deleted) as [ManagedEventRow]s — the existing side of the sync diff.
+     */
+    fun queryManagedEvents(calendarId: Long): List<ManagedEventRow>
+
+    /**
+     * Insert a managed event carrying the deterministic [uid] in `UID_2445`;
+     * seeds its reminder rows from [form] (never touched again by sync). Returns
+     * the new `Events._ID`. [allDayReminderTimeMinutes]: see [insertEvent].
+     */
+    fun insertManagedEvent(form: EventForm, uid: String, allDayReminderTimeMinutes: Int): Long
+
+    /**
+     * Overwrite exactly the given managed columns on [eventId] (keys are
+     * `CalendarContract.Events` columns; a null value clears the column). A
+     * bare, targeted update — it never reconciles reminders or attendees, so
+     * user-owned data on the event survives every sync. No-ops on an empty map.
+     */
+    fun updateManagedFields(eventId: Long, values: Map<String, Any?>)
 
     /**
      * Insert a new event; returns the new `Events._ID`. [allDayReminderTimeMinutes]
@@ -290,6 +326,134 @@ class AndroidCalendarDataSource @Inject constructor(
             null, null,
         )
         if (deleted == 0) throw WriteFailedException("delete calendar id=$id")
+    }
+
+    override fun createManagedCalendar(displayName: String, color: Int, type: SpecialDateType): Long {
+        val name = displayName.trim().ifEmpty { Fallbacks.UNNAMED_CALENDAR }
+        val values = ContentValues().apply {
+            put(CalendarContract.Calendars.ACCOUNT_NAME, LOCAL_ACCOUNT_NAME)
+            put(CalendarContract.Calendars.ACCOUNT_TYPE, CalendarContract.ACCOUNT_TYPE_LOCAL)
+            put(CalendarContract.Calendars.OWNER_ACCOUNT, LOCAL_ACCOUNT_NAME)
+            put(CalendarContract.Calendars.NAME, name)
+            put(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, name)
+            put(CalendarContract.Calendars.CALENDAR_COLOR, color)
+            put(
+                CalendarContract.Calendars.CALENDAR_ACCESS_LEVEL,
+                CalendarContract.Calendars.CAL_ACCESS_OWNER,
+            )
+            put(CalendarContract.Calendars.VISIBLE, 1)
+            put(CalendarContract.Calendars.SYNC_EVENTS, 1)
+            // The marker that identifies this as our special-dates calendar,
+            // independent of the (user-editable) display name. CAL_SYNC1 already
+            // holds the description, so the marker lives in CAL_SYNC2.
+            put(MANAGED_MARKER_COLUMN, markerFor(type))
+        }
+        val uri = resolver.insert(localCalendarsUri(), values)
+            ?: throw WriteFailedException("create managed calendar")
+        return ContentUris.parseId(uri)
+    }
+
+    override fun findManagedCalendars(): List<ManagedCalendarRow> = resolver.query(
+        CalendarContract.Calendars.CONTENT_URI,
+        arrayOf(CalendarContract.Calendars._ID, MANAGED_MARKER_COLUMN),
+        "${CalendarContract.Calendars.ACCOUNT_TYPE} = ? AND " +
+            "${CalendarContract.Calendars.ACCOUNT_NAME} = ? AND " +
+            "$MANAGED_MARKER_COLUMN IS NOT NULL",
+        arrayOf(CalendarContract.ACCOUNT_TYPE_LOCAL, LOCAL_ACCOUNT_NAME),
+        null,
+    )?.use { c ->
+        buildList {
+            while (c.moveToNext()) {
+                val type = typeForMarker(c.getString(1)) ?: continue
+                add(ManagedCalendarRow(id = c.getLong(0), type = type))
+            }
+        }
+    } ?: emptyList()
+
+    override fun queryManagedEvents(calendarId: Long): List<ManagedEventRow> = resolver.query(
+        CalendarContract.Events.CONTENT_URI,
+        arrayOf(
+            CalendarContract.Events._ID,
+            CalendarContract.Events.UID_2445,
+            CalendarContract.Events.TITLE,
+            CalendarContract.Events.DTSTART,
+            CalendarContract.Events.RRULE,
+        ),
+        "${CalendarContract.Events.CALENDAR_ID} = ? AND " +
+            "${CalendarContract.Events.DELETED} = 0 AND " +
+            "${CalendarContract.Events.UID_2445} IS NOT NULL",
+        arrayOf(calendarId.toString()),
+        null,
+    )?.use { c ->
+        buildList {
+            while (c.moveToNext()) {
+                val uid = c.getString(1)?.takeIf { it.isNotEmpty() } ?: continue
+                add(
+                    ManagedEventRow(
+                        eventId = c.getLong(0),
+                        uid = uid,
+                        title = c.getString(2).orEmpty(),
+                        dtStartMillis = c.getLong(3),
+                        rrule = c.getString(4)?.takeIf { it.isNotEmpty() },
+                    ),
+                )
+            }
+        }
+    } ?: emptyList()
+
+    override fun insertManagedEvent(form: EventForm, uid: String, allDayReminderTimeMinutes: Int): Long {
+        val times = form.toWriteTimes(ZoneId.systemDefault())
+        val values = ContentValues().apply {
+            put(
+                CalendarContract.Events.CALENDAR_ID,
+                requireNotNull(form.calendarId) { "EventForm.calendarId is required" },
+            )
+            // Deterministic UID = the reconciliation key. A re-sync reads it back
+            // (queryManagedEvents) and diffs on it, so a contact never doubles.
+            put(CalendarContract.Events.UID_2445, uid)
+            put(CalendarContract.Events.TITLE, form.title.trim())
+            put(CalendarContract.Events.ALL_DAY, if (form.isAllDay) 1 else 0)
+            put(CalendarContract.Events.DTSTART, times.dtStartMillis)
+            if (form.rrule == null) {
+                put(CalendarContract.Events.DTEND, times.dtEndMillis)
+            } else {
+                put(CalendarContract.Events.RRULE, form.rrule)
+                put(CalendarContract.Events.DURATION, times.toRfc2445Duration(form.isAllDay))
+            }
+            put(CalendarContract.Events.EVENT_TIMEZONE, times.timezone)
+            put(CalendarContract.Events.AVAILABILITY, form.availability.toProviderValue())
+            put(CalendarContract.Events.ACCESS_LEVEL, form.accessLevel.toProviderValue())
+            form.location.trim().takeIf { it.isNotEmpty() }
+                ?.let { put(CalendarContract.Events.EVENT_LOCATION, it) }
+            form.description.trim().takeIf { it.isNotEmpty() }
+                ?.let { put(CalendarContract.Events.DESCRIPTION, it) }
+        }
+        val eventId = resolver.insert(CalendarContract.Events.CONTENT_URI, values)
+            ?.let(ContentUris::parseId)
+            ?: throw WriteFailedException("insert managed event into calendar id=${form.calendarId}")
+        // Seeded once, then never re-touched by sync — so a user who moves a
+        // birthday reminder keeps their change.
+        encodedReminders(form, allDayReminderTimeMinutes).forEach { minutes ->
+            val reminder = ContentValues().apply {
+                put(CalendarContract.Reminders.EVENT_ID, eventId)
+                put(CalendarContract.Reminders.MINUTES, minutes)
+                put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+            }
+            if (resolver.insert(CalendarContract.Reminders.CONTENT_URI, reminder) == null) {
+                Log.w(TAG, "Failed to attach reminder ($minutes min) to managed event $eventId")
+            }
+        }
+        return eventId
+    }
+
+    override fun updateManagedFields(eventId: Long, values: Map<String, Any?>) {
+        if (values.isEmpty()) return
+        val rows = resolver.update(
+            ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId),
+            values.toContentValues(),
+            null, null,
+        )
+        if (rows == 0) throw WriteFailedException("update managed event id=$eventId")
     }
 
     override fun instances(beginMillis: Long, endMillis: Long): List<EventInstance> {
@@ -1038,6 +1202,17 @@ class AndroidCalendarDataSource @Inject constructor(
         while (moveToNext()) mapper(this@mapAllNotNull)?.let(::add)
     }
 
+    /** The `CAL_SYNC2` marker value identifying a managed calendar's [type]. */
+    private fun markerFor(type: SpecialDateType): String = when (type) {
+        SpecialDateType.Birthday -> "$MANAGED_MARKER_PREFIX:birthday"
+        SpecialDateType.Anniversary -> "$MANAGED_MARKER_PREFIX:anniversary"
+        SpecialDateType.Custom -> "$MANAGED_MARKER_PREFIX:custom"
+    }
+
+    /** Inverse of [markerFor]; null for a value that isn't one of ours. */
+    private fun typeForMarker(marker: String?): SpecialDateType? =
+        SpecialDateType.entries.firstOrNull { markerFor(it) == marker }
+
     private companion object {
         const val TAG = "CalendarDataSource"
 
@@ -1046,6 +1221,13 @@ class AndroidCalendarDataSource @Inject constructor(
          * together (by account) in the filter sheet and calendar manager.
          */
         const val LOCAL_ACCOUNT_NAME = "Calendula"
+
+        /**
+         * Column and namespace for the special-dates marker. CAL_SYNC1 already
+         * holds the local-calendar description, so the marker uses CAL_SYNC2.
+         */
+        val MANAGED_MARKER_COLUMN: String = CalendarContract.Calendars.CAL_SYNC2
+        const val MANAGED_MARKER_PREFIX = "calendula.specialdates"
 
         /**
          * How far ahead/behind a search looks for a recurring event's nearest
