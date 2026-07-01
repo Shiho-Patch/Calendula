@@ -15,7 +15,9 @@ Implementation notes / deviations from this design:
   sync-adapter URI).
 - **Age is a sync-time snapshot.** A `FREQ=YEARLY` row has one static title, so
   `{age}` reflects the upcoming birthday at the last sync (refreshed daily / on
-  foreground), not a per-occurrence value.
+  foreground), not a per-occurrence value. Because of this, `{age}` is **kept out
+  of the default templates**; users can add it, and the title-format editor shows
+  a disclaimer once they do.
 - New managed calendars seed a per-calendar all-day reminder default of
   on-the-day + one week before, so birthdays get lead time out of the box.
 - Title template is user-editable from day one (`{name}`, `{age}`).

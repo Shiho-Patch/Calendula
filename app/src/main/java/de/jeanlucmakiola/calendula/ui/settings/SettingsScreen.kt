@@ -1251,6 +1251,16 @@ private fun SpecialDatesTemplateDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // Only warn about {age}'s snapshot behaviour once the user has
+                // actually put it in the template.
+                if (text.contains("{age}")) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.settings_special_dates_template_age_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary,
+                    )
+                }
             }
         },
         confirmButton = {

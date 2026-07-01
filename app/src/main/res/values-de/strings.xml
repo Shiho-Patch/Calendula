@@ -415,8 +415,8 @@
     <string name="special_dates_calendar_birthday">Geburtstage</string>
     <string name="special_dates_calendar_anniversary">Jahrestage</string>
     <string name="special_dates_calendar_custom">Besondere Tage</string>
-    <string name="special_dates_default_title_birthday">{name}s Geburtstag ({age})</string>
-    <string name="special_dates_default_title_anniversary">{name}s Jahrestag ({age})</string>
+    <string name="special_dates_default_title_birthday">{name}s Geburtstag</string>
+    <string name="special_dates_default_title_anniversary">{name}s Jahrestag</string>
     <string name="special_dates_default_title_custom">{name}</string>
     <string name="event_edit_managed_hint">Verwaltet von „%1$s“ — Titel, Datum und Wiederholung werden aus deinen Kontakten synchron gehalten. Erinnerungen, Ort und Notizen kannst du selbst bearbeiten.</string>
     <string name="settings_special_dates_subtitle">Geburtstage &amp; Jahrestage aus Kontakten</string>
@@ -428,6 +428,7 @@
     <string name="settings_special_dates_type_custom">Weitere Tage</string>
     <string name="settings_special_dates_template">Titelformat</string>
     <string name="settings_special_dates_template_hint">Verwende {name} für den Kontakt und {age} für das Alter (ausgeblendet, wenn das Jahr unbekannt ist).</string>
+    <string name="settings_special_dates_template_age_note">Hinweis: {age} ist das Alter zum nächsten Termin beim letzten Sync. Da ein jährlicher Termin nur einen Titel hat, kann es bei weit entfernten Terminen unpassend wirken.</string>
     <string name="settings_special_dates_show_age">Alter anzeigen</string>
     <string name="settings_special_dates_show_age_hint">{age} in Titeln anzeigen, wenn das Geburtsjahr bekannt ist</string>
     <string name="settings_special_dates_sync_now">Jetzt synchronisieren</string>
