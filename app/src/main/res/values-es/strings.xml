@@ -126,4 +126,22 @@
     <string name="event_detail_description">Descripción</string>
     <string name="event_detail_attendees">Participantes</string>
     <string name="event_detail_recurrence">Recurrencia</string>
+    <string name="agenda_today_action">Hoy</string>
+    <string name="agenda_header_today">Hoy</string>
+    <string name="search_back">Atras</string>
+    <string name="widget_new_event">Nuevo evento</string>
+    <string name="widget_prev_month">Mes anterior</string>
+    <string name="widget_next_month">Siguiente mes</string>
+    <string name="widget_today">Hoy</string>
+    <string name="filter_title">Calendario</string>
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_back">Atras</string>
+    <string name="agenda_range_day">Hoy</string>
+    <string name="agenda_range_this_week">Esta semana</string>
+    <string name="settings_section_calendars">Calendario</string>
+    <string name="calendars_title">Calendario</string>
+    <string name="calendars_color_label">Color</string>
+    <string name="import_close">Cerrar</string>
+    <string name="shortcut_new_event_short">Nuevo evento</string>
+    <string name="qs_tile_new_event_label">Nuevo evento</string>
 </resources>
