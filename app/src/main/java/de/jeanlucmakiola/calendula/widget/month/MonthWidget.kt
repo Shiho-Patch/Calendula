@@ -194,6 +194,8 @@ private fun MonthHeader(label: String) {
                 ),
             ),
         )
+        // Tap the month/year title to open the app on the month view (issue #18),
+        // rooted over the default home so backing out returns there.
         Text(
             text = label,
             style = TextStyle(
@@ -204,16 +206,17 @@ private fun MonthHeader(label: String) {
             ),
             modifier = GlanceModifier
                 .defaultWeight()
-                .clickable(actionRunCallback<ResetMonthAction>()),
+                .clickable(
+                    actionStartActivity(
+                        MainActivity.openViewIntent(context, CalendarView.Month),
+                    ),
+                ),
         )
+        // The "today" button snaps the grid back to the current month in place.
         HeaderIcon(
             resId = R.drawable.ic_widget_today,
             contentDescription = context.getString(R.string.widget_today),
-            onClick = GlanceModifier.clickable(
-                actionStartActivity(
-                    MainActivity.openDateIntent(context, today(systemZone()), CalendarView.Month),
-                ),
-            ),
+            onClick = GlanceModifier.clickable(actionRunCallback<ResetMonthAction>()),
         )
         HeaderIcon(
             resId = R.drawable.ic_widget_chevron_right,

@@ -212,6 +212,17 @@ fun CalendarHost(
                 detailKey = key
                 onWidgetNavConsumed()
             }
+            is WidgetNavRequest.OpenView -> {
+                // A widget header tap: land on a top-level view with no date
+                // drill-in. Reveal it by dropping any covering overlay, then root
+                // the stack on the target (null → the default home) over the
+                // default home — so backing out returns to the default, then exits.
+                dismissCoveringOverlays()
+                createDateIso = null
+                pendingDayIso = null
+                viewStack = viewBaseStack(defaultView, req.view ?: defaultView)
+                onWidgetNavConsumed()
+            }
             is WidgetNavRequest.Create -> {
                 // External "new event" entries (QS tile / launcher shortcut /
                 // widget) must land on top of whatever is open — the form overlay
