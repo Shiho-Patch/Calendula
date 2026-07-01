@@ -1,8 +1,24 @@
 # Design: Contact special-dates calendars (+ per-calendar multiple reminders)
 
-Status: **design / not yet implemented**
-Date: 2026-06-30
+Status: **implemented** on `feat/contact-special-dates` (#14 prerequisite merged in)
+Date: 2026-06-30 (implemented 2026-07-01)
 Tracking: Codeberg #15 (feature), Codeberg #14 (prerequisite)
+
+Implementation notes / deviations from this design:
+
+- **Event identity key is a deterministic `Events.UID_2445`**
+  (`contact-<type>:<lookupKey>@calendula`), not `SYNC_DATA1`. On a LOCAL calendar
+  the provider drops `_sync` columns unless written through a sync-adapter URI;
+  `UID_2445` is written/read through the normal event URIs the app already uses
+  (and doubles as a stable iCal UID). The managed **calendar** still carries a
+  `CAL_SYNC2` marker for re-adoption (calendar-row writes already use the
+  sync-adapter URI).
+- **Age is a sync-time snapshot.** A `FREQ=YEARLY` row has one static title, so
+  `{age}` reflects the upcoming birthday at the last sync (refreshed daily / on
+  foreground), not a per-occurrence value.
+- New managed calendars seed a per-calendar all-day reminder default of
+  on-the-day + one week before, so birthdays get lead time out of the box.
+- Title template is user-editable from day one (`{name}`, `{age}`).
 
 This document captures the full design for surfacing contact birthdays —
 and, by extension, anniversaries and custom dates — as auto-updating local
@@ -206,24 +222,25 @@ rest.
 ## Task outline
 
 ### #14 — per-calendar multiple default reminders (`feat/per-calendar-multi-reminders`)
-- [ ] Widen global + per-calendar reminder defaults `Int` → `List<Int>`
+- [x] Widen global + per-calendar reminder defaults `Int` → `List<Int>`
       (`SettingsPrefs.kt`), keep `Inherit/None/Minutes(list)`.
-- [ ] `resolveDefaultReminder()` returns a list.
-- [ ] `ReminderDefaultPicker` → multi-select (mirror event-form UI).
-- [ ] Seed new events' `EventForm.reminders` from the resolved list.
-- [ ] Migration / parse compatibility for existing single-value stored prefs.
-- [ ] Tests: resolution, parse round-trip, all-day variant.
+- [x] `resolveDefaultReminder()` returns a list.
+- [x] `ReminderDefaultPicker` → multi-select (mirror event-form UI).
+- [x] Seed new events' `EventForm.reminders` from the resolved list.
+- [x] Migration / parse compatibility for existing single-value stored prefs.
+- [x] Tests: resolution, parse round-trip, all-day variant.
 
 ### #15 — contact special-dates (`feat/contact-special-dates`)
-- [ ] Declare `READ_CONTACTS`; feature-gated contextual request on enable.
-- [ ] Per-type local calendars (create on enable, delete on disable+confirm).
-- [ ] Contacts reader: `Event` rows by `TYPE`, year-less handling.
-- [ ] Sync engine: idempotent diff keyed on `LOOKUP_KEY` in `SYNC_DATA1`;
-      targeted managed-column updates; seed user-owned fields on insert only.
-- [ ] `FREQ=YEARLY` event generation + age (when year known).
-- [ ] Auto-update: on enable, on foreground, daily WorkManager.
-- [ ] Editor: disable managed fields for managed-calendar events.
-- [ ] Revoked-permission detection + stalled-state surface.
-- [ ] Settings sub-page: enable, per-type toggles, title template, show-age.
-- [ ] Translatable strings (titles, sub-page).
-- [ ] About / store copy for the optional `READ_CONTACTS` permission.
+- [x] Declare `READ_CONTACTS`; feature-gated contextual request on enable.
+- [x] Per-type local calendars (create on enable, delete on disable+confirm).
+- [x] Contacts reader: `Event` rows by `TYPE`, year-less handling.
+- [x] Sync engine: idempotent diff keyed on the deterministic `UID_2445`
+      (see notes; not `SYNC_DATA1`); targeted managed-column updates; seed
+      user-owned fields on insert only.
+- [x] `FREQ=YEARLY` event generation + age (when year known; sync-time snapshot).
+- [x] Auto-update: on enable, on foreground, daily WorkManager.
+- [x] Editor: disable managed fields for managed-calendar events.
+- [x] Revoked-permission detection + stalled-state surface.
+- [x] Settings sub-page: enable, per-type toggles, title template, show-age.
+- [x] Translatable strings (titles, sub-page).
+- [x] About / store copy for the optional `READ_CONTACTS` permission.
