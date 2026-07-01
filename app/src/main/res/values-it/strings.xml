@@ -125,7 +125,6 @@
     <string name="event_detail_location">Luogo</string>
     <string name="event_detail_description">Descrizione</string>
     <string name="event_detail_attendees">Partecipanti</string>
-    <string name="event_detail_recurrence"></string>
     <string name="recurrence_daily">Ogni giorni</string>
     <string name="recurrence_weekly">Ogni settimana</string>
     <string name="recurrence_monthly">Ogni mese</string>
