@@ -193,6 +193,12 @@ class MainActivity : AppCompatActivity() {
         // An external date tap (launcher/clock) has no widget source, so it opens
         // the day view rooted over the default home view (OpenDate source = null).
         calendarTimeDateOrNull()?.let { return WidgetNavRequest.OpenDate(it.toString(), source = null) }
+        // A widget header tap: open a top-level view with no date drill-in. The
+        // empty string carried by [openViewIntent] means "the default home view".
+        if (hasExtra(EXTRA_OPEN_VIEW)) {
+            val name = getStringExtra(EXTRA_OPEN_VIEW).orEmpty()
+            return WidgetNavRequest.OpenView(CalendarView.entries.firstOrNull { it.name == name })
+        }
         val source = sourceViewOrNull()
         val eventId = getLongExtra(EXTRA_EVENT_ID, -1L)
         return when {
@@ -243,6 +249,10 @@ class MainActivity : AppCompatActivity() {
         private const val EXTRA_END_MILLIS = "de.jeanlucmakiola.calendula.extra.END"
         private const val EXTRA_DATE_ISO = "de.jeanlucmakiola.calendula.extra.DATE_ISO"
         private const val EXTRA_CREATE = "de.jeanlucmakiola.calendula.extra.CREATE"
+
+        // A widget header tap asking to open a top-level view (no date drill-in).
+        // Its value is the target [CalendarView] name, or "" for the default view.
+        private const val EXTRA_OPEN_VIEW = "de.jeanlucmakiola.calendula.extra.OPEN_VIEW"
 
         // The [CalendarView] (by name) of the widget a launch came from. Roots the
         // in-app back stack in that view; absent for non-widget launches (reminders).
@@ -305,6 +315,20 @@ class MainActivity : AppCompatActivity() {
                 data = "calendula://create/$date".toUri()
                 putExtra(EXTRA_CREATE, true)
                 putExtra(EXTRA_DATE_ISO, date.toString())
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+        /**
+         * Open the app on a top-level [view] with no date drill-in — a widget
+         * header tap. A null [view] opens the user's default home view (the agenda
+         * widget's "Upcoming" title); a concrete view roots there over the default
+         * home (the month widget's month/year title → [CalendarView.Month]). The
+         * per-view data URI keeps distinct headers' PendingIntents from collapsing.
+         */
+        fun openViewIntent(context: Context, view: CalendarView?): Intent =
+            Intent(context, MainActivity::class.java).apply {
+                data = "calendula://view/${view?.name ?: "default"}".toUri()
+                putExtra(EXTRA_OPEN_VIEW, view?.name ?: "")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
     }
