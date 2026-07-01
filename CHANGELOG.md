@@ -18,9 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   widget opens the app on the month view, and tapping the "Upcoming" title on
   the agenda widget opens it on your default view — so there's a one-tap way
   back into the app that lands where you'd expect, instead of only through a day
-  or event. The month widget's "today" button now snaps the grid back to the
-  current month in place. Thanks to @rgz46vic and @ptab for the suggestions
-  ([#18], [#20]).
+  or event. On the month widget, tapping anywhere on a day — not just the small
+  date number — now opens that day, and the "today" button snaps the grid back
+  to the current month in place. Thanks to @rgz46vic and @ptab for the
+  suggestions ([#18], [#20]).
 
 ### Fixed
 - Month widget arrows and "today" button work again. On release builds the
