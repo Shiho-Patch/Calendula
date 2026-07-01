@@ -50,24 +50,24 @@ data class SettingsUiState(
     /** Whether Calendula posts reminder notifications (v1.4). */
     val remindersEnabled: Boolean = true,
     /**
-     * The default reminder lead time (minutes) prefilled on new timed events;
-     * null = no default reminder. Per-calendar overrides take precedence.
+     * The default reminder lead times (minutes) prefilled on new timed events;
+     * empty = no default reminder. Per-calendar overrides take precedence.
      */
-    val defaultReminderMinutes: Int? = null,
-    /** The default reminder lead time prefilled on new all-day events; null = none. */
-    val defaultAllDayReminderMinutes: Int? = null,
+    val defaultReminderMinutes: List<Int> = emptyList(),
+    /** The default reminder lead times prefilled on new all-day events; empty = none. */
+    val defaultAllDayReminderMinutes: List<Int> = emptyList(),
     /** Wall-clock time (minutes from midnight) all-day reminders fire at; default 09:00. */
     val allDayReminderTimeMinutes: Int = SettingsPrefs.DEFAULT_ALLDAY_REMINDER_TIME,
     /** How long the notification "Snooze" action defers a reminder; default 10 min. */
     val snoozeMinutes: Int = SettingsPrefs.DEFAULT_SNOOZE_MINUTES,
     /**
      * Per-calendar overrides of [defaultReminderMinutes] for timed events: a
-     * calendar present in the map overrides the global default (null value = no
+     * calendar present in the map overrides the global default (empty value = no
      * reminder); absent = inherit the global default.
      */
-    val perCalendarReminderOverride: Map<Long, Int?> = emptyMap(),
+    val perCalendarReminderOverride: Map<Long, List<Int>> = emptyMap(),
     /** Per-calendar overrides of [defaultAllDayReminderMinutes] for all-day events. */
-    val perCalendarAllDayReminderOverride: Map<Long, Int?> = emptyMap(),
+    val perCalendarAllDayReminderOverride: Map<Long, List<Int>> = emptyMap(),
     /** Writable calendars, shown as per-calendar reminder-override rows. */
     val writableCalendars: List<CalendarSource> = emptyList(),
     /**

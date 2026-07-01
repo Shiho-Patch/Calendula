@@ -1115,7 +1115,7 @@ private fun NotificationsScreen(
             presets = REMINDER_PRESETS,
             selected = state.defaultReminderMinutes.toReminderChoice(),
             allowInherit = false,
-            onSelect = { viewModel.setDefaultReminderMinutes(it.toMinutesOrNull()) },
+            onSelect = { viewModel.setDefaultReminderMinutes(it.toMinutesList()) },
             onDismiss = { showDefaultReminder = false },
         )
     }
@@ -1125,7 +1125,7 @@ private fun NotificationsScreen(
             presets = ALLDAY_REMINDER_PRESETS,
             selected = state.defaultAllDayReminderMinutes.toReminderChoice(),
             allowInherit = false,
-            onSelect = { viewModel.setDefaultAllDayReminderMinutes(it.toMinutesOrNull()) },
+            onSelect = { viewModel.setDefaultAllDayReminderMinutes(it.toMinutesList()) },
             onDismiss = { showAllDayReminder = false },
         )
     }
@@ -1174,13 +1174,13 @@ private fun NotificationsScreen(
 /** Which calendar + event kind a per-calendar reminder-override dialog targets. */
 private data class OverrideTarget(val calendarId: Long, val isAllDay: Boolean)
 
-/** A global default (null = none) as a picker choice for selection highlighting. */
-private fun Int?.toReminderChoice(): CalendarReminderOverride =
-    if (this == null) CalendarReminderOverride.None else CalendarReminderOverride.Minutes(this)
+/** A global default (empty = none) as a picker choice for selection highlighting. */
+private fun List<Int>.toReminderChoice(): CalendarReminderOverride =
+    if (isEmpty()) CalendarReminderOverride.None else CalendarReminderOverride.Minutes(this)
 
 /** A picked choice as global-default minutes (Inherit isn't offered for globals). */
-private fun CalendarReminderOverride.toMinutesOrNull(): Int? =
-    (this as? CalendarReminderOverride.Minutes)?.minutes
+private fun CalendarReminderOverride.toMinutesList(): List<Int> =
+    (this as? CalendarReminderOverride.Minutes)?.minutes ?: emptyList()
 
 /**
  * Whether Calendula is exempt from battery optimisation, re-read on every
@@ -1255,27 +1255,33 @@ private fun formatTimeOfDay(context: Context, minutesOfDay: Int): String {
 }
 
 /** The stored override for [calendarId], as a picker choice (absent → inherit). */
-private fun Map<Long, Int?>.choiceFor(calendarId: Long): CalendarReminderOverride = when {
+private fun Map<Long, List<Int>>.choiceFor(calendarId: Long): CalendarReminderOverride = when {
     !containsKey(calendarId) -> CalendarReminderOverride.Inherit
-    this[calendarId] == null -> CalendarReminderOverride.None
-    else -> CalendarReminderOverride.Minutes(this.getValue(calendarId)!!)
+    this.getValue(calendarId).isEmpty() -> CalendarReminderOverride.None
+    else -> CalendarReminderOverride.Minutes(this.getValue(calendarId))
 }
 
-/** Label for a global-default choice: null → "None", else the lead time. */
+/** Label for a global-default choice: empty → "None", else the lead times joined. */
 @Composable
-private fun reminderChoiceLabel(minutes: Int?): String =
-    if (minutes == null) stringResource(R.string.reminder_none) else reminderLeadTimeLabel(minutes)
+private fun reminderChoiceLabel(minutes: List<Int>): String {
+    if (minutes.isEmpty()) return stringResource(R.string.reminder_none)
+    // reminderLeadTimeLabel is @Composable, so resolve each part in a loop rather
+    // than a (non-composable) joinToString transform.
+    val parts = ArrayList<String>(minutes.size)
+    for (m in minutes) parts.add(reminderLeadTimeLabel(m))
+    return parts.joinToString(", ")
+}
 
 /** Row summary for a calendar: its override, or the inherited global default. */
 @Composable
 private fun calendarOverrideSummary(
     choice: CalendarReminderOverride,
-    globalDefault: Int?,
+    globalDefault: List<Int>,
 ): String = when (choice) {
     CalendarReminderOverride.Inherit ->
         stringResource(R.string.settings_calendar_reminder_inherits, reminderChoiceLabel(globalDefault))
     CalendarReminderOverride.None -> stringResource(R.string.reminder_none)
-    is CalendarReminderOverride.Minutes -> reminderLeadTimeLabel(choice.minutes)
+    is CalendarReminderOverride.Minutes -> reminderChoiceLabel(choice.minutes)
 }
 
 // ---------------------------------------------------------------------------

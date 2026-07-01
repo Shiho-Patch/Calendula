@@ -330,7 +330,6 @@
     <string name="reminder_none">None</string>
     <string name="reminder_use_default">Use default reminder</string>
     <string name="reminder_custom_amount">Amount</string>
-    <string name="reminder_custom_with_value">Custom (%1$s)</string>
     <string name="reminder_custom_set">Set</string>
     <string name="settings_calendar_reminders_title">Per-calendar reminders</string>
     <string name="settings_calendar_reminders_hint">Override the default per calendar — separately for timed and all-day events. A calendar can keep the default, drop it, or set its own.</string>

@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Set more than one default reminder per calendar. A calendar's default
+  reminders — and the global defaults under Settings → Notifications — can now
+  hold several lead times instead of just one, so new events can start with, say,
+  a reminder a week before *and* one on the day. The reminder pickers are now
+  multi-select; per-calendar overrides can still inherit the global default or
+  turn reminders off entirely. Thanks to @moonj for the suggestion ([#14]).
+- Widget headers now open the app. Tapping the month/year title on the month
+  widget opens the app on the month view, and tapping the "Upcoming" title on
+  the agenda widget opens it on your default view — so there's a one-tap way
+  back into the app that lands where you'd expect, instead of only through a day
+  or event. On the month widget, tapping anywhere on a day — not just the small
+  date number — now opens that day, and the "today" button snaps the grid back
+  to the current month in place. Thanks to @rgz46vic and @ptab for the
+  suggestions ([#18], [#20]).
+
+### Fixed
+- Month widget arrows and "today" button work again. On release builds the
+  prev/next-month arrows and the jump-to-today control on the month widget did
+  nothing when tapped — code shrinking had stripped the tap handlers behind
+  them. They respond again. Thanks to @rgz46vic for the report ([#18]).
+- Disabled calendars no longer notify. Reminders for events in a calendar you
+  have disabled (Settings → Calendars) are now suppressed instead of still
+  popping up — matching how a disabled calendar's events already stay hidden
+  everywhere else in the app ([#17]).
+- Editing a single occurrence of a recurring event works again. Choosing **Only
+  this event** and saving a change to one event in a repeating series silently
+  did nothing — the change was rejected and the edit form simply reappeared with
+  nothing applied. The edited occurrence is now stored correctly, so the change
+  lands on just that one event and leaves the rest of the series untouched
+  ([#16]).
+
 ## [2.12.0] — 2026-06-28
 
 ### Added
@@ -729,3 +763,8 @@ automatically, with zero telemetry and no internet permission.
 [#10]: https://codeberg.org/jlmakiola/calendula/issues/10
 [#12]: https://codeberg.org/jlmakiola/calendula/issues/12
 [#13]: https://codeberg.org/jlmakiola/calendula/issues/13
+[#14]: https://codeberg.org/jlmakiola/calendula/issues/14
+[#16]: https://codeberg.org/jlmakiola/calendula/issues/16
+[#17]: https://codeberg.org/jlmakiola/calendula/issues/17
+[#18]: https://codeberg.org/jlmakiola/calendula/issues/18
+[#20]: https://codeberg.org/jlmakiola/calendula/issues/20
