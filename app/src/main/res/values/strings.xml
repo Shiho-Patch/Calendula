@@ -68,6 +68,8 @@
     <string name="event_edit_close">Close</string>
     <string name="event_edit_save">Save</string>
     <string name="event_edit_title_hint">Add title</string>
+    <!-- %1$s is the managing calendar's name, e.g. "Birthdays". -->
+    <string name="event_edit_managed_hint">Managed by “%1$s” — the title, date and repeat are kept in sync from your contacts. Reminders, location and notes are yours to edit.</string>
     <string name="event_edit_starts">Starts</string>
     <string name="event_edit_ends">Ends</string>
     <string name="event_edit_error_end_before_start">Ends before it starts</string>

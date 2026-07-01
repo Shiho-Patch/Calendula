@@ -165,7 +165,8 @@ class EventEditViewModel @Inject constructor(
             ::ExternalInputs,
         ).flowOn(io),
         colorPalette,
-    ) { local, external, palette ->
+        settingsPrefs.managedCalendarIds,
+    ) { local, external, palette, managedIds ->
         val form = local.form ?: return@combine null
         val resolvedId = form.calendarId
             ?: external.lastUsed?.takeIf { id -> external.writable.any { it.id == id } }
@@ -180,6 +181,8 @@ class EventEditViewModel @Inject constructor(
             visibleFields = visibleFields,
             hiddenFields = (EventFormField.entries.toSet() - visibleFields).sorted(),
             isEditing = local.editTarget != null,
+            // Editing an event in a managed calendar locks its synced fields.
+            isManaged = local.editTarget != null && resolvedId != null && resolvedId in managedIds,
             autofocusTitle = external.autofocusTitle,
             // A modified-occurrence exception can't carry its own rule, so
             // the scope dialog drops "only this event" after a rule change.

@@ -36,6 +36,7 @@ fun InlineTextField(
     textStyle: TextStyle = MaterialTheme.typography.titleMedium,
     singleLine: Boolean = true,
     minLines: Int = 1,
+    enabled: Boolean = true,
     keyboardType: KeyboardType = KeyboardType.Text,
     capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
     imeAction: ImeAction = ImeAction.Default,
@@ -43,15 +44,17 @@ fun InlineTextField(
     onImeAction: (() -> Unit)? = null,
 ) {
     val resolvedStyle = textStyle.copy(
-        color = if (textStyle.color.isSpecified) {
-            textStyle.color
-        } else {
-            MaterialTheme.colorScheme.onSurface
+        color = when {
+            // A disabled field reads as dimmed, like a locked value.
+            !enabled -> MaterialTheme.colorScheme.onSurfaceVariant
+            textStyle.color.isSpecified -> textStyle.color
+            else -> MaterialTheme.colorScheme.onSurface
         },
     )
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
+        enabled = enabled,
         textStyle = resolvedStyle,
         singleLine = singleLine,
         minLines = minLines,
