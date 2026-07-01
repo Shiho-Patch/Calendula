@@ -45,9 +45,37 @@ val IMPLEMENTED_VIEWS: List<CalendarView> =
 
 /** Next view in [available], wrapping around. Falls back to Month if absent. */
 fun CalendarView.next(available: List<CalendarView> = IMPLEMENTED_VIEWS): CalendarView {
+    if (available.isEmpty()) return this
     val i = available.indexOf(this)
-    if (i < 0) return available.firstOrNull() ?: CalendarView.Month
+    if (i < 0) return available.first()
     return available[(i + 1) % available.size]
+}
+
+/**
+ * The user's customisation of the top-bar quick-switch button (#24): which views
+ * it cycles through ([enabled]) and in what [order]. [order] always lists every
+ * implemented view — the settings screen reorders the whole set — while [cycle]
+ * is the subset the pill actually steps through, in [order]. The navigation
+ * drawer keeps its own separate order and always lists every view, so a view
+ * disabled here stays reachable there.
+ */
+data class QuickSwitchConfig(
+    val order: List<CalendarView>,
+    val enabled: Set<CalendarView>,
+) {
+    /** Views the pill steps through, in [order]. */
+    val cycle: List<CalendarView> get() = order.filter { it in enabled }
+
+    companion object {
+        /** All views, in default order, all enabled. */
+        val Default = QuickSwitchConfig(IMPLEMENTED_VIEWS, IMPLEMENTED_VIEWS.toSet())
+
+        /**
+         * Fewest views that keep the switch meaningful — a "switch" needs at
+         * least two targets, so the settings screen blocks disabling below this.
+         */
+        const val MIN_ENABLED = 2
+    }
 }
 
 /**

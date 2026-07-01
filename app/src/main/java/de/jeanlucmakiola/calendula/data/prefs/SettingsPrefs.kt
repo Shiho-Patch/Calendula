@@ -12,6 +12,8 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.DayOfWeek
@@ -200,6 +202,34 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setDefaultView(view: CalendarView) {
         store.edit { it[DEFAULT_VIEW_KEY] = view.name }
+    }
+
+    /**
+     * Quick-switch button customisation (#24): the ordered full view list plus
+     * which views are enabled in the cycle. Stored comma-joined by enum name, a
+     * "!" prefix marking a disabled view (e.g. "Month,Week,!Day,Agenda"). Missing
+     * views are appended enabled and unknown names dropped, so a future view
+     * defaults into the cycle. An absent key means [QuickSwitchConfig.Default].
+     */
+    val quickSwitchConfig: Flow<QuickSwitchConfig> = store.data.map { prefs ->
+        parseQuickSwitch(prefs[QUICK_SWITCH_VIEWS_KEY])
+    }
+
+    suspend fun setQuickSwitchConfig(config: QuickSwitchConfig) {
+        store.edit { it[QUICK_SWITCH_VIEWS_KEY] = serializeQuickSwitch(config) }
+    }
+
+    /**
+     * Navigation-drawer view order (#24). Comma-joined enum names; missing views
+     * are appended in default order and unknown names dropped. Absent key means
+     * [IMPLEMENTED_VIEWS] (the historical fixed order).
+     */
+    val drawerViewOrder: Flow<List<CalendarView>> = store.data.map { prefs ->
+        parseViewOrder(prefs[DRAWER_VIEW_ORDER_KEY])
+    }
+
+    suspend fun setDrawerViewOrder(order: List<CalendarView>) {
+        store.edit { it[DRAWER_VIEW_ORDER_KEY] = order.joinToString(",") { view -> view.name } }
     }
 
     /**
@@ -434,6 +464,40 @@ class SettingsPrefs @Inject constructor(
             .toSet()
     }
 
+    /** Parse a plain comma-joined view order, completed to every implemented view. */
+    private fun parseViewOrder(stored: String?): List<CalendarView> =
+        completeViewOrder(
+            stored?.split(',').orEmpty()
+                .mapNotNull { name -> CalendarView.entries.firstOrNull { it.name == name.trim() } },
+        )
+
+    /** Parse the quick-switch config; "!"-prefixed names are disabled. */
+    private fun parseQuickSwitch(stored: String?): QuickSwitchConfig {
+        if (stored == null) return QuickSwitchConfig.Default
+        val parsed = stored.split(',').mapNotNull { raw ->
+            val token = raw.trim()
+            val disabled = token.startsWith("!")
+            val name = if (disabled) token.drop(1) else token
+            CalendarView.entries.firstOrNull { it.name == name }?.let { it to disabled }
+        }
+        val order = completeViewOrder(parsed.map { it.first })
+        // Only views explicitly stored disabled are excluded; anything appended
+        // (a view added in a later release) defaults into the cycle.
+        val disabled = parsed.filter { it.second }.map { it.first }.toSet()
+        return QuickSwitchConfig(order, order.filterNot { it in disabled }.toSet())
+    }
+
+    private fun serializeQuickSwitch(config: QuickSwitchConfig): String =
+        completeViewOrder(config.order).joinToString(",") { view ->
+            if (view in config.enabled) view.name else "!${view.name}"
+        }
+
+    /** Keep the given order (de-duplicated), then append any views it omits. */
+    private fun completeViewOrder(seen: List<CalendarView>): List<CalendarView> {
+        val ordered = seen.distinct()
+        return ordered + IMPLEMENTED_VIEWS.filterNot { it in ordered }
+    }
+
     companion object {
         internal val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
@@ -446,6 +510,8 @@ class SettingsPrefs @Inject constructor(
         internal val PAST_EVENT_DISPLAY_KEY = stringPreferencesKey("agenda_past_event_display")
         internal val DIM_COMPLETED_EVENTS_KEY = booleanPreferencesKey("dim_completed_events")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
+        internal val QUICK_SWITCH_VIEWS_KEY = stringPreferencesKey("quick_switch_views")
+        internal val DRAWER_VIEW_ORDER_KEY = stringPreferencesKey("drawer_view_order")
         internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
         internal val AUTOFOCUS_EVENT_TITLE_KEY = booleanPreferencesKey("autofocus_event_title")
         internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")

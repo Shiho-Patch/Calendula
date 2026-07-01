@@ -41,6 +41,8 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Favorite
@@ -99,9 +101,14 @@ import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
 import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
 import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
+import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.common.ReorderableColumn
+import de.jeanlucmakiola.calendula.ui.common.ReorderableRowHeight
+import de.jeanlucmakiola.calendula.ui.common.icon
 import de.jeanlucmakiola.calendula.ui.common.labelRes
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.OptionPicker
@@ -121,7 +128,7 @@ import java.time.format.TextStyle as JavaTextStyle
 import java.util.Calendar
 
 /** The settings sub-screens reached from the hub's category rows. */
-private enum class SettingsSection { Appearance, EventForm, Notifications }
+private enum class SettingsSection { Appearance, Views, EventForm, Notifications }
 
 /**
  * Token-based accent for a leading icon chip (container / on-container pair).
@@ -167,6 +174,13 @@ fun SettingsScreen(
             AppearanceScreen(state = state, viewModel = viewModel, onBack = { section = null })
         }
         AnimatedVisibility(
+            visible = section == SettingsSection.Views,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            ViewsScreen(state = state, viewModel = viewModel, onBack = { section = null })
+        }
+        AnimatedVisibility(
             visible = section == SettingsSection.EventForm,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
             exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
@@ -203,6 +217,13 @@ private fun SettingsHub(
             position = Position.Top,
             leading = { CategoryIcon(Icons.Default.Palette, ChipAccent.Neutral) },
             onClick = { onOpenSection(SettingsSection.Appearance) },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_section_views),
+            summary = stringResource(R.string.settings_views_subtitle),
+            position = Position.Middle,
+            leading = { CategoryIcon(Icons.Default.SwapVert, ChipAccent.Neutral) },
+            onClick = { onOpenSection(SettingsSection.Views) },
         )
         GroupedRow(
             title = stringResource(R.string.settings_section_event_form),
@@ -662,6 +683,131 @@ private fun AppearanceScreen(
             onDismiss = { showDefaultView = false },
         )
     }
+}
+
+/**
+ * Views (#24): reorder the top-bar quick-switch cycle and choose which views it
+ * steps through, plus reorder the navigation-drawer list. Two independent lists —
+ * a view disabled in the quick-switch cycle is still reachable from the drawer,
+ * which always lists every view. The switch needs at least two targets, so the
+ * last [QuickSwitchConfig.MIN_ENABLED] enabled views can't be turned off.
+ */
+@Composable
+private fun ViewsScreen(
+    state: SettingsUiState,
+    viewModel: SettingsViewModel,
+    onBack: () -> Unit,
+) {
+    CollapsingScaffold(
+        title = stringResource(R.string.settings_section_views),
+        onBack = onBack,
+    ) {
+        val config = state.quickSwitchConfig
+
+        SectionHeader(stringResource(R.string.settings_quick_switch_header))
+        SettingsHint(stringResource(R.string.settings_quick_switch_hint))
+        Spacer(Modifier.height(8.dp))
+        // Turning a view off is blocked once only the minimum remain enabled.
+        val canDisable = config.enabled.size > QuickSwitchConfig.MIN_ENABLED
+        ReorderableColumn(
+            items = config.order,
+            keyOf = { it },
+            onReorder = { viewModel.setQuickSwitchConfig(config.copy(order = it)) },
+        ) { view, position, dragHandle, isDragging ->
+            val checked = view in config.enabled
+            ViewRow(
+                view = view,
+                position = position,
+                isDragging = isDragging,
+                dragHandle = dragHandle,
+                dimmed = !checked,
+                trailing = {
+                    Switch(
+                        checked = checked,
+                        // Keep the last two on: with fewer, the pill can't switch.
+                        enabled = !checked || canDisable,
+                        onCheckedChange = { on ->
+                            val enabled = if (on) config.enabled + view else config.enabled - view
+                            viewModel.setQuickSwitchConfig(config.copy(enabled = enabled))
+                        },
+                    )
+                },
+            )
+        }
+
+        Spacer(Modifier.height(24.dp))
+        SectionHeader(stringResource(R.string.settings_drawer_order_header))
+        SettingsHint(stringResource(R.string.settings_drawer_order_hint))
+        Spacer(Modifier.height(8.dp))
+        ReorderableColumn(
+            items = state.drawerViewOrder,
+            keyOf = { it },
+            onReorder = { viewModel.setDrawerViewOrder(it) },
+        ) { view, position, dragHandle, isDragging ->
+            ViewRow(
+                view = view,
+                position = position,
+                isDragging = isDragging,
+                dragHandle = dragHandle,
+            )
+        }
+    }
+}
+
+/** One reorderable view row: the view's icon and name, an optional [trailing]
+ *  control, and a drag handle carrying the [dragHandle] gesture modifier. */
+@Composable
+private fun ViewRow(
+    view: CalendarView,
+    position: Position,
+    isDragging: Boolean,
+    dragHandle: Modifier,
+    dimmed: Boolean = false,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    GroupedRow(
+        title = stringResource(view.labelRes),
+        position = position,
+        dimmed = dimmed,
+        minHeight = ReorderableRowHeight,
+        // The reorderable column owns the inter-row spacing (uniform pitch).
+        gapBelow = false,
+        container = if (isDragging) MaterialTheme.colorScheme.secondaryContainer else null,
+        leading = {
+            Icon(
+                imageVector = view.icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        trailing = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                trailing?.invoke()
+                if (trailing != null) Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = dragHandle.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DragHandle,
+                        contentDescription = stringResource(R.string.reorder_drag_handle),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+    )
+}
+
+/** Muted supporting text under a [SectionHeader], matching the form-fields hint. */
+@Composable
+private fun SettingsHint(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+    )
 }
 
 @Composable

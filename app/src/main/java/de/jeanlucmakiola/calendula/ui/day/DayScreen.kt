@@ -72,6 +72,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.NowLine
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
@@ -116,6 +117,8 @@ fun DayScreen(
     onOpenSettings: () -> Unit,
     onOpenSearch: () -> Unit,
     onCreateEvent: (LocalDate, Int?) -> Unit,
+    quickSwitchViews: List<CalendarView> = IMPLEMENTED_VIEWS,
+    drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
     modifier: Modifier = Modifier,
     initialDateIso: String? = null,
     viewModel: DayViewModel = hiltViewModel(),
@@ -175,6 +178,7 @@ fun DayScreen(
             CalendarDrawer(
                 currentView = selectedView,
                 currentDate = date,
+                viewOrder = drawerViewOrder,
                 onSelectView = { view ->
                     onSelectView(view)
                     scope.launch { drawerState.close() }
@@ -196,7 +200,7 @@ fun DayScreen(
                 DayTopBar(
                     date = date,
                     selectedView = selectedView,
-                    onCycleView = { onSelectView(selectedView.next()) },
+                    onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
                     scrollBehavior = scrollBehavior,
