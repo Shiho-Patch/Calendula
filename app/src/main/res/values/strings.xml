@@ -14,7 +14,7 @@
 
     <!-- Permission flow (F1) -->
     <string name="permission_rationale_title">See all your events, beautifully</string>
-    <string name="permission_rationale_body">Calendula needs access to your calendar to show and manage your events. That\'s the only thing it ever asks for.</string>
+    <string name="permission_rationale_body">Calendula needs access to your calendar to show and manage your events. That\'s all it asks for up front — and nothing ever leaves your device.</string>
     <string name="permission_request_button">Grant calendar access</string>
     <string name="permission_denied_title">Calendar access denied</string>
     <string name="permission_denied_body">Calendula cannot show events without calendar access. You can grant it again in the system settings.</string>

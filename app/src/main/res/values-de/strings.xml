@@ -13,7 +13,7 @@
 
     <!-- Permission-Flow (F1) -->
     <string name="permission_rationale_title">Alle Termine, schön im Blick</string>
-    <string name="permission_rationale_body">Calendula braucht Zugriff auf deinen Kalender, um deine Termine zu zeigen und zu verwalten. Mehr verlangt die App nie.</string>
+    <string name="permission_rationale_body">Calendula braucht Zugriff auf deinen Kalender, um deine Termine zu zeigen und zu verwalten. Mehr verlangt die App zu Beginn nicht — und nichts verlässt je dein Gerät.</string>
     <string name="permission_request_button">Kalender-Zugriff erlauben</string>
     <string name="permission_denied_title">Kalender-Zugriff abgelehnt</string>
     <string name="permission_denied_body">Ohne Kalender-Zugriff kann Calendula keine Termine anzeigen. Du kannst den Zugriff in den System-Einstellungen wieder erlauben.</string>
@@ -410,4 +410,36 @@
     <string name="crash_report_open_failed">Der Issue-Tracker konnte nicht geöffnet werden. Der Bericht ist in deiner Zwischenablage.</string>
     <string name="crash_report_body_template">Danke, dass du einen Absturz in Calendula meldest. Bitte ergänze, was du gerade getan hast, und sende dann ab.\n\n### Was ist passiert\n\n\n### Absturzbericht\n%1$s\n</string>
     <string name="crash_report_body_paste">_(Der Bericht war zu lang für diesen Link — füge ihn aus deiner Zwischenablage hier ein.)_</string>
+
+    <!-- Contact special dates (issue #15) -->
+    <string name="special_dates_calendar_birthday">Geburtstage</string>
+    <string name="special_dates_calendar_anniversary">Jahrestage</string>
+    <string name="special_dates_calendar_custom">Besondere Tage</string>
+    <string name="special_dates_default_title_birthday">{name}s Geburtstag ({age})</string>
+    <string name="special_dates_default_title_anniversary">{name}s Jahrestag ({age})</string>
+    <string name="special_dates_default_title_custom">{name}</string>
+    <string name="event_edit_managed_hint">Verwaltet von „%1$s“ — Titel, Datum und Wiederholung werden aus deinen Kontakten synchron gehalten. Erinnerungen, Ort und Notizen kannst du selbst bearbeiten.</string>
+    <string name="settings_special_dates_subtitle">Geburtstage &amp; Jahrestage aus Kontakten</string>
+    <string name="settings_section_special_dates">Besondere Kontakttage</string>
+    <string name="settings_special_dates_enable">Kontakttage anzeigen</string>
+    <string name="settings_special_dates_enable_hint">Spiegelt Geburtstage und weitere Daten deiner Kontakte in lokale Kalender. Liest Kontakte nur auf diesem Gerät — nichts wird hochgeladen, und deine Kontakte werden nie verändert.</string>
+    <string name="settings_special_dates_type_birthday">Geburtstage</string>
+    <string name="settings_special_dates_type_anniversary">Jahrestage</string>
+    <string name="settings_special_dates_type_custom">Weitere Tage</string>
+    <string name="settings_special_dates_template">Titelformat</string>
+    <string name="settings_special_dates_template_hint">Verwende {name} für den Kontakt und {age} für das Alter (ausgeblendet, wenn das Jahr unbekannt ist).</string>
+    <string name="settings_special_dates_show_age">Alter anzeigen</string>
+    <string name="settings_special_dates_show_age_hint">{age} in Titeln anzeigen, wenn das Geburtsjahr bekannt ist</string>
+    <string name="settings_special_dates_sync_now">Jetzt synchronisieren</string>
+    <string name="settings_special_dates_never_synced">Noch nicht synchronisiert</string>
+    <string name="settings_special_dates_last_synced">Zuletzt synchronisiert %1$s</string>
+    <string name="settings_special_dates_calendar_hint">Farbe, Sichtbarkeit und Erinnerungen jedes Kalenders legst du in den Kalender-Einstellungen fest.</string>
+    <string name="settings_special_dates_paused_title">Pausiert</string>
+    <string name="settings_special_dates_paused_hint">Calendula kann deine Kontakte nicht mehr lesen, daher werden diese Kalender nicht aktualisiert.</string>
+    <string name="settings_special_dates_grant">Zugriff erlauben</string>
+    <string name="settings_special_dates_disable_title">Kontakttage deaktivieren?</string>
+    <string name="settings_special_dates_disable_all_message">Dadurch werden die Kontakttage-Kalender und ihre Termine gelöscht. Hinzugefügte Erinnerungen oder Notizen gehen verloren.</string>
+    <string name="settings_special_dates_disable_type_message">Dadurch werden der Kalender „%1$s“ und seine Termine gelöscht. Hinzugefügte Erinnerungen oder Notizen gehen verloren.</string>
+    <string name="settings_special_dates_disable_confirm">Deaktivieren</string>
+    <string name="dialog_save">Speichern</string>
 </resources>
