@@ -107,6 +107,7 @@ import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.common.ReorderableColumn
+import de.jeanlucmakiola.calendula.ui.common.ReorderableRowHeight
 import de.jeanlucmakiola.calendula.ui.common.icon
 import de.jeanlucmakiola.calendula.ui.common.labelRes
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
@@ -768,7 +769,9 @@ private fun ViewRow(
         title = stringResource(view.labelRes),
         position = position,
         dimmed = dimmed,
-        minHeight = 64.dp,
+        minHeight = ReorderableRowHeight,
+        // The reorderable column owns the inter-row spacing (uniform pitch).
+        gapBelow = false,
         container = if (isDragging) MaterialTheme.colorScheme.secondaryContainer else null,
         leading = {
             Icon(
