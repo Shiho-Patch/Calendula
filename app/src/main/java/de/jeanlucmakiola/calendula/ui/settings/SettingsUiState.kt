@@ -9,6 +9,8 @@ import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 
 /**
  * Settings screen state (M4). Persisted preferences are instant to read, so
@@ -37,6 +39,10 @@ data class SettingsUiState(
     val agendaShowRangeBar: Boolean = true,
     /** The calendar view the app opens on, and the home of the view back stack (M1). */
     val defaultView: CalendarView = CalendarView.Week,
+    /** Which views the top-bar quick-switch button cycles through, and their order (#24). */
+    val quickSwitchConfig: QuickSwitchConfig = QuickSwitchConfig.Default,
+    /** Order of the views in the navigation drawer (#24); every view is always listed. */
+    val drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
     /** Optional event-form fields shown by default (rest behind "more fields"). */
     val defaultFormFields: Set<EventFormField> = SettingsPrefs.DEFAULT_FORM_FIELDS,
     /** Whether the new-event form auto-focuses the title and shows the keyboard (#10). */

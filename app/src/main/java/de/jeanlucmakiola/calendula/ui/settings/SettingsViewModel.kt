@@ -21,6 +21,7 @@ import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_PAST_DISPLAY_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_RANGE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AgendaWidget
@@ -103,8 +104,14 @@ class SettingsViewModel @Inject constructor(
                 prefs.autofocusEventTitle,
                 prefs.pastEventDisplay,
                 prefs.dimCompletedEvents,
-                ::MiscSettings,
-            ),
+                // View customisation (#24) folded into one flow so it fits this
+                // group — the outer combine is already at its five-arg limit.
+                combine(prefs.quickSwitchConfig, prefs.drawerViewOrder) { quickSwitch, drawer ->
+                    ViewCustomization(quickSwitch, drawer)
+                },
+            ) { showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization ->
+                MiscSettings(showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization)
+            },
         ) { base, defaults, overrides, views, misc ->
             base.copy(
                 defaultView = views.defaultView,
@@ -116,6 +123,8 @@ class SettingsViewModel @Inject constructor(
                 autofocusEventTitle = misc.autofocusEventTitle,
                 pastEventDisplay = misc.pastEventDisplay,
                 dimCompletedEvents = misc.dimCompletedEvents,
+                quickSwitchConfig = misc.viewCustomization.quickSwitch,
+                drawerViewOrder = misc.viewCustomization.drawerOrder,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -164,6 +173,12 @@ class SettingsViewModel @Inject constructor(
         val autofocusEventTitle: Boolean,
         val pastEventDisplay: PastEventDisplay,
         val dimCompletedEvents: Boolean,
+        val viewCustomization: ViewCustomization,
+    )
+
+    private data class ViewCustomization(
+        val quickSwitch: QuickSwitchConfig,
+        val drawerOrder: List<CalendarView>,
     )
 
     fun setThemeMode(mode: ThemeMode) {
@@ -245,6 +260,14 @@ class SettingsViewModel @Inject constructor(
 
     fun setFormFieldDefault(field: EventFormField, enabled: Boolean) {
         viewModelScope.launch { prefs.setFormFieldDefault(field, enabled) }
+    }
+
+    fun setQuickSwitchConfig(config: QuickSwitchConfig) {
+        viewModelScope.launch { prefs.setQuickSwitchConfig(config) }
+    }
+
+    fun setDrawerViewOrder(order: List<CalendarView>) {
+        viewModelScope.launch { prefs.setDrawerViewOrder(order) }
     }
 
     fun setRemindersEnabled(enabled: Boolean) {

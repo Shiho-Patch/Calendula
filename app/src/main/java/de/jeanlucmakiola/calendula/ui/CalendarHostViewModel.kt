@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -26,4 +28,21 @@ class CalendarHostViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = null,
     )
+
+    /** Views the top-bar quick-switch pill cycles through, in the user's order (#24). */
+    val quickSwitchViews: StateFlow<List<CalendarView>> = prefs.quickSwitchConfig
+        .map { it.cycle }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = IMPLEMENTED_VIEWS,
+        )
+
+    /** Order of the views in the navigation drawer (#24); every view always shown. */
+    val drawerViewOrder: StateFlow<List<CalendarView>> = prefs.drawerViewOrder
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = IMPLEMENTED_VIEWS,
+        )
 }

@@ -6,6 +6,9 @@ import androidx.datastore.preferences.core.Preferences
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
+import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DayOfWeek
@@ -147,6 +150,78 @@ class SettingsPrefsTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
         EventFormField.entries.forEach { prefs.setFormFieldDefault(it, enabled = false) }
         assertThat(prefs.defaultFormFields.first()).isEmpty()
+    }
+
+    @Test
+    fun `quick-switch defaults to every view enabled in default order`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        val config = prefs.quickSwitchConfig.first()
+        assertThat(config.order).containsExactlyElementsIn(IMPLEMENTED_VIEWS).inOrder()
+        assertThat(config.enabled).containsExactlyElementsIn(IMPLEMENTED_VIEWS)
+        assertThat(config.cycle).containsExactlyElementsIn(IMPLEMENTED_VIEWS).inOrder()
+    }
+
+    @Test
+    fun `quick-switch config round-trips order and disabled views`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        val config = QuickSwitchConfig(
+            order = listOf(CalendarView.Agenda, CalendarView.Month, CalendarView.Week, CalendarView.Day),
+            enabled = setOf(CalendarView.Agenda, CalendarView.Month),
+        )
+        prefs.setQuickSwitchConfig(config)
+        val loaded = prefs.quickSwitchConfig.first()
+        assertThat(loaded.order).containsExactly(
+            CalendarView.Agenda, CalendarView.Month, CalendarView.Week, CalendarView.Day,
+        ).inOrder()
+        assertThat(loaded.enabled).containsExactly(CalendarView.Agenda, CalendarView.Month)
+        assertThat(loaded.cycle).containsExactly(CalendarView.Agenda, CalendarView.Month).inOrder()
+    }
+
+    @Test
+    fun `quick-switch parse appends missing views enabled and drops unknowns`(@TempDir tempDir: Path) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = SettingsPrefs(store)
+        // Only Day (disabled) and Week stored, plus a bogus name; Month & Agenda absent.
+        store.updateData { p ->
+            val m = p.toMutablePreferences()
+            m[SettingsPrefs.QUICK_SWITCH_VIEWS_KEY] = "!Day,Week,Hologram"
+            m
+        }
+        val config = prefs.quickSwitchConfig.first()
+        // Stored order first (Day, Week), then the omitted views in default order.
+        assertThat(config.order).containsExactly(
+            CalendarView.Day, CalendarView.Week, CalendarView.Month, CalendarView.Agenda,
+        ).inOrder()
+        // Day was explicitly disabled; the appended Month & Agenda default enabled.
+        assertThat(config.enabled).containsExactly(
+            CalendarView.Week, CalendarView.Month, CalendarView.Agenda,
+        )
+    }
+
+    @Test
+    fun `drawer order defaults to the implemented order and round-trips`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.drawerViewOrder.first()).containsExactlyElementsIn(IMPLEMENTED_VIEWS).inOrder()
+        prefs.setDrawerViewOrder(
+            listOf(CalendarView.Agenda, CalendarView.Day, CalendarView.Week, CalendarView.Month),
+        )
+        assertThat(prefs.drawerViewOrder.first()).containsExactly(
+            CalendarView.Agenda, CalendarView.Day, CalendarView.Week, CalendarView.Month,
+        ).inOrder()
+    }
+
+    @Test
+    fun `drawer order parse appends missing views and drops unknowns`(@TempDir tempDir: Path) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = SettingsPrefs(store)
+        store.updateData { p ->
+            val m = p.toMutablePreferences()
+            m[SettingsPrefs.DRAWER_VIEW_ORDER_KEY] = "Agenda,Nope,Week"
+            m
+        }
+        assertThat(prefs.drawerViewOrder.first()).containsExactly(
+            CalendarView.Agenda, CalendarView.Week, CalendarView.Month, CalendarView.Day,
+        ).inOrder()
     }
 
     @Test
