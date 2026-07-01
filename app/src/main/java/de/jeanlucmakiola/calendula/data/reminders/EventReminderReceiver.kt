@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.provider.CalendarContract
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
+import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +16,17 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+/**
+ * The due alerts that should actually surface as notifications: everything
+ * except alerts whose calendar the user has disabled in-app (mirroring the
+ * event filtering in CalendarRepositoryImpl). The caller still marks the full
+ * due set fired, so suppressed alerts are not re-broadcast by the provider.
+ */
+internal fun postableAlerts(
+    due: List<ReminderAlert>,
+    disabledCalendarIds: Set<Long>,
+): List<ReminderAlert> = due.filterNot { it.calendarId in disabledCalendarIds }
 
 /**
  * Becomes the app that turns the calendar provider's reminder alarms into
@@ -32,6 +44,7 @@ class EventReminderReceiver : BroadcastReceiver() {
     @Inject lateinit var alertStore: ReminderAlertStore
     @Inject lateinit var notifier: ReminderNotifier
     @Inject lateinit var settingsPrefs: SettingsPrefs
+    @Inject lateinit var calendarPrefs: CalendarPrefs
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != CalendarContract.ACTION_EVENT_REMINDER) return
@@ -46,7 +59,11 @@ class EventReminderReceiver : BroadcastReceiver() {
                 if (settingsPrefs.remindersEnabled.first()) {
                     val now = System.currentTimeMillis()
                     val due = alertStore.dueAlerts(now)
-                    due.forEach { notifier.post(it) }
+                    val disabled = calendarPrefs.disabledCalendarIds.first()
+                    // Suppress reminders for disabled calendars, but still mark
+                    // every due alert fired so the provider stops re-broadcasting
+                    // the suppressed ones.
+                    postableAlerts(due, disabled).forEach { notifier.post(it) }
                     alertStore.markFired(due.map { it.alertId }, now)
                 }
             } finally {

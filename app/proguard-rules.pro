@@ -16,6 +16,18 @@
 -keep class * extends androidx.room.RoomDatabase { *; }
 -dontwarn androidx.room.paging.**
 
+# Glance runs an @Composable's `actionRunCallback<T>()` by persisting the
+# callback's fully-qualified class name into the click PendingIntent, then
+# reflectively instantiating it (Class.forName(name).newInstance()) when the tap
+# fires. Under R8 full mode (AGP 9 default) these ActionCallback classes — only
+# ever referenced reflectively — get renamed or have their no-arg constructor
+# stripped, so the lookup fails silently and the tap does nothing. In the month
+# and agenda widgets that broke every run-callback control (the prev/next/today
+# month arrows and the agenda refresh) in release builds while actionStartActivity
+# taps, which ride a PendingIntent and need no reflection, kept working. Keep
+# every ActionCallback's name and constructor intact.
+-keep class * implements androidx.glance.appwidget.action.ActionCallback { <init>(...); }
+
 # WorkManager instantiates an InputMerger reflectively (Class.newInstance) from
 # the fully-qualified class name persisted in the WorkSpec, so the class must
 # keep both its name and a no-arg constructor. Glance renders every widget

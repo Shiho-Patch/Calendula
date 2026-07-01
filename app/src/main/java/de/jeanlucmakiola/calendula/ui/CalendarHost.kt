@@ -79,6 +79,11 @@ fun CalendarHost(
     // correcting it. Brief blank first frame, matching the onboarding gate above.
     val defaultView = viewModel.defaultView.collectAsStateWithLifecycle().value ?: return
 
+    // View customisation (#24): the quick-switch cycle and drawer order. Both have
+    // sensible non-empty initial values, so they're ready before the first frame.
+    val quickSwitchViews = viewModel.quickSwitchViews.collectAsStateWithLifecycle().value
+    val drawerViewOrder = viewModel.drawerViewOrder.collectAsStateWithLifecycle().value
+
     var viewStack by rememberSaveable(stateSaver = viewStackSaver) {
         mutableStateOf(listOf(defaultView))
     }
@@ -212,6 +217,17 @@ fun CalendarHost(
                 detailKey = key
                 onWidgetNavConsumed()
             }
+            is WidgetNavRequest.OpenView -> {
+                // A widget header tap: land on a top-level view with no date
+                // drill-in. Reveal it by dropping any covering overlay, then root
+                // the stack on the target (null → the default home) over the
+                // default home — so backing out returns to the default, then exits.
+                dismissCoveringOverlays()
+                createDateIso = null
+                pendingDayIso = null
+                viewStack = viewBaseStack(defaultView, req.view ?: defaultView)
+                onWidgetNavConsumed()
+            }
             is WidgetNavRequest.Create -> {
                 // External "new event" entries (QS tile / launcher shortcut /
                 // widget) must land on top of whatever is open — the form overlay
@@ -260,6 +276,8 @@ fun CalendarHost(
                     onOpenSettings = onOpenSettings,
                     onOpenSearch = onOpenSearch,
                     onCreateEvent = onCreateEvent,
+                    quickSwitchViews = quickSwitchViews,
+                    drawerViewOrder = drawerViewOrder,
                 )
                 CalendarView.Day -> DayScreen(
                     selectedView = currentView,
@@ -269,6 +287,8 @@ fun CalendarHost(
                     onOpenSearch = onOpenSearch,
                     onCreateEvent = onCreateEvent,
                     initialDateIso = pendingDayIso,
+                    quickSwitchViews = quickSwitchViews,
+                    drawerViewOrder = drawerViewOrder,
                 )
                 CalendarView.Month -> MonthScreen(
                     selectedView = currentView,
@@ -277,6 +297,8 @@ fun CalendarHost(
                     onOpenSettings = onOpenSettings,
                     onOpenSearch = onOpenSearch,
                     onCreateEvent = onCreateEvent,
+                    quickSwitchViews = quickSwitchViews,
+                    drawerViewOrder = drawerViewOrder,
                 )
                 CalendarView.Agenda -> AgendaScreen(
                     selectedView = currentView,
@@ -285,6 +307,8 @@ fun CalendarHost(
                     onOpenSettings = onOpenSettings,
                     onOpenSearch = onOpenSearch,
                     onCreateEvent = onCreateEvent,
+                    quickSwitchViews = quickSwitchViews,
+                    drawerViewOrder = drawerViewOrder,
                 )
             }
         }

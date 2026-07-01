@@ -304,7 +304,6 @@
     <string name="reminder_none">Keine</string>
     <string name="reminder_use_default">Standard-Erinnerung verwenden</string>
     <string name="reminder_custom_amount">Anzahl</string>
-    <string name="reminder_custom_with_value">Benutzerdefiniert (%1$s)</string>
     <string name="reminder_custom_set">Übernehmen</string>
     <string name="settings_calendar_reminders_hint">Standard pro Kalender überschreiben — getrennt für Termine mit Uhrzeit und ganztägige Termine. Ein Kalender kann den Standard übernehmen, weglassen oder einen eigenen festlegen.</string>
     <string name="settings_calendar_reminder_inherits">Standard (%1$s)</string>

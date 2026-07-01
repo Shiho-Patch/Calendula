@@ -317,6 +317,12 @@
         <item quantity="one">%d day</item>
         <item quantity="other">%d days</item>
     </plurals>
+    <string name="settings_section_views">Views</string>
+    <string name="settings_quick_switch_header">Quick-switch button</string>
+    <string name="settings_quick_switch_hint">Choose which views the top-right button cycles through, and drag to reorder them. Turned-off views stay reachable from the navigation menu.</string>
+    <string name="settings_drawer_order_header">Navigation menu</string>
+    <string name="settings_drawer_order_hint">Drag to reorder the views listed in the navigation menu.</string>
+    <string name="reorder_drag_handle">Drag to reorder</string>
     <string name="settings_section_event_form">New event form</string>
     <string name="settings_form_fields_hint">Fields shown by default — everything else sits behind \"More fields\"</string>
     <string name="settings_autofocus_title">Focus title on new event</string>
@@ -333,7 +339,6 @@
     <string name="reminder_none">None</string>
     <string name="reminder_use_default">Use default reminder</string>
     <string name="reminder_custom_amount">Amount</string>
-    <string name="reminder_custom_with_value">Custom (%1$s)</string>
     <string name="reminder_custom_set">Set</string>
     <string name="settings_calendar_reminders_title">Per-calendar reminders</string>
     <string name="settings_calendar_reminders_hint">Override the default per calendar — separately for timed and all-day events. A calendar can keep the default, drop it, or set its own.</string>
@@ -352,6 +357,7 @@
     <string name="settings_translate_hint">Add or improve a language on Weblate</string>
     <!-- Hub category subtitles -->
     <string name="settings_appearance_subtitle">Theme, default view, week start</string>
+    <string name="settings_views_subtitle">Quick-switch button and menu order</string>
     <string name="settings_event_form_subtitle">Default fields for new events</string>
     <string name="settings_notifications_subtitle">Event reminders</string>
     <string name="settings_section_about">About</string>

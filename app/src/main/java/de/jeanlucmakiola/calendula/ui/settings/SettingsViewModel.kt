@@ -25,6 +25,7 @@ import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.theme.AppFontSettings
 import de.jeanlucmakiola.calendula.ui.theme.FONT_CUSTOM_TOKEN
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_PAST_DISPLAY_KEY
@@ -114,8 +115,14 @@ class SettingsViewModel @Inject constructor(
                 prefs.autofocusEventTitle,
                 prefs.pastEventDisplay,
                 prefs.dimCompletedEvents,
-                ::MiscSettings,
-            ),
+                // View customisation (#24) folded into one flow so it fits this
+                // group — the outer combine is already at its five-arg limit.
+                combine(prefs.quickSwitchConfig, prefs.drawerViewOrder) { quickSwitch, drawer ->
+                    ViewCustomization(quickSwitch, drawer)
+                },
+            ) { showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization ->
+                MiscSettings(showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization)
+            },
         ) { base, defaults, overrides, views, misc ->
             base.copy(
                 defaultView = views.defaultView,
@@ -127,6 +134,8 @@ class SettingsViewModel @Inject constructor(
                 autofocusEventTitle = misc.autofocusEventTitle,
                 pastEventDisplay = misc.pastEventDisplay,
                 dimCompletedEvents = misc.dimCompletedEvents,
+                quickSwitchConfig = misc.viewCustomization.quickSwitch,
+                drawerViewOrder = misc.viewCustomization.drawerOrder,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -171,15 +180,15 @@ class SettingsViewModel @Inject constructor(
 
     private data class ReminderDefaults(
         val allowColor: Boolean,
-        val defaultReminder: Int?,
-        val allDayReminder: Int?,
+        val defaultReminder: List<Int>,
+        val allDayReminder: List<Int>,
         val allDayReminderTime: Int,
         val snoozeMinutes: Int,
     )
 
     private data class ReminderOverrides(
-        val timed: Map<Long, Int?>,
-        val allDay: Map<Long, Int?>,
+        val timed: Map<Long, List<Int>>,
+        val allDay: Map<Long, List<Int>>,
         val calendars: List<CalendarSource>,
     )
 
@@ -196,6 +205,12 @@ class SettingsViewModel @Inject constructor(
         val autofocusEventTitle: Boolean,
         val pastEventDisplay: PastEventDisplay,
         val dimCompletedEvents: Boolean,
+        val viewCustomization: ViewCustomization,
+    )
+
+    private data class ViewCustomization(
+        val quickSwitch: QuickSwitchConfig,
+        val drawerOrder: List<CalendarView>,
     )
 
     fun setThemeMode(mode: ThemeMode) {
@@ -304,6 +319,14 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setFormFieldDefault(field, enabled) }
     }
 
+    fun setQuickSwitchConfig(config: QuickSwitchConfig) {
+        viewModelScope.launch { prefs.setQuickSwitchConfig(config) }
+    }
+
+    fun setDrawerViewOrder(order: List<CalendarView>) {
+        viewModelScope.launch { prefs.setDrawerViewOrder(order) }
+    }
+
     fun setRemindersEnabled(enabled: Boolean) {
         viewModelScope.launch { prefs.setRemindersEnabled(enabled) }
     }
@@ -312,11 +335,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setAutofocusEventTitle(enabled) }
     }
 
-    fun setDefaultReminderMinutes(minutes: Int?) {
+    fun setDefaultReminderMinutes(minutes: List<Int>) {
         viewModelScope.launch { prefs.setDefaultReminderMinutes(minutes) }
     }
 
-    fun setDefaultAllDayReminderMinutes(minutes: Int?) {
+    fun setDefaultAllDayReminderMinutes(minutes: List<Int>) {
         viewModelScope.launch { prefs.setDefaultAllDayReminderMinutes(minutes) }
     }
 

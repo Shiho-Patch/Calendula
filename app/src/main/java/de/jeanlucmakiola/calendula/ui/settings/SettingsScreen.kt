@@ -43,6 +43,8 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Favorite
@@ -106,9 +108,14 @@ import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
 import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
 import de.jeanlucmakiola.calendula.ui.common.FullScreenPicker
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
+import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.common.ReorderableColumn
+import de.jeanlucmakiola.calendula.ui.common.ReorderableRowHeight
+import de.jeanlucmakiola.calendula.ui.common.icon
 import de.jeanlucmakiola.calendula.ui.common.labelRes
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.OptionPicker
@@ -132,7 +139,7 @@ import java.time.format.TextStyle as JavaTextStyle
 import java.util.Calendar
 
 /** The settings sub-screens reached from the hub's category rows. */
-private enum class SettingsSection { Appearance, EventForm, Notifications }
+private enum class SettingsSection { Appearance, Views, EventForm, Notifications }
 
 /**
  * Token-based accent for a leading icon chip (container / on-container pair).
@@ -178,6 +185,13 @@ fun SettingsScreen(
             AppearanceScreen(state = state, viewModel = viewModel, onBack = { section = null })
         }
         AnimatedVisibility(
+            visible = section == SettingsSection.Views,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            ViewsScreen(state = state, viewModel = viewModel, onBack = { section = null })
+        }
+        AnimatedVisibility(
             visible = section == SettingsSection.EventForm,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
             exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
@@ -214,6 +228,13 @@ private fun SettingsHub(
             position = Position.Top,
             leading = { CategoryIcon(Icons.Default.Palette, ChipAccent.Neutral) },
             onClick = { onOpenSection(SettingsSection.Appearance) },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_section_views),
+            summary = stringResource(R.string.settings_views_subtitle),
+            position = Position.Middle,
+            leading = { CategoryIcon(Icons.Default.SwapVert, ChipAccent.Neutral) },
+            onClick = { onOpenSection(SettingsSection.Views) },
         )
         GroupedRow(
             title = stringResource(R.string.settings_section_event_form),
@@ -725,6 +746,131 @@ private fun AppearanceScreen(
     }
 }
 
+/**
+ * Views (#24): reorder the top-bar quick-switch cycle and choose which views it
+ * steps through, plus reorder the navigation-drawer list. Two independent lists —
+ * a view disabled in the quick-switch cycle is still reachable from the drawer,
+ * which always lists every view. The switch needs at least two targets, so the
+ * last [QuickSwitchConfig.MIN_ENABLED] enabled views can't be turned off.
+ */
+@Composable
+private fun ViewsScreen(
+    state: SettingsUiState,
+    viewModel: SettingsViewModel,
+    onBack: () -> Unit,
+) {
+    CollapsingScaffold(
+        title = stringResource(R.string.settings_section_views),
+        onBack = onBack,
+    ) {
+        val config = state.quickSwitchConfig
+
+        SectionHeader(stringResource(R.string.settings_quick_switch_header))
+        SettingsHint(stringResource(R.string.settings_quick_switch_hint))
+        Spacer(Modifier.height(8.dp))
+        // Turning a view off is blocked once only the minimum remain enabled.
+        val canDisable = config.enabled.size > QuickSwitchConfig.MIN_ENABLED
+        ReorderableColumn(
+            items = config.order,
+            keyOf = { it },
+            onReorder = { viewModel.setQuickSwitchConfig(config.copy(order = it)) },
+        ) { view, position, dragHandle, isDragging ->
+            val checked = view in config.enabled
+            ViewRow(
+                view = view,
+                position = position,
+                isDragging = isDragging,
+                dragHandle = dragHandle,
+                dimmed = !checked,
+                trailing = {
+                    Switch(
+                        checked = checked,
+                        // Keep the last two on: with fewer, the pill can't switch.
+                        enabled = !checked || canDisable,
+                        onCheckedChange = { on ->
+                            val enabled = if (on) config.enabled + view else config.enabled - view
+                            viewModel.setQuickSwitchConfig(config.copy(enabled = enabled))
+                        },
+                    )
+                },
+            )
+        }
+
+        Spacer(Modifier.height(24.dp))
+        SectionHeader(stringResource(R.string.settings_drawer_order_header))
+        SettingsHint(stringResource(R.string.settings_drawer_order_hint))
+        Spacer(Modifier.height(8.dp))
+        ReorderableColumn(
+            items = state.drawerViewOrder,
+            keyOf = { it },
+            onReorder = { viewModel.setDrawerViewOrder(it) },
+        ) { view, position, dragHandle, isDragging ->
+            ViewRow(
+                view = view,
+                position = position,
+                isDragging = isDragging,
+                dragHandle = dragHandle,
+            )
+        }
+    }
+}
+
+/** One reorderable view row: the view's icon and name, an optional [trailing]
+ *  control, and a drag handle carrying the [dragHandle] gesture modifier. */
+@Composable
+private fun ViewRow(
+    view: CalendarView,
+    position: Position,
+    isDragging: Boolean,
+    dragHandle: Modifier,
+    dimmed: Boolean = false,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    GroupedRow(
+        title = stringResource(view.labelRes),
+        position = position,
+        dimmed = dimmed,
+        minHeight = ReorderableRowHeight,
+        // The reorderable column owns the inter-row spacing (uniform pitch).
+        gapBelow = false,
+        container = if (isDragging) MaterialTheme.colorScheme.secondaryContainer else null,
+        leading = {
+            Icon(
+                imageVector = view.icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        trailing = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                trailing?.invoke()
+                if (trailing != null) Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = dragHandle.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DragHandle,
+                        contentDescription = stringResource(R.string.reorder_drag_handle),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+    )
+}
+
+/** Muted supporting text under a [SectionHeader], matching the form-fields hint. */
+@Composable
+private fun SettingsHint(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+    )
+}
+
 @Composable
 private fun EventFormScreen(
     state: SettingsUiState,
@@ -1030,7 +1176,7 @@ private fun NotificationsScreen(
             presets = REMINDER_PRESETS,
             selected = state.defaultReminderMinutes.toReminderChoice(),
             allowInherit = false,
-            onSelect = { viewModel.setDefaultReminderMinutes(it.toMinutesOrNull()) },
+            onSelect = { viewModel.setDefaultReminderMinutes(it.toMinutesList()) },
             onDismiss = { showDefaultReminder = false },
         )
     }
@@ -1040,7 +1186,7 @@ private fun NotificationsScreen(
             presets = ALLDAY_REMINDER_PRESETS,
             selected = state.defaultAllDayReminderMinutes.toReminderChoice(),
             allowInherit = false,
-            onSelect = { viewModel.setDefaultAllDayReminderMinutes(it.toMinutesOrNull()) },
+            onSelect = { viewModel.setDefaultAllDayReminderMinutes(it.toMinutesList()) },
             onDismiss = { showAllDayReminder = false },
         )
     }
@@ -1089,13 +1235,13 @@ private fun NotificationsScreen(
 /** Which calendar + event kind a per-calendar reminder-override dialog targets. */
 private data class OverrideTarget(val calendarId: Long, val isAllDay: Boolean)
 
-/** A global default (null = none) as a picker choice for selection highlighting. */
-private fun Int?.toReminderChoice(): CalendarReminderOverride =
-    if (this == null) CalendarReminderOverride.None else CalendarReminderOverride.Minutes(this)
+/** A global default (empty = none) as a picker choice for selection highlighting. */
+private fun List<Int>.toReminderChoice(): CalendarReminderOverride =
+    if (isEmpty()) CalendarReminderOverride.None else CalendarReminderOverride.Minutes(this)
 
 /** A picked choice as global-default minutes (Inherit isn't offered for globals). */
-private fun CalendarReminderOverride.toMinutesOrNull(): Int? =
-    (this as? CalendarReminderOverride.Minutes)?.minutes
+private fun CalendarReminderOverride.toMinutesList(): List<Int> =
+    (this as? CalendarReminderOverride.Minutes)?.minutes ?: emptyList()
 
 /**
  * Whether Calendula is exempt from battery optimisation, re-read on every
@@ -1170,27 +1316,33 @@ private fun formatTimeOfDay(context: Context, minutesOfDay: Int): String {
 }
 
 /** The stored override for [calendarId], as a picker choice (absent → inherit). */
-private fun Map<Long, Int?>.choiceFor(calendarId: Long): CalendarReminderOverride = when {
+private fun Map<Long, List<Int>>.choiceFor(calendarId: Long): CalendarReminderOverride = when {
     !containsKey(calendarId) -> CalendarReminderOverride.Inherit
-    this[calendarId] == null -> CalendarReminderOverride.None
-    else -> CalendarReminderOverride.Minutes(this.getValue(calendarId)!!)
+    this.getValue(calendarId).isEmpty() -> CalendarReminderOverride.None
+    else -> CalendarReminderOverride.Minutes(this.getValue(calendarId))
 }
 
-/** Label for a global-default choice: null → "None", else the lead time. */
+/** Label for a global-default choice: empty → "None", else the lead times joined. */
 @Composable
-private fun reminderChoiceLabel(minutes: Int?): String =
-    if (minutes == null) stringResource(R.string.reminder_none) else reminderLeadTimeLabel(minutes)
+private fun reminderChoiceLabel(minutes: List<Int>): String {
+    if (minutes.isEmpty()) return stringResource(R.string.reminder_none)
+    // reminderLeadTimeLabel is @Composable, so resolve each part in a loop rather
+    // than a (non-composable) joinToString transform.
+    val parts = ArrayList<String>(minutes.size)
+    for (m in minutes) parts.add(reminderLeadTimeLabel(m))
+    return parts.joinToString(", ")
+}
 
 /** Row summary for a calendar: its override, or the inherited global default. */
 @Composable
 private fun calendarOverrideSummary(
     choice: CalendarReminderOverride,
-    globalDefault: Int?,
+    globalDefault: List<Int>,
 ): String = when (choice) {
     CalendarReminderOverride.Inherit ->
         stringResource(R.string.settings_calendar_reminder_inherits, reminderChoiceLabel(globalDefault))
     CalendarReminderOverride.None -> stringResource(R.string.reminder_none)
-    is CalendarReminderOverride.Minutes -> reminderLeadTimeLabel(choice.minutes)
+    is CalendarReminderOverride.Minutes -> reminderChoiceLabel(choice.minutes)
 }
 
 // ---------------------------------------------------------------------------
