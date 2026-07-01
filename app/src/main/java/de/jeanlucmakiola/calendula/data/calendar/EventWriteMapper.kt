@@ -118,8 +118,14 @@ internal fun buildEventUpdateValues(
  * provider clone the series row and apply these on top. Unlike the series
  * update there is no dirty check — the exception is a fresh row, so every
  * form-backed column is written (empty optionals as explicit NULLs, since the
- * clone starts from the parent's values). An exception is a single event:
- * DTEND, never RRULE/DURATION.
+ * clone starts from the parent's values).
+ *
+ * The occurrence's length travels as DURATION, never DTEND: the provider
+ * rejects DTEND on an exception outright (`CalendarProvider2`:
+ * "Exceptions can't overwrite dtend") and derives the instance end from
+ * DTSTART + DURATION itself, clearing the inherited RRULE in the process. This
+ * matches how AOSP Calendar/Etar write exceptions; sending DTEND is what made
+ * "only this event" fail on-device (Codeberg #16).
  */
 internal fun buildOccurrenceExceptionValues(
     form: EventForm,
@@ -131,7 +137,7 @@ internal fun buildOccurrenceExceptionValues(
     put(CalendarContract.Events.TITLE, form.title.trim())
     put(CalendarContract.Events.ALL_DAY, if (form.isAllDay) 1 else 0)
     put(CalendarContract.Events.DTSTART, times.dtStartMillis)
-    put(CalendarContract.Events.DTEND, times.dtEndMillis)
+    put(CalendarContract.Events.DURATION, times.toRfc2445Duration(form.isAllDay))
     put(CalendarContract.Events.EVENT_TIMEZONE, times.timezone)
     put(CalendarContract.Events.AVAILABILITY, form.availability.toProviderValue())
     put(CalendarContract.Events.ACCESS_LEVEL, form.accessLevel.toProviderValue())

@@ -183,22 +183,38 @@ class SettingsPrefsTest {
     }
 
     @Test
-    fun `default reminder is none until set`(@TempDir tempDir: Path) = runTest {
+    fun `default reminder is empty until set`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
-        assertThat(prefs.defaultReminderMinutes.first()).isNull()
+        assertThat(prefs.defaultReminderMinutes.first()).isEmpty()
     }
 
     @Test
-    fun `default reminder round-trips, including none`(@TempDir tempDir: Path) = runTest {
+    fun `default reminder round-trips none, single, and multiple lead times`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
-        prefs.setDefaultReminderMinutes(30)
-        assertThat(prefs.defaultReminderMinutes.first()).isEqualTo(30)
-        prefs.setDefaultReminderMinutes(null)
-        assertThat(prefs.defaultReminderMinutes.first()).isNull()
+        prefs.setDefaultReminderMinutes(listOf(30))
+        assertThat(prefs.defaultReminderMinutes.first()).containsExactly(30)
+        // Several lead times persist, normalised to distinct ascending order.
+        prefs.setDefaultReminderMinutes(listOf(10_080, 0, 30, 30))
+        assertThat(prefs.defaultReminderMinutes.first()).containsExactly(0, 30, 10_080).inOrder()
+        prefs.setDefaultReminderMinutes(emptyList())
+        assertThat(prefs.defaultReminderMinutes.first()).isEmpty()
     }
 
     @Test
-    fun `garbage stored default reminder reads as none`(@TempDir tempDir: Path) = runTest {
+    fun `legacy single-value default reminder parses as a one-element list`(@TempDir tempDir: Path) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = SettingsPrefs(store)
+        // The pre-multi-reminder format stored a bare integer string.
+        store.updateData { p ->
+            val m = p.toMutablePreferences()
+            m[SettingsPrefs.DEFAULT_REMINDER_KEY] = "30"
+            m
+        }
+        assertThat(prefs.defaultReminderMinutes.first()).containsExactly(30)
+    }
+
+    @Test
+    fun `garbage stored default reminder reads as empty`(@TempDir tempDir: Path) = runTest {
         val store = newDataStore(tempDir)
         val prefs = SettingsPrefs(store)
         store.updateData { p ->
@@ -206,7 +222,7 @@ class SettingsPrefsTest {
             m[SettingsPrefs.DEFAULT_REMINDER_KEY] = "soon"
             m
         }
-        assertThat(prefs.defaultReminderMinutes.first()).isNull()
+        assertThat(prefs.defaultReminderMinutes.first()).isEmpty()
     }
 
     @Test
@@ -214,16 +230,16 @@ class SettingsPrefsTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
         assertThat(prefs.perCalendarReminderOverride.first()).isEmpty()
 
-        prefs.setCalendarReminderOverride(7L, CalendarReminderOverride.Minutes(15))
+        prefs.setCalendarReminderOverride(7L, CalendarReminderOverride.Minutes(listOf(15, 10_080)))
         prefs.setCalendarReminderOverride(9L, CalendarReminderOverride.None)
         prefs.perCalendarReminderOverride.first().let { map ->
-            assertThat(map).containsExactly(7L, 15, 9L, null)
+            assertThat(map).containsExactly(7L, listOf(15, 10_080), 9L, emptyList<Int>())
         }
 
-        // Inherit drops the override entirely (absent != null value).
+        // Inherit drops the override entirely (absent != an empty-list value).
         prefs.setCalendarReminderOverride(9L, CalendarReminderOverride.Inherit)
         prefs.perCalendarReminderOverride.first().let { map ->
-            assertThat(map).containsExactly(7L, 15)
+            assertThat(map).containsExactly(7L, listOf(15, 10_080))
             assertThat(map.containsKey(9L)).isFalse()
         }
     }
@@ -231,48 +247,48 @@ class SettingsPrefsTest {
     @Test
     fun `all-day default round-trips, including none`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
-        assertThat(prefs.defaultAllDayReminderMinutes.first()).isNull()
-        prefs.setDefaultAllDayReminderMinutes(1_440)
-        assertThat(prefs.defaultAllDayReminderMinutes.first()).isEqualTo(1_440)
-        prefs.setDefaultAllDayReminderMinutes(null)
-        assertThat(prefs.defaultAllDayReminderMinutes.first()).isNull()
+        assertThat(prefs.defaultAllDayReminderMinutes.first()).isEmpty()
+        prefs.setDefaultAllDayReminderMinutes(listOf(1_440))
+        assertThat(prefs.defaultAllDayReminderMinutes.first()).containsExactly(1_440)
+        prefs.setDefaultAllDayReminderMinutes(emptyList())
+        assertThat(prefs.defaultAllDayReminderMinutes.first()).isEmpty()
     }
 
     @Test
     fun `per-calendar all-day override round-trips independently of the timed one`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
-        prefs.setCalendarReminderOverride(7L, CalendarReminderOverride.Minutes(15))
-        prefs.setCalendarAllDayReminderOverride(7L, CalendarReminderOverride.Minutes(1_440))
-        assertThat(prefs.perCalendarReminderOverride.first()).containsExactly(7L, 15)
-        assertThat(prefs.perCalendarAllDayReminderOverride.first()).containsExactly(7L, 1_440)
+        prefs.setCalendarReminderOverride(7L, CalendarReminderOverride.Minutes(listOf(15)))
+        prefs.setCalendarAllDayReminderOverride(7L, CalendarReminderOverride.Minutes(listOf(1_440)))
+        assertThat(prefs.perCalendarReminderOverride.first()).containsExactly(7L, listOf(15))
+        assertThat(prefs.perCalendarAllDayReminderOverride.first()).containsExactly(7L, listOf(1_440))
         // Clearing the all-day override leaves the timed one untouched.
         prefs.setCalendarAllDayReminderOverride(7L, CalendarReminderOverride.Inherit)
         assertThat(prefs.perCalendarAllDayReminderOverride.first()).isEmpty()
-        assertThat(prefs.perCalendarReminderOverride.first()).containsExactly(7L, 15)
+        assertThat(prefs.perCalendarReminderOverride.first()).containsExactly(7L, listOf(15))
     }
 
     @Test
     fun `resolveDefaultReminder picks the kind-matching override or global`() {
-        val timed = mapOf(7L to 15, 9L to null)
-        val allDay = mapOf(7L to 2_880)
+        val timed = mapOf(7L to listOf(15, 10_080), 9L to emptyList<Int>())
+        val allDay = mapOf(7L to listOf(2_880))
         fun resolve(calendarId: Long?, isAllDay: Boolean) = resolveDefaultReminder(
-            timedGlobal = 30,
-            allDayGlobal = 1_440,
+            timedGlobal = listOf(30),
+            allDayGlobal = listOf(1_440),
             timedOverrides = timed,
             allDayOverrides = allDay,
             calendarId = calendarId,
             isAllDay = isAllDay,
         )
-        // Timed: minutes override, explicit none, inherit global, no calendar.
-        assertThat(resolve(7L, isAllDay = false)).isEqualTo(15)
-        assertThat(resolve(9L, isAllDay = false)).isNull()
-        assertThat(resolve(5L, isAllDay = false)).isEqualTo(30)
-        assertThat(resolve(null, isAllDay = false)).isEqualTo(30)
+        // Timed: multi-value override, explicit none, inherit global, no calendar.
+        assertThat(resolve(7L, isAllDay = false)).containsExactly(15, 10_080).inOrder()
+        assertThat(resolve(9L, isAllDay = false)).isEmpty()
+        assertThat(resolve(5L, isAllDay = false)).containsExactly(30)
+        assertThat(resolve(null, isAllDay = false)).containsExactly(30)
         // All-day: its own override wins; absent → all-day global; a timed-only
         // override (cal 9) does not bleed into all-day.
-        assertThat(resolve(7L, isAllDay = true)).isEqualTo(2_880)
-        assertThat(resolve(9L, isAllDay = true)).isEqualTo(1_440)
-        assertThat(resolve(5L, isAllDay = true)).isEqualTo(1_440)
+        assertThat(resolve(7L, isAllDay = true)).containsExactly(2_880)
+        assertThat(resolve(9L, isAllDay = true)).containsExactly(1_440)
+        assertThat(resolve(5L, isAllDay = true)).containsExactly(1_440)
     }
 
     @Test

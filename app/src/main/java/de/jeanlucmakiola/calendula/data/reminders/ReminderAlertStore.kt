@@ -16,6 +16,7 @@ import javax.inject.Singleton
 data class ReminderAlert(
     val alertId: Long,
     val eventId: Long,
+    val calendarId: Long,
     val beginMillis: Long,
     val endMillis: Long,
     /** Raw event title; may be blank — the notifier substitutes "(no title)". */
@@ -66,11 +67,12 @@ class AndroidReminderAlertStore @Inject constructor(
                     ReminderAlert(
                         alertId = c.getLong(0),
                         eventId = c.getLong(1),
-                        beginMillis = c.getLong(2),
-                        endMillis = c.getLong(3),
-                        title = c.getString(4).orEmpty(),
-                        location = c.getString(5)?.takeIf { it.isNotBlank() },
-                        isAllDay = c.getInt(6) == 1,
+                        calendarId = c.getLong(2),
+                        beginMillis = c.getLong(3),
+                        endMillis = c.getLong(4),
+                        title = c.getString(5).orEmpty(),
+                        location = c.getString(6)?.takeIf { it.isNotBlank() },
+                        isAllDay = c.getInt(7) == 1,
                     ),
                 )
             }
@@ -102,6 +104,7 @@ class AndroidReminderAlertStore @Inject constructor(
         val PROJECTION = arrayOf(
             CalendarContract.CalendarAlerts._ID,
             CalendarContract.CalendarAlerts.EVENT_ID,
+            CalendarContract.CalendarAlerts.CALENDAR_ID,
             CalendarContract.CalendarAlerts.BEGIN,
             CalendarContract.CalendarAlerts.END,
             CalendarContract.CalendarAlerts.TITLE,

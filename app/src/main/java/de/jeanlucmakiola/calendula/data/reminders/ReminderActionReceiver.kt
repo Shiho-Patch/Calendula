@@ -75,6 +75,7 @@ class ReminderActionReceiver : BroadcastReceiver() {
 
         private const val EXTRA_ALERT_ID = "alert_id"
         private const val EXTRA_EVENT_ID = "event_id"
+        private const val EXTRA_CALENDAR_ID = "calendar_id"
         private const val EXTRA_BEGIN = "begin"
         private const val EXTRA_END = "end"
         private const val EXTRA_TITLE = "title"
@@ -87,6 +88,7 @@ class ReminderActionReceiver : BroadcastReceiver() {
                 this.action = action
                 putExtra(EXTRA_ALERT_ID, alert.alertId)
                 putExtra(EXTRA_EVENT_ID, alert.eventId)
+                putExtra(EXTRA_CALENDAR_ID, alert.calendarId)
                 putExtra(EXTRA_BEGIN, alert.beginMillis)
                 putExtra(EXTRA_END, alert.endMillis)
                 putExtra(EXTRA_TITLE, alert.title)
@@ -113,6 +115,7 @@ class ReminderActionReceiver : BroadcastReceiver() {
             return ReminderAlert(
                 alertId = intent.getLongExtra(EXTRA_ALERT_ID, 0L),
                 eventId = intent.getLongExtra(EXTRA_EVENT_ID, 0L),
+                calendarId = intent.getLongExtra(EXTRA_CALENDAR_ID, 0L),
                 beginMillis = intent.getLongExtra(EXTRA_BEGIN, 0L),
                 endMillis = intent.getLongExtra(EXTRA_END, 0L),
                 title = intent.getStringExtra(EXTRA_TITLE).orEmpty(),

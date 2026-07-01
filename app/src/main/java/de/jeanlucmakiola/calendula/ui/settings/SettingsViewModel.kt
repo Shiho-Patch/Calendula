@@ -139,15 +139,15 @@ class SettingsViewModel @Inject constructor(
 
     private data class ReminderDefaults(
         val allowColor: Boolean,
-        val defaultReminder: Int?,
-        val allDayReminder: Int?,
+        val defaultReminder: List<Int>,
+        val allDayReminder: List<Int>,
         val allDayReminderTime: Int,
         val snoozeMinutes: Int,
     )
 
     private data class ReminderOverrides(
-        val timed: Map<Long, Int?>,
-        val allDay: Map<Long, Int?>,
+        val timed: Map<Long, List<Int>>,
+        val allDay: Map<Long, List<Int>>,
         val calendars: List<CalendarSource>,
     )
 
@@ -255,11 +255,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setAutofocusEventTitle(enabled) }
     }
 
-    fun setDefaultReminderMinutes(minutes: Int?) {
+    fun setDefaultReminderMinutes(minutes: List<Int>) {
         viewModelScope.launch { prefs.setDefaultReminderMinutes(minutes) }
     }
 
-    fun setDefaultAllDayReminderMinutes(minutes: Int?) {
+    fun setDefaultAllDayReminderMinutes(minutes: List<Int>) {
         viewModelScope.launch { prefs.setDefaultAllDayReminderMinutes(minutes) }
     }
 
