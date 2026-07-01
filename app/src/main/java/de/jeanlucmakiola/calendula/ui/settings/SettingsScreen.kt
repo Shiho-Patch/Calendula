@@ -38,6 +38,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Check
@@ -91,6 +92,7 @@ import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.qs.NewEventTileService
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
 import de.jeanlucmakiola.calendula.ui.crash.openIssueTracker
@@ -121,7 +123,7 @@ import java.time.format.TextStyle as JavaTextStyle
 import java.util.Calendar
 
 /** The settings sub-screens reached from the hub's category rows. */
-private enum class SettingsSection { Appearance, EventForm, Notifications }
+private enum class SettingsSection { Appearance, EventForm, Notifications, SpecialDates }
 
 /**
  * Token-based accent for a leading icon chip (container / on-container pair).
@@ -180,6 +182,13 @@ fun SettingsScreen(
         ) {
             NotificationsScreen(state = state, viewModel = viewModel, onBack = { section = null })
         }
+        AnimatedVisibility(
+            visible = section == SettingsSection.SpecialDates,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            SpecialDatesScreen(viewModel = viewModel, onBack = { section = null })
+        }
     }
 }
 
@@ -224,6 +233,13 @@ private fun SettingsHub(
             position = Position.Middle,
             leading = { CategoryIcon(Icons.Default.CalendarMonth, ChipAccent.Tertiary) },
             onClick = onManageCalendars,
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_section_special_dates),
+            summary = stringResource(R.string.settings_special_dates_subtitle),
+            position = Position.Middle,
+            leading = { CategoryIcon(Icons.Default.Cake, ChipAccent.Tertiary) },
+            onClick = { onOpenSection(SettingsSection.SpecialDates) },
         )
         LanguageRow(position = Position.Middle)
         // One-tap add of the "New event" Quick Settings tile. The system prompt
@@ -1024,6 +1040,257 @@ private fun NotificationsScreen(
         )
     }
 }
+
+// ---------------------------------------------------------------------------
+// Contact special dates (issue #15)
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun SpecialDatesScreen(
+    viewModel: SettingsViewModel,
+    onBack: () -> Unit,
+) {
+    val state by viewModel.specialDatesState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    // READ_CONTACTS is requested only here, on enable — never at startup. On a
+    // grant we either enable (if turning on) or just re-sync (clearing a stalled
+    // banner after the permission was re-granted).
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            if (!state.enabled) viewModel.setSpecialDatesEnabled(true) else viewModel.syncSpecialDatesNow()
+        }
+    }
+    val requestOrEnable: () -> Unit = {
+        if (hasContactsPermission(context)) {
+            viewModel.setSpecialDatesEnabled(true)
+        } else {
+            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+        }
+    }
+
+    var confirmDisableAll by remember { mutableStateOf(false) }
+    var confirmDisableType by remember { mutableStateOf<SpecialDateType?>(null) }
+    var editTemplate by remember { mutableStateOf<SpecialDateType?>(null) }
+
+    CollapsingScaffold(
+        title = stringResource(R.string.settings_section_special_dates),
+        onBack = onBack,
+    ) {
+        // Paused banner: the permission was revoked after enabling.
+        if (state.enabled && state.stalledPermission) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.errorContainer,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.settings_special_dates_paused_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_special_dates_paused_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    FilledTonalButton(
+                        onClick = { permissionLauncher.launch(Manifest.permission.READ_CONTACTS) },
+                    ) { Text(stringResource(R.string.settings_special_dates_grant)) }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+
+        GroupedRow(
+            title = stringResource(R.string.settings_special_dates_enable),
+            summary = stringResource(R.string.settings_special_dates_enable_hint),
+            position = Position.Alone,
+            trailing = {
+                Switch(
+                    checked = state.enabled,
+                    onCheckedChange = { want -> if (want) requestOrEnable() else confirmDisableAll = true },
+                )
+            },
+            onClick = { if (state.enabled) confirmDisableAll = true else requestOrEnable() },
+        )
+
+        if (state.enabled) {
+            Spacer(Modifier.height(24.dp))
+            // Per-type toggles + their title templates.
+            SpecialDateType.entries.forEachIndexed { index, type ->
+                val on = type in state.types
+                GroupedRow(
+                    title = stringResource(specialDateTypeLabel(type)),
+                    position = if (index == 0) Position.Top else Position.Middle,
+                    trailing = {
+                        Switch(
+                            checked = on,
+                            onCheckedChange = { want ->
+                                if (want) viewModel.setSpecialDateTypeEnabled(type, true)
+                                else confirmDisableType = type
+                            },
+                        )
+                    },
+                    onClick = {
+                        if (on) confirmDisableType = type else viewModel.setSpecialDateTypeEnabled(type, true)
+                    },
+                )
+            }
+            GroupedRow(
+                title = stringResource(R.string.settings_special_dates_template),
+                summary = state.titleTemplates[SpecialDateType.Birthday].orEmpty(),
+                position = Position.Bottom,
+                onClick = { editTemplate = SpecialDateType.Birthday },
+            )
+
+            Spacer(Modifier.height(24.dp))
+            GroupedRow(
+                title = stringResource(R.string.settings_special_dates_show_age),
+                summary = stringResource(R.string.settings_special_dates_show_age_hint),
+                position = Position.Top,
+                trailing = {
+                    Switch(
+                        checked = state.showAge,
+                        onCheckedChange = viewModel::setSpecialDatesShowAge,
+                    )
+                },
+                onClick = { viewModel.setSpecialDatesShowAge(!state.showAge) },
+            )
+            GroupedRow(
+                title = stringResource(R.string.settings_special_dates_sync_now),
+                summary = specialDatesLastRunLabel(context, state.lastRun),
+                position = Position.Bottom,
+                onClick = viewModel::syncSpecialDatesNow,
+            )
+
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = stringResource(R.string.settings_special_dates_calendar_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+    }
+
+    if (confirmDisableAll) {
+        SpecialDatesDisableDialog(
+            message = stringResource(R.string.settings_special_dates_disable_all_message),
+            onConfirm = { viewModel.setSpecialDatesEnabled(false); confirmDisableAll = false },
+            onDismiss = { confirmDisableAll = false },
+        )
+    }
+    confirmDisableType?.let { type ->
+        SpecialDatesDisableDialog(
+            message = stringResource(
+                R.string.settings_special_dates_disable_type_message,
+                stringResource(specialDateTypeLabel(type)),
+            ),
+            onConfirm = { viewModel.setSpecialDateTypeEnabled(type, false); confirmDisableType = null },
+            onDismiss = { confirmDisableType = null },
+        )
+    }
+    editTemplate?.let { type ->
+        SpecialDatesTemplateDialog(
+            initial = state.titleTemplates[type].orEmpty(),
+            onConfirm = { viewModel.setSpecialDatesTitleTemplate(type, it); editTemplate = null },
+            onDismiss = { editTemplate = null },
+        )
+    }
+}
+
+@Composable
+private fun SpecialDatesDisableDialog(
+    message: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_special_dates_disable_title)) },
+        text = { Text(message) },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.settings_special_dates_disable_confirm))
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dialog_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun SpecialDatesTemplateDialog(
+    initial: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf(initial) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_special_dates_template)) },
+        text = {
+            Column {
+                androidx.compose.material3.OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.settings_special_dates_template_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(
+                onClick = { onConfirm(text) },
+                enabled = text.isNotBlank(),
+            ) { Text(stringResource(R.string.dialog_save)) }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dialog_cancel))
+            }
+        },
+    )
+}
+
+private fun specialDateTypeLabel(type: SpecialDateType): Int = when (type) {
+    SpecialDateType.Birthday -> R.string.settings_special_dates_type_birthday
+    SpecialDateType.Anniversary -> R.string.settings_special_dates_type_anniversary
+    SpecialDateType.Custom -> R.string.settings_special_dates_type_custom
+}
+
+private fun hasContactsPermission(context: Context): Boolean =
+    ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) ==
+        PackageManager.PERMISSION_GRANTED
+
+@Composable
+private fun specialDatesLastRunLabel(context: Context, lastRun: Long): String =
+    if (lastRun <= 0L) {
+        stringResource(R.string.settings_special_dates_never_synced)
+    } else {
+        stringResource(
+            R.string.settings_special_dates_last_synced,
+            android.text.format.DateUtils.getRelativeTimeSpanString(
+                lastRun,
+                System.currentTimeMillis(),
+                android.text.format.DateUtils.MINUTE_IN_MILLIS,
+            ).toString(),
+        )
+    }
 
 /** Which calendar + event kind a per-calendar reminder-override dialog targets. */
 private data class OverrideTarget(val calendarId: Long, val isAllDay: Boolean)
