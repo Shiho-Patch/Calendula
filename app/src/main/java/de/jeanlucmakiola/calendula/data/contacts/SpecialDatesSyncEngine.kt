@@ -14,12 +14,10 @@ import de.jeanlucmakiola.calendula.domain.SimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.contacts.ContactSpecialDate
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.domain.contacts.anchorDate
-import de.jeanlucmakiola.calendula.domain.contacts.ageAtNextOccurrence
 import de.jeanlucmakiola.calendula.domain.contacts.managedEventUid
 import de.jeanlucmakiola.calendula.domain.contacts.renderSpecialDateTitle
 import de.jeanlucmakiola.calendula.domain.toRRule
 import kotlinx.coroutines.flow.first
-import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import java.time.ZoneId
@@ -58,11 +56,10 @@ class SpecialDatesSyncEngine @Inject constructor(
 ) {
 
     /**
-     * Reconcile every enabled type against the device's contacts. [today] anchors
-     * the age snapshot. Returns why it stopped early (disabled / permission gone)
-     * or [SpecialDatesSyncResult.Success].
+     * Reconcile every enabled type against the device's contacts. Returns why it
+     * stopped early (disabled / permission gone) or [SpecialDatesSyncResult.Success].
      */
-    suspend fun sync(today: LocalDate): SpecialDatesSyncResult {
+    suspend fun sync(): SpecialDatesSyncResult {
         if (!prefs.specialDatesEnabled.first()) return SpecialDatesSyncResult.Disabled
         if (!contacts.hasPermission()) return SpecialDatesSyncResult.PermissionMissing
 
@@ -72,7 +69,7 @@ class SpecialDatesSyncEngine @Inject constructor(
         val desiredByType = contacts.readSpecialDates().groupBy { it.type }
         val reminderCtx = readReminderContext()
         val templates = prefs.specialDatesTitleTemplates.first()
-        val showAge = prefs.specialDatesShowAge.first()
+        val showYear = prefs.specialDatesShowYear.first()
 
         calendarByType.forEach { (type, calendarId) ->
             val template = templates[type]?.takeIf { it.isNotBlank() }
@@ -81,9 +78,8 @@ class SpecialDatesSyncEngine @Inject constructor(
                 calendarId = calendarId,
                 type = type,
                 contactsOfType = desiredByType[type].orEmpty(),
-                today = today,
                 template = template,
-                showAge = showAge,
+                showYear = showYear,
                 reminderCtx = reminderCtx,
             )
         }
@@ -165,13 +161,12 @@ class SpecialDatesSyncEngine @Inject constructor(
         calendarId: Long,
         type: SpecialDateType,
         contactsOfType: List<ContactSpecialDate>,
-        today: LocalDate,
         template: String,
-        showAge: Boolean,
+        showYear: Boolean,
         reminderCtx: ReminderContext,
     ) {
         val built = contactsOfType.map { sd ->
-            buildManagedEvent(calendarId, type, sd, today, template, showAge, reminderCtx)
+            buildManagedEvent(calendarId, type, sd, template, showYear, reminderCtx)
         }
         val diff = diffManagedEvents(built.map { it.desired }, calendars.queryManagedEvents(calendarId))
         val formByUid = built.associate { it.desired.uid to it.form }
@@ -186,15 +181,15 @@ class SpecialDatesSyncEngine @Inject constructor(
         calendarId: Long,
         type: SpecialDateType,
         sd: ContactSpecialDate,
-        today: LocalDate,
         template: String,
-        showAge: Boolean,
+        showYear: Boolean,
         reminderCtx: ReminderContext,
     ): BuiltManagedEvent {
         val anchor = sd.anchorDate()
         val start = LocalDateTime(anchor, LocalTime(0, 0))
-        val age = if (showAge) sd.ageAtNextOccurrence(today) else null
-        val title = renderSpecialDateTitle(template, sd.displayName, age)
+        // The source year is static and correct on every occurrence (unlike age).
+        val year = if (showYear) sd.year else null
+        val title = renderSpecialDateTitle(template, sd.displayName, year)
         val form = EventForm(
             calendarId = calendarId,
             title = title,

@@ -356,11 +356,10 @@
     <string name="settings_special_dates_type_anniversary">Anniversaries</string>
     <string name="settings_special_dates_type_custom">Other dates</string>
     <string name="settings_special_dates_template">Title format</string>
-    <string name="settings_special_dates_template_hint">Use {name} for the contact and {age} for their age (hidden when the year is unknown).</string>
-    <string name="settings_special_dates_template_age_note">Note: the age is a single value set at the last sync — it isn\'t updated for each year, so every yearly occurrence shows the same number and it can be wrong for dates further in the past or future.</string>
+    <string name="settings_special_dates_template_hint">Use {name} for the contact and {year} for the year (the birth year, or an anniversary\'s start year; hidden when unknown).</string>
     <string name="settings_special_dates_reminders">Reminders</string>
-    <string name="settings_special_dates_show_age">Show age</string>
-    <string name="settings_special_dates_show_age_hint">Include {age} in titles when the birth year is known</string>
+    <string name="settings_special_dates_show_year">Show year</string>
+    <string name="settings_special_dates_show_year_hint">Include {year} in titles when it is known</string>
     <string name="settings_special_dates_sync_now">Sync now</string>
     <string name="settings_special_dates_never_synced">Not synced yet</string>
     <!-- %1$s is a relative time, e.g. "5 minutes ago". -->
@@ -500,7 +499,7 @@
     <string name="special_dates_calendar_birthday">Birthdays</string>
     <string name="special_dates_calendar_anniversary">Anniversaries</string>
     <string name="special_dates_calendar_custom">Special dates</string>
-    <string name="special_dates_default_title_birthday">{name}\'s birthday</string>
-    <string name="special_dates_default_title_anniversary">{name}\'s anniversary</string>
+    <string name="special_dates_default_title_birthday">{name}\'s birthday ({year})</string>
+    <string name="special_dates_default_title_anniversary">{name}\'s anniversary ({year})</string>
     <string name="special_dates_default_title_custom">{name}</string>
 </resources>

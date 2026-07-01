@@ -186,9 +186,9 @@ class SettingsViewModel @Inject constructor(
             prefs.specialDatesEnabled,
             prefs.specialDatesTypes,
             prefs.specialDatesTitleTemplates,
-            prefs.specialDatesShowAge,
+            prefs.specialDatesShowYear,
             prefs.specialDatesStatus,
-        ) { enabled, types, templates, showAge, status ->
+        ) { enabled, types, templates, showYear, status ->
             SpecialDatesUiState(
                 enabled = enabled,
                 types = types,
@@ -198,7 +198,7 @@ class SettingsViewModel @Inject constructor(
                     templates[type]?.takeIf { it.isNotBlank() }
                         ?: specialDatesSpec.defaultTitleTemplate(type)
                 },
-                showAge = showAge,
+                showYear = showYear,
                 stalledPermission = status.stalled == SpecialDatesStalledReason.PermissionRevoked,
                 lastRun = status.lastRun,
             )
@@ -256,9 +256,9 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setSpecialDatesShowAge(enabled: Boolean) {
+    fun setSpecialDatesShowYear(enabled: Boolean) {
         viewModelScope.launch {
-            prefs.setSpecialDatesShowAge(enabled)
+            prefs.setSpecialDatesShowYear(enabled)
             SpecialDatesScheduler.runNow(appContext)
         }
     }

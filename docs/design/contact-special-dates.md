@@ -13,14 +13,14 @@ Implementation notes / deviations from this design:
   (and doubles as a stable iCal UID). The managed **calendar** still carries a
   `CAL_SYNC2` marker for re-adoption (calendar-row writes already use the
   sync-adapter URI).
-- **Age is a sync-time snapshot.** A `FREQ=YEARLY` row has one static title, so
-  `{age}` reflects the upcoming birthday at the last sync (refreshed daily / on
-  foreground), not a per-occurrence value. Because of this, `{age}` is **kept out
-  of the default templates**; users can add it, and the title-format editor shows
-  a disclaimer once they do.
+- **Year, not age.** A `FREQ=YEARLY` row has one static title, so a per-occurrence
+  age is impossible without per-year exception rows (rejected as too heavy). The
+  template instead offers `{year}` — the birth year (or an anniversary's start
+  year) — which is static and correct on every occurrence. A "Show year" toggle
+  gates it; it's in the default templates ("{name}'s birthday ({year})").
 - New managed calendars seed a per-calendar all-day reminder default of
   on-the-day + one week before, so birthdays get lead time out of the box.
-- Title template is user-editable from day one (`{name}`, `{age}`).
+- Title template is user-editable per type from day one (`{name}`, `{year}`).
 
 This document captures the full design for surfacing contact birthdays —
 and, by extension, anniversaries and custom dates — as auto-updating local
@@ -239,7 +239,7 @@ rest.
 - [x] Sync engine: idempotent diff keyed on the deterministic `UID_2445`
       (see notes; not `SYNC_DATA1`); targeted managed-column updates; seed
       user-owned fields on insert only.
-- [x] `FREQ=YEARLY` event generation + age (when year known; sync-time snapshot).
+- [x] `FREQ=YEARLY` event generation + `{year}` in titles (static, always correct).
 - [x] Auto-update: on enable, on foreground, daily WorkManager.
 - [x] Editor: disable managed fields for managed-calendar events.
 - [x] Revoked-permission detection + stalled-state surface.

@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "Anniversaries" and "Other dates" calendars that stay in sync as your contacts
   change. Each is a normal local calendar, so you set its colour, visibility and
   reminders the usual way — new birthdays even start with a reminder a week before
-  *and* on the day. The title format is yours to customise (`{name}`, `{age}`).
+  *and* on the day. The title format is yours to customise (`{name}`, `{year}`).
   This is the first feature to use the contacts permission: it is requested only
   when you turn the feature on, everything stays on your device (Calendula has no
   internet access), and your contacts are only ever read, never changed. Thanks

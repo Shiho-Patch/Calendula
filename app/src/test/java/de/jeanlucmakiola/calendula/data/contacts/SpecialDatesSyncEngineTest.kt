@@ -13,14 +13,11 @@ import de.jeanlucmakiola.calendula.domain.contacts.ContactSpecialDate
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
-import kotlinx.datetime.LocalDate
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 
 class SpecialDatesSyncEngineTest {
-
-    private val today = LocalDate(2026, 3, 1)
 
     private class FakeContacts(
         var permission: Boolean = true,
@@ -34,7 +31,7 @@ class SpecialDatesSyncEngineTest {
         override fun displayName(type: SpecialDateType) = type.name
         override fun color(type: SpecialDateType) = 0xFF112233.toInt()
         override fun defaultTitleTemplate(type: SpecialDateType) = when (type) {
-            SpecialDateType.Birthday -> "{name}'s birthday ({age})"
+            SpecialDateType.Birthday -> "{name}'s birthday ({year})"
             SpecialDateType.Anniversary -> "{name}'s anniversary"
             SpecialDateType.Custom -> "{name}"
         }
@@ -65,7 +62,7 @@ class SpecialDatesSyncEngineTest {
     fun `disabled feature is a no-op`(@TempDir tempDir: Path) = runTest {
         val calendars = FakeCalendarDataSource()
         val (engine, _) = engineWith(tempDir, FakeContacts(), calendars, enabled = false)
-        assertThat(engine.sync(today)).isEqualTo(SpecialDatesSyncResult.Disabled)
+        assertThat(engine.sync()).isEqualTo(SpecialDatesSyncResult.Disabled)
         assertThat(calendars.createdManagedCalendars).isEmpty()
     }
 
@@ -73,7 +70,7 @@ class SpecialDatesSyncEngineTest {
     fun `missing permission reports stalled without touching calendars`(@TempDir tempDir: Path) = runTest {
         val calendars = FakeCalendarDataSource()
         val (engine, _) = engineWith(tempDir, FakeContacts(permission = false), calendars)
-        assertThat(engine.sync(today)).isEqualTo(SpecialDatesSyncResult.PermissionMissing)
+        assertThat(engine.sync()).isEqualTo(SpecialDatesSyncResult.PermissionMissing)
         assertThat(calendars.createdManagedCalendars).isEmpty()
     }
 
@@ -88,16 +85,16 @@ class SpecialDatesSyncEngineTest {
         )
         val (engine, settings) = engineWith(tempDir, contacts, calendars)
 
-        assertThat(engine.sync(today)).isEqualTo(SpecialDatesSyncResult.Success)
+        assertThat(engine.sync()).isEqualTo(SpecialDatesSyncResult.Success)
         // All three type calendars exist; the birthday one holds both contacts.
         assertThat(calendars.createdManagedCalendars.map { it.type })
             .containsExactlyElementsIn(SpecialDateType.entries)
         assertThat(calendars.insertedManagedEvents).hasSize(2)
         assertThat(calendars.insertedManagedEvents.map { it.second })
             .containsExactly("contact-birthday:a@calendula", "contact-birthday:b@calendula")
-        // Year-less contact drops the age; year-known keeps it.
+        // Year-less contact drops the year; year-known keeps it.
         val titles = calendars.insertedManagedEvents.map { it.first.title }
-        assertThat(titles).contains("Jane's birthday (36)")
+        assertThat(titles).contains("Jane's birthday (1990)")
         assertThat(titles).contains("Bob's birthday")
         // Calendar ids were persisted for the editor / next sync.
         assertThat(settings.specialDatesCalendars.first()).containsKey(SpecialDateType.Birthday)
@@ -109,10 +106,10 @@ class SpecialDatesSyncEngineTest {
         val contacts = FakeContacts(dates = listOf(birthday("a", "Jane", 5, 14, 1990)))
         val (engine, _) = engineWith(tempDir, contacts, calendars)
 
-        engine.sync(today)
+        engine.sync()
         val insertsAfterFirst = calendars.insertedManagedEvents.size
         val calendarsAfterFirst = calendars.createdManagedCalendars.size
-        engine.sync(today)
+        engine.sync()
 
         assertThat(calendars.insertedManagedEvents).hasSize(insertsAfterFirst)
         assertThat(calendars.createdManagedCalendars).hasSize(calendarsAfterFirst)
@@ -125,16 +122,16 @@ class SpecialDatesSyncEngineTest {
         val calendars = FakeCalendarDataSource()
         val contacts = FakeContacts(dates = listOf(birthday("a", "Jane", 5, 14, 1990)))
         val (engine, _) = engineWith(tempDir, contacts, calendars)
-        engine.sync(today)
+        engine.sync()
 
         contacts.dates = listOf(birthday("a", "Janet", 5, 14, 1990))
-        engine.sync(today)
+        engine.sync()
 
         assertThat(calendars.updatedManagedFields).hasSize(1)
         val (_, columns) = calendars.updatedManagedFields.single()
         // Only managed columns are ever written — never reminders/location.
         assertThat(columns.keys).containsExactly(CalendarContract.Events.TITLE)
-        assertThat(columns[CalendarContract.Events.TITLE]).isEqualTo("Janet's birthday (36)")
+        assertThat(columns[CalendarContract.Events.TITLE]).isEqualTo("Janet's birthday (1990)")
     }
 
     @Test
@@ -142,10 +139,10 @@ class SpecialDatesSyncEngineTest {
         val calendars = FakeCalendarDataSource()
         val contacts = FakeContacts(dates = listOf(birthday("a", "Jane", 5, 14, 1990)))
         val (engine, _) = engineWith(tempDir, contacts, calendars)
-        engine.sync(today)
+        engine.sync()
 
         contacts.dates = emptyList()
-        engine.sync(today)
+        engine.sync()
 
         assertThat(calendars.deletedEventIds).hasSize(1)
     }
@@ -154,11 +151,11 @@ class SpecialDatesSyncEngineTest {
     fun `disabling a type deletes its calendar on the next sync`(@TempDir tempDir: Path) = runTest {
         val calendars = FakeCalendarDataSource()
         val (engine, settings) = engineWith(tempDir, FakeContacts(), calendars)
-        engine.sync(today)
+        engine.sync()
         val anniversaryId = settings.specialDatesCalendars.first().getValue(SpecialDateType.Anniversary)
 
         settings.setSpecialDateTypeEnabled(SpecialDateType.Anniversary, false)
-        engine.sync(today)
+        engine.sync()
 
         assertThat(calendars.deletedCalendarIds).contains(anniversaryId)
         assertThat(settings.specialDatesCalendars.first()).doesNotContainKey(SpecialDateType.Anniversary)
@@ -169,7 +166,7 @@ class SpecialDatesSyncEngineTest {
         val calendars = FakeCalendarDataSource()
         val contacts = FakeContacts(dates = listOf(birthday("a", "Jane", 5, 14, 1990)))
         val (engine, settings) = engineWith(tempDir, contacts, calendars)
-        engine.sync(today)
+        engine.sync()
         val birthdayCal = settings.specialDatesCalendars.first().getValue(SpecialDateType.Birthday)
 
         engine.applyReminders(SpecialDateType.Birthday, CalendarReminderOverride.Minutes(listOf(0, 1440)))
@@ -187,7 +184,7 @@ class SpecialDatesSyncEngineTest {
     fun `applyReminders with None clears the reminders`(@TempDir tempDir: Path) = runTest {
         val calendars = FakeCalendarDataSource()
         val (engine, settings) = engineWith(tempDir, FakeContacts(), calendars)
-        engine.sync(today)
+        engine.sync()
         val birthdayCal = settings.specialDatesCalendars.first().getValue(SpecialDateType.Birthday)
 
         engine.applyReminders(SpecialDateType.Birthday, CalendarReminderOverride.None)

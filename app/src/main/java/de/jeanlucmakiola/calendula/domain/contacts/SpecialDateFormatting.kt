@@ -1,7 +1,6 @@
 package de.jeanlucmakiola.calendula.domain.contacts
 
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.number
 
 /**
  * The deterministic `Events.UID_2445` that ties a mirrored event to its source
@@ -21,30 +20,18 @@ fun ContactSpecialDate.anchorDate(): LocalDate =
     LocalDate(year ?: YEARLESS_ANCHOR_YEAR, month, day)
 
 /**
- * The age the contact reaches on the *upcoming* occurrence of this date,
- * relative to [today], or null when the year is unknown. Because a
- * `FREQ=YEARLY` event carries a single static title, this is a snapshot taken
- * at sync time (refreshed on the next sync), not a per-occurrence value.
- */
-fun ContactSpecialDate.ageAtNextOccurrence(today: LocalDate): Int? {
-    val birthYear = year ?: return null
-    val monthDayPassedThisYear = month < today.month.number ||
-        (month == today.month.number && day < today.day)
-    val nextYear = if (monthDayPassedThisYear) today.year + 1 else today.year
-    return nextYear - birthYear
-}
-
-/**
- * Render a title [template] for a contact, substituting `{name}` and `{age}`
- * (the latter empty when [age] is null). Collapses the whitespace the empty
- * `{age}` may leave behind, so "{name}'s birthday ({age})" degrades cleanly to
+ * Render a title [template] for a contact, substituting `{name}` and `{year}`
+ * (the source year — a birthday's birth year or an anniversary's start year;
+ * empty when [year] is null). Unlike an age, the year is static and correct on
+ * every occurrence of the yearly event. Collapses the whitespace an empty
+ * `{year}` may leave behind, so "{name}'s birthday ({year})" degrades cleanly to
  * "Jane's birthday" when no year is known.
  */
-fun renderSpecialDateTitle(template: String, name: String, age: Int?): String =
+fun renderSpecialDateTitle(template: String, name: String, year: Int?): String =
     template
         .replace("{name}", name)
-        .replace("{age}", age?.toString().orEmpty())
-        // Drop an empty "()" left by an unresolved {age}, then tidy spacing.
+        .replace("{year}", year?.toString().orEmpty())
+        // Drop an empty "()" left by an unresolved {year}, then tidy spacing.
         .replace(Regex("""\(\s*\)"""), "")
         .replace(Regex("""\s+"""), " ")
         .trim()

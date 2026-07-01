@@ -34,36 +34,14 @@ class SpecialDateFormattingTest {
     }
 
     @Test
-    fun `age is null when the year is unknown`() {
-        assertThat(birthday(5, 14, null).ageAtNextOccurrence(LocalDate(2026, 1, 1))).isNull()
+    fun `title substitutes name and year`() {
+        assertThat(renderSpecialDateTitle("{name}'s birthday ({year})", "Jane", 1990))
+            .isEqualTo("Jane's birthday (1990)")
     }
 
     @Test
-    fun `age counts the upcoming birthday when it is still ahead this year`() {
-        // Born 1990-05-14; today 2026-03-01 → next birthday 2026 → turns 36.
-        assertThat(birthday(5, 14, 1990).ageAtNextOccurrence(LocalDate(2026, 3, 1))).isEqualTo(36)
-    }
-
-    @Test
-    fun `age rolls to next year once the birthday has passed`() {
-        // Born 1990-05-14; today 2026-06-01 → next birthday 2027 → turns 37.
-        assertThat(birthday(5, 14, 1990).ageAtNextOccurrence(LocalDate(2026, 6, 1))).isEqualTo(37)
-    }
-
-    @Test
-    fun `age counts today's birthday as this year`() {
-        assertThat(birthday(5, 14, 1990).ageAtNextOccurrence(LocalDate(2026, 5, 14))).isEqualTo(36)
-    }
-
-    @Test
-    fun `title substitutes name and age`() {
-        assertThat(renderSpecialDateTitle("{name}'s birthday ({age})", "Jane", 30))
-            .isEqualTo("Jane's birthday (30)")
-    }
-
-    @Test
-    fun `title drops an empty age parenthesis and tidies spacing`() {
-        assertThat(renderSpecialDateTitle("{name}'s birthday ({age})", "Jane", null))
+    fun `title drops an empty year parenthesis and tidies spacing`() {
+        assertThat(renderSpecialDateTitle("{name}'s birthday ({year})", "Jane", null))
             .isEqualTo("Jane's birthday")
     }
 }

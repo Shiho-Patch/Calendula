@@ -17,10 +17,7 @@ import dagger.hilt.components.SingletonComponent
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SpecialDatesStalledReason
 import kotlinx.coroutines.flow.first
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.todayIn
 import java.util.concurrent.TimeUnit
-import kotlin.time.Clock
 
 /**
  * Schedules the contact special-dates mirror. Birthdays change rarely, so this
@@ -97,9 +94,8 @@ class SpecialDatesSyncWorker(
             return Result.success()
         }
 
-        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
         return try {
-            val result = deps.syncEngine().sync(today)
+            val result = deps.syncEngine().sync()
             val stalled = if (result == SpecialDatesSyncResult.PermissionMissing) {
                 SpecialDatesStalledReason.PermissionRevoked
             } else {

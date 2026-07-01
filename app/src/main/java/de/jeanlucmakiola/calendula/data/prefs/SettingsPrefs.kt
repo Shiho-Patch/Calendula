@@ -476,11 +476,11 @@ class SettingsPrefs @Inject constructor(
         store.edit { it[titleTemplateKey(type)] = template }
     }
 
-    /** Whether `{age}` resolves in the title (only meaningful when the year is known). Default ON. */
-    val specialDatesShowAge: Flow<Boolean> = store.data.map { it[SPECIAL_DATES_SHOW_AGE_KEY] ?: true }
+    /** Whether `{year}` resolves in the title (only meaningful when the year is known). Default ON. */
+    val specialDatesShowYear: Flow<Boolean> = store.data.map { it[SPECIAL_DATES_SHOW_YEAR_KEY] ?: true }
 
-    suspend fun setSpecialDatesShowAge(enabled: Boolean) {
-        store.edit { it[SPECIAL_DATES_SHOW_AGE_KEY] = enabled }
+    suspend fun setSpecialDatesShowYear(enabled: Boolean) {
+        store.edit { it[SPECIAL_DATES_SHOW_YEAR_KEY] = enabled }
     }
 
     /** Outcome of the last mirror sync, for the settings status line. */
@@ -571,7 +571,7 @@ class SettingsPrefs @Inject constructor(
         const val MIN_BACKUP_INTERVAL = 30L
 
         internal val SPECIAL_DATES_ENABLED_KEY = booleanPreferencesKey("special_dates_enabled")
-        internal val SPECIAL_DATES_SHOW_AGE_KEY = booleanPreferencesKey("special_dates_show_age")
+        internal val SPECIAL_DATES_SHOW_YEAR_KEY = booleanPreferencesKey("special_dates_show_year")
         internal val SPECIAL_DATES_LAST_RUN_KEY = longPreferencesKey("special_dates_last_run")
         internal val SPECIAL_DATES_STALLED_KEY = stringPreferencesKey("special_dates_stalled_reason")
         internal val SPECIAL_DATES_LAST_FG_SYNC_KEY =

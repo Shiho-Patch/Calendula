@@ -1186,16 +1186,16 @@ private fun SpecialDatesScreen(
 
             Spacer(Modifier.height(24.dp))
             GroupedRow(
-                title = stringResource(R.string.settings_special_dates_show_age),
-                summary = stringResource(R.string.settings_special_dates_show_age_hint),
+                title = stringResource(R.string.settings_special_dates_show_year),
+                summary = stringResource(R.string.settings_special_dates_show_year_hint),
                 position = Position.Top,
                 trailing = {
                     Switch(
-                        checked = state.showAge,
-                        onCheckedChange = viewModel::setSpecialDatesShowAge,
+                        checked = state.showYear,
+                        onCheckedChange = viewModel::setSpecialDatesShowYear,
                     )
                 },
-                onClick = { viewModel.setSpecialDatesShowAge(!state.showAge) },
+                onClick = { viewModel.setSpecialDatesShowYear(!state.showYear) },
             )
             GroupedRow(
                 title = stringResource(R.string.settings_special_dates_sync_now),
@@ -1302,16 +1302,6 @@ private fun SpecialDatesTemplateDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                // Only warn about {age}'s snapshot behaviour once the user has
-                // actually put it in the template.
-                if (text.contains("{age}")) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.settings_special_dates_template_age_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.tertiary,
-                    )
-                }
             }
         },
         confirmButton = {

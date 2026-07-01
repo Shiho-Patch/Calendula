@@ -91,7 +91,8 @@ data class SpecialDatesUiState(
     val titleTemplates: Map<SpecialDateType, String> = emptyMap(),
     /** The reminder choice per type's managed calendar (applied to all its events). */
     val reminderChoices: Map<SpecialDateType, CalendarReminderOverride> = emptyMap(),
-    val showAge: Boolean = true,
+    /** Whether {year} resolves in titles (the source year is static and always correct). */
+    val showYear: Boolean = true,
     /** True when READ_CONTACTS was revoked after enabling — the mirror is paused. */
     val stalledPermission: Boolean = false,
     /** Epoch millis of the last sync, or 0 if it has never run. */

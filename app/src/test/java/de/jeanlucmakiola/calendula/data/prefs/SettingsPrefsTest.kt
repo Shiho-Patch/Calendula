@@ -349,7 +349,7 @@ class SettingsPrefsTest {
         assertThat(prefs.specialDatesTypes.first()).isEqualTo(SpecialDateType.entries.toSet())
         assertThat(prefs.specialDatesCalendars.first()).isEmpty()
         assertThat(prefs.managedCalendarIds.first()).isEmpty()
-        assertThat(prefs.specialDatesShowAge.first()).isTrue()
+        assertThat(prefs.specialDatesShowYear.first()).isTrue()
     }
 
     @Test
