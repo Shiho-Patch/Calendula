@@ -1147,7 +1147,8 @@ private fun SpecialDatesScreen(
         )
 
         if (state.enabled) {
-            // Per-type card: the toggle, and while on, its calendar-wide reminder.
+            // Per-type card: the toggle, and while on, its title format and its
+            // calendar-wide reminder.
             SpecialDateType.entries.forEachIndexed { index, type ->
                 Spacer(Modifier.height(if (index == 0) 24.dp else 16.dp))
                 val on = type in state.types
@@ -1169,6 +1170,12 @@ private fun SpecialDatesScreen(
                 )
                 if (on) {
                     GroupedRow(
+                        title = stringResource(R.string.settings_special_dates_template),
+                        summary = state.titleTemplates[type].orEmpty(),
+                        position = Position.Middle,
+                        onClick = { editTemplate = type },
+                    )
+                    GroupedRow(
                         title = stringResource(R.string.settings_special_dates_reminders),
                         summary = reminderChoiceLabel(specialDatesReminderMinutes(state.reminderChoices[type])),
                         position = Position.Bottom,
@@ -1176,14 +1183,6 @@ private fun SpecialDatesScreen(
                     )
                 }
             }
-
-            Spacer(Modifier.height(24.dp))
-            GroupedRow(
-                title = stringResource(R.string.settings_special_dates_template),
-                summary = state.titleTemplates[SpecialDateType.Birthday].orEmpty(),
-                position = Position.Alone,
-                onClick = { editTemplate = SpecialDateType.Birthday },
-            )
 
             Spacer(Modifier.height(24.dp))
             GroupedRow(
