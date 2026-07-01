@@ -15,7 +15,9 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarDataSource
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepositoryImpl
 import de.jeanlucmakiola.calendula.data.contacts.AndroidContactSpecialDatesDataSource
+import de.jeanlucmakiola.calendula.data.contacts.AndroidSpecialDatesCalendarSpec
 import de.jeanlucmakiola.calendula.data.contacts.ContactSpecialDatesDataSource
+import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesCalendarSpec
 import de.jeanlucmakiola.calendula.data.reminders.AndroidReminderAlertStore
 import de.jeanlucmakiola.calendula.data.reminders.ReminderAlertStore
 import kotlinx.coroutines.CoroutineDispatcher
@@ -53,6 +55,12 @@ abstract class DataBindModule {
     abstract fun bindContactSpecialDatesDataSource(
         impl: AndroidContactSpecialDatesDataSource,
     ): ContactSpecialDatesDataSource
+
+    @Binds
+    @Singleton
+    abstract fun bindSpecialDatesCalendarSpec(
+        impl: AndroidSpecialDatesCalendarSpec,
+    ): SpecialDatesCalendarSpec
 }
 
 @Module

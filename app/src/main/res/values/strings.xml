@@ -462,4 +462,13 @@
     <string name="crash_report_body_paste">_(The report was too long for this link — paste it from your clipboard here.)_</string>
     <string name="report_issue_url" translatable="false">https://codeberg.org/jlmakiola/calendula/issues/new</string>
     <string name="report_issue_choose_url" translatable="false">https://codeberg.org/jlmakiola/calendula/issues/new/choose</string>
+
+    <!-- Contact special dates (issue #15). {name} is the contact, {age} the age
+         at the upcoming date (dropped when the year is unknown or Show age is off). -->
+    <string name="special_dates_calendar_birthday">Birthdays</string>
+    <string name="special_dates_calendar_anniversary">Anniversaries</string>
+    <string name="special_dates_calendar_custom">Special dates</string>
+    <string name="special_dates_default_title_birthday">{name}\'s birthday ({age})</string>
+    <string name="special_dates_default_title_anniversary">{name}\'s anniversary ({age})</string>
+    <string name="special_dates_default_title_custom">{name}</string>
 </resources>

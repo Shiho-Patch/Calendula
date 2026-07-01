@@ -86,6 +86,8 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     override fun deleteCalendar(id: Long) {
         writeError?.let { throw it }
         deletedCalendarIds += id
+        managedCalendarRows.removeAll { it.id == id }
+        managedEvents.remove(id)
     }
 
     /** All-day reminder fire-time minute-of-day passed into the last write. */
@@ -147,9 +149,9 @@ internal class FakeCalendarDataSource : CalendarDataSource {
 
     // --- Managed special-dates surface (stateful, so a re-sync sees inserts) ---
 
-    var findManagedCalendarsResult: List<ManagedCalendarRow> = emptyList()
     var nextManagedEventId: Long = 1_000L
     private var managedCalendarSeq: Long = 700L
+    private val managedCalendarRows = mutableListOf<ManagedCalendarRow>()
     private val managedEvents = mutableMapOf<Long, MutableList<ManagedEventRow>>()
 
     data class CreatedManagedCalendar(val displayName: String, val color: Int, val type: SpecialDateType)
@@ -157,15 +159,22 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     val insertedManagedEvents = mutableListOf<Pair<EventForm, String>>()
     val updatedManagedFields = mutableListOf<Pair<Long, Map<String, Any?>>>()
 
+    /** Preset an orphan managed calendar (e.g. to test adoption after a prefs wipe). */
+    fun presetManagedCalendar(id: Long, type: SpecialDateType) {
+        managedCalendarRows += ManagedCalendarRow(id, type)
+        managedEvents.getOrPut(id) { mutableListOf() }
+    }
+
     override fun createManagedCalendar(displayName: String, color: Int, type: SpecialDateType): Long {
         writeError?.let { throw it }
         createdManagedCalendars += CreatedManagedCalendar(displayName, color, type)
         val id = managedCalendarSeq++
+        managedCalendarRows += ManagedCalendarRow(id, type)
         managedEvents.getOrPut(id) { mutableListOf() }
         return id
     }
 
-    override fun findManagedCalendars(): List<ManagedCalendarRow> = findManagedCalendarsResult
+    override fun findManagedCalendars(): List<ManagedCalendarRow> = managedCalendarRows.toList()
 
     override fun queryManagedEvents(calendarId: Long): List<ManagedEventRow> =
         managedEvents[calendarId]?.toList() ?: emptyList()
