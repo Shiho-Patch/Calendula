@@ -97,8 +97,9 @@ class SettingsViewModel @Inject constructor(
                 prefs.perCalendarReminderOverride,
                 prefs.perCalendarAllDayReminderOverride,
                 writableCalendars,
-            ) { overrides, allDayOverrides, calendars ->
-                ReminderOverrides(overrides, allDayOverrides, calendars)
+                prefs.managedCalendarIds,
+            ) { overrides, allDayOverrides, calendars, managedIds ->
+                ReminderOverrides(overrides, allDayOverrides, calendars, managedIds)
             },
             combine(
                 prefs.defaultView,
@@ -135,6 +136,7 @@ class SettingsViewModel @Inject constructor(
                 perCalendarReminderOverride = overrides.timed,
                 perCalendarAllDayReminderOverride = overrides.allDay,
                 writableCalendars = overrides.calendars,
+                managedCalendarIds = overrides.managedIds,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -160,6 +162,7 @@ class SettingsViewModel @Inject constructor(
         val timed: Map<Long, List<Int>>,
         val allDay: Map<Long, List<Int>>,
         val calendars: List<CalendarSource>,
+        val managedIds: Set<Long>,
     )
 
     private data class ViewSettings(
@@ -179,24 +182,39 @@ class SettingsViewModel @Inject constructor(
 
     /** Contact special-dates sub-page (issue #15); its own flow — the main state is full. */
     val specialDatesState: StateFlow<SpecialDatesUiState> = combine(
-        prefs.specialDatesEnabled,
-        prefs.specialDatesTypes,
-        prefs.specialDatesTitleTemplates,
-        prefs.specialDatesShowAge,
-        prefs.specialDatesStatus,
-    ) { enabled, types, templates, showAge, status ->
-        SpecialDatesUiState(
-            enabled = enabled,
-            types = types,
-            // A blank stored template resolves to the localized default so the
-            // editor always shows something sensible.
-            titleTemplates = SpecialDateType.entries.associateWith { type ->
-                templates[type]?.takeIf { it.isNotBlank() }
-                    ?: specialDatesSpec.defaultTitleTemplate(type)
+        combine(
+            prefs.specialDatesEnabled,
+            prefs.specialDatesTypes,
+            prefs.specialDatesTitleTemplates,
+            prefs.specialDatesShowAge,
+            prefs.specialDatesStatus,
+        ) { enabled, types, templates, showAge, status ->
+            SpecialDatesUiState(
+                enabled = enabled,
+                types = types,
+                // A blank stored template resolves to the localized default so the
+                // editor always shows something sensible.
+                titleTemplates = SpecialDateType.entries.associateWith { type ->
+                    templates[type]?.takeIf { it.isNotBlank() }
+                        ?: specialDatesSpec.defaultTitleTemplate(type)
+                },
+                showAge = showAge,
+                stalledPermission = status.stalled == SpecialDatesStalledReason.PermissionRevoked,
+                lastRun = status.lastRun,
+            )
+        },
+        prefs.specialDatesCalendars,
+        prefs.perCalendarAllDayReminderOverride,
+    ) { base, calendars, allDayOverrides ->
+        base.copy(
+            reminderChoices = calendars.mapValues { (_, calendarId) ->
+                // An override is always seeded on creation; present-empty = None.
+                when (val minutes = allDayOverrides[calendarId]) {
+                    null -> CalendarReminderOverride.Inherit
+                    emptyList<Int>() -> CalendarReminderOverride.None
+                    else -> CalendarReminderOverride.Minutes(minutes)
+                }
             },
-            showAge = showAge,
-            stalledPermission = status.stalled == SpecialDatesStalledReason.PermissionRevoked,
-            lastRun = status.lastRun,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -243,6 +261,14 @@ class SettingsViewModel @Inject constructor(
             prefs.setSpecialDatesShowAge(enabled)
             SpecialDatesScheduler.runNow(appContext)
         }
+    }
+
+    /**
+     * Set a type's managed-calendar reminder default and apply it to all its
+     * existing events (managed calendars own their reminders calendar-wide).
+     */
+    fun setSpecialDatesReminders(type: SpecialDateType, override: CalendarReminderOverride) {
+        viewModelScope.launch { withContext(io) { specialDatesEngine.applyReminders(type, override) } }
     }
 
     /** Kick off an immediate reconcile (the "Sync now" action). */

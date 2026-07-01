@@ -90,6 +90,28 @@ class SpecialDatesSyncEngine @Inject constructor(
         return SpecialDatesSyncResult.Success
     }
 
+    /**
+     * Set the reminder default for a type's managed calendar and apply it to
+     * **all** its existing events too (not just future ones) — for managed
+     * calendars the reminder is a calendar-level setting. Persists the per-calendar
+     * all-day override so new events keep matching. No-op if the calendar for
+     * [type] doesn't exist yet.
+     */
+    suspend fun applyReminders(type: SpecialDateType, override: CalendarReminderOverride) {
+        val calendarId = prefs.specialDatesCalendars.first()[type] ?: return
+        prefs.setCalendarAllDayReminderOverride(calendarId, override)
+        val minutes = when (override) {
+            CalendarReminderOverride.Inherit -> prefs.defaultAllDayReminderMinutes.first()
+            CalendarReminderOverride.None -> emptyList()
+            is CalendarReminderOverride.Minutes -> override.minutes
+        }
+        calendars.applyManagedCalendarReminders(
+            calendarId = calendarId,
+            allDayReminderTimeMinutes = prefs.allDayReminderTimeMinutes.first(),
+            minutes = minutes,
+        )
+    }
+
     /** Delete every managed calendar and forget its id — used when the feature is turned off. */
     suspend fun teardown() {
         calendars.findManagedCalendars().forEach { calendars.deleteCalendar(it.id) }

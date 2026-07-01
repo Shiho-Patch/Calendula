@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -180,7 +181,12 @@ fun SettingsScreen(
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
             exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
         ) {
-            NotificationsScreen(state = state, viewModel = viewModel, onBack = { section = null })
+            NotificationsScreen(
+                state = state,
+                viewModel = viewModel,
+                onBack = { section = null },
+                onOpenSpecialDates = { section = SettingsSection.SpecialDates },
+            )
         }
         AnimatedVisibility(
             visible = section == SettingsSection.SpecialDates,
@@ -795,6 +801,7 @@ private fun NotificationsScreen(
     state: SettingsUiState,
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
+    onOpenSpecialDates: () -> Unit,
 ) {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
@@ -919,6 +926,25 @@ private fun NotificationsScreen(
                 Column {
                     state.writableCalendars.forEach { calendar ->
                         Spacer(Modifier.height(16.dp))
+                        // A contact special-dates calendar owns its reminders in
+                        // its own section — link there instead of an override.
+                        if (calendar.id in state.managedCalendarIds) {
+                            GroupedRow(
+                                title = calendar.displayName,
+                                summary = stringResource(R.string.settings_calendar_reminders_managed_hint),
+                                position = Position.Alone,
+                                leading = { CalendarColorChip(calendar.color) },
+                                trailing = {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                                onClick = onOpenSpecialDates,
+                            )
+                            return@forEach
+                        }
                         val expanded = calendar.id in expandedCalendars
                         // Calendar card; tapping expands it into a grouped list
                         // of three (the card + the timed and all-day rows).
@@ -1074,6 +1100,7 @@ private fun SpecialDatesScreen(
     var confirmDisableAll by remember { mutableStateOf(false) }
     var confirmDisableType by remember { mutableStateOf<SpecialDateType?>(null) }
     var editTemplate by remember { mutableStateOf<SpecialDateType?>(null) }
+    var reminderPickerType by remember { mutableStateOf<SpecialDateType?>(null) }
 
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_special_dates),
@@ -1120,13 +1147,13 @@ private fun SpecialDatesScreen(
         )
 
         if (state.enabled) {
-            Spacer(Modifier.height(24.dp))
-            // Per-type toggles + their title templates.
+            // Per-type card: the toggle, and while on, its calendar-wide reminder.
             SpecialDateType.entries.forEachIndexed { index, type ->
+                Spacer(Modifier.height(if (index == 0) 24.dp else 16.dp))
                 val on = type in state.types
                 GroupedRow(
                     title = stringResource(specialDateTypeLabel(type)),
-                    position = if (index == 0) Position.Top else Position.Middle,
+                    position = if (on) Position.Top else Position.Alone,
                     trailing = {
                         Switch(
                             checked = on,
@@ -1140,11 +1167,21 @@ private fun SpecialDatesScreen(
                         if (on) confirmDisableType = type else viewModel.setSpecialDateTypeEnabled(type, true)
                     },
                 )
+                if (on) {
+                    GroupedRow(
+                        title = stringResource(R.string.settings_special_dates_reminders),
+                        summary = reminderChoiceLabel(specialDatesReminderMinutes(state.reminderChoices[type])),
+                        position = Position.Bottom,
+                        onClick = { reminderPickerType = type },
+                    )
+                }
             }
+
+            Spacer(Modifier.height(24.dp))
             GroupedRow(
                 title = stringResource(R.string.settings_special_dates_template),
                 summary = state.titleTemplates[SpecialDateType.Birthday].orEmpty(),
-                position = Position.Bottom,
+                position = Position.Alone,
                 onClick = { editTemplate = SpecialDateType.Birthday },
             )
 
@@ -1202,7 +1239,22 @@ private fun SpecialDatesScreen(
             onDismiss = { editTemplate = null },
         )
     }
+    reminderPickerType?.let { type ->
+        ReminderDefaultPicker(
+            title = stringResource(R.string.settings_special_dates_reminders),
+            presets = ALLDAY_REMINDER_PRESETS,
+            selected = state.reminderChoices[type] ?: CalendarReminderOverride.None,
+            // Managed calendars own their reminders outright — no "inherit global".
+            allowInherit = false,
+            onSelect = { viewModel.setSpecialDatesReminders(type, it) },
+            onDismiss = { reminderPickerType = null },
+        )
+    }
 }
+
+/** The lead-time list backing a managed calendar's reminder choice (for the summary label). */
+private fun specialDatesReminderMinutes(choice: CalendarReminderOverride?): List<Int> =
+    (choice as? CalendarReminderOverride.Minutes)?.minutes.orEmpty()
 
 @Composable
 private fun SpecialDatesDisableDialog(

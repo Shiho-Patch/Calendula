@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.data.calendar.FakeCalendarDataSource
 import de.jeanlucmakiola.calendula.data.calendar.ManagedEventRow
+import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.contacts.ContactSpecialDate
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
@@ -161,6 +162,38 @@ class SpecialDatesSyncEngineTest {
 
         assertThat(calendars.deletedCalendarIds).contains(anniversaryId)
         assertThat(settings.specialDatesCalendars.first()).doesNotContainKey(SpecialDateType.Anniversary)
+    }
+
+    @Test
+    fun `applyReminders persists the override and applies it to all events`(@TempDir tempDir: Path) = runTest {
+        val calendars = FakeCalendarDataSource()
+        val contacts = FakeContacts(dates = listOf(birthday("a", "Jane", 5, 14, 1990)))
+        val (engine, settings) = engineWith(tempDir, contacts, calendars)
+        engine.sync(today)
+        val birthdayCal = settings.specialDatesCalendars.first().getValue(SpecialDateType.Birthday)
+
+        engine.applyReminders(SpecialDateType.Birthday, CalendarReminderOverride.Minutes(listOf(0, 1440)))
+
+        // Persisted as the per-calendar all-day override (so new events match)...
+        assertThat(settings.perCalendarAllDayReminderOverride.first()[birthdayCal])
+            .isEqualTo(listOf(0, 1440))
+        // ...and applied to the existing events in that calendar.
+        assertThat(calendars.appliedManagedReminders).contains(
+            Triple(birthdayCal, settings.allDayReminderTimeMinutes.first(), listOf(0, 1440)),
+        )
+    }
+
+    @Test
+    fun `applyReminders with None clears the reminders`(@TempDir tempDir: Path) = runTest {
+        val calendars = FakeCalendarDataSource()
+        val (engine, settings) = engineWith(tempDir, FakeContacts(), calendars)
+        engine.sync(today)
+        val birthdayCal = settings.specialDatesCalendars.first().getValue(SpecialDateType.Birthday)
+
+        engine.applyReminders(SpecialDateType.Birthday, CalendarReminderOverride.None)
+
+        assertThat(settings.perCalendarAllDayReminderOverride.first()[birthdayCal]).isEmpty()
+        assertThat(calendars.appliedManagedReminders.last().third).isEmpty()
     }
 
     // --- pure diff ---

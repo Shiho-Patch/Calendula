@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.settings
 
+import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
@@ -70,6 +71,12 @@ data class SettingsUiState(
      * colour palette (the colour may then not survive their next sync).
      */
     val allowColorOnUnsupportedCalendars: Boolean = false,
+    /**
+     * Ids of the contact special-dates calendars. Their reminders are owned by
+     * the Contact special dates section, so the per-calendar override list links
+     * out to it instead of offering an override here.
+     */
+    val managedCalendarIds: Set<Long> = emptySet(),
 )
 
 /**
@@ -82,6 +89,8 @@ data class SpecialDatesUiState(
     val enabled: Boolean = false,
     val types: Set<SpecialDateType> = SpecialDateType.entries.toSet(),
     val titleTemplates: Map<SpecialDateType, String> = emptyMap(),
+    /** The reminder choice per type's managed calendar (applied to all its events). */
+    val reminderChoices: Map<SpecialDateType, CalendarReminderOverride> = emptyMap(),
     val showAge: Boolean = true,
     /** True when READ_CONTACTS was revoked after enabling — the mirror is paused. */
     val stalledPermission: Boolean = false,

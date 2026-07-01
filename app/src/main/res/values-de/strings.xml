@@ -428,13 +428,15 @@
     <string name="settings_special_dates_type_custom">Weitere Tage</string>
     <string name="settings_special_dates_template">Titelformat</string>
     <string name="settings_special_dates_template_hint">Verwende {name} für den Kontakt und {age} für das Alter (ausgeblendet, wenn das Jahr unbekannt ist).</string>
-    <string name="settings_special_dates_template_age_note">Hinweis: {age} ist das Alter zum nächsten Termin beim letzten Sync. Da ein jährlicher Termin nur einen Titel hat, kann es bei weit entfernten Terminen unpassend wirken.</string>
+    <string name="settings_special_dates_template_age_note">Hinweis: Das Alter ist ein einzelner Wert vom letzten Sync — es wird nicht für jedes Jahr aktualisiert. Jeder jährliche Termin zeigt daher dieselbe Zahl, was bei weiter zurück- oder vorausliegenden Terminen falsch sein kann.</string>
+    <string name="settings_special_dates_reminders">Erinnerungen</string>
     <string name="settings_special_dates_show_age">Alter anzeigen</string>
     <string name="settings_special_dates_show_age_hint">{age} in Titeln anzeigen, wenn das Geburtsjahr bekannt ist</string>
     <string name="settings_special_dates_sync_now">Jetzt synchronisieren</string>
     <string name="settings_special_dates_never_synced">Noch nicht synchronisiert</string>
     <string name="settings_special_dates_last_synced">Zuletzt synchronisiert %1$s</string>
-    <string name="settings_special_dates_calendar_hint">Farbe, Sichtbarkeit und Erinnerungen jedes Kalenders legst du in den Kalender-Einstellungen fest.</string>
+    <string name="settings_special_dates_calendar_hint">Farbe und Sichtbarkeit jedes Kalenders legst du in den Kalender-Einstellungen fest.</string>
+    <string name="settings_calendar_reminders_managed_hint">In Besondere Kontakttage festgelegt</string>
     <string name="settings_special_dates_paused_title">Pausiert</string>
     <string name="settings_special_dates_paused_hint">Calendula kann deine Kontakte nicht mehr lesen, daher werden diese Kalender nicht aktualisiert.</string>
     <string name="settings_special_dates_grant">Zugriff erlauben</string>

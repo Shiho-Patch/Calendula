@@ -190,6 +190,18 @@ internal class FakeCalendarDataSource : CalendarDataSource {
         return id
     }
 
+    /** (calendarId, allDayTime, minutes) recorded from applyManagedCalendarReminders. */
+    val appliedManagedReminders = mutableListOf<Triple<Long, Int, List<Int>>>()
+
+    override fun applyManagedCalendarReminders(
+        calendarId: Long,
+        allDayReminderTimeMinutes: Int,
+        minutes: List<Int>,
+    ) {
+        writeError?.let { throw it }
+        appliedManagedReminders += Triple(calendarId, allDayReminderTimeMinutes, minutes)
+    }
+
     override fun updateManagedFields(eventId: Long, values: Map<String, Any?>) {
         writeError?.let { throw it }
         if (values.isEmpty()) return

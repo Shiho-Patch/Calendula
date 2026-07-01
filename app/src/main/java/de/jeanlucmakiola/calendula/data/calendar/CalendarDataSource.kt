@@ -29,6 +29,7 @@ import de.jeanlucmakiola.calendula.domain.ics.IcsEvent
 import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
 import de.jeanlucmakiola.calendula.domain.rruleTruncatedAt
 import kotlinx.datetime.toJavaLocalDate
+import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.UUID
@@ -132,6 +133,19 @@ interface CalendarDataSource {
      * user-owned data on the event survives every sync. No-ops on an empty map.
      */
     fun updateManagedFields(eventId: Long, values: Map<String, Any?>)
+
+    /**
+     * Replace the reminders on **every** event in [calendarId] with [minutes]
+     * (all-day lead times), each encoded from its own date so it fires at
+     * [allDayReminderTimeMinutes]. Used by the special-dates section so a reminder
+     * change applies to existing events too, not just future ones — the managed
+     * calendars treat reminders as a calendar-level setting.
+     */
+    fun applyManagedCalendarReminders(
+        calendarId: Long,
+        allDayReminderTimeMinutes: Int,
+        minutes: List<Int>,
+    )
 
     /**
      * Insert a new event; returns the new `Events._ID`. [allDayReminderTimeMinutes]
@@ -454,6 +468,32 @@ class AndroidCalendarDataSource @Inject constructor(
             null, null,
         )
         if (rows == 0) throw WriteFailedException("update managed event id=$eventId")
+    }
+
+    override fun applyManagedCalendarReminders(
+        calendarId: Long,
+        allDayReminderTimeMinutes: Int,
+        minutes: List<Int>,
+    ) {
+        val zone = ZoneId.systemDefault()
+        resolver.query(
+            CalendarContract.Events.CONTENT_URI,
+            arrayOf(CalendarContract.Events._ID, CalendarContract.Events.DTSTART),
+            "${CalendarContract.Events.CALENDAR_ID} = ? AND ${CalendarContract.Events.DELETED} = 0",
+            arrayOf(calendarId.toString()),
+            null,
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val eventId = c.getLong(0)
+                // Managed events are all-day: DTSTART is a UTC midnight.
+                val startDate = Instant.ofEpochMilli(c.getLong(1))
+                    .atZone(ZoneOffset.UTC).toLocalDate()
+                val encoded = minutes
+                    .map { toProviderAllDayMinutes(it, startDate, zone, allDayReminderTimeMinutes) }
+                    .distinct()
+                reconcileReminders(eventId, encoded)
+            }
+        }
     }
 
     override fun instances(beginMillis: Long, endMillis: Long): List<EventInstance> {
