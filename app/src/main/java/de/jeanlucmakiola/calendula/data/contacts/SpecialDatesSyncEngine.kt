@@ -6,7 +6,6 @@ import de.jeanlucmakiola.calendula.data.calendar.ManagedEventRow
 import de.jeanlucmakiola.calendula.data.calendar.toWriteTimes
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
-import de.jeanlucmakiola.calendula.data.prefs.resolveDefaultReminder
 import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.RecurrenceFreq
@@ -38,6 +37,16 @@ interface SpecialDatesCalendarSpec {
     fun color(type: SpecialDateType): Int
     fun defaultTitleTemplate(type: SpecialDateType): String
 }
+
+/**
+ * The stored title template for [type], falling back to the localized default
+ * when blank/absent — the one resolution rule shared by the sync (what gets
+ * written) and the settings editor (what gets shown).
+ */
+fun SpecialDatesCalendarSpec.resolveTitleTemplate(
+    type: SpecialDateType,
+    stored: Map<SpecialDateType, String>,
+): String = stored[type]?.takeIf { it.isNotBlank() } ?: defaultTitleTemplate(type)
 
 /**
  * Mirrors contact birthdays/anniversaries/custom dates into local calendars,
@@ -72,8 +81,7 @@ class SpecialDatesSyncEngine @Inject constructor(
         val showYear = prefs.specialDatesShowYear.first()
 
         calendarByType.forEach { (type, calendarId) ->
-            val template = templates[type]?.takeIf { it.isNotBlank() }
-                ?: spec.defaultTitleTemplate(type)
+            val template = spec.resolveTitleTemplate(type, templates)
             syncType(
                 calendarId = calendarId,
                 type = type,
@@ -143,8 +151,8 @@ class SpecialDatesSyncEngine @Inject constructor(
     }
 
     private suspend fun createCalendar(type: SpecialDateType): Long {
+        // reconcileCalendars persists the id — the single place ids are recorded.
         val id = calendars.createManagedCalendar(spec.displayName(type), spec.color(type), type)
-        prefs.setSpecialDatesCalendarId(type, id)
         // Seed a useful all-day reminder default (on the day + a week before), so
         // birthdays get lead time out of the box. Per-calendar, user-adjustable —
         // only set when the user hasn't already configured this calendar.
@@ -212,29 +220,21 @@ class SpecialDatesSyncEngine @Inject constructor(
         )
     }
 
+    // Managed events are always all-day, so only the all-day defaults apply.
     private suspend fun readReminderContext(): ReminderContext = ReminderContext(
-        timedGlobal = prefs.defaultReminderMinutes.first(),
         allDayGlobal = prefs.defaultAllDayReminderMinutes.first(),
-        timedOverrides = prefs.perCalendarReminderOverride.first(),
         allDayOverrides = prefs.perCalendarAllDayReminderOverride.first(),
         allDayTimeMinutes = prefs.allDayReminderTimeMinutes.first(),
     )
 
     private data class ReminderContext(
-        val timedGlobal: List<Int>,
         val allDayGlobal: List<Int>,
-        val timedOverrides: Map<Long, List<Int>>,
         val allDayOverrides: Map<Long, List<Int>>,
         val allDayTimeMinutes: Int,
     ) {
-        fun resolveAllDay(calendarId: Long): List<Int> = resolveDefaultReminder(
-            timedGlobal = timedGlobal,
-            allDayGlobal = allDayGlobal,
-            timedOverrides = timedOverrides,
-            allDayOverrides = allDayOverrides,
-            calendarId = calendarId,
-            isAllDay = true,
-        )
+        /** Same semantics as `resolveDefaultReminder`: present-empty = explicit none. */
+        fun resolveAllDay(calendarId: Long): List<Int> =
+            allDayOverrides[calendarId] ?: allDayGlobal
     }
 
     private data class BuiltManagedEvent(val desired: ManagedEventDesired, val form: EventForm)

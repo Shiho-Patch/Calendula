@@ -83,9 +83,6 @@ class SpecialDatesSyncWorker(
     override suspend fun doWork(): Result {
         val deps = EntryPointAccessors.fromApplication(applicationContext, Deps::class.java)
         val prefs = deps.settingsPrefs()
-        // Respect the toggle even for already-queued work; never revive a
-        // disabled feature.
-        if (!prefs.specialDatesEnabled.first()) return Result.success()
 
         val now = System.currentTimeMillis()
         // A foreground resume can fire often — skip if we synced recently.
@@ -95,13 +92,19 @@ class SpecialDatesSyncWorker(
         }
 
         return try {
-            val result = deps.syncEngine().sync()
-            val stalled = if (result == SpecialDatesSyncResult.PermissionMissing) {
-                SpecialDatesStalledReason.PermissionRevoked
-            } else {
-                null
+            when (val result = deps.syncEngine().sync()) {
+                // The engine re-checks the toggle, so already-queued work never
+                // revives a disabled feature; don't record a run either.
+                SpecialDatesSyncResult.Disabled -> return Result.success()
+                else -> {
+                    val stalled = if (result == SpecialDatesSyncResult.PermissionMissing) {
+                        SpecialDatesStalledReason.PermissionRevoked
+                    } else {
+                        null
+                    }
+                    prefs.recordSpecialDatesRun(now, stalled)
+                }
             }
-            prefs.recordSpecialDatesRun(now, stalled)
             if (foreground) prefs.setSpecialDatesLastForegroundSync(now)
             Result.success()
         } catch (e: Exception) {
