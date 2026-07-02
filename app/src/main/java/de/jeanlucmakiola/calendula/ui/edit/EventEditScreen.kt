@@ -37,6 +37,7 @@ import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.EventAvailable
@@ -120,12 +121,15 @@ import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
 import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
 import de.jeanlucmakiola.calendula.ui.common.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.CALENDAR_COLOR_PALETTE
+import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
 import de.jeanlucmakiola.calendula.ui.common.DialogAmountField
 import de.jeanlucmakiola.calendula.ui.common.DialogUnitDropdown
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldIcon
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldLabel
+import de.jeanlucmakiola.calendula.ui.common.FullScreenPicker
+import de.jeanlucmakiola.calendula.ui.common.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.MILLIS_PER_DAY
 import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.OptionCard
@@ -943,7 +947,7 @@ private fun EventEditContent(
     }
 
     if (showCalendarPicker) {
-        CalendarPickerDialog(
+        CalendarPicker(
             calendars = state.calendars,
             selectedId = form.calendarId,
             onSelect = {
@@ -1931,34 +1935,64 @@ private fun ScheduleRow(
     }
 }
 
+/**
+ * Full-screen calendar picker: a scrollable list of every writable calendar,
+ * grouped under its owning account like the visibility filter and calendar
+ * manager. Replaces the former fixed-height [AlertDialog], which clipped the
+ * list past ~9 rows so accounts with many calendars had unreachable entries
+ * (#29). Selecting a row calls [onSelect]; the caller closes the picker.
+ */
 @Composable
-private fun CalendarPickerDialog(
+private fun CalendarPicker(
     calendars: List<CalendarSource>,
     selectedId: Long?,
     onSelect: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val dark = isSystemInDarkTheme()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.event_detail_calendar)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                calendars.forEach { calendar ->
-                    OptionCard(
-                        label = calendar.displayName,
-                        onClick = { onSelect(calendar.id) },
-                        icon = Icons.Default.CalendarMonth,
-                        // The calendar's own colour carries its identity.
-                        iconTint = pastelize(calendar.color, dark),
-                        supportingText = calendar.accountName.takeIf { it.isNotBlank() },
-                        selected = calendar.id == selectedId,
-                    )
-                }
+    // Group by owning account (name, else type, else the calendar's own name),
+    // preserving the provider's order within and across groups — the same
+    // grouping [groupByAccount] applies for the drawer filter.
+    val groups = remember(calendars) {
+        calendars
+            .groupBy {
+                it.accountName.takeIf(String::isNotBlank)
+                    ?: it.accountType.takeIf(String::isNotBlank)
+                    ?: it.displayName
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
-        },
-    )
+            .toList()
+    }
+    FullScreenPicker(
+        title = stringResource(R.string.event_detail_calendar),
+        onDismiss = onDismiss,
+    ) {
+        groups.forEach { (account, cals) ->
+            Text(
+                text = account,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 4.dp),
+            )
+            cals.forEachIndexed { index, calendar ->
+                val isSelected = calendar.id == selectedId
+                GroupedRow(
+                    title = calendar.displayName,
+                    position = positionOf(index, cals.size),
+                    selected = isSelected,
+                    leading = { CalendarColorChip(calendar.color) },
+                    trailing = if (isSelected) {
+                        {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                    onClick = { onSelect(calendar.id) },
+                )
+            }
+        }
+    }
 }
