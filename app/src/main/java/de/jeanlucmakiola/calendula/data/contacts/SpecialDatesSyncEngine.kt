@@ -13,10 +13,12 @@ import de.jeanlucmakiola.calendula.domain.SimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.contacts.ContactSpecialDate
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.domain.contacts.anchorDate
-import de.jeanlucmakiola.calendula.domain.contacts.managedEventUid
+import de.jeanlucmakiola.calendula.domain.contacts.managedUid
 import de.jeanlucmakiola.calendula.domain.contacts.renderSpecialDateTitle
 import de.jeanlucmakiola.calendula.domain.toRRule
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import java.time.ZoneId
@@ -64,11 +66,19 @@ class SpecialDatesSyncEngine @Inject constructor(
     private val spec: SpecialDatesCalendarSpec,
 ) {
 
+    // Serializes calendar-lifecycle work: two overlapping syncs (the daily job
+    // racing a "Sync now"/foreground run) would each see no managed calendar and
+    // both create one; a teardown racing an in-flight sync would delete calendars
+    // the sync then recreates. Holding this for the whole of sync()/teardown()
+    // makes those check-then-act sequences atomic, and — because sync() re-reads
+    // the enabled flag inside the lock — a teardown always wins the race.
+    private val lifecycleMutex = Mutex()
+
     /**
      * Reconcile every enabled type against the device's contacts. Returns why it
      * stopped early (disabled / permission gone) or [SpecialDatesSyncResult.Success].
      */
-    suspend fun sync(): SpecialDatesSyncResult {
+    suspend fun sync(): SpecialDatesSyncResult = lifecycleMutex.withLock {
         if (!prefs.specialDatesEnabled.first()) return SpecialDatesSyncResult.Disabled
         if (!contacts.hasPermission()) return SpecialDatesSyncResult.PermissionMissing
 
@@ -91,7 +101,7 @@ class SpecialDatesSyncEngine @Inject constructor(
                 reminderCtx = reminderCtx,
             )
         }
-        return SpecialDatesSyncResult.Success
+        SpecialDatesSyncResult.Success
     }
 
     /**
@@ -117,7 +127,7 @@ class SpecialDatesSyncEngine @Inject constructor(
     }
 
     /** Delete every managed calendar and forget its id — used when the feature is turned off. */
-    suspend fun teardown() {
+    suspend fun teardown() = lifecycleMutex.withLock {
         calendars.findManagedCalendars().forEach { calendars.deleteCalendar(it.id) }
         SpecialDateType.entries.forEach { prefs.setSpecialDatesCalendarId(it, null) }
     }
@@ -211,7 +221,7 @@ class SpecialDatesSyncEngine @Inject constructor(
         val dtStartMillis = form.toWriteTimes(ZoneId.systemDefault()).dtStartMillis
         return BuiltManagedEvent(
             desired = ManagedEventDesired(
-                uid = managedEventUid(type, sd.lookupKey),
+                uid = sd.managedUid(),
                 title = title,
                 dtStartMillis = dtStartMillis,
                 rrule = YEARLY_RRULE,

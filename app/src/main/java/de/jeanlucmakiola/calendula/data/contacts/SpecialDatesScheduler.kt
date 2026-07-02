@@ -30,6 +30,7 @@ object SpecialDatesScheduler {
 
     private const val WORK_NAME = "special-dates-sync"
     private const val WORK_NAME_NOW = "special-dates-sync-now"
+    private const val WORK_NAME_FOREGROUND = "special-dates-sync-foreground"
     private const val KEY_FOREGROUND = "foreground"
 
     /** Enqueue (or cancel) the daily periodic reconcile to match [enabled]. */
@@ -38,6 +39,7 @@ object SpecialDatesScheduler {
         if (!enabled) {
             workManager.cancelUniqueWork(WORK_NAME)
             workManager.cancelUniqueWork(WORK_NAME_NOW)
+            workManager.cancelUniqueWork(WORK_NAME_FOREGROUND)
             return
         }
         val request = PeriodicWorkRequestBuilder<SpecialDatesSyncWorker>(1, TimeUnit.DAYS)
@@ -48,15 +50,19 @@ object SpecialDatesScheduler {
     }
 
     /**
-     * Run one reconcile immediately. [foreground] runs are debounced (the app can
-     * resume often); enable/"Sync now" runs ([foreground] false) always sync.
+     * Run one reconcile immediately. [foreground] runs (the app resuming) are
+     * debounced inside the worker and use their own work name, so a frequent
+     * foreground resync can never REPLACE — and swallow — a pending enable /
+     * "Sync now" run, which always syncs. The engine serializes the two if they
+     * overlap.
      */
     fun runNow(context: Context, foreground: Boolean = false) {
         val request = OneTimeWorkRequestBuilder<SpecialDatesSyncWorker>()
             .setInputData(Data.Builder().putBoolean(KEY_FOREGROUND, foreground).build())
             .build()
+        val name = if (foreground) WORK_NAME_FOREGROUND else WORK_NAME_NOW
         WorkManager.getInstance(context)
-            .enqueueUniqueWork(WORK_NAME_NOW, ExistingWorkPolicy.REPLACE, request)
+            .enqueueUniqueWork(name, ExistingWorkPolicy.REPLACE, request)
     }
 
     internal const val INPUT_FOREGROUND = KEY_FOREGROUND
@@ -106,6 +112,13 @@ class SpecialDatesSyncWorker(
                 }
             }
             if (foreground) prefs.setSpecialDatesLastForegroundSync(now)
+            Result.success()
+        } catch (e: SecurityException) {
+            // A revoked calendar/contacts permission won't fix itself on retry —
+            // park the feature in a stalled state (surfaced in settings) instead
+            // of retrying with backoff forever.
+            Log.w(TAG, "Special-dates sync lacks a required permission", e)
+            prefs.recordSpecialDatesRun(now, SpecialDatesStalledReason.PermissionRevoked)
             Result.success()
         } catch (e: Exception) {
             Log.w(TAG, "Special-dates sync failed", e)
