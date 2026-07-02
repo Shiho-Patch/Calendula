@@ -13,8 +13,10 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesCalendarSpec
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesSyncEngine
+import de.jeanlucmakiola.calendula.data.contacts.resolveTitleTemplate
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
+import de.jeanlucmakiola.calendula.data.prefs.choiceFor
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SpecialDatesStalledReason
@@ -195,8 +197,7 @@ class SettingsViewModel @Inject constructor(
                 // A blank stored template resolves to the localized default so the
                 // editor always shows something sensible.
                 titleTemplates = SpecialDateType.entries.associateWith { type ->
-                    templates[type]?.takeIf { it.isNotBlank() }
-                        ?: specialDatesSpec.defaultTitleTemplate(type)
+                    specialDatesSpec.resolveTitleTemplate(type, templates)
                 },
                 showYear = showYear,
                 stalledPermission = status.stalled == SpecialDatesStalledReason.PermissionRevoked,
@@ -207,13 +208,9 @@ class SettingsViewModel @Inject constructor(
         prefs.perCalendarAllDayReminderOverride,
     ) { base, calendars, allDayOverrides ->
         base.copy(
+            // An override is always seeded on creation; present-empty = None.
             reminderChoices = calendars.mapValues { (_, calendarId) ->
-                // An override is always seeded on creation; present-empty = None.
-                when (val minutes = allDayOverrides[calendarId]) {
-                    null -> CalendarReminderOverride.Inherit
-                    emptyList<Int>() -> CalendarReminderOverride.None
-                    else -> CalendarReminderOverride.Minutes(minutes)
-                }
+                allDayOverrides.choiceFor(calendarId)
             },
         )
     }.stateIn(

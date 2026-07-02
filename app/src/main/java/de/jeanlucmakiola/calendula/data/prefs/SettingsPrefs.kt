@@ -612,6 +612,18 @@ sealed interface CalendarReminderOverride {
 }
 
 /**
+ * The stored override for [calendarId] in an override map, as a
+ * [CalendarReminderOverride] (absent → [CalendarReminderOverride.Inherit],
+ * empty → [CalendarReminderOverride.None]) — the inverse of how
+ * [SettingsPrefs.setCalendarReminderOverride] stores a choice.
+ */
+fun Map<Long, List<Int>>.choiceFor(calendarId: Long): CalendarReminderOverride = when {
+    !containsKey(calendarId) -> CalendarReminderOverride.Inherit
+    getValue(calendarId).isEmpty() -> CalendarReminderOverride.None
+    else -> CalendarReminderOverride.Minutes(getValue(calendarId))
+}
+
+/**
  * The lead times to prefill on a new event: the matching per-calendar override
  * if [calendarId] has one for this event kind, otherwise the global default for
  * that kind. All-day events consult [allDayOverrides] / [allDayGlobal]; timed

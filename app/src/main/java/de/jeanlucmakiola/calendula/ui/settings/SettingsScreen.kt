@@ -86,8 +86,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.contacts.hasContactsPermission
 import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
+import de.jeanlucmakiola.calendula.data.prefs.choiceFor
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
@@ -104,6 +106,7 @@ import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
+import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.labelRes
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
@@ -1090,7 +1093,7 @@ private fun SpecialDatesScreen(
         }
     }
     val requestOrEnable: () -> Unit = {
-        if (hasContactsPermission(context)) {
+        if (context.hasContactsPermission()) {
             viewModel.setSpecialDatesEnabled(true)
         } else {
             permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
@@ -1290,12 +1293,21 @@ private fun SpecialDatesTemplateDialog(
         title = { Text(stringResource(R.string.settings_special_dates_template)) },
         text = {
             Column {
-                androidx.compose.material3.OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                // The app's borderless input over a tonal surface (the dialog
+                // convention — see DialogControls), not Material's outlined field.
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    InlineTextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        placeholder = stringResource(R.string.settings_special_dates_template),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                    )
+                }
                 Spacer(Modifier.height(8.dp))
                 Text(
                     text = stringResource(R.string.settings_special_dates_template_hint),
@@ -1323,10 +1335,6 @@ private fun specialDateTypeLabel(type: SpecialDateType): Int = when (type) {
     SpecialDateType.Anniversary -> R.string.settings_special_dates_type_anniversary
     SpecialDateType.Custom -> R.string.settings_special_dates_type_custom
 }
-
-private fun hasContactsPermission(context: Context): Boolean =
-    ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) ==
-        PackageManager.PERMISSION_GRANTED
 
 @Composable
 private fun specialDatesLastRunLabel(context: Context, lastRun: Long): String =
@@ -1426,22 +1434,11 @@ private fun formatTimeOfDay(context: Context, minutesOfDay: Int): String {
     return DateFormat.getTimeFormat(context).format(time)
 }
 
-/** The stored override for [calendarId], as a picker choice (absent → inherit). */
-private fun Map<Long, List<Int>>.choiceFor(calendarId: Long): CalendarReminderOverride = when {
-    !containsKey(calendarId) -> CalendarReminderOverride.Inherit
-    this.getValue(calendarId).isEmpty() -> CalendarReminderOverride.None
-    else -> CalendarReminderOverride.Minutes(this.getValue(calendarId))
-}
-
 /** Label for a global-default choice: empty → "None", else the lead times joined. */
 @Composable
 private fun reminderChoiceLabel(minutes: List<Int>): String {
     if (minutes.isEmpty()) return stringResource(R.string.reminder_none)
-    // reminderLeadTimeLabel is @Composable, so resolve each part in a loop rather
-    // than a (non-composable) joinToString transform.
-    val parts = ArrayList<String>(minutes.size)
-    for (m in minutes) parts.add(reminderLeadTimeLabel(m))
-    return parts.joinToString(", ")
+    return minutes.map { reminderLeadTimeLabel(it) }.joinToString(", ")
 }
 
 /** Row summary for a calendar: its override, or the inherited global default. */
