@@ -1403,6 +1403,23 @@ private fun fontLabel(token: String): String = when (token) {
 }
 
 /**
+ * MIME types offered to the document picker so it lists only font files. Covers
+ * the modern `font/` types plus the legacy `application/` font aliases some
+ * providers still report. Anything that slips through is still validated by
+ * [de.jeanlucmakiola.calendula.data.fonts.CustomFontStore] before use.
+ */
+private val FONT_PICKER_MIME_TYPES = arrayOf(
+    "font/ttf",
+    "font/otf",
+    "font/sfnt",
+    "font/collection",
+    "application/x-font-ttf",
+    "application/x-font-otf",
+    "application/font-sfnt",
+    "application/vnd.ms-opentype",
+)
+
+/**
  * Full-screen font chooser for one [FontRole]: the system default, each bundled
  * font (previewed in its own face), and "Choose file…" which opens the system
  * picker to load a .ttf/.otf. Selecting a system/bundled option applies at once;
@@ -1466,7 +1483,7 @@ private fun FontPicker(
             leadingIcon = if (isCustom) null else Icons.Default.UploadFile,
             selected = isCustom,
             position = positionOf(rowCount - 1, rowCount),
-            onClick = { launcher.launch(arrayOf("*/*")) },
+            onClick = { launcher.launch(FONT_PICKER_MIME_TYPES) },
         )
     }
 }
