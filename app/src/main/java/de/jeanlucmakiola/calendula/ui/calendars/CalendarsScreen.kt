@@ -94,7 +94,7 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.data.prefs.BackupStatus
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
-import de.jeanlucmakiola.calendula.ui.common.CALENDAR_COLOR_PALETTE
+import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.DialogAmountField
 import de.jeanlucmakiola.calendula.ui.common.DialogUnitDropdown
@@ -142,7 +142,7 @@ fun CalendarsScreen(
             sessionKey = editorSession,
             isNew = editorId == NEW_CALENDAR_ID,
             initialName = editing?.displayName.orEmpty(),
-            initialColor = editing?.color ?: CALENDAR_COLOR_PALETTE.first(),
+            initialColor = editing?.color ?: CalendarColorPalette.all.first(),
             initialDescription = editing?.description.orEmpty(),
             onSave = { name, color, description ->
                 val id = editorId
@@ -507,7 +507,7 @@ private fun CalendarEditor(
                 )
                 Spacer(Modifier.height(12.dp))
                 ColorSwatchRow(
-                    colors = CALENDAR_COLOR_PALETTE,
+                    colors = CalendarColorPalette.all,
                     selected = color,
                     onSelect = { color = it },
                     dark = dark,

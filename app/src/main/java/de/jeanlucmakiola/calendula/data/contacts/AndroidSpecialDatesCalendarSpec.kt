@@ -3,6 +3,7 @@ package de.jeanlucmakiola.calendula.data.contacts
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,8 +35,8 @@ class AndroidSpecialDatesCalendarSpec @Inject constructor(
     )
 
     override fun color(type: SpecialDateType): Int = when (type) {
-        SpecialDateType.Birthday -> 0xFF8E24AA.toInt() // purple
-        SpecialDateType.Anniversary -> 0xFFD50000.toInt() // red
-        SpecialDateType.Custom -> 0xFF039BE5.toInt() // blue
+        SpecialDateType.Birthday -> CalendarColorPalette.Purple
+        SpecialDateType.Anniversary -> CalendarColorPalette.Red
+        SpecialDateType.Custom -> CalendarColorPalette.Blue
     }
 }

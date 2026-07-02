@@ -119,7 +119,7 @@ import de.jeanlucmakiola.calendula.domain.toRRule
 import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
 import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
 import de.jeanlucmakiola.calendula.ui.common.predictiveBack
-import de.jeanlucmakiola.calendula.ui.common.CALENDAR_COLOR_PALETTE
+import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
 import de.jeanlucmakiola.calendula.ui.common.DialogAmountField
@@ -1745,7 +1745,7 @@ private fun ColorPickerDialog(
                     )
                 } else {
                     ColorSwatchRow(
-                        colors = CALENDAR_COLOR_PALETTE,
+                        colors = CalendarColorPalette.all,
                         selected = selected,
                         onSelect = onPickRaw,
                         dark = dark,
