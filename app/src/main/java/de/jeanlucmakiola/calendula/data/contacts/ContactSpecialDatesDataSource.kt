@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.domain.contacts.ContactSpecialDate
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
+import de.jeanlucmakiola.calendula.domain.contacts.managedUid
 import de.jeanlucmakiola.calendula.domain.contacts.parseContactEventDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -50,9 +51,12 @@ class AndroidContactSpecialDatesDataSource @Inject constructor(
     override fun readSpecialDates(): List<ContactSpecialDate> {
         if (!hasPermission()) return emptyList()
         val resolver = context.contentResolver
-        // A contact can carry the same date more than once (multiple raw
-        // contacts under one aggregate); keep the first per (contact, type).
-        val seen = HashSet<Pair<String, SpecialDateType>>()
+        // A contact can carry the same date more than once (multiple raw contacts
+        // under one aggregate); dedup on the mirror's reconciliation key so exact
+        // duplicates collapse while genuinely distinct dates (two custom events on
+        // one contact) are all kept. Ordered by Data._ID so which of two truly
+        // conflicting rows wins is stable across syncs (no event ping-pong).
+        val seen = HashSet<String>()
         val result = ArrayList<ContactSpecialDate>()
         runCatching {
             resolver.query(
@@ -60,7 +64,7 @@ class AndroidContactSpecialDatesDataSource @Inject constructor(
                 PROJECTION,
                 "${ContactsContract.Data.MIMETYPE} = ?",
                 arrayOf(Event.CONTENT_ITEM_TYPE),
-                null,
+                "${ContactsContract.Data._ID} ASC",
             )?.use { c ->
                 val idxDate = c.getColumnIndexOrThrow(Event.START_DATE)
                 val idxType = c.getColumnIndexOrThrow(Event.TYPE)
@@ -71,8 +75,7 @@ class AndroidContactSpecialDatesDataSource @Inject constructor(
                     val lookup = c.getString(idxLookup)?.takeIf { it.isNotEmpty() } ?: continue
                     val parts = parseContactEventDate(c.getString(idxDate)) ?: continue
                     val type = specialDateTypeForRawEventType(c.getInt(idxType))
-                    if (!seen.add(lookup to type)) continue
-                    result += ContactSpecialDate(
+                    val date = ContactSpecialDate(
                         lookupKey = lookup,
                         displayName = c.getString(idxName)?.trim().orEmpty(),
                         type = type,
@@ -81,6 +84,7 @@ class AndroidContactSpecialDatesDataSource @Inject constructor(
                         year = parts.year,
                         label = c.getString(idxLabel)?.takeIf { it.isNotBlank() },
                     )
+                    if (seen.add(date.managedUid())) result += date
                 }
             }
         }.onFailure { Log.w(TAG, "Reading contact special-dates failed", it) }

@@ -3,12 +3,40 @@ package de.jeanlucmakiola.calendula.domain.contacts
 import kotlinx.datetime.LocalDate
 
 /**
- * The deterministic `Events.UID_2445` that ties a mirrored event to its source
- * contact date. Stable across syncs (the reconciliation key), and namespaced by
- * type so the same contact's birthday and anniversary never collide.
+ * Prefix of every managed-event `UID_2445`. Distinguishes mirror events from
+ * user-created ones (which carry a random `<uuid>@calendula` UID), so the sync
+ * only ever reconciles — and never deletes — events it actually owns.
  */
-fun managedEventUid(type: SpecialDateType, lookupKey: String): String =
-    "contact-${type.name.lowercase()}:$lookupKey@calendula"
+const val MANAGED_UID_PREFIX = "contact-"
+
+/**
+ * The deterministic `Events.UID_2445` that ties a mirrored event to its source
+ * contact date. Stable across syncs (the reconciliation key), namespaced by
+ * type so the same contact's birthday and anniversary never collide, and — when
+ * a [discriminator] is given — by it too, so two Custom dates on one contact
+ * (e.g. "Wedding" and "Graduation") get distinct events instead of clobbering
+ * each other.
+ */
+fun managedEventUid(type: SpecialDateType, lookupKey: String, discriminator: String? = null): String {
+    val disc = discriminator?.takeIf { it.isNotBlank() }?.let { ":$it" }.orEmpty()
+    return "$MANAGED_UID_PREFIX${type.name.lowercase()}:$lookupKey$disc@calendula"
+}
+
+/**
+ * The reconciliation key for this date's mirrored event. Birthdays/anniversaries
+ * are one-per-contact, so they key on the contact alone; a [SpecialDateType.Custom]
+ * date adds a discriminator (its label, else its month-day) so distinct custom
+ * dates on one contact don't collapse into a single event.
+ */
+fun ContactSpecialDate.managedUid(): String =
+    managedEventUid(type, lookupKey, customDiscriminator())
+
+private fun ContactSpecialDate.customDiscriminator(): String? =
+    if (type == SpecialDateType.Custom) {
+        label?.trim()?.lowercase()?.ifBlank { null } ?: "%02d-%02d".format(month, day)
+    } else {
+        null
+    }
 
 /**
  * The all-day date the recurring `FREQ=YEARLY` series is anchored at: the real

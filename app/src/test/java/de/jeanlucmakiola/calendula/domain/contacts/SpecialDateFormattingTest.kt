@@ -23,6 +23,37 @@ class SpecialDateFormattingTest {
             .isEqualTo("contact-anniversary:abc@calendula")
     }
 
+    private fun custom(label: String?, month: Int, day: Int) = ContactSpecialDate(
+        lookupKey = "k",
+        displayName = "Jane",
+        type = SpecialDateType.Custom,
+        month = month,
+        day = day,
+        year = null,
+        label = label,
+    )
+
+    @Test
+    fun `birthday and anniversary uids ignore the discriminator`() {
+        assertThat(birthday(5, 14, 1990).managedUid()).isEqualTo("contact-birthday:k@calendula")
+    }
+
+    @Test
+    fun `two custom dates on one contact get distinct uids by label`() {
+        assertThat(custom("Wedding", 6, 10).managedUid())
+            .isEqualTo("contact-custom:k:wedding@calendula")
+        assertThat(custom("Graduation", 9, 1).managedUid())
+            .isNotEqualTo(custom("Wedding", 6, 10).managedUid())
+    }
+
+    @Test
+    fun `label-less custom dates fall back to month-day so distinct dates survive`() {
+        assertThat(custom(null, 6, 10).managedUid())
+            .isEqualTo("contact-custom:k:06-10@calendula")
+        assertThat(custom(null, 9, 1).managedUid())
+            .isNotEqualTo(custom(null, 6, 10).managedUid())
+    }
+
     @Test
     fun `anchor date uses the known year`() {
         assertThat(birthday(5, 14, 1990).anchorDate()).isEqualTo(LocalDate(1990, 5, 14))
