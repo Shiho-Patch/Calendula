@@ -28,6 +28,11 @@ interface ContactSpecialDatesDataSource {
     fun readSpecialDates(): List<ContactSpecialDate>
 }
 
+/** Whether `READ_CONTACTS` is granted — the gate for every contacts read. */
+fun Context.hasContactsPermission(): Boolean =
+    ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) ==
+        PackageManager.PERMISSION_GRANTED
+
 /** Map a `ContactsContract` event `TYPE` to our calendar bucket. */
 internal fun specialDateTypeForRawEventType(type: Int): SpecialDateType = when (type) {
     Event.TYPE_BIRTHDAY -> SpecialDateType.Birthday
@@ -40,9 +45,7 @@ class AndroidContactSpecialDatesDataSource @Inject constructor(
     @ApplicationContext private val context: Context,
 ) : ContactSpecialDatesDataSource {
 
-    override fun hasPermission(): Boolean =
-        ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) ==
-            PackageManager.PERMISSION_GRANTED
+    override fun hasPermission(): Boolean = context.hasContactsPermission()
 
     override fun readSpecialDates(): List<ContactSpecialDate> {
         if (!hasPermission()) return emptyList()
