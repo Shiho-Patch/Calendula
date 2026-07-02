@@ -671,6 +671,7 @@ private fun AppearanceScreen(
             title = stringResource(R.string.settings_font_headings),
             role = FontRole.BRAND,
             selected = fonts.brand,
+            stamp = fonts.brandStamp,
             onSelect = { viewModel.setFont(FontRole.BRAND, it) },
             onImport = { viewModel.importCustomFont(FontRole.BRAND, it) },
             onDismiss = { showBrandFont = false },
@@ -681,6 +682,7 @@ private fun AppearanceScreen(
             title = stringResource(R.string.settings_font_body),
             role = FontRole.PLAIN,
             selected = fonts.plain,
+            stamp = fonts.plainStamp,
             onSelect = { viewModel.setFont(FontRole.PLAIN, it) },
             onImport = { viewModel.importCustomFont(FontRole.PLAIN, it) },
             onDismiss = { showPlainFont = false },
@@ -773,7 +775,7 @@ private fun ViewsScreen(
         ReorderableColumn(
             items = config.order,
             keyOf = { it },
-            onReorder = { viewModel.setQuickSwitchConfig(config.copy(order = it)) },
+            onReorder = { viewModel.setQuickSwitchOrder(it) },
         ) { view, position, dragHandle, isDragging ->
             val checked = view in config.enabled
             ViewRow(
@@ -787,10 +789,7 @@ private fun ViewsScreen(
                         checked = checked,
                         // Keep the last two on: with fewer, the pill can't switch.
                         enabled = !checked || canDisable,
-                        onCheckedChange = { on ->
-                            val enabled = if (on) config.enabled + view else config.enabled - view
-                            viewModel.setQuickSwitchConfig(config.copy(enabled = enabled))
-                        },
+                        onCheckedChange = { on -> viewModel.setQuickSwitchViewEnabled(view, on) },
                     )
                 },
             )
@@ -1431,6 +1430,7 @@ private fun FontPicker(
     title: String,
     role: FontRole,
     selected: String,
+    stamp: Int,
     onSelect: (String) -> Unit,
     onImport: (Uri) -> Unit,
     onDismiss: () -> Unit,
@@ -1448,6 +1448,12 @@ private fun FontPicker(
     // System default + the bundled fonts + the "Choose file…" row.
     val rowCount = BundledFont.entries.size + 2
     val isCustom = selected == FONT_CUSTOM_TOKEN
+    // Resolving the custom face stats the disk and builds a fresh FontFamily, so
+    // memoise it; re-keyed on [stamp] (bumped on re-import) so a replaced file
+    // refreshes the preview while plain recompositions reuse the cached family.
+    val customPreview = remember(role, isCustom, stamp) {
+        if (isCustom) resolveFontFamily(FONT_CUSTOM_TOKEN, role, context) else null
+    }
 
     FullScreenPicker(title = title, onDismiss = onDismiss) {
         FontOptionRow(
@@ -1479,7 +1485,7 @@ private fun FontPicker(
                 stringResource(R.string.settings_font_choose_file)
             },
             // A loaded font previews in its own face; otherwise show an upload cue.
-            preview = if (isCustom) resolveFontFamily(FONT_CUSTOM_TOKEN, role, context) else null,
+            preview = customPreview,
             leadingIcon = if (isCustom) null else Icons.Default.UploadFile,
             selected = isCustom,
             position = positionOf(rowCount - 1, rowCount),

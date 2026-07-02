@@ -21,6 +21,15 @@ class FontsTest {
     }
 
     @Test
+    fun `a bumped custom-font stamp breaks font-settings equality`() {
+        // Re-importing keeps the same "custom" token, so only the stamp can make
+        // the settings re-emit and invalidate remember() keys downstream.
+        val before = AppFontSettings(brand = FONT_CUSTOM_TOKEN, brandStamp = 1)
+        assertThat(before.copy(brandStamp = 2)).isNotEqualTo(before)
+        assertThat(before.copy(plainStamp = 1)).isNotEqualTo(before)
+    }
+
+    @Test
     fun `system for both roles returns the untouched default typography`() {
         assertThat(calendulaTypography(brand = null, plain = null))
             .isSameInstanceAs(CalendulaTypography)

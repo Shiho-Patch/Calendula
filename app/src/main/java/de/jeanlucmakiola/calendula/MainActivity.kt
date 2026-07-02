@@ -103,8 +103,10 @@ class MainActivity : AppCompatActivity() {
                 settings.timeFormat.is24Hour(android.text.format.DateFormat.is24HourFormat(context))
             }
             // The user's custom-font choice, resolved to a Material typography
-            // (issue #19). Recomputed only when a token changes; "system for both"
-            // returns the default scale untouched.
+            // (issue #19). Recomputed only when a token — or the custom-font
+            // re-import stamp AppFontSettings carries, so replacing the file
+            // behind an active "custom" token still refreshes — changes;
+            // "system for both" returns the default scale untouched.
             val fonts by settingsViewModel.fontState.collectAsStateWithLifecycle()
             val typography = remember(fonts, context) {
                 calendulaTypography(

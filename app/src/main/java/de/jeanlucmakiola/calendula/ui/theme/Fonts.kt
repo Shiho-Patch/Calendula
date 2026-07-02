@@ -71,6 +71,11 @@ private fun weightAxis(weight: Int) = FontVariation.Settings(FontVariation.weigh
 data class AppFontSettings(
     val brand: String = FONT_SYSTEM_TOKEN,
     val plain: String = FONT_SYSTEM_TOKEN,
+    // Per-role custom-font re-import stamp: bumped when the "custom" file is
+    // replaced, so a same-token re-import still breaks equality and refreshes the
+    // resolved family. 0 for existing installs / no import yet (issue #19).
+    val brandStamp: Int = 0,
+    val plainStamp: Int = 0,
 )
 
 /**

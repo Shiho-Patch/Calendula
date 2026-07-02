@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
@@ -199,6 +200,22 @@ class SettingsPrefsTest {
     }
 
     @Test
+    fun `updateQuickSwitch transforms the stored value, so intents compose`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        // A toggle then a reorder, each expressed against the *stored* config —
+        // the reorder must not resurrect the just-disabled view (the stale-UI-
+        // snapshot race this API exists to prevent).
+        prefs.updateQuickSwitch { it.copy(enabled = it.enabled - CalendarView.Day) }
+        val newOrder = listOf(CalendarView.Agenda, CalendarView.Month, CalendarView.Week, CalendarView.Day)
+        prefs.updateQuickSwitch { it.copy(order = newOrder) }
+        val config = prefs.quickSwitchConfig.first()
+        assertThat(config.order).containsExactlyElementsIn(newOrder).inOrder()
+        assertThat(config.enabled).containsExactly(
+            CalendarView.Agenda, CalendarView.Month, CalendarView.Week,
+        )
+    }
+
+    @Test
     fun `drawer order defaults to the implemented order and round-trips`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
         assertThat(prefs.drawerViewOrder.first()).containsExactlyElementsIn(IMPLEMENTED_VIEWS).inOrder()
@@ -320,6 +337,26 @@ class SettingsPrefsTest {
     }
 
     @Test
+    fun `garbage per-calendar override values drop the entry, the none sentinel stays explicit`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = SettingsPrefs(store)
+        // Only "none" deliberately means an explicit no-reminder override; a
+        // value with no valid minutes is garbage and must drop its entry so the
+        // calendar inherits the global default instead of silently losing
+        // reminders. Partially-valid values keep their salvageable minutes.
+        store.updateData { p ->
+            val m = p.toMutablePreferences()
+            m[SettingsPrefs.CALENDAR_REMINDER_OVERRIDE_KEY] = "5=none;7=abc;8=;9=30,abc;11=15"
+            m
+        }
+        assertThat(prefs.perCalendarReminderOverride.first()).containsExactly(
+            5L, emptyList<Int>(), 9L, listOf(30), 11L, listOf(15),
+        )
+    }
+
+    @Test
     fun `all-day default round-trips, including none`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
         assertThat(prefs.defaultAllDayReminderMinutes.first()).isEmpty()
@@ -400,6 +437,19 @@ class SettingsPrefsTest {
         assertThat(prefs.snoozeMinutes.first()).isEqualTo(30)
         prefs.setSnoozeMinutes(0)
         assertThat(prefs.snoozeMinutes.first()).isEqualTo(1)
+    }
+
+    @Test
+    fun `custom-font stamps default to zero and bump per role independently`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        // Existing installs have no stamp key — that must read as 0.
+        assertThat(prefs.brandFontStamp.first()).isEqualTo(0)
+        assertThat(prefs.plainFontStamp.first()).isEqualTo(0)
+        prefs.bumpCustomFontStamp(FontRole.BRAND)
+        prefs.bumpCustomFontStamp(FontRole.BRAND)
+        prefs.bumpCustomFontStamp(FontRole.PLAIN)
+        assertThat(prefs.brandFontStamp.first()).isEqualTo(2)
+        assertThat(prefs.plainFontStamp.first()).isEqualTo(1)
     }
 
     @Test

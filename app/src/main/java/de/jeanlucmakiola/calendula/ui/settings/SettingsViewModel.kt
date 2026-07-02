@@ -159,8 +159,10 @@ class SettingsViewModel @Inject constructor(
     val fontState: StateFlow<AppFontSettings> = combine(
         prefs.brandFont,
         prefs.plainFont,
-    ) { brand, plain ->
-        AppFontSettings(brand = brand, plain = plain)
+        prefs.brandFontStamp,
+        prefs.plainFontStamp,
+    ) { brand, plain, brandStamp, plainStamp ->
+        AppFontSettings(brand = brand, plain = plain, brandStamp = brandStamp, plainStamp = plainStamp)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
@@ -239,6 +241,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val ok = withContext(io) { CustomFontStore.import(appContext, role, uri) }
             if (ok) {
+                // Bump the stamp so replacing an already-active custom font (same
+                // file, same "custom" token) still breaks font-settings equality
+                // and refreshes the resolved typeface.
+                prefs.bumpCustomFontStamp(role)
                 setFont(role, FONT_CUSTOM_TOKEN)
             } else {
                 _fontImportFailed.emit(Unit)
@@ -319,8 +325,26 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setFormFieldDefault(field, enabled) }
     }
 
-    fun setQuickSwitchConfig(config: QuickSwitchConfig) {
-        viewModelScope.launch { prefs.setQuickSwitchConfig(config) }
+    /**
+     * Enable or disable [view] in the quick-switch cycle. Goes through an atomic
+     * read-modify-write so a concurrent reorder can't clobber this toggle (and
+     * vice versa) by re-serialising a stale snapshot. The MIN_ENABLED floor is
+     * re-checked inside the transform: the screen's own guard reads the
+     * async-echoed snapshot, so two quick disable-taps could both look allowed
+     * yet compose to a below-minimum cycle.
+     */
+    fun setQuickSwitchViewEnabled(view: CalendarView, enabled: Boolean) {
+        viewModelScope.launch {
+            prefs.updateQuickSwitch { config ->
+                val next = if (enabled) config.enabled + view else config.enabled - view
+                if (next.size < QuickSwitchConfig.MIN_ENABLED) config else config.copy(enabled = next)
+            }
+        }
+    }
+
+    /** Reorder the quick-switch views (atomic read-modify-write; keeps the enabled set). */
+    fun setQuickSwitchOrder(order: List<CalendarView>) {
+        viewModelScope.launch { prefs.updateQuickSwitch { it.copy(order = order) } }
     }
 
     fun setDrawerViewOrder(order: List<CalendarView>) {

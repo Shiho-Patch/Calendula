@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
@@ -128,6 +129,26 @@ class SettingsPrefs @Inject constructor(
         store.edit { it[PLAIN_FONT_KEY] = token }
     }
 
+    /**
+     * A per-role bump counter for the user-loaded custom font. Re-importing
+     * overwrites the same file under the same "custom" token, so the token alone
+     * can't signal the change; this stamp — carried into AppFontSettings — breaks
+     * value equality so the resolved FontFamily (and its previews) refresh. A
+     * missing key is 0 (existing installs); the first import bumps it to 1.
+     */
+    val brandFontStamp: Flow<Int> = store.data.map { prefs -> prefs[BRAND_FONT_STAMP_KEY] ?: 0 }
+
+    val plainFontStamp: Flow<Int> = store.data.map { prefs -> prefs[PLAIN_FONT_STAMP_KEY] ?: 0 }
+
+    /** Bump [role]'s custom-font stamp after a re-import so equality-keyed caches refresh. */
+    suspend fun bumpCustomFontStamp(role: FontRole) {
+        val key = when (role) {
+            FontRole.BRAND -> BRAND_FONT_STAMP_KEY
+            FontRole.PLAIN -> PLAIN_FONT_STAMP_KEY
+        }
+        store.edit { it[key] = (it[key] ?: 0) + 1 }
+    }
+
     suspend fun setWeekStart(pref: WeekStartPref) {
         store.edit { it[WEEK_START_KEY] = pref.storageValue() }
     }
@@ -239,6 +260,19 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setQuickSwitchConfig(config: QuickSwitchConfig) {
         store.edit { it[QUICK_SWITCH_VIEWS_KEY] = serializeQuickSwitch(config) }
+    }
+
+    /**
+     * Atomic read-modify-write of the quick-switch config: [transform] sees the
+     * value currently stored, parsed inside the edit block, not the async-echoed
+     * UI snapshot. Two rapid intents (a toggle then a drag) therefore compose
+     * instead of each re-serialising a stale copy of the other field over it.
+     */
+    suspend fun updateQuickSwitch(transform: (QuickSwitchConfig) -> QuickSwitchConfig) {
+        store.edit { prefs ->
+            val current = parseQuickSwitch(prefs[QUICK_SWITCH_VIEWS_KEY])
+            prefs[QUICK_SWITCH_VIEWS_KEY] = serializeQuickSwitch(transform(current))
+        }
     }
 
     /**
@@ -525,6 +559,8 @@ class SettingsPrefs @Inject constructor(
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
         internal val BRAND_FONT_KEY = stringPreferencesKey("brand_font")
         internal val PLAIN_FONT_KEY = stringPreferencesKey("plain_font")
+        internal val BRAND_FONT_STAMP_KEY = intPreferencesKey("brand_font_stamp")
+        internal val PLAIN_FONT_STAMP_KEY = intPreferencesKey("plain_font_stamp")
         internal val WEEK_START_KEY = stringPreferencesKey("week_start")
         internal val AGENDA_SCREEN_RANGE_KEY = stringPreferencesKey("agenda_screen_range")
         internal val AGENDA_WIDGET_RANGE_KEY = stringPreferencesKey("agenda_widget_range")
@@ -675,7 +711,15 @@ private fun parseReminderOverrides(stored: String?): Map<Long, List<Int>> {
     return stored.split(ENTRY_SEP).mapNotNull { entry ->
         val parts = entry.split(KEY_VALUE_SEP).takeIf { it.size == 2 } ?: return@mapNotNull null
         val id = parts[0].toLongOrNull() ?: return@mapNotNull null
-        id to parts[1].toReminderList()
+        // Only the deliberate "none" sentinel means an explicit no-reminder
+        // override (empty list); a non-sentinel value that parses to no valid
+        // minutes is garbage and drops the entry, so the calendar inherits the
+        // global default rather than silently reading as "no reminder".
+        when (val value = parts[1]) {
+            NONE -> id to emptyList()
+            else -> value.toReminderList().takeIf { it.isNotEmpty() }?.let { id to it }
+                ?: return@mapNotNull null
+        }
     }.toMap()
 }
 
