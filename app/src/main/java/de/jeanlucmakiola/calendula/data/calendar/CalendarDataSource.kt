@@ -24,12 +24,14 @@ import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.EventStatus
 import de.jeanlucmakiola.calendula.domain.Reminder
+import de.jeanlucmakiola.calendula.domain.contacts.MANAGED_UID_PREFIX
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.domain.ics.IcsEvent
 import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
 import de.jeanlucmakiola.calendula.domain.rruleTruncatedAt
 import kotlinx.datetime.toJavaLocalDate
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.UUID
@@ -135,11 +137,12 @@ interface CalendarDataSource {
     fun updateManagedFields(eventId: Long, values: Map<String, Any?>)
 
     /**
-     * Replace the reminders on **every** event in [calendarId] with [minutes]
-     * (all-day lead times), each encoded from its own date so it fires at
-     * [allDayReminderTimeMinutes]. Used by the special-dates section so a reminder
-     * change applies to existing events too, not just future ones — the managed
-     * calendars treat reminders as a calendar-level setting.
+     * Replace the reminders on **every managed** event in [calendarId] with
+     * [minutes] (all-day lead times), each encoded so it fires at
+     * [allDayReminderTimeMinutes] on its upcoming occurrence. Used by the
+     * special-dates section so a reminder change applies to existing events too,
+     * not just future ones — the managed calendars treat reminders as a
+     * calendar-level setting. Skips any non-managed (user) event in the calendar.
      */
     fun applyManagedCalendarReminders(
         calendarId: Long,
@@ -393,10 +396,13 @@ class AndroidCalendarDataSource @Inject constructor(
             CalendarContract.Events.DTSTART,
             CalendarContract.Events.RRULE,
         ),
+        // Only our own mirror events (UID prefix), so a user event that somehow
+        // landed in this calendar (e.g. an .ics import) is never seen as
+        // "existing but not desired" and deleted by the diff.
         "${CalendarContract.Events.CALENDAR_ID} = ? AND " +
             "${CalendarContract.Events.DELETED} = 0 AND " +
-            "${CalendarContract.Events.UID_2445} IS NOT NULL",
-        arrayOf(calendarId.toString()),
+            "${CalendarContract.Events.UID_2445} LIKE ?",
+        arrayOf(calendarId.toString(), "$MANAGED_UID_PREFIX%"),
         null,
     )?.use { c ->
         buildList {
@@ -418,13 +424,19 @@ class AndroidCalendarDataSource @Inject constructor(
     override fun insertManagedEvent(form: EventForm, uid: String, allDayReminderTimeMinutes: Int): Long {
         // Deterministic UID = the reconciliation key. A re-sync reads it back
         // (queryManagedEvents) and diffs on it, so a contact never doubles.
-        val values = buildEventInsertValues(form, uid, form.toWriteTimes(ZoneId.systemDefault()))
+        val times = form.toWriteTimes(ZoneId.systemDefault())
+        val values = buildEventInsertValues(form, uid, times)
         val eventId = resolver.insert(CalendarContract.Events.CONTENT_URI, values.toContentValues())
             ?.let(ContentUris::parseId)
             ?: throw WriteFailedException("insert managed event into calendar id=${form.calendarId}")
         // Seeded once, then never re-touched by sync — so a user who moves a
-        // birthday reminder keeps their change.
-        seedReminders(eventId, form, allDayReminderTimeMinutes)
+        // birthday reminder keeps their change. Encoded against the upcoming
+        // occurrence, not the ancient DTSTART anchor (wrong timezone offset).
+        val anchor = Instant.ofEpochMilli(times.dtStartMillis).atZone(ZoneOffset.UTC).toLocalDate()
+        insertReminderRows(
+            eventId,
+            managedAllDayReminderMinutes(anchor, form.reminders, allDayReminderTimeMinutes),
+        )
         return eventId
     }
 
@@ -443,23 +455,26 @@ class AndroidCalendarDataSource @Inject constructor(
         allDayReminderTimeMinutes: Int,
         minutes: List<Int>,
     ) {
-        val zone = ZoneId.systemDefault()
         resolver.query(
             CalendarContract.Events.CONTENT_URI,
             arrayOf(CalendarContract.Events._ID, CalendarContract.Events.DTSTART),
-            "${CalendarContract.Events.CALENDAR_ID} = ? AND ${CalendarContract.Events.DELETED} = 0",
-            arrayOf(calendarId.toString()),
+            // Only our own mirror events, so a stray user event in this calendar
+            // isn't all-day-re-encoded or stripped of its own reminders.
+            "${CalendarContract.Events.CALENDAR_ID} = ? AND " +
+                "${CalendarContract.Events.DELETED} = 0 AND " +
+                "${CalendarContract.Events.UID_2445} LIKE ?",
+            arrayOf(calendarId.toString(), "$MANAGED_UID_PREFIX%"),
             null,
         )?.use { c ->
             while (c.moveToNext()) {
                 val eventId = c.getLong(0)
-                // Managed events are all-day: DTSTART is a UTC midnight.
-                val startDate = Instant.ofEpochMilli(c.getLong(1))
+                // Managed events are all-day: DTSTART is a UTC midnight anchor.
+                val anchor = Instant.ofEpochMilli(c.getLong(1))
                     .atZone(ZoneOffset.UTC).toLocalDate()
-                val encoded = minutes
-                    .map { toProviderAllDayMinutes(it, startDate, zone, allDayReminderTimeMinutes) }
-                    .distinct()
-                reconcileReminders(eventId, encoded)
+                reconcileReminders(
+                    eventId,
+                    managedAllDayReminderMinutes(anchor, minutes, allDayReminderTimeMinutes),
+                )
             }
         }
     }
@@ -780,8 +795,12 @@ class AndroidCalendarDataSource @Inject constructor(
      * (spec §8): the event exists at this point — a reminder that fails to
      * attach is logged, not surfaced as a failed create.
      */
-    private fun seedReminders(eventId: Long, form: EventForm, allDayReminderTimeMinutes: Int) {
-        encodedReminders(form, allDayReminderTimeMinutes).forEach { minutes ->
+    private fun seedReminders(eventId: Long, form: EventForm, allDayReminderTimeMinutes: Int) =
+        insertReminderRows(eventId, encodedReminders(form, allDayReminderTimeMinutes))
+
+    /** Insert one `METHOD_ALERT` reminder row per raw provider offset. */
+    private fun insertReminderRows(eventId: Long, encodedMinutes: List<Int>) {
+        encodedMinutes.forEach { minutes ->
             val reminder = ContentValues().apply {
                 put(CalendarContract.Reminders.EVENT_ID, eventId)
                 put(CalendarContract.Reminders.MINUTES, minutes)
@@ -791,6 +810,25 @@ class AndroidCalendarDataSource @Inject constructor(
                 Log.w(TAG, "Failed to attach reminder ($minutes min) to event $eventId")
             }
         }
+    }
+
+    /**
+     * A managed all-day event's reminders, encoded so they fire at
+     * [allDayReminderTimeMinutes] on its **upcoming** occurrence. The event's
+     * DTSTART is an ancient recurrence anchor (see [nextYearlyOccurrence]); using
+     * it directly would sample a stale timezone offset, so the offset is sampled
+     * at the next occurrence of the anchor's month/day instead.
+     */
+    private fun managedAllDayReminderMinutes(
+        anchor: LocalDate,
+        reminders: List<Int>,
+        allDayReminderTimeMinutes: Int,
+    ): List<Int> {
+        val zone = ZoneId.systemDefault()
+        val onDate = nextYearlyOccurrence(anchor.monthValue, anchor.dayOfMonth, LocalDate.now(zone))
+        return reminders
+            .map { toProviderAllDayMinutes(it, onDate, zone, allDayReminderTimeMinutes) }
+            .distinct()
     }
 
     override fun updateEvent(
@@ -1217,11 +1255,12 @@ class AndroidCalendarDataSource @Inject constructor(
         const val LOCAL_ACCOUNT_NAME = "Calendula"
 
         /**
-         * Column and namespace for the special-dates marker. CAL_SYNC1 already
-         * holds the local-calendar description, so the marker uses CAL_SYNC2.
+         * Column and namespace for the special-dates marker (shared with the
+         * calendar projection, which reads it into [CalendarSource.isManaged]).
+         * CAL_SYNC1 already holds the local-calendar description, so it uses CAL_SYNC2.
          */
-        val MANAGED_MARKER_COLUMN: String = CalendarContract.Calendars.CAL_SYNC2
-        const val MANAGED_MARKER_PREFIX = "calendula.specialdates"
+        val MANAGED_MARKER_COLUMN: String = CalendarProjection.MANAGED_MARKER_COLUMN
+        const val MANAGED_MARKER_PREFIX = CalendarProjection.MANAGED_MARKER_PREFIX
 
         /**
          * How far ahead/behind a search looks for a recurring event's nearest
