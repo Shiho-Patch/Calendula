@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,8 +44,10 @@ private val RowGap: Dp = 2.dp
  * can't nest a scrolling list). Rows are a fixed [ReorderableRowHeight] with a
  * uniform gap, so a row's target slot is simply how many whole pitches it has
  * been dragged. The held row follows the finger while the others slide out of
- * its way (animated); on release the held row settles into its slot, then the
- * order is committed with a single [onReorder] call.
+ * its way (animated); on release the order is committed immediately with a
+ * single [onReorder] call, then the held row eases into its new slot as a
+ * purely visual settle — safe to interrupt with another drag, since the
+ * commit itself never waits on it.
  *
  * [rowContent] receives the [Position] for the row's place in the order (to reuse
  * [GroupedRow]'s card shaping — pass `gapBelow = false` there, this owns spacing)
@@ -66,16 +69,29 @@ fun <T> ReorderableColumn(
     var order by remember(items) { mutableStateOf(items) }
     var draggedKey by remember { mutableStateOf<Any?>(null) }
     // Live translation of the held row from its slot (px); also drives the
-    // release settle, animated back onto a slot before the order is committed.
+    // release settle — re-based onto the row's new slot once the order commits
+    // (see onDragEnd), then eased down to zero.
     var dragOffset by remember { mutableFloatStateOf(0f) }
     // The running release/cancel settle, cancelled if a new drag pre-empts it.
+    // Purely visual — the order commit (see onDragEnd) never depends on it.
     var settleJob by remember { mutableStateOf<Job?>(null) }
 
     val draggedIndex = draggedKey?.let { key -> order.indexOfFirst { keyOf(it) == key }.takeIf { it >= 0 } }
-    // Whole slots dragged → the slot the held row currently hovers over.
-    val targetIndex = draggedIndex?.let {
-        (it + (dragOffset / pitchPx).roundToInt()).coerceIn(0, order.lastIndex)
-    }
+    // Whole slots dragged → the slot the held row currently hovers over. Derived
+    // so recomposition only fires when the *target slot* actually changes, not on
+    // every dragged pixel: dragOffset moves every frame during a drag, but the
+    // held row's own translation is already applied in the draw phase via
+    // graphicsLayer below, so only the neighbours' shift (which depends on this)
+    // needs to recompose, and only when a slot boundary is actually crossed.
+    // (Read as a plain val, not `by`, below: a delegated property has a custom
+    // getter and Kotlin won't smart-cast it in the `when` over `targetIndex` in
+    // the loop, so the derived value is captured into a real local instead.)
+    val targetIndex = remember(items, pitchPx) {
+        derivedStateOf {
+            val idx = draggedKey?.let { key -> order.indexOfFirst { keyOf(it) == key }.takeIf { it >= 0 } }
+            idx?.let { (it + (dragOffset / pitchPx).roundToInt()).coerceIn(0, order.lastIndex) }
+        }
+    }.value
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(RowGap)) {
         order.forEachIndexed { index, item ->
@@ -112,16 +128,25 @@ fun <T> ReorderableColumn(
                         val from = order.indexOfFirst { keyOf(it) == key }
                         if (from < 0) return@detectDragGestures
                         val to = (from + (dragOffset / pitchPx).roundToInt()).coerceIn(0, order.lastIndex)
+                        if (to != from) {
+                            // Commit synchronously and unconditionally, before the settle
+                            // animation below runs — the commit must not depend on that
+                            // coroutine reaching its end, or a new drag starting within the
+                            // ~160ms settle window would cancel it and silently revert an
+                            // already-finished reorder.
+                            order = order.toMutableList().apply { add(to, removeAt(from)) }
+                            onReorder(order)
+                            // The row now lays out at slot `to` instead of `from`; re-base
+                            // the live offset onto that new slot (same visual position,
+                            // expressed relative to the new one) so the settle below eases
+                            // it the rest of the way instead of jumping.
+                            dragOffset -= (to - from) * pitchPx
+                        }
                         settleJob = scope.launch {
-                            // Settle the held row onto its target slot, then commit —
-                            // resetting offset and slot in the same frame, so nothing jumps.
-                            Animatable(dragOffset).animateTo((to - from) * pitchPx, tween(160)) {
-                                dragOffset = value
-                            }
-                            if (to != from) {
-                                order = order.toMutableList().apply { add(to, removeAt(from)) }
-                                onReorder(order)
-                            }
+                            // Purely visual from here: ease the held row onto its slot, then
+                            // release the drag state. Safe to cancel — the order was already
+                            // committed above.
+                            Animatable(dragOffset).animateTo(0f, tween(160)) { dragOffset = value }
                             draggedKey = null
                             dragOffset = 0f
                         }
