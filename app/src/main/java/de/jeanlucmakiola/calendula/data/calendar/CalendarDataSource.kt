@@ -416,47 +416,15 @@ class AndroidCalendarDataSource @Inject constructor(
     } ?: emptyList()
 
     override fun insertManagedEvent(form: EventForm, uid: String, allDayReminderTimeMinutes: Int): Long {
-        val times = form.toWriteTimes(ZoneId.systemDefault())
-        val values = ContentValues().apply {
-            put(
-                CalendarContract.Events.CALENDAR_ID,
-                requireNotNull(form.calendarId) { "EventForm.calendarId is required" },
-            )
-            // Deterministic UID = the reconciliation key. A re-sync reads it back
-            // (queryManagedEvents) and diffs on it, so a contact never doubles.
-            put(CalendarContract.Events.UID_2445, uid)
-            put(CalendarContract.Events.TITLE, form.title.trim())
-            put(CalendarContract.Events.ALL_DAY, if (form.isAllDay) 1 else 0)
-            put(CalendarContract.Events.DTSTART, times.dtStartMillis)
-            if (form.rrule == null) {
-                put(CalendarContract.Events.DTEND, times.dtEndMillis)
-            } else {
-                put(CalendarContract.Events.RRULE, form.rrule)
-                put(CalendarContract.Events.DURATION, times.toRfc2445Duration(form.isAllDay))
-            }
-            put(CalendarContract.Events.EVENT_TIMEZONE, times.timezone)
-            put(CalendarContract.Events.AVAILABILITY, form.availability.toProviderValue())
-            put(CalendarContract.Events.ACCESS_LEVEL, form.accessLevel.toProviderValue())
-            form.location.trim().takeIf { it.isNotEmpty() }
-                ?.let { put(CalendarContract.Events.EVENT_LOCATION, it) }
-            form.description.trim().takeIf { it.isNotEmpty() }
-                ?.let { put(CalendarContract.Events.DESCRIPTION, it) }
-        }
-        val eventId = resolver.insert(CalendarContract.Events.CONTENT_URI, values)
+        // Deterministic UID = the reconciliation key. A re-sync reads it back
+        // (queryManagedEvents) and diffs on it, so a contact never doubles.
+        val values = buildEventInsertValues(form, uid, form.toWriteTimes(ZoneId.systemDefault()))
+        val eventId = resolver.insert(CalendarContract.Events.CONTENT_URI, values.toContentValues())
             ?.let(ContentUris::parseId)
             ?: throw WriteFailedException("insert managed event into calendar id=${form.calendarId}")
         // Seeded once, then never re-touched by sync — so a user who moves a
         // birthday reminder keeps their change.
-        encodedReminders(form, allDayReminderTimeMinutes).forEach { minutes ->
-            val reminder = ContentValues().apply {
-                put(CalendarContract.Reminders.EVENT_ID, eventId)
-                put(CalendarContract.Reminders.MINUTES, minutes)
-                put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
-            }
-            if (resolver.insert(CalendarContract.Reminders.CONTENT_URI, reminder) == null) {
-                Log.w(TAG, "Failed to attach reminder ($minutes min) to managed event $eventId")
-            }
-        }
+        seedReminders(eventId, form, allDayReminderTimeMinutes)
         return eventId
     }
 
@@ -779,35 +747,15 @@ class AndroidCalendarDataSource @Inject constructor(
             .distinct()
 
     override fun insertEvent(form: EventForm, allDayReminderTimeMinutes: Int): Long {
-        val times = form.toWriteTimes(ZoneId.systemDefault())
-        val values = ContentValues().apply {
-            put(
-                CalendarContract.Events.CALENDAR_ID,
-                requireNotNull(form.calendarId) { "EventForm.calendarId is required" },
-            )
-            // A globally-unique UID so a later .ics backup/restore can identify
-            // the event and not duplicate it on re-import (the provider leaves
-            // this null for events it didn't sync). Older rows without one fall
-            // back to a stable synthesised UID at export time (deriveIcsUid).
-            put(CalendarContract.Events.UID_2445, "${UUID.randomUUID()}@calendula")
-            put(CalendarContract.Events.TITLE, form.title.trim())
-            put(CalendarContract.Events.ALL_DAY, if (form.isAllDay) 1 else 0)
-            put(CalendarContract.Events.DTSTART, times.dtStartMillis)
-            // The provider's invariant: recurring rows carry RRULE+DURATION
-            // (and no DTEND), one-off rows carry DTEND.
-            if (form.rrule == null) {
-                put(CalendarContract.Events.DTEND, times.dtEndMillis)
-            } else {
-                put(CalendarContract.Events.RRULE, form.rrule)
-                put(CalendarContract.Events.DURATION, times.toRfc2445Duration(form.isAllDay))
-            }
-            put(CalendarContract.Events.EVENT_TIMEZONE, times.timezone)
-            put(CalendarContract.Events.AVAILABILITY, form.availability.toProviderValue())
-            put(CalendarContract.Events.ACCESS_LEVEL, form.accessLevel.toProviderValue())
-            form.location.trim().takeIf { it.isNotEmpty() }
-                ?.let { put(CalendarContract.Events.EVENT_LOCATION, it) }
-            form.description.trim().takeIf { it.isNotEmpty() }
-                ?.let { put(CalendarContract.Events.DESCRIPTION, it) }
+        // A globally-unique UID so a later .ics backup/restore can identify
+        // the event and not duplicate it on re-import (the provider leaves
+        // this null for events it didn't sync). Older rows without one fall
+        // back to a stable synthesised UID at export time (deriveIcsUid).
+        val values = buildEventInsertValues(
+            form,
+            uid = "${UUID.randomUUID()}@calendula",
+            times = form.toWriteTimes(ZoneId.systemDefault()),
+        ).toContentValues().apply {
             // A null colour just leaves both columns unset (the event inherits
             // its calendar's colour), so only the key/raw cases are written.
             when {
@@ -819,24 +767,30 @@ class AndroidCalendarDataSource @Inject constructor(
         val uri = resolver.insert(CalendarContract.Events.CONTENT_URI, values)
             ?: throw WriteFailedException("insert event into calendar id=${form.calendarId}")
         val eventId = ContentUris.parseId(uri)
-        // Best effort (spec §8): the event exists at this point — a reminder
-        // that fails to attach is logged, not surfaced as a failed create.
-        encodedReminders(form, allDayReminderTimeMinutes)
-            .forEach { minutes ->
-                val reminder = ContentValues().apply {
-                    put(CalendarContract.Reminders.EVENT_ID, eventId)
-                    put(CalendarContract.Reminders.MINUTES, minutes)
-                    put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
-                }
-                if (resolver.insert(CalendarContract.Reminders.CONTENT_URI, reminder) == null) {
-                    Log.w(TAG, "Failed to attach reminder ($minutes min) to event $eventId")
-                }
-            }
+        seedReminders(eventId, form, allDayReminderTimeMinutes)
         // Guests are best-effort like reminders: a row that fails to attach is
         // logged, not surfaced as a failed create. Calendula never sends an
         // invitation — it only writes the rows; the backend decides delivery.
         insertAttendees(eventId, form.attendees)
         return eventId
+    }
+
+    /**
+     * Attach [form]'s reminders to a freshly inserted event. Best effort
+     * (spec §8): the event exists at this point — a reminder that fails to
+     * attach is logged, not surfaced as a failed create.
+     */
+    private fun seedReminders(eventId: Long, form: EventForm, allDayReminderTimeMinutes: Int) {
+        encodedReminders(form, allDayReminderTimeMinutes).forEach { minutes ->
+            val reminder = ContentValues().apply {
+                put(CalendarContract.Reminders.EVENT_ID, eventId)
+                put(CalendarContract.Reminders.MINUTES, minutes)
+                put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
+            }
+            if (resolver.insert(CalendarContract.Reminders.CONTENT_URI, reminder) == null) {
+                Log.w(TAG, "Failed to attach reminder ($minutes min) to event $eventId")
+            }
+        }
     }
 
     override fun updateEvent(
