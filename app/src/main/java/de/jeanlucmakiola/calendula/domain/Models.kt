@@ -26,6 +26,14 @@ data class CalendarSource(
      * owns for its own calendars). Always null for synced calendars.
      */
     val description: String? = null,
+    /**
+     * A special-dates mirror calendar the app manages (birthdays/anniversaries
+     * from contacts). Its events' title/date/recurrence are owned by the sync,
+     * so it's hidden from the new-event calendar picker and its events lock those
+     * fields in the editor. Recognised by a durable provider marker, so it holds
+     * even after a backup restore clears the app's stored ids.
+     */
+    val isManaged: Boolean = false,
 )
 
 data class EventInstance(

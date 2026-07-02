@@ -250,14 +250,18 @@ fun EventDetailScreen(
                                 contentDescription = stringResource(R.string.event_detail_edit),
                             )
                         }
-                        IconButton(
-                            onClick = onDeleteClick,
-                            enabled = deleteState != DeleteUiState.Deleting,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = stringResource(R.string.event_detail_delete),
-                            )
+                        // Managed special-dates events have no delete — the sync
+                        // would resurrect them; the date is removed at the contact.
+                        if (!s.isManaged) {
+                            IconButton(
+                                onClick = onDeleteClick,
+                                enabled = deleteState != DeleteUiState.Deleting,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = stringResource(R.string.event_detail_delete),
+                                )
+                            }
                         }
                     }
                 },
