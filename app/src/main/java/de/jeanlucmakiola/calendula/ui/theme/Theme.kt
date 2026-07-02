@@ -5,6 +5,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -15,15 +16,18 @@ import androidx.compose.ui.platform.LocalContext
  *   - System light/dark.
  *   - Dynamic Color on API 31+, else falls back to the hand-tuned scheme
  *     derived from [CalendulaSeed].
+ *   - A user-chosen [typography] (custom fonts, issue #19), defaulting to the
+ *     Material scale on the system typeface.
  *
- * The Settings screen (later) can override useDynamicColor and themePreference,
- * but the V1 foundation just follows the system.
+ * The Settings screen overrides darkTheme, dynamicColor, and typography; the
+ * bare defaults (used by the crash screen) just follow the system.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CalendulaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    typography: Typography = CalendulaTypography,
     content: @Composable () -> Unit,
 ) {
     val colorScheme = when {
@@ -42,7 +46,7 @@ fun CalendulaTheme(
     // the bouncy variant felt overdone in review (2026-06-11).
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
-        typography = CalendulaTypography,
+        typography = typography,
         motionScheme = MotionScheme.standard(),
         content = content,
     )

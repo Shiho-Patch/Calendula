@@ -34,8 +34,11 @@ import de.jeanlucmakiola.calendula.ui.common.DebugRibbon
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportActivity
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
 import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
+import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.calendula.ui.settings.SettingsViewModel
 import de.jeanlucmakiola.calendula.ui.theme.CalendulaTheme
+import de.jeanlucmakiola.calendula.ui.theme.calendulaTypography
+import de.jeanlucmakiola.calendula.ui.theme.resolveFontFamily
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -99,9 +102,20 @@ class MainActivity : AppCompatActivity() {
             val use24Hour = remember(settings.timeFormat, context) {
                 settings.timeFormat.is24Hour(android.text.format.DateFormat.is24HourFormat(context))
             }
+            // The user's custom-font choice, resolved to a Material typography
+            // (issue #19). Recomputed only when a token changes; "system for both"
+            // returns the default scale untouched.
+            val fonts by settingsViewModel.fontState.collectAsStateWithLifecycle()
+            val typography = remember(fonts, context) {
+                calendulaTypography(
+                    brand = resolveFontFamily(fonts.brand, FontRole.BRAND, context),
+                    plain = resolveFontFamily(fonts.plain, FontRole.PLAIN, context),
+                )
+            }
             CalendulaTheme(
                 darkTheme = darkTheme,
                 dynamicColor = settings.dynamicColor,
+                typography = typography,
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     CompositionLocalProvider(

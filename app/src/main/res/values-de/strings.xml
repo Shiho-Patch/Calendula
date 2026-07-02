@@ -252,6 +252,15 @@
     <string name="settings_theme_dark">Dunkel</string>
     <string name="settings_dynamic_color">Dynamische Farben</string>
     <string name="settings_dynamic_color_unavailable">Erfordert Android 12 oder neuer</string>
+    <string name="settings_font_headings">Schriftart für Überschriften</string>
+    <string name="settings_font_body">Schriftart für Text</string>
+    <string name="settings_font_system">Systemstandard</string>
+    <string name="font_atkinson_hyperlegible">Atkinson Hyperlegible</string>
+    <string name="font_lora">Lora</string>
+    <string name="font_jetbrains_mono">JetBrains Mono</string>
+    <string name="settings_font_choose_file">Datei auswählen…</string>
+    <string name="settings_font_custom_selected">Eigene Schriftart</string>
+    <string name="settings_font_import_failed">Diese Datei konnte nicht als Schriftart gelesen werden</string>
     <string name="settings_week_start">Wochenstart</string>
     <string name="settings_week_start_auto">Automatisch</string>
     <string name="settings_time_format">Zeitformat</string>
