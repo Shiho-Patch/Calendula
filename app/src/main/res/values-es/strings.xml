@@ -303,7 +303,6 @@
     <string name="reminder_none">Ninguno</string>
     <string name="reminder_use_default">Usar recordatorio por defecto</string>
     <string name="reminder_custom_amount">Cantidad</string>
-    <string name="reminder_custom_with_value">Personalizado (%1$s)</string>
     <string name="reminder_custom_set">Guardar</string>
     <string name="settings_calendar_reminders_title">Recordatorios por calendario</string>
     <string name="settings_calendar_reminders_hint">Sobreescribe el por recordatorio defecto por calendario — De forma separada para eventos con duración fija o que duran todo el dia. Un calendario puede mantener el por defecto o tener su propia configuracion.</string>
