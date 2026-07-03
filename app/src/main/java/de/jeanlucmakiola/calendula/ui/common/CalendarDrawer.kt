@@ -59,6 +59,7 @@ fun CalendarDrawer(
     onSelectView: (CalendarView) -> Unit,
     onJumpToDate: (LocalDate) -> Unit,
     onSettings: () -> Unit,
+    viewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
 
@@ -73,10 +74,10 @@ fun CalendarDrawer(
             DrawerHeader()
 
             DrawerSectionHeader(stringResource(R.string.view_section))
-            IMPLEMENTED_VIEWS.forEachIndexed { index, view ->
+            viewOrder.forEachIndexed { index, view ->
                 GroupedRow(
                     title = stringResource(view.labelRes),
-                    position = positionOf(index, IMPLEMENTED_VIEWS.size),
+                    position = positionOf(index, viewOrder.size),
                     selected = view == currentView,
                     minHeight = 56.dp,
                     leading = { Icon(view.icon, contentDescription = null) },

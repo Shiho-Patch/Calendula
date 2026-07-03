@@ -14,6 +14,8 @@ import de.jeanlucmakiola.calendula.data.ics.IcsExporter
 import de.jeanlucmakiola.calendula.data.prefs.BackupStatus
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
+import de.jeanlucmakiola.calendula.data.reminders.ReminderNotifier
+import de.jeanlucmakiola.calendula.data.reminders.SuppressedReminderStore
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.ics.IcsWriter
 import kotlinx.coroutines.CoroutineDispatcher
@@ -45,6 +47,8 @@ class CalendarsViewModel @Inject constructor(
     private val icsExporter: IcsExporter,
     private val prefs: CalendarPrefs,
     private val settingsPrefs: SettingsPrefs,
+    private val suppressedStore: SuppressedReminderStore,
+    private val notifier: ReminderNotifier,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -144,7 +148,10 @@ class CalendarsViewModel @Inject constructor(
         viewModelScope.launch {
             val current = prefs.disabledCalendarIds.first()
             val next = if (disabled) current + id else current - id
-            if (next != current) prefs.setDisabledCalendarIds(next)
+            if (next != current) {
+                prefs.setDisabledCalendarIds(next)
+                if (!disabled) recoverReminders(setOf(id))
+            }
         }
     }
 
@@ -157,7 +164,29 @@ class CalendarsViewModel @Inject constructor(
         viewModelScope.launch {
             val current = prefs.disabledCalendarIds.first()
             val next = if (disabled) current + ids else current - ids.toSet()
-            if (next != current) prefs.setDisabledCalendarIds(next)
+            if (next != current) {
+                prefs.setDisabledCalendarIds(next)
+                if (!disabled) recoverReminders(current intersect ids.toSet())
+            }
+        }
+    }
+
+    /**
+     * Re-post the reminders that fired while [reEnabledIds] were disabled and are
+     * still relevant (event not yet over), then drop them from the stash. Runs
+     * after the disabled set is written, so the notifier's own disabled gate lets
+     * them through. Best-effort at re-enable time: it mirrors the receiver gates
+     * (reminders on + postable), and there is no later re-scan, so alerts left
+     * unposted because those gates are closed are simply released.
+     */
+    private suspend fun recoverReminders(reEnabledIds: Set<Long>) {
+        if (reEnabledIds.isEmpty()) return
+        val recovered = suppressedStore.recoverFor(reEnabledIds, System.currentTimeMillis())
+        if (recovered.isNotEmpty() &&
+            settingsPrefs.remindersEnabled.first() &&
+            notifier.canPost()
+        ) {
+            recovered.forEach { notifier.post(it) }
         }
     }
 

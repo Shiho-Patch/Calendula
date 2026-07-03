@@ -18,15 +18,27 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
+ * True when [this] alert belongs to a calendar the user disabled in-app, so its
+ * reminder must be suppressed (mirroring the event filtering in
+ * CalendarRepositoryImpl). Alerts whose calendar is unknown (id 0L — e.g. a
+ * pre-upgrade snooze PendingIntent minted before EXTRA_CALENDAR_ID existed) are
+ * never treated as disabled. This is the one predicate the disabled-calendar
+ * gate is built from: [postableAlerts] here and the choke point in
+ * [ReminderNotifier.post] both use it.
+ */
+internal fun ReminderAlert.isForDisabledCalendar(disabledCalendarIds: Set<Long>): Boolean =
+    calendarId != 0L && calendarId in disabledCalendarIds
+
+/**
  * The due alerts that should actually surface as notifications: everything
- * except alerts whose calendar the user has disabled in-app (mirroring the
- * event filtering in CalendarRepositoryImpl). The caller still marks the full
- * due set fired, so suppressed alerts are not re-broadcast by the provider.
+ * except alerts whose calendar the user has disabled in-app. The caller still
+ * marks the full due set fired, so suppressed alerts are not re-broadcast by the
+ * provider.
  */
 internal fun postableAlerts(
     due: List<ReminderAlert>,
     disabledCalendarIds: Set<Long>,
-): List<ReminderAlert> = due.filterNot { it.calendarId in disabledCalendarIds }
+): List<ReminderAlert> = due.filterNot { it.isForDisabledCalendar(disabledCalendarIds) }
 
 /**
  * Becomes the app that turns the calendar provider's reminder alarms into
@@ -45,6 +57,7 @@ class EventReminderReceiver : BroadcastReceiver() {
     @Inject lateinit var notifier: ReminderNotifier
     @Inject lateinit var settingsPrefs: SettingsPrefs
     @Inject lateinit var calendarPrefs: CalendarPrefs
+    @Inject lateinit var suppressedStore: SuppressedReminderStore
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != CalendarContract.ACTION_EVENT_REMINDER) return
@@ -60,11 +73,16 @@ class EventReminderReceiver : BroadcastReceiver() {
                     val now = System.currentTimeMillis()
                     val due = alertStore.dueAlerts(now)
                     val disabled = calendarPrefs.disabledCalendarIds.first()
+                    val postable = postableAlerts(due, disabled)
                     // Suppress reminders for disabled calendars, but still mark
                     // every due alert fired so the provider stops re-broadcasting
-                    // the suppressed ones.
-                    postableAlerts(due, disabled).forEach { notifier.post(it) }
+                    // the suppressed ones. Stash those suppressed alerts so
+                    // re-enabling their calendar can recover them (they would
+                    // otherwise stay STATE_FIRED forever with no re-scan).
+                    postable.forEach { notifier.post(it) }
                     alertStore.markFired(due.map { it.alertId }, now)
+                    suppressedStore.stash(due - postable.toSet(), now)
+                    suppressedStore.purgeExpired(now)
                 }
             } finally {
                 pendingResult.finish()

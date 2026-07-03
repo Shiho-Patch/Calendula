@@ -31,4 +31,13 @@ sealed interface WidgetNavRequest {
 
     /** Open the create-event form prefilled for [dateIso] (today when null). */
     data class Create(val dateIso: String?) : WidgetNavRequest
+
+    /**
+     * Open the app rooted on a top-level [view] with no date drill-in — a widget
+     * header tap. A null [view] means "the user's default home view" (the agenda
+     * widget's "Upcoming" title, issue #20); a concrete view roots there over the
+     * default home (the month widget's month/year title → [CalendarView.Month],
+     * issue #18), so backing out returns to the default view, then exits.
+     */
+    data class OpenView(val view: CalendarView?) : WidgetNavRequest
 }

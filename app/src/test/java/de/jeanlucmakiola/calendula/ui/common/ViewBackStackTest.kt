@@ -91,4 +91,33 @@ class ViewBackStackTest {
         assertThat(viewBaseStack(CalendarView.Agenda, CalendarView.Agenda))
             .containsExactly(CalendarView.Agenda)
     }
+
+    @Test
+    fun `next cycles through the configured views in order, wrapping around`() {
+        val cycle = listOf(CalendarView.Month, CalendarView.Agenda)
+        assertThat(CalendarView.Month.next(cycle)).isEqualTo(CalendarView.Agenda)
+        // Wraps back to the first from the last.
+        assertThat(CalendarView.Agenda.next(cycle)).isEqualTo(CalendarView.Month)
+    }
+
+    @Test
+    fun `next from a view outside the cycle lands on the first enabled view`() {
+        // Day was disabled in the quick-switch cycle but is still the current view.
+        val cycle = listOf(CalendarView.Week, CalendarView.Month)
+        assertThat(CalendarView.Day.next(cycle)).isEqualTo(CalendarView.Week)
+    }
+
+    @Test
+    fun `next on an empty cycle stays put`() {
+        assertThat(CalendarView.Week.next(emptyList())).isEqualTo(CalendarView.Week)
+    }
+
+    @Test
+    fun `quick-switch cycle keeps enabled views in their configured order`() {
+        val config = QuickSwitchConfig(
+            order = listOf(CalendarView.Agenda, CalendarView.Day, CalendarView.Month, CalendarView.Week),
+            enabled = setOf(CalendarView.Agenda, CalendarView.Month),
+        )
+        assertThat(config.cycle).containsExactly(CalendarView.Agenda, CalendarView.Month).inOrder()
+    }
 }

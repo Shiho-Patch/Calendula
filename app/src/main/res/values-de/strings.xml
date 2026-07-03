@@ -1,7 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Calendula</string>
     <string name="app_tagline">Ein moderner Kalender.</string>
-
     <string name="state_loading">Lädt…</string>
     <string name="state_retry">Erneut versuchen</string>
     <string name="state_failure_unknown">Etwas ist schiefgelaufen.</string>
@@ -10,7 +10,6 @@
     <string name="state_failure_no_calendars">Keine Kalender eingerichtet.</string>
     <string name="state_failure_no_calendars_action">System-Kalender-Einstellungen öffnen</string>
     <string name="state_failure_provider">Kalender konnte nicht gelesen werden.</string>
-
     <!-- Permission-Flow (F1) -->
     <string name="permission_rationale_title">Alle Termine, schön im Blick</string>
     <string name="permission_rationale_body">Calendula braucht Zugriff auf deinen Kalender, um deine Termine zu zeigen und zu verwalten. Mehr verlangt die App zu Beginn nicht — und nichts verlässt je dein Gerät.</string>
@@ -26,7 +25,6 @@
     <string name="permission_benefit_privacy_title">Kein Tracking, niemals</string>
     <string name="permission_benefit_privacy_body">Keine Telemetrie, keine Analyse, keine Werbung.</string>
     <string name="permission_privacy_footnote">Bleibt auf deinem Gerät · keine Internet-Berechtigung</string>
-
     <!-- Monatsansicht (S1) -->
     <string name="month_prev">Vorheriger Monat</string>
     <string name="month_next">Nächster Monat</string>
@@ -35,14 +33,11 @@
     <string name="month_open_menu">Menü öffnen</string>
     <string name="month_action_settings">Einstellungen</string>
     <string name="month_a11y_today_prefix">Heute</string>
-
     <!-- Wochenansicht (S2) -->
     <string name="week_today_action">Diese Woche</string>
     <string name="week_number_label">KW</string>
-
     <!-- Tagesansicht (S3) -->
     <string name="day_today_action">Heute</string>
-
     <!-- Event-Detail-Screen (S4) -->
     <string name="event_detail_back">Zurück</string>
     <string name="event_detail_edit">Bearbeiten</string>
@@ -61,7 +56,6 @@
     <string name="event_delete_write_denied">Calendula braucht Schreibzugriff, um Termine zu löschen</string>
     <string name="dialog_cancel">Abbrechen</string>
     <string name="dialog_ok">OK</string>
-
     <!-- Termin-Formular (v1.2 Erstellen) -->
     <string name="event_edit_new_title">Neuer Termin</string>
     <string name="event_edit_close">Schließen</string>
@@ -94,7 +88,6 @@
     <string name="reminder_unit_weeks">Wochen</string>
     <string name="event_edit_availability">Verfügbarkeit</string>
     <string name="event_edit_visibility">Sichtbarkeit</string>
-
     <!-- Termin-Formular — eigene Terminfarbe -->
     <string name="event_edit_color">Farbe</string>
     <string name="event_edit_color_default">Kalenderfarbe</string>
@@ -103,7 +96,6 @@
     <string name="event_edit_color_unsupported">Für diesen Kalender nicht verfügbar</string>
     <string name="event_edit_color_unsupported_hint">Dieser Kalender stellt keine Farbpalette bereit. Du kannst eigene Farben für solche Kalender in den Einstellungen aktivieren.</string>
     <string name="event_edit_color_sync_warning">Dieser Kalender verwirft oder überschreibt die Farbe unter Umständen bei der nächsten Synchronisierung.</string>
-
     <!-- Termin-Formular — Speicher-Konflikt (v2.0) -->
     <string name="event_edit_conflict_title">Termin wurde extern geändert</string>
     <string name="event_edit_conflict_body">Während du bearbeitet hast, wurde dieser Termin anderswo geändert — durch Synchronisierung oder eine andere App. Was soll mit deinen Änderungen passieren?</string>
@@ -113,7 +105,6 @@
     <string name="event_edit_conflict_discard_hint">Der Termin bleibt, wie er jetzt ist</string>
     <string name="event_edit_gone_title">Termin wurde gelöscht</string>
     <string name="event_edit_gone_body">Dieser Termin wurde zwischenzeitlich gelöscht, etwa auf einem anderen Gerät. Deine Änderungen können nicht mehr gespeichert werden.</string>
-
     <!-- Termin-Formular — Wiederholungs-Picker (v1.3) -->
     <string name="event_edit_recurrence_none">Wiederholt sich nicht</string>
     <string name="event_edit_recurrence_custom">Benutzerdefiniert</string>
@@ -156,7 +147,6 @@
     <string name="event_attendee_tentative">Vorläufig</string>
     <string name="event_attendee_needs_action">Keine Antwort</string>
     <string name="event_attendee_unknown">—</string>
-
     <!-- Event-Detail — vollständiges Auslesen (v0.6) -->
     <string name="event_detail_reminders">Erinnerungen</string>
     <string name="event_detail_timezone">Zeitzone</string>
@@ -196,10 +186,8 @@
         <item quantity="one">%d Stunde</item>
         <item quantity="other">%d Stunden</item>
     </plurals>
-
     <!-- Geteilte Event-Strings -->
     <string name="event_untitled">(Ohne Titel)</string>
-
     <!-- Erinnerungs-Benachrichtigungen (v1.4) -->
     <string name="reminder_channel_name">Termin-Erinnerungen</string>
     <string name="reminder_channel_description">Benachrichtigungen zu den Erinnerungszeiten deiner Termine</string>
@@ -215,23 +203,19 @@
     <string name="reminder_onboarding_skip_button">Später</string>
     <string name="reminder_action_snooze">Schlummern</string>
     <string name="reminder_action_dismiss">Verwerfen</string>
-
     <!-- View-Switcher (M1) -->
     <string name="view_month">Monat</string>
     <string name="view_week">Woche</string>
     <string name="view_day">Tag</string>
     <string name="view_agenda">Agenda</string>
     <string name="view_section">Ansicht</string>
-
     <!-- Zu Datum springen (Navigationsleiste) -->
     <string name="drawer_jump_to_date">Zu Datum springen</string>
-
     <!-- Agenda-Ansicht -->
     <string name="agenda_today_action">Heute</string>
     <string name="agenda_header_today">Heute</string>
     <string name="agenda_header_tomorrow">Morgen</string>
     <string name="agenda_empty_title">Alles erledigt</string>
-
     <!-- Terminsuche -->
     <string name="search_action">Suchen</string>
     <string name="search_hint">Termine suchen</string>
@@ -239,7 +223,6 @@
     <string name="search_clear">Löschen</string>
     <string name="search_idle_hint">Durchsuche deine Termine nach Titel, Ort oder Notizen.</string>
     <string name="search_empty">Keine Termine passen zu „%1$s“.</string>
-
     <!-- Startbildschirm-Widgets -->
     <string name="widget_agenda_title">Anstehend</string>
     <string name="widget_agenda_label">Calendula Agenda</string>
@@ -250,19 +233,15 @@
     <string name="widget_prev_month">Vorheriger Monat</string>
     <string name="widget_next_month">Nächster Monat</string>
     <string name="widget_today">Heute</string>
-
     <!-- Verknüpfungen (Long-Press auf das App-Symbol) -->
     <string name="shortcut_new_event_short">Neuer Termin</string>
     <string name="shortcut_new_event_long">Neuen Termin erstellen</string>
-
     <!-- Schnelleinstellungen-Kachel -->
     <string name="qs_tile_new_event_label">Neuer Termin</string>
     <string name="settings_qs_tile">Schnelleinstellungen-Kachel hinzufügen</string>
     <string name="settings_qs_tile_hint">Eine Kachel „Neuer Termin“ zu den Schnelleinstellungen hinzufügen.</string>
-
     <!-- Kalender-Filter (M3) -->
     <string name="filter_title">Kalender</string>
-
     <!-- Einstellungen (M4) -->
     <string name="settings_title">Einstellungen</string>
     <string name="settings_back">Zurück</string>
@@ -343,7 +322,6 @@
     <string name="settings_about_logo_desc">Calendula-App-Symbol</string>
     <string name="settings_report_problem">Problem melden</string>
     <string name="settings_report_problem_hint">Absturzbericht senden oder Issue-Tracker öffnen</string>
-
     <!-- Calendar manager -->
     <string name="calendars_title">Kalender</string>
     <string name="calendars_local_header">Deine Kalender</string>
@@ -398,7 +376,6 @@
         <item quantity="one">%d bereits in diesem Kalender übersprungen.</item>
         <item quantity="other">%d bereits in diesem Kalender übersprungen.</item>
     </plurals>
-
     <!-- Absturzberichte: vom Nutzer selbst als Gitea-Issue einreichbar -->
     <string name="crash_dialog_title">Calendula ist abgestürzt</string>
     <string name="crash_dialog_message">Calendula wurde beim letzten Mal unerwartet beendet. Du kannst bei der Behebung helfen, indem du diesen Bericht als Issue sendest. Er bleibt auf deinem Gerät, bis du ihn teilst, und enthält keine persönlichen Daten oder Kalenderinhalte — nur die technischen Angaben unten.</string>

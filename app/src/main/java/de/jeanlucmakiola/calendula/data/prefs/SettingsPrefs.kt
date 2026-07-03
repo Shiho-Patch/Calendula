@@ -8,11 +8,15 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.DayOfWeek
@@ -103,6 +107,47 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setDynamicColor(enabled: Boolean) {
         store.edit { it[DYNAMIC_COLOR_KEY] = enabled }
+    }
+
+    /**
+     * Custom-font tokens per Material typeface role (issue #19). Stored as opaque
+     * strings — "system", "custom", or a bundled font's token — resolved to a
+     * FontFamily at the theme layer; an unknown token degrades to the default.
+     */
+    val brandFont: Flow<String> = store.data.map { prefs ->
+        prefs[BRAND_FONT_KEY] ?: FONT_SYSTEM_TOKEN
+    }
+
+    val plainFont: Flow<String> = store.data.map { prefs ->
+        prefs[PLAIN_FONT_KEY] ?: FONT_SYSTEM_TOKEN
+    }
+
+    suspend fun setBrandFont(token: String) {
+        store.edit { it[BRAND_FONT_KEY] = token }
+    }
+
+    suspend fun setPlainFont(token: String) {
+        store.edit { it[PLAIN_FONT_KEY] = token }
+    }
+
+    /**
+     * A per-role bump counter for the user-loaded custom font. Re-importing
+     * overwrites the same file under the same "custom" token, so the token alone
+     * can't signal the change; this stamp — carried into AppFontSettings — breaks
+     * value equality so the resolved FontFamily (and its previews) refresh. A
+     * missing key is 0 (existing installs); the first import bumps it to 1.
+     */
+    val brandFontStamp: Flow<Int> = store.data.map { prefs -> prefs[BRAND_FONT_STAMP_KEY] ?: 0 }
+
+    val plainFontStamp: Flow<Int> = store.data.map { prefs -> prefs[PLAIN_FONT_STAMP_KEY] ?: 0 }
+
+    /** Bump [role]'s custom-font stamp after a re-import so equality-keyed caches refresh. */
+    suspend fun bumpCustomFontStamp(role: FontRole) {
+        val key = when (role) {
+            FontRole.BRAND -> BRAND_FONT_STAMP_KEY
+            FontRole.PLAIN -> PLAIN_FONT_STAMP_KEY
+        }
+        store.edit { it[key] = (it[key] ?: 0) + 1 }
     }
 
     suspend fun setWeekStart(pref: WeekStartPref) {
@@ -201,6 +246,47 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setDefaultView(view: CalendarView) {
         store.edit { it[DEFAULT_VIEW_KEY] = view.name }
+    }
+
+    /**
+     * Quick-switch button customisation (#24): the ordered full view list plus
+     * which views are enabled in the cycle. Stored comma-joined by enum name, a
+     * "!" prefix marking a disabled view (e.g. "Month,Week,!Day,Agenda"). Missing
+     * views are appended enabled and unknown names dropped, so a future view
+     * defaults into the cycle. An absent key means [QuickSwitchConfig.Default].
+     */
+    val quickSwitchConfig: Flow<QuickSwitchConfig> = store.data.map { prefs ->
+        parseQuickSwitch(prefs[QUICK_SWITCH_VIEWS_KEY])
+    }
+
+    suspend fun setQuickSwitchConfig(config: QuickSwitchConfig) {
+        store.edit { it[QUICK_SWITCH_VIEWS_KEY] = serializeQuickSwitch(config) }
+    }
+
+    /**
+     * Atomic read-modify-write of the quick-switch config: [transform] sees the
+     * value currently stored, parsed inside the edit block, not the async-echoed
+     * UI snapshot. Two rapid intents (a toggle then a drag) therefore compose
+     * instead of each re-serialising a stale copy of the other field over it.
+     */
+    suspend fun updateQuickSwitch(transform: (QuickSwitchConfig) -> QuickSwitchConfig) {
+        store.edit { prefs ->
+            val current = parseQuickSwitch(prefs[QUICK_SWITCH_VIEWS_KEY])
+            prefs[QUICK_SWITCH_VIEWS_KEY] = serializeQuickSwitch(transform(current))
+        }
+    }
+
+    /**
+     * Navigation-drawer view order (#24). Comma-joined enum names; missing views
+     * are appended in default order and unknown names dropped. Absent key means
+     * [IMPLEMENTED_VIEWS] (the historical fixed order).
+     */
+    val drawerViewOrder: Flow<List<CalendarView>> = store.data.map { prefs ->
+        parseViewOrder(prefs[DRAWER_VIEW_ORDER_KEY])
+    }
+
+    suspend fun setDrawerViewOrder(order: List<CalendarView>) {
+        store.edit { it[DRAWER_VIEW_ORDER_KEY] = order.joinToString(",") { view -> view.name } }
     }
 
     /**
@@ -524,9 +610,47 @@ class SettingsPrefs @Inject constructor(
             .toSet()
     }
 
+    /** Parse a plain comma-joined view order, completed to every implemented view. */
+    private fun parseViewOrder(stored: String?): List<CalendarView> =
+        completeViewOrder(
+            stored?.split(',').orEmpty()
+                .mapNotNull { name -> CalendarView.entries.firstOrNull { it.name == name.trim() } },
+        )
+
+    /** Parse the quick-switch config; "!"-prefixed names are disabled. */
+    private fun parseQuickSwitch(stored: String?): QuickSwitchConfig {
+        if (stored == null) return QuickSwitchConfig.Default
+        val parsed = stored.split(',').mapNotNull { raw ->
+            val token = raw.trim()
+            val disabled = token.startsWith("!")
+            val name = if (disabled) token.drop(1) else token
+            CalendarView.entries.firstOrNull { it.name == name }?.let { it to disabled }
+        }
+        val order = completeViewOrder(parsed.map { it.first })
+        // Only views explicitly stored disabled are excluded; anything appended
+        // (a view added in a later release) defaults into the cycle.
+        val disabled = parsed.filter { it.second }.map { it.first }.toSet()
+        return QuickSwitchConfig(order, order.filterNot { it in disabled }.toSet())
+    }
+
+    private fun serializeQuickSwitch(config: QuickSwitchConfig): String =
+        completeViewOrder(config.order).joinToString(",") { view ->
+            if (view in config.enabled) view.name else "!${view.name}"
+        }
+
+    /** Keep the given order (de-duplicated), then append any views it omits. */
+    private fun completeViewOrder(seen: List<CalendarView>): List<CalendarView> {
+        val ordered = seen.distinct()
+        return ordered + IMPLEMENTED_VIEWS.filterNot { it in ordered }
+    }
+
     companion object {
         internal val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
+        internal val BRAND_FONT_KEY = stringPreferencesKey("brand_font")
+        internal val PLAIN_FONT_KEY = stringPreferencesKey("plain_font")
+        internal val BRAND_FONT_STAMP_KEY = intPreferencesKey("brand_font_stamp")
+        internal val PLAIN_FONT_STAMP_KEY = intPreferencesKey("plain_font_stamp")
         internal val WEEK_START_KEY = stringPreferencesKey("week_start")
         internal val AGENDA_SCREEN_RANGE_KEY = stringPreferencesKey("agenda_screen_range")
         internal val AGENDA_WIDGET_RANGE_KEY = stringPreferencesKey("agenda_widget_range")
@@ -536,6 +660,8 @@ class SettingsPrefs @Inject constructor(
         internal val PAST_EVENT_DISPLAY_KEY = stringPreferencesKey("agenda_past_event_display")
         internal val DIM_COMPLETED_EVENTS_KEY = booleanPreferencesKey("dim_completed_events")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
+        internal val QUICK_SWITCH_VIEWS_KEY = stringPreferencesKey("quick_switch_views")
+        internal val DRAWER_VIEW_ORDER_KEY = stringPreferencesKey("drawer_view_order")
         internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
         internal val AUTOFOCUS_EVENT_TITLE_KEY = booleanPreferencesKey("autofocus_event_title")
         internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")
@@ -708,7 +834,15 @@ private fun parseReminderOverrides(stored: String?): Map<Long, List<Int>> {
     return stored.split(ENTRY_SEP).mapNotNull { entry ->
         val parts = entry.split(KEY_VALUE_SEP).takeIf { it.size == 2 } ?: return@mapNotNull null
         val id = parts[0].toLongOrNull() ?: return@mapNotNull null
-        id to parts[1].toReminderList()
+        // Only the deliberate "none" sentinel means an explicit no-reminder
+        // override (empty list); a non-sentinel value that parses to no valid
+        // minutes is garbage and drops the entry, so the calendar inherits the
+        // global default rather than silently reading as "no reminder".
+        when (val value = parts[1]) {
+            NONE -> id to emptyList()
+            else -> value.toReminderList().takeIf { it.isNotEmpty() }?.let { id to it }
+                ?: return@mapNotNull null
+        }
     }.toMap()
 }
 

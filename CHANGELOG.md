@@ -25,8 +25,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a reminder a week before *and* one on the day. The reminder pickers are now
   multi-select; per-calendar overrides can still inherit the global default or
   turn reminders off entirely. Thanks to @moonj for the suggestion ([#14]).
+- Widget headers now open the app. Tapping the month/year title on the month
+  widget opens the app on the month view, and tapping the "Upcoming" title on
+  the agenda widget opens it on your default view — so there's a one-tap way
+  back into the app that lands where you'd expect, instead of only through a day
+  or event. On the month widget, tapping anywhere on a day — not just the small
+  date number — now opens that day, and the "today" button snaps the grid back
+  to the current month in place. Thanks to @rgz46vic and @ptab for the
+  suggestions ([#18], [#20]).
 
 ### Fixed
+- Month widget arrows and "today" button work again. On release builds the
+  prev/next-month arrows and the jump-to-today control on the month widget did
+  nothing when tapped — code shrinking had stripped the tap handlers behind
+  them. They respond again. Thanks to @rgz46vic for the report ([#18]).
 - Disabled calendars no longer notify. Reminders for events in a calendar you
   have disabled (Settings → Calendars) are now suppressed instead of still
   popping up — matching how a disabled calendar's events already stay hidden
@@ -766,3 +778,5 @@ automatically, with zero telemetry and no internet permission.
 [#15]: https://codeberg.org/jlmakiola/calendula/issues/15
 [#16]: https://codeberg.org/jlmakiola/calendula/issues/16
 [#17]: https://codeberg.org/jlmakiola/calendula/issues/17
+[#18]: https://codeberg.org/jlmakiola/calendula/issues/18
+[#20]: https://codeberg.org/jlmakiola/calendula/issues/20

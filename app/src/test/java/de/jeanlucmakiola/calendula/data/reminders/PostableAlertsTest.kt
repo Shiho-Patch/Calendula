@@ -52,4 +52,20 @@ class PostableAlertsTest {
 
         assertThat(postable).isEqualTo(due)
     }
+
+    @Test
+    fun `alert with unknown calendar id 0 is never treated as disabled`() {
+        // Pre-upgrade snooze PendingIntents carry no calendar id (defaults to 0L).
+        val preUpgrade = alert(1, calendarId = 0L)
+
+        assertThat(preUpgrade.isForDisabledCalendar(disabledCalendarIds = setOf(0L))).isFalse()
+        assertThat(postableAlerts(listOf(preUpgrade), disabledCalendarIds = setOf(0L)))
+            .containsExactly(preUpgrade)
+    }
+
+    @Test
+    fun `isForDisabledCalendar matches only the disabled ids`() {
+        assertThat(alert(1, calendarId = 200).isForDisabledCalendar(setOf(200))).isTrue()
+        assertThat(alert(1, calendarId = 100).isForDisabledCalendar(setOf(200))).isFalse()
+    }
 }
