@@ -15,6 +15,12 @@ sealed interface EventDetailUiState {
         val calendarName: String?,
         /** Whether the owning calendar allows modifying events (shows edit/delete). */
         val canModify: Boolean = false,
+        /**
+         * The event belongs to a managed special-dates calendar: its editable
+         * fields (reminders, notes) can still be edited, but delete is hidden —
+         * the sync would just resurrect it. Contact dates are removed at the source.
+         */
+        val isManaged: Boolean = false,
     ) : EventDetailUiState
 }
 

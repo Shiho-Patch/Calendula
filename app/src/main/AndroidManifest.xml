@@ -6,6 +6,15 @@
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!--
+      Optional and feature-gated: only the "Contact special dates" feature reads
+      contacts, and only after the user enables it and grants this at runtime
+      (never requested at startup). Everything stays offline — birthdays and
+      other contact dates are mirrored one-way into local calendars; contacts
+      are never written and nothing leaves the device (the app has no INTERNET
+      permission). See docs/design/contact-special-dates.md.
+    -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!--
       Lets the "Reliable delivery" setting open the direct system dialog to
       exempt Calendula from battery optimisation (so reminder broadcasts aren't
       delayed by Doze). Used only to launch that dialog; falls back to the

@@ -19,6 +19,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
+import de.jeanlucmakiola.calendula.data.contacts.hasContactsPermission
 import de.jeanlucmakiola.calendula.ui.permission.PermissionScreen
 import de.jeanlucmakiola.calendula.ui.permission.ReminderOnboardingScreen
 import de.jeanlucmakiola.calendula.ui.permission.ReminderOnboardingViewModel
@@ -49,6 +51,12 @@ fun RootScreen(
                 hasPermission = ContextCompat.checkSelfPermission(
                     context, Manifest.permission.READ_CALENDAR
                 ) == PackageManager.PERMISSION_GRANTED
+                // Refresh the contact special-dates mirror on foreground (the
+                // worker is debounced and no-ops when the feature is off). Gated
+                // on the permission so users without the opt-in never enqueue it.
+                if (context.hasContactsPermission()) {
+                    SpecialDatesScheduler.runNow(context, foreground = true)
+                }
             }
         }
         lifecycle.addObserver(obs)

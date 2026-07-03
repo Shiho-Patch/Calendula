@@ -120,7 +120,7 @@ import de.jeanlucmakiola.calendula.domain.toRRule
 import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
 import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
 import de.jeanlucmakiola.calendula.ui.common.predictiveBack
-import de.jeanlucmakiola.calendula.ui.common.CALENDAR_COLOR_PALETTE
+import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
@@ -439,6 +439,10 @@ private fun EventEditContent(
     val form = state.form
     val locale = currentLocale()
     val dark = isSystemInDarkTheme()
+    // The title, date and recurrence are managed by the special-dates sync, so
+    // they're locked here; everything else (reminders, location, notes) is the
+    // user's to edit.
+    val locked = state.isManaged
     var picker by remember { mutableStateOf<PickerTarget?>(null) }
     var showCalendarPicker by rememberSaveable { mutableStateOf(false) }
     var showReminderPicker by rememberSaveable { mutableStateOf(false) }
@@ -523,6 +527,7 @@ private fun EventEditContent(
             placeholder = stringResource(R.string.event_edit_title_hint),
             textStyle = MaterialTheme.typography.headlineMedium
                 .copy(fontWeight = FontWeight.SemiBold),
+            enabled = !locked,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 4.dp)
@@ -535,6 +540,17 @@ private fun EventEditContent(
                 .height(3.dp)
                 .background(accent, RoundedCornerShape(2.dp)),
         )
+        if (locked) {
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = stringResource(
+                    R.string.event_edit_managed_hint,
+                    selectedCalendar?.displayName.orEmpty(),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
 
         Spacer(Modifier.height(20.dp))
 
@@ -553,7 +569,11 @@ private fun EventEditContent(
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.weight(1f),
                     )
-                    Switch(checked = form.isAllDay, onCheckedChange = viewModel::setAllDay)
+                    Switch(
+                        checked = form.isAllDay,
+                        onCheckedChange = viewModel::setAllDay,
+                        enabled = !locked,
+                    )
                 }
             },
         ) {
@@ -565,6 +585,7 @@ private fun EventEditContent(
                 locale = locale,
                 onDateClick = { picker = PickerTarget.StartDate },
                 onTimeClick = { picker = PickerTarget.StartTime },
+                enabled = !locked,
             )
             ScheduleRow(
                 label = stringResource(R.string.event_edit_ends),
@@ -574,6 +595,7 @@ private fun EventEditContent(
                 onDateClick = { picker = PickerTarget.EndDate },
                 onTimeClick = { picker = PickerTarget.EndTime },
                 isError = EventFormProblem.EndBeforeStart in state.problems,
+                enabled = !locked,
             )
             if (EventFormProblem.EndBeforeStart in state.problems) {
                 Spacer(Modifier.height(2.dp))
@@ -704,7 +726,7 @@ private fun EventEditContent(
             EditCard(
                 icon = Icons.Default.Repeat,
                 iconContentDescription = null,
-                onClick = { showRecurrencePicker = true },
+                onClick = if (locked) null else ({ showRecurrencePicker = true }),
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -1727,7 +1749,7 @@ private fun ColorPickerDialog(
                     )
                 } else {
                     ColorSwatchRow(
-                        colors = CALENDAR_COLOR_PALETTE,
+                        colors = CalendarColorPalette.all,
                         selected = selected,
                         onSelect = onPickRaw,
                         dark = dark,
@@ -1862,6 +1884,7 @@ private fun InlineField(
     textStyle: TextStyle = MaterialTheme.typography.titleMedium,
     singleLine: Boolean = true,
     minLines: Int = 1,
+    enabled: Boolean = true,
     keyboardType: KeyboardType = KeyboardType.Text,
     modifier: Modifier = Modifier
         .fillMaxWidth()
@@ -1875,6 +1898,7 @@ private fun InlineField(
         textStyle = textStyle,
         singleLine = singleLine,
         minLines = minLines,
+        enabled = enabled,
         keyboardType = keyboardType,
     )
 }
@@ -1889,6 +1913,7 @@ private fun ScheduleRow(
     onDateClick: () -> Unit,
     onTimeClick: () -> Unit,
     isError: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val dateFormat = remember(locale) {
         DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
@@ -1898,11 +1923,12 @@ private fun ScheduleRow(
         timeOfDayFormatter(use24Hour, locale)
     }
     // Tappable values read as links (primary), like the location on the
-    // detail screen; errors flip them to the error colour.
-    val valueColor = if (isError) {
-        MaterialTheme.colorScheme.error
-    } else {
-        MaterialTheme.colorScheme.primary
+    // detail screen; errors flip them to the error colour; a locked (managed)
+    // row dims to a plain, non-tappable value.
+    val valueColor = when {
+        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant
+        isError -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.primary
     }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -1919,7 +1945,7 @@ private fun ScheduleRow(
             style = MaterialTheme.typography.titleMedium,
             color = valueColor,
             modifier = Modifier
-                .clickable(onClick = onDateClick)
+                .clickable(enabled = enabled, onClick = onDateClick)
                 .padding(vertical = 8.dp, horizontal = 6.dp),
         )
         if (!isAllDay) {
@@ -1928,7 +1954,7 @@ private fun ScheduleRow(
                 style = MaterialTheme.typography.titleMedium,
                 color = valueColor,
                 modifier = Modifier
-                    .clickable(onClick = onTimeClick)
+                    .clickable(enabled = enabled, onClick = onTimeClick)
                     .padding(vertical = 8.dp, horizontal = 6.dp),
             )
         }

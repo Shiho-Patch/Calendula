@@ -84,6 +84,43 @@ class AllDayReminderEncodingTest {
     }
 
     @Test
+    fun `next yearly occurrence wraps to next year once this year's date has passed`() {
+        val today = LocalDate.of(2026, 8, 1)
+        assertThat(nextYearlyOccurrence(5, 14, today)).isEqualTo(LocalDate.of(2027, 5, 14))
+        assertThat(nextYearlyOccurrence(12, 25, today)).isEqualTo(LocalDate.of(2026, 12, 25))
+    }
+
+    @Test
+    fun `next yearly occurrence returns today when the date is today`() {
+        val today = LocalDate.of(2026, 3, 10)
+        assertThat(nextYearlyOccurrence(3, 10, today)).isEqualTo(today)
+    }
+
+    @Test
+    fun `next yearly occurrence skips non-leap years for a Feb-29 date`() {
+        assertThat(nextYearlyOccurrence(2, 29, LocalDate.of(2026, 6, 1)))
+            .isEqualTo(LocalDate.of(2028, 2, 29))
+    }
+
+    @Test
+    fun `sampling the offset at the next occurrence, not a 1972 anchor, fixes the fire hour`() {
+        // A year-less birthday's DTSTART anchor is 1972 (Berlin had no DST then,
+        // UTC+1). Sampling the offset there skews a modern CEST occurrence by an
+        // hour; sampling at the upcoming occurrence fires at the intended time.
+        val anchor1972 = LocalDate.of(1972, 7, 15)
+        val nextOccurrence = nextYearlyOccurrence(7, 15, LocalDate.of(2026, 6, 1)) // 2026-07-15, CEST
+        val rawFromAnchor = toProviderAllDayMinutes(0, anchor1972, berlin, nineAm)
+        val rawFromNext = toProviderAllDayMinutes(0, nextOccurrence, berlin, nineAm)
+
+        val fireFromAnchor = actualFire(rawFromAnchor, nextOccurrence)
+            .let(java.time.Instant::ofEpochMilli).atZone(berlin).toLocalTime()
+        val fireFromNext = actualFire(rawFromNext, nextOccurrence)
+            .let(java.time.Instant::ofEpochMilli).atZone(berlin).toLocalTime()
+        assertThat(fireFromAnchor).isEqualTo(LocalTime.of(10, 0)) // skewed +1h
+        assertThat(fireFromNext).isEqualTo(LocalTime.of(9, 0)) // correct
+    }
+
+    @Test
     fun `a winter-anchored offset drifts one hour on a summer occurrence`() {
         // Known limitation: one fixed MINUTES per series can't track DST. An
         // offset tuned for a CET anchor fires an hour off once the series crosses

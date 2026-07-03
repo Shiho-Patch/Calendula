@@ -39,7 +39,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Check
@@ -91,13 +93,16 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.contacts.hasContactsPermission
 import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
+import de.jeanlucmakiola.calendula.data.prefs.choiceFor
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.qs.NewEventTileService
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
 import de.jeanlucmakiola.calendula.ui.crash.openIssueTracker
@@ -111,6 +116,7 @@ import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
+import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.common.ReorderableColumn
@@ -139,7 +145,7 @@ import java.time.format.TextStyle as JavaTextStyle
 import java.util.Calendar
 
 /** The settings sub-screens reached from the hub's category rows. */
-private enum class SettingsSection { Appearance, Views, EventForm, Notifications }
+private enum class SettingsSection { Appearance, Views, EventForm, Notifications, SpecialDates }
 
 /**
  * Token-based accent for a leading icon chip (container / on-container pair).
@@ -203,7 +209,19 @@ fun SettingsScreen(
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
             exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
         ) {
-            NotificationsScreen(state = state, viewModel = viewModel, onBack = { section = null })
+            NotificationsScreen(
+                state = state,
+                viewModel = viewModel,
+                onBack = { section = null },
+                onOpenSpecialDates = { section = SettingsSection.SpecialDates },
+            )
+        }
+        AnimatedVisibility(
+            visible = section == SettingsSection.SpecialDates,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            SpecialDatesScreen(viewModel = viewModel, onBack = { section = null })
         }
     }
 }
@@ -256,6 +274,13 @@ private fun SettingsHub(
             position = Position.Middle,
             leading = { CategoryIcon(Icons.Default.CalendarMonth, ChipAccent.Tertiary) },
             onClick = onManageCalendars,
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_section_special_dates),
+            summary = stringResource(R.string.settings_special_dates_subtitle),
+            position = Position.Middle,
+            leading = { CategoryIcon(Icons.Default.Cake, ChipAccent.Tertiary) },
+            onClick = { onOpenSection(SettingsSection.SpecialDates) },
         )
         LanguageRow(position = Position.Middle)
         // One-tap add of the "New event" Quick Settings tile. The system prompt
@@ -985,6 +1010,7 @@ private fun NotificationsScreen(
     state: SettingsUiState,
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
+    onOpenSpecialDates: () -> Unit,
 ) {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
@@ -1109,6 +1135,25 @@ private fun NotificationsScreen(
                 Column {
                     state.writableCalendars.forEach { calendar ->
                         Spacer(Modifier.height(16.dp))
+                        // A contact special-dates calendar owns its reminders in
+                        // its own section — link there instead of an override.
+                        if (calendar.id in state.managedCalendarIds) {
+                            GroupedRow(
+                                title = calendar.displayName,
+                                summary = stringResource(R.string.settings_calendar_reminders_managed_hint),
+                                position = Position.Alone,
+                                leading = { CalendarColorChip(calendar.color) },
+                                trailing = {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                                onClick = onOpenSpecialDates,
+                            )
+                            return@forEach
+                        }
                         val expanded = calendar.id in expandedCalendars
                         // Calendar card; tapping expands it into a grouped list
                         // of three (the card + the timed and all-day rows).
@@ -1231,6 +1276,287 @@ private fun NotificationsScreen(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Contact special dates (issue #15)
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun SpecialDatesScreen(
+    viewModel: SettingsViewModel,
+    onBack: () -> Unit,
+) {
+    val state by viewModel.specialDatesState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    // READ_CONTACTS is requested only here, on enable — never at startup. On a
+    // grant we either enable (if turning on) or just re-sync (clearing a stalled
+    // banner after the permission was re-granted).
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            if (!state.enabled) viewModel.setSpecialDatesEnabled(true) else viewModel.syncSpecialDatesNow()
+        }
+    }
+    val requestOrEnable: () -> Unit = {
+        if (context.hasContactsPermission()) {
+            viewModel.setSpecialDatesEnabled(true)
+        } else {
+            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+        }
+    }
+
+    var confirmDisableAll by remember { mutableStateOf(false) }
+    var confirmDisableType by remember { mutableStateOf<SpecialDateType?>(null) }
+    var editTemplate by remember { mutableStateOf<SpecialDateType?>(null) }
+    var reminderPickerType by remember { mutableStateOf<SpecialDateType?>(null) }
+
+    CollapsingScaffold(
+        title = stringResource(R.string.settings_section_special_dates),
+        onBack = onBack,
+    ) {
+        // Paused banner: the permission was revoked after enabling.
+        if (state.enabled && state.stalledPermission) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.errorContainer,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.settings_special_dates_paused_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_special_dates_paused_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    FilledTonalButton(
+                        onClick = { permissionLauncher.launch(Manifest.permission.READ_CONTACTS) },
+                    ) { Text(stringResource(R.string.settings_special_dates_grant)) }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+
+        GroupedRow(
+            title = stringResource(R.string.settings_special_dates_enable),
+            summary = stringResource(R.string.settings_special_dates_enable_hint),
+            position = Position.Alone,
+            trailing = {
+                Switch(
+                    checked = state.enabled,
+                    onCheckedChange = { want -> if (want) requestOrEnable() else confirmDisableAll = true },
+                )
+            },
+            onClick = { if (state.enabled) confirmDisableAll = true else requestOrEnable() },
+        )
+
+        if (state.enabled) {
+            // Per-type card: the toggle, and while on, its title format and its
+            // calendar-wide reminder.
+            SpecialDateType.entries.forEachIndexed { index, type ->
+                Spacer(Modifier.height(if (index == 0) 24.dp else 16.dp))
+                val on = type in state.types
+                GroupedRow(
+                    title = stringResource(specialDateTypeLabel(type)),
+                    position = if (on) Position.Top else Position.Alone,
+                    trailing = {
+                        Switch(
+                            checked = on,
+                            onCheckedChange = { want ->
+                                if (want) viewModel.setSpecialDateTypeEnabled(type, true)
+                                else confirmDisableType = type
+                            },
+                        )
+                    },
+                    onClick = {
+                        if (on) confirmDisableType = type else viewModel.setSpecialDateTypeEnabled(type, true)
+                    },
+                )
+                if (on) {
+                    GroupedRow(
+                        title = stringResource(R.string.settings_special_dates_template),
+                        summary = state.titleTemplates[type].orEmpty(),
+                        position = Position.Middle,
+                        onClick = { editTemplate = type },
+                    )
+                    GroupedRow(
+                        title = stringResource(R.string.settings_special_dates_reminders),
+                        summary = reminderChoiceLabel(specialDatesReminderMinutes(state.reminderChoices[type])),
+                        position = Position.Bottom,
+                        onClick = { reminderPickerType = type },
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+            GroupedRow(
+                title = stringResource(R.string.settings_special_dates_show_year),
+                summary = stringResource(R.string.settings_special_dates_show_year_hint),
+                position = Position.Top,
+                trailing = {
+                    Switch(
+                        checked = state.showYear,
+                        onCheckedChange = viewModel::setSpecialDatesShowYear,
+                    )
+                },
+                onClick = { viewModel.setSpecialDatesShowYear(!state.showYear) },
+            )
+            GroupedRow(
+                title = stringResource(R.string.settings_special_dates_sync_now),
+                summary = specialDatesLastRunLabel(context, state.lastRun),
+                position = Position.Bottom,
+                onClick = viewModel::syncSpecialDatesNow,
+            )
+
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = stringResource(R.string.settings_special_dates_calendar_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+    }
+
+    if (confirmDisableAll) {
+        SpecialDatesDisableDialog(
+            message = stringResource(R.string.settings_special_dates_disable_all_message),
+            onConfirm = { viewModel.setSpecialDatesEnabled(false); confirmDisableAll = false },
+            onDismiss = { confirmDisableAll = false },
+        )
+    }
+    confirmDisableType?.let { type ->
+        SpecialDatesDisableDialog(
+            message = stringResource(
+                R.string.settings_special_dates_disable_type_message,
+                stringResource(specialDateTypeLabel(type)),
+            ),
+            onConfirm = { viewModel.setSpecialDateTypeEnabled(type, false); confirmDisableType = null },
+            onDismiss = { confirmDisableType = null },
+        )
+    }
+    editTemplate?.let { type ->
+        SpecialDatesTemplateDialog(
+            initial = state.titleTemplates[type].orEmpty(),
+            onConfirm = { viewModel.setSpecialDatesTitleTemplate(type, it); editTemplate = null },
+            onDismiss = { editTemplate = null },
+        )
+    }
+    reminderPickerType?.let { type ->
+        ReminderDefaultPicker(
+            title = stringResource(R.string.settings_special_dates_reminders),
+            presets = ALLDAY_REMINDER_PRESETS,
+            selected = state.reminderChoices[type] ?: CalendarReminderOverride.None,
+            // Managed calendars own their reminders outright — no "inherit global".
+            allowInherit = false,
+            onSelect = { viewModel.setSpecialDatesReminders(type, it) },
+            onDismiss = { reminderPickerType = null },
+        )
+    }
+}
+
+/** The lead-time list backing a managed calendar's reminder choice (for the summary label). */
+private fun specialDatesReminderMinutes(choice: CalendarReminderOverride?): List<Int> =
+    (choice as? CalendarReminderOverride.Minutes)?.minutes.orEmpty()
+
+@Composable
+private fun SpecialDatesDisableDialog(
+    message: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_special_dates_disable_title)) },
+        text = { Text(message) },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.settings_special_dates_disable_confirm))
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dialog_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun SpecialDatesTemplateDialog(
+    initial: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf(initial) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_special_dates_template)) },
+        text = {
+            Column {
+                // The app's borderless input over a tonal surface (the dialog
+                // convention — see DialogControls), not Material's outlined field.
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    InlineTextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        placeholder = stringResource(R.string.settings_special_dates_template),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.settings_special_dates_template_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(
+                onClick = { onConfirm(text) },
+                enabled = text.isNotBlank(),
+            ) { Text(stringResource(R.string.dialog_save)) }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dialog_cancel))
+            }
+        },
+    )
+}
+
+private fun specialDateTypeLabel(type: SpecialDateType): Int = when (type) {
+    SpecialDateType.Birthday -> R.string.settings_special_dates_type_birthday
+    SpecialDateType.Anniversary -> R.string.settings_special_dates_type_anniversary
+    SpecialDateType.Custom -> R.string.settings_special_dates_type_custom
+}
+
+@Composable
+private fun specialDatesLastRunLabel(context: Context, lastRun: Long): String =
+    if (lastRun <= 0L) {
+        stringResource(R.string.settings_special_dates_never_synced)
+    } else {
+        stringResource(
+            R.string.settings_special_dates_last_synced,
+            android.text.format.DateUtils.getRelativeTimeSpanString(
+                lastRun,
+                System.currentTimeMillis(),
+                android.text.format.DateUtils.MINUTE_IN_MILLIS,
+            ).toString(),
+        )
+    }
+
 /** Which calendar + event kind a per-calendar reminder-override dialog targets. */
 private data class OverrideTarget(val calendarId: Long, val isAllDay: Boolean)
 
@@ -1314,22 +1640,11 @@ private fun formatTimeOfDay(context: Context, minutesOfDay: Int): String {
     return DateFormat.getTimeFormat(context).format(time)
 }
 
-/** The stored override for [calendarId], as a picker choice (absent → inherit). */
-private fun Map<Long, List<Int>>.choiceFor(calendarId: Long): CalendarReminderOverride = when {
-    !containsKey(calendarId) -> CalendarReminderOverride.Inherit
-    this.getValue(calendarId).isEmpty() -> CalendarReminderOverride.None
-    else -> CalendarReminderOverride.Minutes(this.getValue(calendarId))
-}
-
 /** Label for a global-default choice: empty → "None", else the lead times joined. */
 @Composable
 private fun reminderChoiceLabel(minutes: List<Int>): String {
     if (minutes.isEmpty()) return stringResource(R.string.reminder_none)
-    // reminderLeadTimeLabel is @Composable, so resolve each part in a loop rather
-    // than a (non-composable) joinToString transform.
-    val parts = ArrayList<String>(minutes.size)
-    for (m in minutes) parts.add(reminderLeadTimeLabel(m))
-    return parts.joinToString(", ")
+    return minutes.map { reminderLeadTimeLabel(it) }.joinToString(", ")
 }
 
 /** Row summary for a calendar: its override, or the inherited global default. */

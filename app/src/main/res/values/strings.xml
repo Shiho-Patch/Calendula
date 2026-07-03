@@ -14,7 +14,7 @@
 
     <!-- Permission flow (F1) -->
     <string name="permission_rationale_title">See all your events, beautifully</string>
-    <string name="permission_rationale_body">Calendula needs access to your calendar to show and manage your events. That\'s the only thing it ever asks for.</string>
+    <string name="permission_rationale_body">Calendula needs access to your calendar to show and manage your events. That\'s all it asks for up front — and nothing ever leaves your device.</string>
     <string name="permission_request_button">Grant calendar access</string>
     <string name="permission_denied_title">Calendar access denied</string>
     <string name="permission_denied_body">Calendula cannot show events without calendar access. You can grant it again in the system settings.</string>
@@ -68,6 +68,8 @@
     <string name="event_edit_close">Close</string>
     <string name="event_edit_save">Save</string>
     <string name="event_edit_title_hint">Add title</string>
+    <!-- %1$s is the managing calendar's name, e.g. "Birthdays". -->
+    <string name="event_edit_managed_hint">Managed by “%1$s” — the title, date and repeat are kept in sync from your contacts. Reminders, location and notes are yours to edit.</string>
     <string name="event_edit_starts">Starts</string>
     <string name="event_edit_ends">Ends</string>
     <string name="event_edit_error_end_before_start">Ends before it starts</string>
@@ -360,6 +362,35 @@
     <string name="settings_views_subtitle">Quick-switch button and menu order</string>
     <string name="settings_event_form_subtitle">Default fields for new events</string>
     <string name="settings_notifications_subtitle">Event reminders</string>
+    <string name="settings_special_dates_subtitle">Contact birthdays &amp; anniversaries</string>
+
+    <!-- Contact special dates (issue #15) -->
+    <string name="settings_section_special_dates">Contact special dates</string>
+    <string name="settings_special_dates_enable">Show contact dates</string>
+    <string name="settings_special_dates_enable_hint">Mirror your contacts\' birthdays and other dates into local calendars. Reads contacts on this device only — nothing is uploaded, and your contacts are never changed.</string>
+    <string name="settings_special_dates_type_birthday">Birthdays</string>
+    <string name="settings_special_dates_type_anniversary">Anniversaries</string>
+    <string name="settings_special_dates_type_custom">Other dates</string>
+    <string name="settings_special_dates_template">Title format</string>
+    <string name="settings_special_dates_template_hint">Use {name} for the contact and {year} for the year (the birth year, or an anniversary\'s start year; hidden when unknown).</string>
+    <string name="settings_special_dates_reminders">Reminders</string>
+    <string name="settings_special_dates_show_year">Show year</string>
+    <string name="settings_special_dates_show_year_hint">Include {year} in titles when it is known</string>
+    <string name="settings_special_dates_sync_now">Sync now</string>
+    <string name="settings_special_dates_never_synced">Not synced yet</string>
+    <!-- %1$s is a relative time, e.g. "5 minutes ago". -->
+    <string name="settings_special_dates_last_synced">Last synced %1$s</string>
+    <string name="settings_special_dates_calendar_hint">Set each calendar\'s colour and visibility in Calendars settings.</string>
+    <string name="settings_calendar_reminders_managed_hint">Set in Contact special dates</string>
+    <string name="settings_special_dates_paused_title">Paused</string>
+    <string name="settings_special_dates_paused_hint">Calendula can no longer read your contacts, so these calendars aren\'t updating.</string>
+    <string name="settings_special_dates_grant">Grant access</string>
+    <string name="settings_special_dates_disable_title">Turn off contact dates?</string>
+    <string name="settings_special_dates_disable_all_message">This deletes the contact-date calendars and their events. Any reminders or notes you added to them will be lost.</string>
+    <!-- %1$s is the date type, e.g. "Birthdays". -->
+    <string name="settings_special_dates_disable_type_message">This deletes the “%1$s” calendar and its events. Any reminders or notes you added to them will be lost.</string>
+    <string name="settings_special_dates_disable_confirm">Turn off</string>
+    <string name="dialog_save">Save</string>
     <string name="settings_section_about">About</string>
     <string name="settings_license">License</string>
     <string name="settings_license_value">MIT</string>
@@ -478,4 +509,13 @@
     <string name="crash_report_body_paste">_(The report was too long for this link — paste it from your clipboard here.)_</string>
     <string name="report_issue_url" translatable="false">https://codeberg.org/jlmakiola/calendula/issues/new</string>
     <string name="report_issue_choose_url" translatable="false">https://codeberg.org/jlmakiola/calendula/issues/new/choose</string>
+
+    <!-- Contact special dates (issue #15). {name} is the contact, {age} the age
+         at the upcoming date (dropped when the year is unknown or Show age is off). -->
+    <string name="special_dates_calendar_birthday">Birthdays</string>
+    <string name="special_dates_calendar_anniversary">Anniversaries</string>
+    <string name="special_dates_calendar_custom">Special dates</string>
+    <string name="special_dates_default_title_birthday">{name}\'s birthday ({year})</string>
+    <string name="special_dates_default_title_anniversary">{name}\'s anniversary ({year})</string>
+    <string name="special_dates_default_title_custom">{name}</string>
 </resources>

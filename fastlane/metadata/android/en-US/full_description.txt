@@ -8,6 +8,11 @@ changes (only this event / this and all following / the whole series) and a
 simple repeat picker. Calendula also delivers your event reminders as
 notifications — tap one and you're on the event.
 
+Optionally, show your contacts' birthdays, anniversaries and other special
+dates in your calendar. You turn this on yourself; contacts are read only on
+your device, are never uploaded, and are never changed — Calendula only
+mirrors the dates into local calendars you fully control.
+
 The differentiator is the design: real Material 3 Expressive throughout,
 with dynamic color, expressive motion, and expressive shapes.
 

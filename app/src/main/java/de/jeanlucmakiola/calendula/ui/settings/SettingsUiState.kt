@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.settings
 
+import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
@@ -7,6 +8,7 @@ import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
@@ -75,4 +77,30 @@ data class SettingsUiState(
      * colour palette (the colour may then not survive their next sync).
      */
     val allowColorOnUnsupportedCalendars: Boolean = false,
+    /**
+     * Ids of the contact special-dates calendars. Their reminders are owned by
+     * the Contact special dates section, so the per-calendar override list links
+     * out to it instead of offering an override here.
+     */
+    val managedCalendarIds: Set<Long> = emptySet(),
+)
+
+/**
+ * State for the contact special-dates sub-page (issue #15). Exposed as its own
+ * flow rather than folded into [SettingsUiState] (whose combine is already full).
+ * [titleTemplates] is always populated — a blank stored template resolves to the
+ * localized default so the editor never shows an empty field.
+ */
+data class SpecialDatesUiState(
+    val enabled: Boolean = false,
+    val types: Set<SpecialDateType> = SpecialDateType.entries.toSet(),
+    val titleTemplates: Map<SpecialDateType, String> = emptyMap(),
+    /** The reminder choice per type's managed calendar (applied to all its events). */
+    val reminderChoices: Map<SpecialDateType, CalendarReminderOverride> = emptyMap(),
+    /** Whether {year} resolves in titles (the source year is static and always correct). */
+    val showYear: Boolean = true,
+    /** True when READ_CONTACTS was revoked after enabling — the mirror is paused. */
+    val stalledPermission: Boolean = false,
+    /** Epoch millis of the last sync, or 0 if it has never run. */
+    val lastRun: Long = 0L,
 )

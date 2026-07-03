@@ -11,17 +11,24 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
+import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesCalendarSpec
+import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
+import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesSyncEngine
+import de.jeanlucmakiola.calendula.data.contacts.resolveTitleTemplate
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.fonts.CustomFontStore
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
+import de.jeanlucmakiola.calendula.data.prefs.choiceFor
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
+import de.jeanlucmakiola.calendula.data.prefs.SpecialDatesStalledReason
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.FontRole
+import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
@@ -52,6 +59,8 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val prefs: SettingsPrefs,
     repository: CalendarRepository,
+    private val specialDatesEngine: SpecialDatesSyncEngine,
+    specialDatesSpec: SpecialDatesCalendarSpec,
     @IoDispatcher private val io: CoroutineDispatcher,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
@@ -98,8 +107,9 @@ class SettingsViewModel @Inject constructor(
                 prefs.perCalendarReminderOverride,
                 prefs.perCalendarAllDayReminderOverride,
                 writableCalendars,
-            ) { overrides, allDayOverrides, calendars ->
-                ReminderOverrides(overrides, allDayOverrides, calendars)
+                prefs.managedCalendarIds,
+            ) { overrides, allDayOverrides, calendars, managedIds ->
+                ReminderOverrides(overrides, allDayOverrides, calendars, managedIds)
             },
             combine(
                 prefs.defaultView,
@@ -144,6 +154,7 @@ class SettingsViewModel @Inject constructor(
                 perCalendarReminderOverride = overrides.timed,
                 perCalendarAllDayReminderOverride = overrides.allDay,
                 writableCalendars = overrides.calendars,
+                managedCalendarIds = overrides.managedIds,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -192,6 +203,7 @@ class SettingsViewModel @Inject constructor(
         val timed: Map<Long, List<Int>>,
         val allDay: Map<Long, List<Int>>,
         val calendars: List<CalendarSource>,
+        val managedIds: Set<Long>,
     )
 
     private data class ViewSettings(
@@ -214,6 +226,95 @@ class SettingsViewModel @Inject constructor(
         val quickSwitch: QuickSwitchConfig,
         val drawerOrder: List<CalendarView>,
     )
+
+    /** Contact special-dates sub-page (issue #15); its own flow — the main state is full. */
+    val specialDatesState: StateFlow<SpecialDatesUiState> = combine(
+        combine(
+            prefs.specialDatesEnabled,
+            prefs.specialDatesTypes,
+            prefs.specialDatesTitleTemplates,
+            prefs.specialDatesShowYear,
+            prefs.specialDatesStatus,
+        ) { enabled, types, templates, showYear, status ->
+            SpecialDatesUiState(
+                enabled = enabled,
+                types = types,
+                // A blank stored template resolves to the localized default so the
+                // editor always shows something sensible.
+                titleTemplates = SpecialDateType.entries.associateWith { type ->
+                    specialDatesSpec.resolveTitleTemplate(type, templates)
+                },
+                showYear = showYear,
+                stalledPermission = status.stalled == SpecialDatesStalledReason.PermissionRevoked,
+                lastRun = status.lastRun,
+            )
+        },
+        prefs.specialDatesCalendars,
+        prefs.perCalendarAllDayReminderOverride,
+    ) { base, calendars, allDayOverrides ->
+        base.copy(
+            // An override is always seeded on creation; present-empty = None.
+            reminderChoices = calendars.mapValues { (_, calendarId) ->
+                allDayOverrides.choiceFor(calendarId)
+            },
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000L),
+        initialValue = SpecialDatesUiState(),
+    )
+
+    /**
+     * Turn the mirror on or off. Enabling schedules the daily job and runs an
+     * immediate sync (which creates the calendars); disabling cancels the job and
+     * tears the managed calendars down. The caller must have READ_CONTACTS granted
+     * before enabling.
+     */
+    fun setSpecialDatesEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            prefs.setSpecialDatesEnabled(enabled)
+            if (enabled) {
+                SpecialDatesScheduler.apply(appContext, enabled = true)
+                SpecialDatesScheduler.runNow(appContext)
+            } else {
+                SpecialDatesScheduler.apply(appContext, enabled = false)
+                withContext(io) { specialDatesEngine.teardown() }
+            }
+        }
+    }
+
+    fun setSpecialDateTypeEnabled(type: SpecialDateType, enabled: Boolean) {
+        viewModelScope.launch {
+            prefs.setSpecialDateTypeEnabled(type, enabled)
+            // Reconcile now: create the new type's calendar, or delete a disabled one.
+            SpecialDatesScheduler.runNow(appContext)
+        }
+    }
+
+    fun setSpecialDatesTitleTemplate(type: SpecialDateType, template: String) {
+        viewModelScope.launch {
+            prefs.setSpecialDatesTitleTemplate(type, template.trim())
+            SpecialDatesScheduler.runNow(appContext)
+        }
+    }
+
+    fun setSpecialDatesShowYear(enabled: Boolean) {
+        viewModelScope.launch {
+            prefs.setSpecialDatesShowYear(enabled)
+            SpecialDatesScheduler.runNow(appContext)
+        }
+    }
+
+    /**
+     * Set a type's managed-calendar reminder default and apply it to all its
+     * existing events (managed calendars own their reminders calendar-wide).
+     */
+    fun setSpecialDatesReminders(type: SpecialDateType, override: CalendarReminderOverride) {
+        viewModelScope.launch { withContext(io) { specialDatesEngine.applyReminders(type, override) } }
+    }
+
+    /** Kick off an immediate reconcile (the "Sync now" action). */
+    fun syncSpecialDatesNow() = SpecialDatesScheduler.runNow(appContext)
 
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch { prefs.setThemeMode(mode) }

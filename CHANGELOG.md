@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- See your contacts' birthdays and anniversaries in your calendar. A new,
+  **optional** feature (Settings → Contact special dates) mirrors your contacts'
+  birthdays, anniversaries and other dates into local "Birthdays",
+  "Anniversaries" and "Other dates" calendars that stay in sync as your contacts
+  change. Each is a normal local calendar, so you set its colour, visibility and
+  reminders the usual way — new birthdays even start with a reminder a week before
+  *and* on the day. The title format is yours to customise (`{name}`, `{year}`).
+  This is the first feature to use the contacts permission: it is requested only
+  when you turn the feature on, everything stays on your device (Calendula has no
+  internet access), and your contacts are only ever read, never changed. Thanks
+  to @moonj for the suggestion ([#15]).
 - Set more than one default reminder per calendar. A calendar's default
   reminders — and the global defaults under Settings → Notifications — can now
   hold several lead times instead of just one, so new events can start with, say,
@@ -764,6 +775,7 @@ automatically, with zero telemetry and no internet permission.
 [#12]: https://codeberg.org/jlmakiola/calendula/issues/12
 [#13]: https://codeberg.org/jlmakiola/calendula/issues/13
 [#14]: https://codeberg.org/jlmakiola/calendula/issues/14
+[#15]: https://codeberg.org/jlmakiola/calendula/issues/15
 [#16]: https://codeberg.org/jlmakiola/calendula/issues/16
 [#17]: https://codeberg.org/jlmakiola/calendula/issues/17
 [#18]: https://codeberg.org/jlmakiola/calendula/issues/18

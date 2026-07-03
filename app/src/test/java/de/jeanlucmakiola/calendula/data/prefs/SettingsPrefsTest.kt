@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.FontRole
+import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
@@ -464,5 +465,60 @@ class SettingsPrefsTest {
     fun `auto week start follows the locale convention`() {
         assertThat(WeekStartPref.Auto.resolveFirstDay(Locale.GERMANY)).isEqualTo(DayOfWeek.MONDAY)
         assertThat(WeekStartPref.Auto.resolveFirstDay(Locale.US)).isEqualTo(DayOfWeek.SUNDAY)
+    }
+
+    @Test
+    fun `special dates feature is off with all types on by default`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.specialDatesEnabled.first()).isFalse()
+        assertThat(prefs.specialDatesTypes.first()).isEqualTo(SpecialDateType.entries.toSet())
+        assertThat(prefs.specialDatesCalendars.first()).isEmpty()
+        assertThat(prefs.managedCalendarIds.first()).isEmpty()
+        assertThat(prefs.specialDatesShowYear.first()).isTrue()
+    }
+
+    @Test
+    fun `special date type toggles round-trip`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        prefs.setSpecialDateTypeEnabled(SpecialDateType.Anniversary, false)
+        assertThat(prefs.specialDatesTypes.first())
+            .isEqualTo(setOf(SpecialDateType.Birthday, SpecialDateType.Custom))
+    }
+
+    @Test
+    fun `managed calendar ids round-trip and drive managedCalendarIds`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        prefs.setSpecialDatesCalendarId(SpecialDateType.Birthday, 7L)
+        prefs.setSpecialDatesCalendarId(SpecialDateType.Anniversary, 9L)
+        assertThat(prefs.specialDatesCalendars.first())
+            .isEqualTo(mapOf(SpecialDateType.Birthday to 7L, SpecialDateType.Anniversary to 9L))
+        assertThat(prefs.managedCalendarIds.first()).isEqualTo(setOf(7L, 9L))
+
+        prefs.setSpecialDatesCalendarId(SpecialDateType.Birthday, null)
+        assertThat(prefs.specialDatesCalendars.first())
+            .isEqualTo(mapOf(SpecialDateType.Anniversary to 9L))
+    }
+
+    @Test
+    fun `title template round-trips per type`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.specialDatesTitleTemplates.first()[SpecialDateType.Birthday]).isEmpty()
+        prefs.setSpecialDatesTitleTemplate(SpecialDateType.Birthday, "{name}'s birthday")
+        assertThat(prefs.specialDatesTitleTemplates.first()[SpecialDateType.Birthday])
+            .isEqualTo("{name}'s birthday")
+    }
+
+    @Test
+    fun `sync status records run and stalled reason`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.specialDatesStatus.first())
+            .isEqualTo(SpecialDatesStatus(lastRun = 0L, stalled = null))
+
+        prefs.recordSpecialDatesRun(1000L, SpecialDatesStalledReason.PermissionRevoked)
+        assertThat(prefs.specialDatesStatus.first())
+            .isEqualTo(SpecialDatesStatus(1000L, SpecialDatesStalledReason.PermissionRevoked))
+
+        prefs.recordSpecialDatesRun(2000L, null)
+        assertThat(prefs.specialDatesStatus.first()).isEqualTo(SpecialDatesStatus(2000L, null))
     }
 }
