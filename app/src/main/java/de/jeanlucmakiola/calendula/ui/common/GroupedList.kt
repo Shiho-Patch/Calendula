@@ -165,6 +165,9 @@ fun GroupedRow(
     dimmed: Boolean = false,
     container: Color? = null,
     minHeight: Dp = 72.dp,
+    // The 2.dp separation between rows in a run. Suppressed by the reorderable
+    // list, which owns uniform spacing itself so every slot has the same pitch.
+    gapBelow: Boolean = true,
     leading: @Composable (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
@@ -183,9 +186,10 @@ fun GroupedRow(
             topStart = small, topEnd = small, bottomStart = full, bottomEnd = full,
         )
     }
-    val gap = when (position) {
-        Position.Top, Position.Middle -> Modifier.padding(bottom = 2.dp)
-        Position.Bottom, Position.Alone -> Modifier
+    val gap = when {
+        !gapBelow -> Modifier
+        position == Position.Top || position == Position.Middle -> Modifier.padding(bottom = 2.dp)
+        else -> Modifier
     }
     val itemColors = if (selected) {
         ListItemDefaults.colors(

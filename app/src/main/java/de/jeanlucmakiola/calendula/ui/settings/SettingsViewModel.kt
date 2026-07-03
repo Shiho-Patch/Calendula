@@ -1,6 +1,7 @@
 package de.jeanlucmakiola.calendula.ui.settings
 
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.state.updateAppWidgetState
@@ -10,6 +11,8 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
+import de.jeanlucmakiola.calendula.data.di.IoDispatcher
+import de.jeanlucmakiola.calendula.data.fonts.CustomFontStore
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
@@ -18,14 +21,21 @@ import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.theme.AppFontSettings
+import de.jeanlucmakiola.calendula.ui.theme.FONT_CUSTOM_TOKEN
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_PAST_DISPLAY_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_RANGE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AgendaWidget
 import de.jeanlucmakiola.calendula.widget.month.MonthWidget
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -35,12 +45,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val prefs: SettingsPrefs,
     repository: CalendarRepository,
+    @IoDispatcher private val io: CoroutineDispatcher,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
@@ -103,8 +115,14 @@ class SettingsViewModel @Inject constructor(
                 prefs.autofocusEventTitle,
                 prefs.pastEventDisplay,
                 prefs.dimCompletedEvents,
-                ::MiscSettings,
-            ),
+                // View customisation (#24) folded into one flow so it fits this
+                // group — the outer combine is already at its five-arg limit.
+                combine(prefs.quickSwitchConfig, prefs.drawerViewOrder) { quickSwitch, drawer ->
+                    ViewCustomization(quickSwitch, drawer)
+                },
+            ) { showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization ->
+                MiscSettings(showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization)
+            },
         ) { base, defaults, overrides, views, misc ->
             base.copy(
                 defaultView = views.defaultView,
@@ -116,6 +134,8 @@ class SettingsViewModel @Inject constructor(
                 autofocusEventTitle = misc.autofocusEventTitle,
                 pastEventDisplay = misc.pastEventDisplay,
                 dimCompletedEvents = misc.dimCompletedEvents,
+                quickSwitchConfig = misc.viewCustomization.quickSwitch,
+                drawerViewOrder = misc.viewCustomization.drawerOrder,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -131,6 +151,29 @@ class SettingsViewModel @Inject constructor(
             initialValue = SettingsUiState(dynamicColorAvailable = dynamicColorAvailable),
         )
 
+    /**
+     * The app-wide custom-font choice (issue #19). Its own flow — both this
+     * screen and [MainActivity] (which builds the typography) read it
+     * independently of the main settings combine.
+     */
+    val fontState: StateFlow<AppFontSettings> = combine(
+        prefs.brandFont,
+        prefs.plainFont,
+        prefs.brandFontStamp,
+        prefs.plainFontStamp,
+    ) { brand, plain, brandStamp, plainStamp ->
+        AppFontSettings(brand = brand, plain = plain, brandStamp = brandStamp, plainStamp = plainStamp)
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000L),
+        initialValue = AppFontSettings(),
+    )
+
+    // Emitted when a picked font file couldn't be read as a font; the screen
+    // surfaces it and the previous selection stays put.
+    private val _fontImportFailed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val fontImportFailed: SharedFlow<Unit> = _fontImportFailed
+
     // Serialises widget redraws so a rapid flip-and-flip-back can't run two
     // updateAll calls at once — concurrent calls coalesce around a stale read
     // and can leave the widget on the intermediate value. Held sequentially,
@@ -139,15 +182,15 @@ class SettingsViewModel @Inject constructor(
 
     private data class ReminderDefaults(
         val allowColor: Boolean,
-        val defaultReminder: Int?,
-        val allDayReminder: Int?,
+        val defaultReminder: List<Int>,
+        val allDayReminder: List<Int>,
         val allDayReminderTime: Int,
         val snoozeMinutes: Int,
     )
 
     private data class ReminderOverrides(
-        val timed: Map<Long, Int?>,
-        val allDay: Map<Long, Int?>,
+        val timed: Map<Long, List<Int>>,
+        val allDay: Map<Long, List<Int>>,
         val calendars: List<CalendarSource>,
     )
 
@@ -164,6 +207,12 @@ class SettingsViewModel @Inject constructor(
         val autofocusEventTitle: Boolean,
         val pastEventDisplay: PastEventDisplay,
         val dimCompletedEvents: Boolean,
+        val viewCustomization: ViewCustomization,
+    )
+
+    private data class ViewCustomization(
+        val quickSwitch: QuickSwitchConfig,
+        val drawerOrder: List<CalendarView>,
     )
 
     fun setThemeMode(mode: ThemeMode) {
@@ -172,6 +221,35 @@ class SettingsViewModel @Inject constructor(
 
     fun setDynamicColor(enabled: Boolean) {
         viewModelScope.launch { prefs.setDynamicColor(enabled) }
+    }
+
+    fun setFont(role: FontRole, token: String) {
+        viewModelScope.launch {
+            when (role) {
+                FontRole.BRAND -> prefs.setBrandFont(token)
+                FontRole.PLAIN -> prefs.setPlainFont(token)
+            }
+        }
+    }
+
+    /**
+     * Import a user-picked font file for [role]. Copies and validates it off the
+     * main thread; on success the role switches to the custom font, otherwise the
+     * previous choice is kept and [fontImportFailed] fires.
+     */
+    fun importCustomFont(role: FontRole, uri: Uri) {
+        viewModelScope.launch {
+            val ok = withContext(io) { CustomFontStore.import(appContext, role, uri) }
+            if (ok) {
+                // Bump the stamp so replacing an already-active custom font (same
+                // file, same "custom" token) still breaks font-settings equality
+                // and refreshes the resolved typeface.
+                prefs.bumpCustomFontStamp(role)
+                setFont(role, FONT_CUSTOM_TOKEN)
+            } else {
+                _fontImportFailed.emit(Unit)
+            }
+        }
     }
 
     fun setWeekStart(pref: WeekStartPref) {
@@ -247,6 +325,32 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setFormFieldDefault(field, enabled) }
     }
 
+    /**
+     * Enable or disable [view] in the quick-switch cycle. Goes through an atomic
+     * read-modify-write so a concurrent reorder can't clobber this toggle (and
+     * vice versa) by re-serialising a stale snapshot. The MIN_ENABLED floor is
+     * re-checked inside the transform: the screen's own guard reads the
+     * async-echoed snapshot, so two quick disable-taps could both look allowed
+     * yet compose to a below-minimum cycle.
+     */
+    fun setQuickSwitchViewEnabled(view: CalendarView, enabled: Boolean) {
+        viewModelScope.launch {
+            prefs.updateQuickSwitch { config ->
+                val next = if (enabled) config.enabled + view else config.enabled - view
+                if (next.size < QuickSwitchConfig.MIN_ENABLED) config else config.copy(enabled = next)
+            }
+        }
+    }
+
+    /** Reorder the quick-switch views (atomic read-modify-write; keeps the enabled set). */
+    fun setQuickSwitchOrder(order: List<CalendarView>) {
+        viewModelScope.launch { prefs.updateQuickSwitch { it.copy(order = order) } }
+    }
+
+    fun setDrawerViewOrder(order: List<CalendarView>) {
+        viewModelScope.launch { prefs.setDrawerViewOrder(order) }
+    }
+
     fun setRemindersEnabled(enabled: Boolean) {
         viewModelScope.launch { prefs.setRemindersEnabled(enabled) }
     }
@@ -255,11 +359,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setAutofocusEventTitle(enabled) }
     }
 
-    fun setDefaultReminderMinutes(minutes: Int?) {
+    fun setDefaultReminderMinutes(minutes: List<Int>) {
         viewModelScope.launch { prefs.setDefaultReminderMinutes(minutes) }
     }
 
-    fun setDefaultAllDayReminderMinutes(minutes: Int?) {
+    fun setDefaultAllDayReminderMinutes(minutes: List<Int>) {
         viewModelScope.launch { prefs.setDefaultAllDayReminderMinutes(minutes) }
     }
 

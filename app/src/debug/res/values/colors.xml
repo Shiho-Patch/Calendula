@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Debug-only launcher-icon background. Production is slate (#5C6B7A); the
+    debug build paints the adaptive-icon background burnt orange instead, so the
+    debug icon reads at a glance as "not the real app" on the home screen. The
+    off-white foreground mark contrasts on both. See drawable/ic_launcher_background.
+-->
+<resources>
+    <color name="ic_launcher_background">#FFB23B00</color>
+</resources>

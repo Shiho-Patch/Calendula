@@ -193,6 +193,8 @@ private fun AgendaHeader() {
         modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Tap the "Upcoming" title to open the app on the user's default view
+        // (issue #20) — a null target resolves to the default home in the host.
         Text(
             text = context.getString(R.string.widget_agenda_title),
             style = TextStyle(
@@ -200,7 +202,11 @@ private fun AgendaHeader() {
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
             ),
-            modifier = GlanceModifier.defaultWeight(),
+            modifier = GlanceModifier
+                .defaultWeight()
+                .clickable(
+                    actionStartActivity(MainActivity.openViewIntent(context, view = null)),
+                ),
         )
         IconButton(
             resId = R.drawable.ic_widget_refresh,

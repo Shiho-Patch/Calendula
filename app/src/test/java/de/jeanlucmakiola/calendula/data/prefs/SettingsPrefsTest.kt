@@ -5,7 +5,11 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
+import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DayOfWeek
@@ -150,6 +154,94 @@ class SettingsPrefsTest {
     }
 
     @Test
+    fun `quick-switch defaults to every view enabled in default order`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        val config = prefs.quickSwitchConfig.first()
+        assertThat(config.order).containsExactlyElementsIn(IMPLEMENTED_VIEWS).inOrder()
+        assertThat(config.enabled).containsExactlyElementsIn(IMPLEMENTED_VIEWS)
+        assertThat(config.cycle).containsExactlyElementsIn(IMPLEMENTED_VIEWS).inOrder()
+    }
+
+    @Test
+    fun `quick-switch config round-trips order and disabled views`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        val config = QuickSwitchConfig(
+            order = listOf(CalendarView.Agenda, CalendarView.Month, CalendarView.Week, CalendarView.Day),
+            enabled = setOf(CalendarView.Agenda, CalendarView.Month),
+        )
+        prefs.setQuickSwitchConfig(config)
+        val loaded = prefs.quickSwitchConfig.first()
+        assertThat(loaded.order).containsExactly(
+            CalendarView.Agenda, CalendarView.Month, CalendarView.Week, CalendarView.Day,
+        ).inOrder()
+        assertThat(loaded.enabled).containsExactly(CalendarView.Agenda, CalendarView.Month)
+        assertThat(loaded.cycle).containsExactly(CalendarView.Agenda, CalendarView.Month).inOrder()
+    }
+
+    @Test
+    fun `quick-switch parse appends missing views enabled and drops unknowns`(@TempDir tempDir: Path) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = SettingsPrefs(store)
+        // Only Day (disabled) and Week stored, plus a bogus name; Month & Agenda absent.
+        store.updateData { p ->
+            val m = p.toMutablePreferences()
+            m[SettingsPrefs.QUICK_SWITCH_VIEWS_KEY] = "!Day,Week,Hologram"
+            m
+        }
+        val config = prefs.quickSwitchConfig.first()
+        // Stored order first (Day, Week), then the omitted views in default order.
+        assertThat(config.order).containsExactly(
+            CalendarView.Day, CalendarView.Week, CalendarView.Month, CalendarView.Agenda,
+        ).inOrder()
+        // Day was explicitly disabled; the appended Month & Agenda default enabled.
+        assertThat(config.enabled).containsExactly(
+            CalendarView.Week, CalendarView.Month, CalendarView.Agenda,
+        )
+    }
+
+    @Test
+    fun `updateQuickSwitch transforms the stored value, so intents compose`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        // A toggle then a reorder, each expressed against the *stored* config —
+        // the reorder must not resurrect the just-disabled view (the stale-UI-
+        // snapshot race this API exists to prevent).
+        prefs.updateQuickSwitch { it.copy(enabled = it.enabled - CalendarView.Day) }
+        val newOrder = listOf(CalendarView.Agenda, CalendarView.Month, CalendarView.Week, CalendarView.Day)
+        prefs.updateQuickSwitch { it.copy(order = newOrder) }
+        val config = prefs.quickSwitchConfig.first()
+        assertThat(config.order).containsExactlyElementsIn(newOrder).inOrder()
+        assertThat(config.enabled).containsExactly(
+            CalendarView.Agenda, CalendarView.Month, CalendarView.Week,
+        )
+    }
+
+    @Test
+    fun `drawer order defaults to the implemented order and round-trips`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.drawerViewOrder.first()).containsExactlyElementsIn(IMPLEMENTED_VIEWS).inOrder()
+        prefs.setDrawerViewOrder(
+            listOf(CalendarView.Agenda, CalendarView.Day, CalendarView.Week, CalendarView.Month),
+        )
+        assertThat(prefs.drawerViewOrder.first()).containsExactly(
+            CalendarView.Agenda, CalendarView.Day, CalendarView.Week, CalendarView.Month,
+        ).inOrder()
+    }
+
+    @Test
+    fun `drawer order parse appends missing views and drops unknowns`(@TempDir tempDir: Path) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = SettingsPrefs(store)
+        store.updateData { p ->
+            val m = p.toMutablePreferences()
+            m[SettingsPrefs.DRAWER_VIEW_ORDER_KEY] = "Agenda,Nope,Week"
+            m
+        }
+        assertThat(prefs.drawerViewOrder.first()).containsExactly(
+            CalendarView.Agenda, CalendarView.Week, CalendarView.Month, CalendarView.Day,
+        ).inOrder()
+    }
+
+    @Test
     fun `unknown stored form-field names are dropped`(@TempDir tempDir: Path) = runTest {
         val store = newDataStore(tempDir)
         val prefs = SettingsPrefs(store)
@@ -183,22 +275,38 @@ class SettingsPrefsTest {
     }
 
     @Test
-    fun `default reminder is none until set`(@TempDir tempDir: Path) = runTest {
+    fun `default reminder is empty until set`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
-        assertThat(prefs.defaultReminderMinutes.first()).isNull()
+        assertThat(prefs.defaultReminderMinutes.first()).isEmpty()
     }
 
     @Test
-    fun `default reminder round-trips, including none`(@TempDir tempDir: Path) = runTest {
+    fun `default reminder round-trips none, single, and multiple lead times`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
-        prefs.setDefaultReminderMinutes(30)
-        assertThat(prefs.defaultReminderMinutes.first()).isEqualTo(30)
-        prefs.setDefaultReminderMinutes(null)
-        assertThat(prefs.defaultReminderMinutes.first()).isNull()
+        prefs.setDefaultReminderMinutes(listOf(30))
+        assertThat(prefs.defaultReminderMinutes.first()).containsExactly(30)
+        // Several lead times persist, normalised to distinct ascending order.
+        prefs.setDefaultReminderMinutes(listOf(10_080, 0, 30, 30))
+        assertThat(prefs.defaultReminderMinutes.first()).containsExactly(0, 30, 10_080).inOrder()
+        prefs.setDefaultReminderMinutes(emptyList())
+        assertThat(prefs.defaultReminderMinutes.first()).isEmpty()
     }
 
     @Test
-    fun `garbage stored default reminder reads as none`(@TempDir tempDir: Path) = runTest {
+    fun `legacy single-value default reminder parses as a one-element list`(@TempDir tempDir: Path) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = SettingsPrefs(store)
+        // The pre-multi-reminder format stored a bare integer string.
+        store.updateData { p ->
+            val m = p.toMutablePreferences()
+            m[SettingsPrefs.DEFAULT_REMINDER_KEY] = "30"
+            m
+        }
+        assertThat(prefs.defaultReminderMinutes.first()).containsExactly(30)
+    }
+
+    @Test
+    fun `garbage stored default reminder reads as empty`(@TempDir tempDir: Path) = runTest {
         val store = newDataStore(tempDir)
         val prefs = SettingsPrefs(store)
         store.updateData { p ->
@@ -206,7 +314,7 @@ class SettingsPrefsTest {
             m[SettingsPrefs.DEFAULT_REMINDER_KEY] = "soon"
             m
         }
-        assertThat(prefs.defaultReminderMinutes.first()).isNull()
+        assertThat(prefs.defaultReminderMinutes.first()).isEmpty()
     }
 
     @Test
@@ -214,65 +322,85 @@ class SettingsPrefsTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
         assertThat(prefs.perCalendarReminderOverride.first()).isEmpty()
 
-        prefs.setCalendarReminderOverride(7L, CalendarReminderOverride.Minutes(15))
+        prefs.setCalendarReminderOverride(7L, CalendarReminderOverride.Minutes(listOf(15, 10_080)))
         prefs.setCalendarReminderOverride(9L, CalendarReminderOverride.None)
         prefs.perCalendarReminderOverride.first().let { map ->
-            assertThat(map).containsExactly(7L, 15, 9L, null)
+            assertThat(map).containsExactly(7L, listOf(15, 10_080), 9L, emptyList<Int>())
         }
 
-        // Inherit drops the override entirely (absent != null value).
+        // Inherit drops the override entirely (absent != an empty-list value).
         prefs.setCalendarReminderOverride(9L, CalendarReminderOverride.Inherit)
         prefs.perCalendarReminderOverride.first().let { map ->
-            assertThat(map).containsExactly(7L, 15)
+            assertThat(map).containsExactly(7L, listOf(15, 10_080))
             assertThat(map.containsKey(9L)).isFalse()
         }
     }
 
     @Test
+    fun `garbage per-calendar override values drop the entry, the none sentinel stays explicit`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = SettingsPrefs(store)
+        // Only "none" deliberately means an explicit no-reminder override; a
+        // value with no valid minutes is garbage and must drop its entry so the
+        // calendar inherits the global default instead of silently losing
+        // reminders. Partially-valid values keep their salvageable minutes.
+        store.updateData { p ->
+            val m = p.toMutablePreferences()
+            m[SettingsPrefs.CALENDAR_REMINDER_OVERRIDE_KEY] = "5=none;7=abc;8=;9=30,abc;11=15"
+            m
+        }
+        assertThat(prefs.perCalendarReminderOverride.first()).containsExactly(
+            5L, emptyList<Int>(), 9L, listOf(30), 11L, listOf(15),
+        )
+    }
+
+    @Test
     fun `all-day default round-trips, including none`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
-        assertThat(prefs.defaultAllDayReminderMinutes.first()).isNull()
-        prefs.setDefaultAllDayReminderMinutes(1_440)
-        assertThat(prefs.defaultAllDayReminderMinutes.first()).isEqualTo(1_440)
-        prefs.setDefaultAllDayReminderMinutes(null)
-        assertThat(prefs.defaultAllDayReminderMinutes.first()).isNull()
+        assertThat(prefs.defaultAllDayReminderMinutes.first()).isEmpty()
+        prefs.setDefaultAllDayReminderMinutes(listOf(1_440))
+        assertThat(prefs.defaultAllDayReminderMinutes.first()).containsExactly(1_440)
+        prefs.setDefaultAllDayReminderMinutes(emptyList())
+        assertThat(prefs.defaultAllDayReminderMinutes.first()).isEmpty()
     }
 
     @Test
     fun `per-calendar all-day override round-trips independently of the timed one`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
-        prefs.setCalendarReminderOverride(7L, CalendarReminderOverride.Minutes(15))
-        prefs.setCalendarAllDayReminderOverride(7L, CalendarReminderOverride.Minutes(1_440))
-        assertThat(prefs.perCalendarReminderOverride.first()).containsExactly(7L, 15)
-        assertThat(prefs.perCalendarAllDayReminderOverride.first()).containsExactly(7L, 1_440)
+        prefs.setCalendarReminderOverride(7L, CalendarReminderOverride.Minutes(listOf(15)))
+        prefs.setCalendarAllDayReminderOverride(7L, CalendarReminderOverride.Minutes(listOf(1_440)))
+        assertThat(prefs.perCalendarReminderOverride.first()).containsExactly(7L, listOf(15))
+        assertThat(prefs.perCalendarAllDayReminderOverride.first()).containsExactly(7L, listOf(1_440))
         // Clearing the all-day override leaves the timed one untouched.
         prefs.setCalendarAllDayReminderOverride(7L, CalendarReminderOverride.Inherit)
         assertThat(prefs.perCalendarAllDayReminderOverride.first()).isEmpty()
-        assertThat(prefs.perCalendarReminderOverride.first()).containsExactly(7L, 15)
+        assertThat(prefs.perCalendarReminderOverride.first()).containsExactly(7L, listOf(15))
     }
 
     @Test
     fun `resolveDefaultReminder picks the kind-matching override or global`() {
-        val timed = mapOf(7L to 15, 9L to null)
-        val allDay = mapOf(7L to 2_880)
+        val timed = mapOf(7L to listOf(15, 10_080), 9L to emptyList<Int>())
+        val allDay = mapOf(7L to listOf(2_880))
         fun resolve(calendarId: Long?, isAllDay: Boolean) = resolveDefaultReminder(
-            timedGlobal = 30,
-            allDayGlobal = 1_440,
+            timedGlobal = listOf(30),
+            allDayGlobal = listOf(1_440),
             timedOverrides = timed,
             allDayOverrides = allDay,
             calendarId = calendarId,
             isAllDay = isAllDay,
         )
-        // Timed: minutes override, explicit none, inherit global, no calendar.
-        assertThat(resolve(7L, isAllDay = false)).isEqualTo(15)
-        assertThat(resolve(9L, isAllDay = false)).isNull()
-        assertThat(resolve(5L, isAllDay = false)).isEqualTo(30)
-        assertThat(resolve(null, isAllDay = false)).isEqualTo(30)
+        // Timed: multi-value override, explicit none, inherit global, no calendar.
+        assertThat(resolve(7L, isAllDay = false)).containsExactly(15, 10_080).inOrder()
+        assertThat(resolve(9L, isAllDay = false)).isEmpty()
+        assertThat(resolve(5L, isAllDay = false)).containsExactly(30)
+        assertThat(resolve(null, isAllDay = false)).containsExactly(30)
         // All-day: its own override wins; absent → all-day global; a timed-only
         // override (cal 9) does not bleed into all-day.
-        assertThat(resolve(7L, isAllDay = true)).isEqualTo(2_880)
-        assertThat(resolve(9L, isAllDay = true)).isEqualTo(1_440)
-        assertThat(resolve(5L, isAllDay = true)).isEqualTo(1_440)
+        assertThat(resolve(7L, isAllDay = true)).containsExactly(2_880)
+        assertThat(resolve(9L, isAllDay = true)).containsExactly(1_440)
+        assertThat(resolve(5L, isAllDay = true)).containsExactly(1_440)
     }
 
     @Test
@@ -309,6 +437,19 @@ class SettingsPrefsTest {
         assertThat(prefs.snoozeMinutes.first()).isEqualTo(30)
         prefs.setSnoozeMinutes(0)
         assertThat(prefs.snoozeMinutes.first()).isEqualTo(1)
+    }
+
+    @Test
+    fun `custom-font stamps default to zero and bump per role independently`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        // Existing installs have no stamp key — that must read as 0.
+        assertThat(prefs.brandFontStamp.first()).isEqualTo(0)
+        assertThat(prefs.plainFontStamp.first()).isEqualTo(0)
+        prefs.bumpCustomFontStamp(FontRole.BRAND)
+        prefs.bumpCustomFontStamp(FontRole.BRAND)
+        prefs.bumpCustomFontStamp(FontRole.PLAIN)
+        assertThat(prefs.brandFontStamp.first()).isEqualTo(2)
+        assertThat(prefs.plainFontStamp.first()).isEqualTo(1)
     }
 
     @Test

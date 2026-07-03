@@ -8,10 +8,14 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.DayOfWeek
@@ -102,6 +106,47 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setDynamicColor(enabled: Boolean) {
         store.edit { it[DYNAMIC_COLOR_KEY] = enabled }
+    }
+
+    /**
+     * Custom-font tokens per Material typeface role (issue #19). Stored as opaque
+     * strings — "system", "custom", or a bundled font's token — resolved to a
+     * FontFamily at the theme layer; an unknown token degrades to the default.
+     */
+    val brandFont: Flow<String> = store.data.map { prefs ->
+        prefs[BRAND_FONT_KEY] ?: FONT_SYSTEM_TOKEN
+    }
+
+    val plainFont: Flow<String> = store.data.map { prefs ->
+        prefs[PLAIN_FONT_KEY] ?: FONT_SYSTEM_TOKEN
+    }
+
+    suspend fun setBrandFont(token: String) {
+        store.edit { it[BRAND_FONT_KEY] = token }
+    }
+
+    suspend fun setPlainFont(token: String) {
+        store.edit { it[PLAIN_FONT_KEY] = token }
+    }
+
+    /**
+     * A per-role bump counter for the user-loaded custom font. Re-importing
+     * overwrites the same file under the same "custom" token, so the token alone
+     * can't signal the change; this stamp — carried into AppFontSettings — breaks
+     * value equality so the resolved FontFamily (and its previews) refresh. A
+     * missing key is 0 (existing installs); the first import bumps it to 1.
+     */
+    val brandFontStamp: Flow<Int> = store.data.map { prefs -> prefs[BRAND_FONT_STAMP_KEY] ?: 0 }
+
+    val plainFontStamp: Flow<Int> = store.data.map { prefs -> prefs[PLAIN_FONT_STAMP_KEY] ?: 0 }
+
+    /** Bump [role]'s custom-font stamp after a re-import so equality-keyed caches refresh. */
+    suspend fun bumpCustomFontStamp(role: FontRole) {
+        val key = when (role) {
+            FontRole.BRAND -> BRAND_FONT_STAMP_KEY
+            FontRole.PLAIN -> PLAIN_FONT_STAMP_KEY
+        }
+        store.edit { it[key] = (it[key] ?: 0) + 1 }
     }
 
     suspend fun setWeekStart(pref: WeekStartPref) {
@@ -203,6 +248,47 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * Quick-switch button customisation (#24): the ordered full view list plus
+     * which views are enabled in the cycle. Stored comma-joined by enum name, a
+     * "!" prefix marking a disabled view (e.g. "Month,Week,!Day,Agenda"). Missing
+     * views are appended enabled and unknown names dropped, so a future view
+     * defaults into the cycle. An absent key means [QuickSwitchConfig.Default].
+     */
+    val quickSwitchConfig: Flow<QuickSwitchConfig> = store.data.map { prefs ->
+        parseQuickSwitch(prefs[QUICK_SWITCH_VIEWS_KEY])
+    }
+
+    suspend fun setQuickSwitchConfig(config: QuickSwitchConfig) {
+        store.edit { it[QUICK_SWITCH_VIEWS_KEY] = serializeQuickSwitch(config) }
+    }
+
+    /**
+     * Atomic read-modify-write of the quick-switch config: [transform] sees the
+     * value currently stored, parsed inside the edit block, not the async-echoed
+     * UI snapshot. Two rapid intents (a toggle then a drag) therefore compose
+     * instead of each re-serialising a stale copy of the other field over it.
+     */
+    suspend fun updateQuickSwitch(transform: (QuickSwitchConfig) -> QuickSwitchConfig) {
+        store.edit { prefs ->
+            val current = parseQuickSwitch(prefs[QUICK_SWITCH_VIEWS_KEY])
+            prefs[QUICK_SWITCH_VIEWS_KEY] = serializeQuickSwitch(transform(current))
+        }
+    }
+
+    /**
+     * Navigation-drawer view order (#24). Comma-joined enum names; missing views
+     * are appended in default order and unknown names dropped. Absent key means
+     * [IMPLEMENTED_VIEWS] (the historical fixed order).
+     */
+    val drawerViewOrder: Flow<List<CalendarView>> = store.data.map { prefs ->
+        parseViewOrder(prefs[DRAWER_VIEW_ORDER_KEY])
+    }
+
+    suspend fun setDrawerViewOrder(order: List<CalendarView>) {
+        store.edit { it[DRAWER_VIEW_ORDER_KEY] = order.joinToString(",") { view -> view.name } }
+    }
+
+    /**
      * Optional event-form fields shown by default (the rest hide behind
      * "more fields"). Stored comma-joined by enum name: an absent key means
      * the factory default, an empty string means "none". Unknown names are
@@ -276,35 +362,36 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
-     * The default reminder lead time (minutes before start) prefilled on new
-     * **timed** events. `null` = no default reminder — the prior behaviour, kept
-     * as the factory default so existing users aren't surprised by reminders they
-     * never asked for. Stored as a string so "none" is distinct from a numeric
-     * value (and from an unset key, which is also "none"). Per-calendar overrides
-     * in [perCalendarReminderOverride] take precedence; all-day events instead use
+     * The default reminder lead times (minutes before start) prefilled on new
+     * **timed** events. The empty list = no default reminder — the prior
+     * behaviour, kept as the factory default so existing users aren't surprised by
+     * reminders they never asked for. Stored as a comma-joined list of minutes, or
+     * "none"/empty for no reminder (also the unset state). A legacy single value
+     * ("30") parses transparently to a one-element list. Per-calendar overrides in
+     * [perCalendarReminderOverride] take precedence; all-day events instead use
      * [defaultAllDayReminderMinutes]. Resolve with [resolveDefaultReminder].
      */
-    val defaultReminderMinutes: Flow<Int?> = store.data.map { prefs ->
-        prefs[DEFAULT_REMINDER_KEY].toReminderMinutes()
+    val defaultReminderMinutes: Flow<List<Int>> = store.data.map { prefs ->
+        prefs[DEFAULT_REMINDER_KEY].toReminderList()
     }
 
-    suspend fun setDefaultReminderMinutes(minutes: Int?) {
-        store.edit { it[DEFAULT_REMINDER_KEY] = minutes?.toString() ?: NONE }
+    suspend fun setDefaultReminderMinutes(minutes: List<Int>) {
+        store.edit { it[DEFAULT_REMINDER_KEY] = minutes.toStoredReminders() }
     }
 
     /**
-     * The default reminder lead time prefilled on new **all-day** events, in
+     * The default reminder lead times prefilled on new **all-day** events, in
      * minutes before the start of the day. All-day events want day-scale lead
      * times ("1 day before"), so they have their own default rather than reusing
-     * the timed one. `null` = no default. Per-calendar overrides do **not** apply
-     * to all-day events — they always use this global value.
+     * the timed one. Empty list = no default. Per-calendar overrides do **not**
+     * apply to all-day events — they always use this global value.
      */
-    val defaultAllDayReminderMinutes: Flow<Int?> = store.data.map { prefs ->
-        prefs[DEFAULT_ALLDAY_REMINDER_KEY].toReminderMinutes()
+    val defaultAllDayReminderMinutes: Flow<List<Int>> = store.data.map { prefs ->
+        prefs[DEFAULT_ALLDAY_REMINDER_KEY].toReminderList()
     }
 
-    suspend fun setDefaultAllDayReminderMinutes(minutes: Int?) {
-        store.edit { it[DEFAULT_ALLDAY_REMINDER_KEY] = minutes?.toString() ?: NONE }
+    suspend fun setDefaultAllDayReminderMinutes(minutes: List<Int>) {
+        store.edit { it[DEFAULT_ALLDAY_REMINDER_KEY] = minutes.toStoredReminders() }
     }
 
     /**
@@ -341,13 +428,13 @@ class SettingsPrefs @Inject constructor(
     /**
      * Per-calendar overrides of [defaultReminderMinutes] for **timed** events,
      * keyed by calendar id. A calendar **present** in the map overrides the global
-     * timed default for its new events: a `null` value means "no reminder", an int
-     * means that lead time. A calendar **absent** from the map inherits the global
-     * default. Serialised as `id=value;id=value`, with `none` for an explicit
-     * no-reminder override. (All-day events ignore this and use
-     * [defaultAllDayReminderMinutes].)
+     * timed default for its new events: an **empty** list means "no reminder", a
+     * non-empty list means those lead times. A calendar **absent** from the map
+     * inherits the global default. Serialised as `id=value;id=value`, where a value
+     * is a comma-joined minute list or `none` for an explicit no-reminder override.
+     * (All-day events ignore this and use [defaultAllDayReminderMinutes].)
      */
-    val perCalendarReminderOverride: Flow<Map<Long, Int?>> = store.data.map { prefs ->
+    val perCalendarReminderOverride: Flow<Map<Long, List<Int>>> = store.data.map { prefs ->
         parseReminderOverrides(prefs[CALENDAR_REMINDER_OVERRIDE_KEY])
     }
 
@@ -364,7 +451,7 @@ class SettingsPrefs @Inject constructor(
      * events, with the same semantics as [perCalendarReminderOverride] (absent =
      * inherit the global all-day default; present null = no reminder).
      */
-    val perCalendarAllDayReminderOverride: Flow<Map<Long, Int?>> = store.data.map { prefs ->
+    val perCalendarAllDayReminderOverride: Flow<Map<Long, List<Int>>> = store.data.map { prefs ->
         parseReminderOverrides(prefs[CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY])
     }
 
@@ -433,9 +520,47 @@ class SettingsPrefs @Inject constructor(
             .toSet()
     }
 
+    /** Parse a plain comma-joined view order, completed to every implemented view. */
+    private fun parseViewOrder(stored: String?): List<CalendarView> =
+        completeViewOrder(
+            stored?.split(',').orEmpty()
+                .mapNotNull { name -> CalendarView.entries.firstOrNull { it.name == name.trim() } },
+        )
+
+    /** Parse the quick-switch config; "!"-prefixed names are disabled. */
+    private fun parseQuickSwitch(stored: String?): QuickSwitchConfig {
+        if (stored == null) return QuickSwitchConfig.Default
+        val parsed = stored.split(',').mapNotNull { raw ->
+            val token = raw.trim()
+            val disabled = token.startsWith("!")
+            val name = if (disabled) token.drop(1) else token
+            CalendarView.entries.firstOrNull { it.name == name }?.let { it to disabled }
+        }
+        val order = completeViewOrder(parsed.map { it.first })
+        // Only views explicitly stored disabled are excluded; anything appended
+        // (a view added in a later release) defaults into the cycle.
+        val disabled = parsed.filter { it.second }.map { it.first }.toSet()
+        return QuickSwitchConfig(order, order.filterNot { it in disabled }.toSet())
+    }
+
+    private fun serializeQuickSwitch(config: QuickSwitchConfig): String =
+        completeViewOrder(config.order).joinToString(",") { view ->
+            if (view in config.enabled) view.name else "!${view.name}"
+        }
+
+    /** Keep the given order (de-duplicated), then append any views it omits. */
+    private fun completeViewOrder(seen: List<CalendarView>): List<CalendarView> {
+        val ordered = seen.distinct()
+        return ordered + IMPLEMENTED_VIEWS.filterNot { it in ordered }
+    }
+
     companion object {
         internal val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
+        internal val BRAND_FONT_KEY = stringPreferencesKey("brand_font")
+        internal val PLAIN_FONT_KEY = stringPreferencesKey("plain_font")
+        internal val BRAND_FONT_STAMP_KEY = intPreferencesKey("brand_font_stamp")
+        internal val PLAIN_FONT_STAMP_KEY = intPreferencesKey("plain_font_stamp")
         internal val WEEK_START_KEY = stringPreferencesKey("week_start")
         internal val AGENDA_SCREEN_RANGE_KEY = stringPreferencesKey("agenda_screen_range")
         internal val AGENDA_WIDGET_RANGE_KEY = stringPreferencesKey("agenda_widget_range")
@@ -445,6 +570,8 @@ class SettingsPrefs @Inject constructor(
         internal val PAST_EVENT_DISPLAY_KEY = stringPreferencesKey("agenda_past_event_display")
         internal val DIM_COMPLETED_EVENTS_KEY = booleanPreferencesKey("dim_completed_events")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
+        internal val QUICK_SWITCH_VIEWS_KEY = stringPreferencesKey("quick_switch_views")
+        internal val DRAWER_VIEW_ORDER_KEY = stringPreferencesKey("drawer_view_order")
         internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
         internal val AUTOFOCUS_EVENT_TITLE_KEY = booleanPreferencesKey("autofocus_event_title")
         internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")
@@ -495,43 +622,46 @@ sealed interface CalendarReminderOverride {
     data object Inherit : CalendarReminderOverride
     /** Explicit "no reminder" for this calendar, regardless of the global default. */
     data object None : CalendarReminderOverride
-    /** A specific lead time in minutes before the event start. */
-    data class Minutes(val minutes: Int) : CalendarReminderOverride
+    /** Specific lead times in minutes before the event start (non-empty). */
+    data class Minutes(val minutes: List<Int>) : CalendarReminderOverride
 }
 
 /**
- * The lead time to prefill on a new event: the matching per-calendar override
+ * The lead times to prefill on a new event: the matching per-calendar override
  * if [calendarId] has one for this event kind, otherwise the global default for
  * that kind. All-day events consult [allDayOverrides] / [allDayGlobal]; timed
- * events consult [timedOverrides] / [timedGlobal]. `null` = no reminder. Pure so
- * it can be unit-tested.
+ * events consult [timedOverrides] / [timedGlobal]. The empty list = no reminder.
+ * Pure so it can be unit-tested.
  */
 fun resolveDefaultReminder(
-    timedGlobal: Int?,
-    allDayGlobal: Int?,
-    timedOverrides: Map<Long, Int?>,
-    allDayOverrides: Map<Long, Int?>,
+    timedGlobal: List<Int>,
+    allDayGlobal: List<Int>,
+    timedOverrides: Map<Long, List<Int>>,
+    allDayOverrides: Map<Long, List<Int>>,
     calendarId: Long?,
     isAllDay: Boolean,
-): Int? {
+): List<Int> {
     val overrides = if (isAllDay) allDayOverrides else timedOverrides
     val global = if (isAllDay) allDayGlobal else timedGlobal
     return if (calendarId != null && overrides.containsKey(calendarId)) {
-        overrides[calendarId]
+        overrides.getValue(calendarId)
     } else {
         global
     }
 }
 
-/** Apply a [CalendarReminderOverride] to an override map ([Inherit] removes the key). */
-private fun MutableMap<Long, Int?>.applyOverride(
+/**
+ * Apply a [CalendarReminderOverride] to an override map ([Inherit] removes the
+ * key; [None] and an empty [Minutes] both store the empty list).
+ */
+private fun MutableMap<Long, List<Int>>.applyOverride(
     calendarId: Long,
     override: CalendarReminderOverride,
 ) {
     when (override) {
         CalendarReminderOverride.Inherit -> remove(calendarId)
-        CalendarReminderOverride.None -> put(calendarId, null)
-        is CalendarReminderOverride.Minutes -> put(calendarId, override.minutes)
+        CalendarReminderOverride.None -> put(calendarId, emptyList())
+        is CalendarReminderOverride.Minutes -> put(calendarId, override.minutes.normalizeReminders())
     }
 }
 
@@ -557,24 +687,44 @@ private fun parseWeekStart(stored: String?): WeekStartPref = when (stored) {
 private const val NONE = "none"
 private const val ENTRY_SEP = ";"
 private const val KEY_VALUE_SEP = "="
+private const val LIST_SEP = ","
 
-private fun String?.toReminderMinutes(): Int? = when (this) {
-    null, "", NONE -> null
-    else -> toIntOrNull()
+/** Distinct, ascending lead times — the canonical form stored and resolved. */
+private fun List<Int>.normalizeReminders(): List<Int> = distinct().sorted()
+
+/**
+ * Parse a stored reminder value into lead times. `null`/empty/"none" → empty
+ * list; a comma-joined list → its minutes; a legacy single value ("30") → a
+ * one-element list. Non-numeric parts are dropped defensively.
+ */
+private fun String?.toReminderList(): List<Int> = when {
+    this == null || isEmpty() || this == NONE -> emptyList()
+    else -> split(LIST_SEP).mapNotNull { it.trim().toIntOrNull() }.normalizeReminders()
 }
 
-private fun parseReminderOverrides(stored: String?): Map<Long, Int?> {
+/** Serialise lead times for storage: "none" when empty, else comma-joined. */
+private fun List<Int>.toStoredReminders(): String =
+    if (isEmpty()) NONE else normalizeReminders().joinToString(LIST_SEP) { it.toString() }
+
+private fun parseReminderOverrides(stored: String?): Map<Long, List<Int>> {
     if (stored.isNullOrBlank()) return emptyMap()
     return stored.split(ENTRY_SEP).mapNotNull { entry ->
         val parts = entry.split(KEY_VALUE_SEP).takeIf { it.size == 2 } ?: return@mapNotNull null
         val id = parts[0].toLongOrNull() ?: return@mapNotNull null
-        val value = if (parts[1] == NONE) null else parts[1].toIntOrNull() ?: return@mapNotNull null
-        id to value
+        // Only the deliberate "none" sentinel means an explicit no-reminder
+        // override (empty list); a non-sentinel value that parses to no valid
+        // minutes is garbage and drops the entry, so the calendar inherits the
+        // global default rather than silently reading as "no reminder".
+        when (val value = parts[1]) {
+            NONE -> id to emptyList()
+            else -> value.toReminderList().takeIf { it.isNotEmpty() }?.let { id to it }
+                ?: return@mapNotNull null
+        }
     }.toMap()
 }
 
-private fun serializeReminderOverrides(map: Map<Long, Int?>): String =
-    map.entries.joinToString(ENTRY_SEP) { (id, minutes) -> "$id$KEY_VALUE_SEP${minutes ?: NONE}" }
+private fun serializeReminderOverrides(map: Map<Long, List<Int>>): String =
+    map.entries.joinToString(ENTRY_SEP) { (id, minutes) -> "$id$KEY_VALUE_SEP${minutes.toStoredReminders()}" }
 
 private inline fun <reified E : Enum<E>> String?.toEnum(default: E): E =
     this?.let { stored -> enumValues<E>().firstOrNull { it.name == stored } } ?: default
