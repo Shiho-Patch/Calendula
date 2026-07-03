@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
@@ -57,10 +58,16 @@ fun positionOf(index: Int, count: Int): Position = when {
 }
 
 /**
- * The app's standard full-screen list scaffold: a collapsing [LargeTopAppBar]
- * whose title shrinks into the bar (next to the back button) as the content
- * scrolls. Content is a scrollable column that feeds the toolbar via nested
- * scroll. Used by Settings and the calendar manager so they share one shell.
+ * The app's standard full-screen list scaffold. By default a collapsing
+ * [LargeTopAppBar] whose title shrinks into the bar (next to the back button) as
+ * the content scrolls — used by Settings and the calendar manager, where the
+ * large header sets the page. Content is a scrollable column that feeds the
+ * toolbar via nested scroll.
+ *
+ * Set [largeTopBar] to false for a pinned, single-line [TopAppBar] instead: the
+ * title sits in the bar from the start, with no expanded header to scroll past.
+ * Preferred for selection pickers, where the tall header is just wasted space
+ * above the options.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,12 +75,16 @@ fun CollapsingScaffold(
     title: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    largeTopBar: Boolean = true,
     snackbarHost: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val scrollBehavior =
+    val scrollBehavior = if (largeTopBar) {
         TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    } else {
+        TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    }
     Scaffold(
         modifier = modifier
             .predictiveBack(onBack = onBack)
@@ -81,22 +92,34 @@ fun CollapsingScaffold(
             .background(MaterialTheme.colorScheme.surface)
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeTopAppBar(
-                title = { Text(title) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.settings_back),
-                        )
-                    }
-                },
-                actions = actions,
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
-                ),
+            val navigationIcon = @Composable {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.settings_back),
+                    )
+                }
+            }
+            val colors = TopAppBarDefaults.topAppBarColors(
+                scrolledContainerColor = MaterialTheme.colorScheme.surface,
             )
+            if (largeTopBar) {
+                LargeTopAppBar(
+                    title = { Text(title) },
+                    navigationIcon = navigationIcon,
+                    actions = actions,
+                    scrollBehavior = scrollBehavior,
+                    colors = colors,
+                )
+            } else {
+                TopAppBar(
+                    title = { Text(title) },
+                    navigationIcon = navigationIcon,
+                    actions = actions,
+                    scrollBehavior = scrollBehavior,
+                    colors = colors,
+                )
+            }
         },
         snackbarHost = snackbarHost,
     ) { innerPadding ->

@@ -43,8 +43,9 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 
 /**
  * Shared full-screen scaffold for selection pickers: a full-bleed [Dialog] that
- * reuses the app's [CollapsingScaffold] (collapsing title + back button), so a
- * picker is visually identical to a Settings sub-page and uses the full width.
+ * reuses the app's [CollapsingScaffold] (back button + full width), but with a
+ * pinned single-line title rather than the large collapsing header — a picker is
+ * a short list, so the tall header would only be empty space to scroll past.
  * [content] places the connected grouped rows; selecting one calls [onDismiss].
  */
 @Composable
@@ -69,7 +70,12 @@ fun FullScreenPicker(
             (view.parent as? DialogWindowProvider)?.window
                 ?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
         }
-        CollapsingScaffold(title = title, onBack = onDismiss, content = content)
+        CollapsingScaffold(
+            title = title,
+            onBack = onDismiss,
+            largeTopBar = false,
+            content = content,
+        )
     }
 }
 
