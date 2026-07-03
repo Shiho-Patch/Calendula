@@ -398,7 +398,7 @@
     </plurals>
     <string name="settings_default_view">Standartansicht</string>
     <string name="settings_font_headings">Überschriften Schriftart</string>
-    <string name="settings_font_system">System Standart</string>
+    <string name="settings_font_system">Systemstandard</string>
     <string name="font_jetbrains_mono">JetBrains Mono</string>
     <string name="settings_font_choose_file">Datei auswählen…</string>
     <string name="settings_font_import_failed">Die Datei konnte nicht als Schriftart gelesen werden</string>
@@ -408,4 +408,6 @@
     <string name="settings_past_events_show">Zeigen</string>
     <string name="settings_past_events_dim">Abdunkeln</string>
     <string name="settings_past_events_hide">Ausblenden</string>
+    <string name="settings_agenda_header">Agenda</string>
+    <string name="settings_special_dates_reminders">Erinnerungen</string>
 </resources>
