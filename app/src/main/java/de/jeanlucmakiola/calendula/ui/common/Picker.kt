@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,9 +24,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import android.view.WindowManager
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,8 +46,9 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 
 /**
  * Shared full-screen scaffold for selection pickers: a full-bleed [Dialog] that
- * reuses the app's [CollapsingScaffold] (collapsing title + back button), so a
- * picker is visually identical to a Settings sub-page and uses the full width.
+ * reuses the app's [CollapsingScaffold] (back button + full width), but with a
+ * pinned single-line title rather than the large collapsing header — a picker is
+ * a short list, so the tall header would only be empty space to scroll past.
  * [content] places the connected grouped rows; selecting one calls [onDismiss].
  */
 @Composable
@@ -69,7 +73,12 @@ fun FullScreenPicker(
             (view.parent as? DialogWindowProvider)?.window
                 ?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING)
         }
-        CollapsingScaffold(title = title, onBack = onDismiss, content = content)
+        CollapsingScaffold(
+            title = title,
+            onBack = onDismiss,
+            largeTopBar = false,
+            content = content,
+        )
     }
 }
 
@@ -111,10 +120,19 @@ fun <T> OptionPicker(
 }
 
 /**
- * Reminder-default picker, full-screen: the grouped list (with an optional "Use
- * default reminder" row and a "None" row), the [presets] as lead-time rows, and
- * a "Custom" row that expands an inline number field plus a segmented unit
- * selector. Returns the choice as a [CalendarReminderOverride].
+ * Reminder-default picker, full-screen and **multi-select**: each [presets]
+ * lead time (plus any chosen custom value) is a checkbox row that toggles
+ * independently, so a default can carry several reminders ("1 week before" *and*
+ * "on the day"). Two exclusive checkmark rows sit above the list: an explicit
+ * "No reminder" (both pickers, so the empty state stays visible and reachable)
+ * and, for a per-calendar picker ([allowInherit]), "Use default reminder", which
+ * defers to the global default. Clearing the last checked time reverts to "Use
+ * default" on a per-calendar picker (so an accidental toggle-undo can't silently
+ * wipe the calendar's default) and to explicit [CalendarReminderOverride.None]
+ * on the global default (where empty legitimately means no reminder). A "Custom"
+ * row expands an inline number field plus a unit selector to add an arbitrary
+ * lead time to the set. Changes apply live via [onSelect]; the user leaves via
+ * back.
  */
 @Composable
 fun ReminderDefaultPicker(
@@ -125,57 +143,91 @@ fun ReminderDefaultPicker(
     onSelect: (CalendarReminderOverride) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val selectedMinutes = (selected as? CalendarReminderOverride.Minutes)?.minutes
-    val customSelected = selectedMinutes != null && selectedMinutes !in presets
-    val seed = decomposeReminder(selectedMinutes?.takeIf { customSelected })
+    // Optimistic local state: once the user edits, the chosen override is
+    // authoritative while the picker is open, so quick successive toggles compose
+    // on each other instead of racing the round-trip through the settings flow
+    // (which would drop a toggle made before the previous write echoes back).
+    var current by remember { mutableStateOf(selected) }
+    // Whether the user has toggled anything yet. Until then, [current] keeps
+    // mirroring [selected]: a picker that first composed against the settings
+    // flow's initialValue (empty — reachable after process-death restore straight
+    // onto the Notifications page, before the CalendarProvider-gated combine
+    // resolves) then adopts the real stored default instead of persisting empty
+    // on the first tap. After the first edit, local state is authoritative.
+    var userEdited by remember { mutableStateOf(false) }
+    LaunchedEffect(selected) {
+        if (!userEdited) current = selected
+    }
+    val inherits = current is CalendarReminderOverride.Inherit
+    val isNone = current is CalendarReminderOverride.None
+    val selectedMinutes = (current as? CalendarReminderOverride.Minutes)?.minutes.orEmpty()
+    // Custom (non-preset) lead times seen this session, so unchecking one keeps
+    // its row (unchecked) until the picker closes instead of vanishing mid-tap,
+    // which would strand a hand-entered value with no way to re-check it.
+    val seenCustom = remember { mutableSetOf<Int>() }
+    seenCustom += selectedMinutes.filter { it !in presets }
+    // Presets plus every custom value seen this session, each as its own row.
+    val rows = presets + seenCustom.sorted()
 
     var customExpanded by rememberSaveable { mutableStateOf(false) }
-    var amountText by rememberSaveable { mutableStateOf(seed.first) }
-    var unit by rememberSaveable { mutableStateOf(seed.second) }
+    var amountText by rememberSaveable { mutableStateOf("") }
+    var unit by rememberSaveable { mutableStateOf(ReminderUnit.Minutes) }
 
-    val options = buildList {
-        if (allowInherit) add(CalendarReminderOverride.Inherit)
-        add(CalendarReminderOverride.None)
-        presets.forEach { add(CalendarReminderOverride.Minutes(it)) }
+    fun apply(override: CalendarReminderOverride) {
+        userEdited = true
+        current = override
+        onSelect(override)
     }
-    val rowCount = options.size + 1 // + the custom row
+    fun emit(minutes: List<Int>) = apply(reminderOverrideForMinutes(minutes, allowInherit))
+    fun toggle(minute: Int) =
+        emit(if (minute in selectedMinutes) selectedMinutes - minute else selectedMinutes + minute)
 
     FullScreenPicker(title = title, onDismiss = onDismiss) {
-        options.forEachIndexed { index, option ->
-            val isSelected = option == selected
+        // Exclusive choices in their own group above the multi-select list, since
+        // each is mutually exclusive with picking specific times: "use default"
+        // (per-calendar only) and an explicit "no reminder" (both pickers, so the
+        // empty state stays visible and deliberately reachable).
+        if (allowInherit) {
             GroupedRow(
-                title = reminderOverrideLabel(option),
-                position = positionOf(index, rowCount),
-                selected = isSelected,
-                trailing = if (isSelected) {
+                title = stringResource(R.string.reminder_use_default),
+                position = Position.Top,
+                selected = inherits,
+                trailing = if (inherits) {
                     { SelectedCheck() }
                 } else {
                     null
                 },
-                onClick = {
-                    onSelect(option)
-                    onDismiss()
-                },
+                onClick = { apply(CalendarReminderOverride.Inherit) },
+            )
+        }
+        GroupedRow(
+            title = stringResource(R.string.reminder_none),
+            position = if (allowInherit) Position.Bottom else Position.Alone,
+            selected = isNone,
+            trailing = if (isNone) {
+                { SelectedCheck() }
+            } else {
+                null
+            },
+            onClick = { apply(CalendarReminderOverride.None) },
+        )
+        Spacer(Modifier.height(24.dp))
+        val rowCount = rows.size + 1 // + the custom row
+        rows.forEachIndexed { index, minute ->
+            val checked = minute in selectedMinutes
+            GroupedRow(
+                title = reminderLeadTimeLabel(minute),
+                position = positionOf(index, rowCount),
+                selected = checked,
+                trailing = { Checkbox(checked = checked, onCheckedChange = { toggle(minute) }) },
+                onClick = { toggle(minute) },
             )
         }
         // When expanded, the Custom row connects downward into the editor card
         // so the two read as one grouped container (the per-calendar pattern).
         GroupedRow(
-            title = if (customSelected) {
-                stringResource(
-                    R.string.reminder_custom_with_value,
-                    reminderLeadTimeLabel(selectedMinutes!!),
-                )
-            } else {
-                stringResource(R.string.event_edit_reminder_custom)
-            },
-            position = if (customExpanded) Position.Top else positionOf(options.size, rowCount),
-            selected = customSelected,
-            trailing = if (customSelected) {
-                { SelectedCheck() }
-            } else {
-                null
-            },
+            title = stringResource(R.string.event_edit_reminder_custom),
+            position = if (customExpanded) Position.Top else positionOf(rows.size, rowCount),
             onClick = { customExpanded = !customExpanded },
         )
         AnimatedVisibility(
@@ -189,11 +241,33 @@ fun ReminderDefaultPicker(
                 unit = unit,
                 onUnitChange = { unit = it },
                 onConfirm = { minutes ->
-                    onSelect(CalendarReminderOverride.Minutes(minutes))
-                    onDismiss()
+                    emit(selectedMinutes + minutes)
+                    amountText = ""
+                    customExpanded = false
                 },
             )
         }
+    }
+}
+
+/**
+ * The override a lead-time set maps to when emitted from [ReminderDefaultPicker].
+ * A non-empty set is [CalendarReminderOverride.Minutes]; an empty set (the last
+ * time was unchecked) reverts to [CalendarReminderOverride.Inherit] on a
+ * per-calendar picker ([allowInherit]) so an accidental toggle-undo can't
+ * silently wipe the calendar's default, and to explicit
+ * [CalendarReminderOverride.None] on the global default (where empty legitimately
+ * means no reminder). Pure so it can be unit-tested.
+ */
+internal fun reminderOverrideForMinutes(
+    minutes: List<Int>,
+    allowInherit: Boolean,
+): CalendarReminderOverride {
+    val norm = minutes.distinct().sorted()
+    return when {
+        norm.isNotEmpty() -> CalendarReminderOverride.Minutes(norm)
+        allowInherit -> CalendarReminderOverride.Inherit
+        else -> CalendarReminderOverride.None
     }
 }
 
@@ -428,18 +502,3 @@ fun agendaRangeLabel(range: AgendaRange): String = when (range) {
     is AgendaRange.Custom -> pluralStringResource(R.plurals.agenda_range_days, range.days, range.days)
 }
 
-@Composable
-private fun reminderOverrideLabel(override: CalendarReminderOverride): String = when (override) {
-    CalendarReminderOverride.Inherit -> stringResource(R.string.reminder_use_default)
-    CalendarReminderOverride.None -> stringResource(R.string.reminder_none)
-    is CalendarReminderOverride.Minutes -> reminderLeadTimeLabel(override.minutes)
-}
-
-/** Seed the custom editor: the largest exact unit for [minutes] (null → empty). */
-private fun decomposeReminder(minutes: Int?): Pair<String, ReminderUnit> = when {
-    minutes == null -> "" to ReminderUnit.Minutes
-    minutes % 10_080 == 0 -> (minutes / 10_080).toString() to ReminderUnit.Weeks
-    minutes % 1_440 == 0 -> (minutes / 1_440).toString() to ReminderUnit.Days
-    minutes % 60 == 0 -> (minutes / 60).toString() to ReminderUnit.Hours
-    else -> minutes.toString() to ReminderUnit.Minutes
-}

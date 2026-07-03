@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.MainActivity
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.is24Hour
 import kotlinx.coroutines.flow.first
@@ -33,6 +34,7 @@ import javax.inject.Singleton
 class ReminderNotifier @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsPrefs: SettingsPrefs,
+    private val calendarPrefs: CalendarPrefs,
 ) {
 
     /** False when the user declined `POST_NOTIFICATIONS` or muted the app. */
@@ -44,6 +46,11 @@ class ReminderNotifier @Inject constructor(
     }
 
     suspend fun post(alert: ReminderAlert) {
+        // The single choke point for the disabled-calendar gate: it covers both
+        // the provider broadcast (EventReminderReceiver) and a snoozed re-show
+        // (ReminderActionReceiver), so a calendar disabled after a snooze no
+        // longer notifies — without either receiver duplicating the check.
+        if (alert.isForDisabledCalendar(calendarPrefs.disabledCalendarIds.first())) return
         ensureChannel()
         val title = alert.title.ifBlank { context.getString(R.string.event_untitled) }
         val is24Hour = settingsPrefs.timeFormat.first()

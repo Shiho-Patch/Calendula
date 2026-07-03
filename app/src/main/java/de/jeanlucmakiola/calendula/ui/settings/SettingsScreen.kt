@@ -7,9 +7,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.Icon
+import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -37,10 +39,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Favorite
@@ -51,6 +57,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -60,6 +67,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,6 +82,7 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -84,24 +93,35 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.contacts.hasContactsPermission
 import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
+import de.jeanlucmakiola.calendula.data.prefs.choiceFor
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.qs.NewEventTileService
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
 import de.jeanlucmakiola.calendula.ui.crash.openIssueTracker
 import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
+import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
 import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
 import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
+import de.jeanlucmakiola.calendula.ui.common.FullScreenPicker
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
+import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.GroupedRow
+import de.jeanlucmakiola.calendula.ui.common.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.common.ReorderableColumn
+import de.jeanlucmakiola.calendula.ui.common.ReorderableRowHeight
+import de.jeanlucmakiola.calendula.ui.common.icon
 import de.jeanlucmakiola.calendula.ui.common.labelRes
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.OptionPicker
@@ -115,13 +135,17 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldIcon
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldLabel
+import de.jeanlucmakiola.calendula.ui.theme.BundledFont
+import de.jeanlucmakiola.calendula.ui.theme.FONT_CUSTOM_TOKEN
+import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
+import de.jeanlucmakiola.calendula.ui.theme.resolveFontFamily
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Calendar
 
 /** The settings sub-screens reached from the hub's category rows. */
-private enum class SettingsSection { Appearance, EventForm, Notifications }
+private enum class SettingsSection { Appearance, Views, EventForm, Notifications, SpecialDates }
 
 /**
  * Token-based accent for a leading icon chip (container / on-container pair).
@@ -167,6 +191,13 @@ fun SettingsScreen(
             AppearanceScreen(state = state, viewModel = viewModel, onBack = { section = null })
         }
         AnimatedVisibility(
+            visible = section == SettingsSection.Views,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            ViewsScreen(state = state, viewModel = viewModel, onBack = { section = null })
+        }
+        AnimatedVisibility(
             visible = section == SettingsSection.EventForm,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
             exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
@@ -178,7 +209,19 @@ fun SettingsScreen(
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
             exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
         ) {
-            NotificationsScreen(state = state, viewModel = viewModel, onBack = { section = null })
+            NotificationsScreen(
+                state = state,
+                viewModel = viewModel,
+                onBack = { section = null },
+                onOpenSpecialDates = { section = SettingsSection.SpecialDates },
+            )
+        }
+        AnimatedVisibility(
+            visible = section == SettingsSection.SpecialDates,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            SpecialDatesScreen(viewModel = viewModel, onBack = { section = null })
         }
     }
 }
@@ -205,6 +248,13 @@ private fun SettingsHub(
             onClick = { onOpenSection(SettingsSection.Appearance) },
         )
         GroupedRow(
+            title = stringResource(R.string.settings_section_views),
+            summary = stringResource(R.string.settings_views_subtitle),
+            position = Position.Middle,
+            leading = { CategoryIcon(Icons.Default.SwapVert, ChipAccent.Neutral) },
+            onClick = { onOpenSection(SettingsSection.Views) },
+        )
+        GroupedRow(
             title = stringResource(R.string.settings_section_event_form),
             summary = stringResource(R.string.settings_event_form_subtitle),
             position = Position.Middle,
@@ -224,6 +274,13 @@ private fun SettingsHub(
             position = Position.Middle,
             leading = { CategoryIcon(Icons.Default.CalendarMonth, ChipAccent.Tertiary) },
             onClick = onManageCalendars,
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_section_special_dates),
+            summary = stringResource(R.string.settings_special_dates_subtitle),
+            position = Position.Middle,
+            leading = { CategoryIcon(Icons.Default.Cake, ChipAccent.Tertiary) },
+            onClick = { onOpenSection(SettingsSection.SpecialDates) },
         )
         LanguageRow(position = Position.Middle)
         // One-tap add of the "New event" Quick Settings tile. The system prompt
@@ -477,6 +534,18 @@ private fun AppearanceScreen(
     var showAgendaScreenRange by remember { mutableStateOf(false) }
     var showAgendaWidgetRange by remember { mutableStateOf(false) }
     var showPastEvents by remember { mutableStateOf(false) }
+    var showBrandFont by remember { mutableStateOf(false) }
+    var showPlainFont by remember { mutableStateOf(false) }
+
+    val fonts by viewModel.fontState.collectAsStateWithLifecycle()
+    // A picked file that didn't parse as a font: tell the user and keep the old choice.
+    val context = LocalContext.current
+    val importFailedMessage = stringResource(R.string.settings_font_import_failed)
+    LaunchedEffect(Unit) {
+        viewModel.fontImportFailed.collect {
+            Toast.makeText(context, importFailedMessage, Toast.LENGTH_LONG).show()
+        }
+    }
 
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_appearance),
@@ -509,6 +578,24 @@ private fun AppearanceScreen(
             } else {
                 null
             },
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Fonts — the two Material typeface roles, each independently choosable
+        // (issue #19). Headings = brand (display/headline); body = plain
+        // (title/body/label). Both default to the system typeface.
+        GroupedRow(
+            title = stringResource(R.string.settings_font_headings),
+            summary = fontLabel(fonts.brand),
+            position = Position.Top,
+            onClick = { showBrandFont = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_font_body),
+            summary = fontLabel(fonts.plain),
+            position = Position.Bottom,
+            onClick = { showPlainFont = true },
         )
 
         Spacer(Modifier.height(16.dp))
@@ -604,6 +691,28 @@ private fun AppearanceScreen(
             onDismiss = { showTheme = false },
         )
     }
+    if (showBrandFont) {
+        FontPicker(
+            title = stringResource(R.string.settings_font_headings),
+            role = FontRole.BRAND,
+            selected = fonts.brand,
+            stamp = fonts.brandStamp,
+            onSelect = { viewModel.setFont(FontRole.BRAND, it) },
+            onImport = { viewModel.importCustomFont(FontRole.BRAND, it) },
+            onDismiss = { showBrandFont = false },
+        )
+    }
+    if (showPlainFont) {
+        FontPicker(
+            title = stringResource(R.string.settings_font_body),
+            role = FontRole.PLAIN,
+            selected = fonts.plain,
+            stamp = fonts.plainStamp,
+            onSelect = { viewModel.setFont(FontRole.PLAIN, it) },
+            onImport = { viewModel.importCustomFont(FontRole.PLAIN, it) },
+            onDismiss = { showPlainFont = false },
+        )
+    }
     if (showWeekStart) {
         OptionPicker(
             title = stringResource(R.string.settings_week_start),
@@ -662,6 +771,128 @@ private fun AppearanceScreen(
             onDismiss = { showDefaultView = false },
         )
     }
+}
+
+/**
+ * Views (#24): reorder the top-bar quick-switch cycle and choose which views it
+ * steps through, plus reorder the navigation-drawer list. Two independent lists —
+ * a view disabled in the quick-switch cycle is still reachable from the drawer,
+ * which always lists every view. The switch needs at least two targets, so the
+ * last [QuickSwitchConfig.MIN_ENABLED] enabled views can't be turned off.
+ */
+@Composable
+private fun ViewsScreen(
+    state: SettingsUiState,
+    viewModel: SettingsViewModel,
+    onBack: () -> Unit,
+) {
+    CollapsingScaffold(
+        title = stringResource(R.string.settings_section_views),
+        onBack = onBack,
+    ) {
+        val config = state.quickSwitchConfig
+
+        SectionHeader(stringResource(R.string.settings_quick_switch_header))
+        SettingsHint(stringResource(R.string.settings_quick_switch_hint))
+        Spacer(Modifier.height(8.dp))
+        // Turning a view off is blocked once only the minimum remain enabled.
+        val canDisable = config.enabled.size > QuickSwitchConfig.MIN_ENABLED
+        ReorderableColumn(
+            items = config.order,
+            keyOf = { it },
+            onReorder = { viewModel.setQuickSwitchOrder(it) },
+        ) { view, position, dragHandle, isDragging ->
+            val checked = view in config.enabled
+            ViewRow(
+                view = view,
+                position = position,
+                isDragging = isDragging,
+                dragHandle = dragHandle,
+                dimmed = !checked,
+                trailing = {
+                    Switch(
+                        checked = checked,
+                        // Keep the last two on: with fewer, the pill can't switch.
+                        enabled = !checked || canDisable,
+                        onCheckedChange = { on -> viewModel.setQuickSwitchViewEnabled(view, on) },
+                    )
+                },
+            )
+        }
+
+        Spacer(Modifier.height(24.dp))
+        SectionHeader(stringResource(R.string.settings_drawer_order_header))
+        SettingsHint(stringResource(R.string.settings_drawer_order_hint))
+        Spacer(Modifier.height(8.dp))
+        ReorderableColumn(
+            items = state.drawerViewOrder,
+            keyOf = { it },
+            onReorder = { viewModel.setDrawerViewOrder(it) },
+        ) { view, position, dragHandle, isDragging ->
+            ViewRow(
+                view = view,
+                position = position,
+                isDragging = isDragging,
+                dragHandle = dragHandle,
+            )
+        }
+    }
+}
+
+/** One reorderable view row: the view's icon and name, an optional [trailing]
+ *  control, and a drag handle carrying the [dragHandle] gesture modifier. */
+@Composable
+private fun ViewRow(
+    view: CalendarView,
+    position: Position,
+    isDragging: Boolean,
+    dragHandle: Modifier,
+    dimmed: Boolean = false,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    GroupedRow(
+        title = stringResource(view.labelRes),
+        position = position,
+        dimmed = dimmed,
+        minHeight = ReorderableRowHeight,
+        // The reorderable column owns the inter-row spacing (uniform pitch).
+        gapBelow = false,
+        container = if (isDragging) MaterialTheme.colorScheme.secondaryContainer else null,
+        leading = {
+            Icon(
+                imageVector = view.icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        trailing = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                trailing?.invoke()
+                if (trailing != null) Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = dragHandle.size(48.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DragHandle,
+                        contentDescription = stringResource(R.string.reorder_drag_handle),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+    )
+}
+
+/** Muted supporting text under a [SectionHeader], matching the form-fields hint. */
+@Composable
+private fun SettingsHint(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+    )
 }
 
 @Composable
@@ -779,6 +1010,7 @@ private fun NotificationsScreen(
     state: SettingsUiState,
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
+    onOpenSpecialDates: () -> Unit,
 ) {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
@@ -903,6 +1135,25 @@ private fun NotificationsScreen(
                 Column {
                     state.writableCalendars.forEach { calendar ->
                         Spacer(Modifier.height(16.dp))
+                        // A contact special-dates calendar owns its reminders in
+                        // its own section — link there instead of an override.
+                        if (calendar.id in state.managedCalendarIds) {
+                            GroupedRow(
+                                title = calendar.displayName,
+                                summary = stringResource(R.string.settings_calendar_reminders_managed_hint),
+                                position = Position.Alone,
+                                leading = { CalendarColorChip(calendar.color) },
+                                trailing = {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                                onClick = onOpenSpecialDates,
+                            )
+                            return@forEach
+                        }
                         val expanded = calendar.id in expandedCalendars
                         // Calendar card; tapping expands it into a grouped list
                         // of three (the card + the timed and all-day rows).
@@ -969,7 +1220,7 @@ private fun NotificationsScreen(
             presets = REMINDER_PRESETS,
             selected = state.defaultReminderMinutes.toReminderChoice(),
             allowInherit = false,
-            onSelect = { viewModel.setDefaultReminderMinutes(it.toMinutesOrNull()) },
+            onSelect = { viewModel.setDefaultReminderMinutes(it.toMinutesList()) },
             onDismiss = { showDefaultReminder = false },
         )
     }
@@ -979,7 +1230,7 @@ private fun NotificationsScreen(
             presets = ALLDAY_REMINDER_PRESETS,
             selected = state.defaultAllDayReminderMinutes.toReminderChoice(),
             allowInherit = false,
-            onSelect = { viewModel.setDefaultAllDayReminderMinutes(it.toMinutesOrNull()) },
+            onSelect = { viewModel.setDefaultAllDayReminderMinutes(it.toMinutesList()) },
             onDismiss = { showAllDayReminder = false },
         )
     }
@@ -1025,16 +1276,297 @@ private fun NotificationsScreen(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Contact special dates (issue #15)
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun SpecialDatesScreen(
+    viewModel: SettingsViewModel,
+    onBack: () -> Unit,
+) {
+    val state by viewModel.specialDatesState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    // READ_CONTACTS is requested only here, on enable — never at startup. On a
+    // grant we either enable (if turning on) or just re-sync (clearing a stalled
+    // banner after the permission was re-granted).
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            if (!state.enabled) viewModel.setSpecialDatesEnabled(true) else viewModel.syncSpecialDatesNow()
+        }
+    }
+    val requestOrEnable: () -> Unit = {
+        if (context.hasContactsPermission()) {
+            viewModel.setSpecialDatesEnabled(true)
+        } else {
+            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+        }
+    }
+
+    var confirmDisableAll by remember { mutableStateOf(false) }
+    var confirmDisableType by remember { mutableStateOf<SpecialDateType?>(null) }
+    var editTemplate by remember { mutableStateOf<SpecialDateType?>(null) }
+    var reminderPickerType by remember { mutableStateOf<SpecialDateType?>(null) }
+
+    CollapsingScaffold(
+        title = stringResource(R.string.settings_section_special_dates),
+        onBack = onBack,
+    ) {
+        // Paused banner: the permission was revoked after enabling.
+        if (state.enabled && state.stalledPermission) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.errorContainer,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.settings_special_dates_paused_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_special_dates_paused_hint),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    FilledTonalButton(
+                        onClick = { permissionLauncher.launch(Manifest.permission.READ_CONTACTS) },
+                    ) { Text(stringResource(R.string.settings_special_dates_grant)) }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+
+        GroupedRow(
+            title = stringResource(R.string.settings_special_dates_enable),
+            summary = stringResource(R.string.settings_special_dates_enable_hint),
+            position = Position.Alone,
+            trailing = {
+                Switch(
+                    checked = state.enabled,
+                    onCheckedChange = { want -> if (want) requestOrEnable() else confirmDisableAll = true },
+                )
+            },
+            onClick = { if (state.enabled) confirmDisableAll = true else requestOrEnable() },
+        )
+
+        if (state.enabled) {
+            // Per-type card: the toggle, and while on, its title format and its
+            // calendar-wide reminder.
+            SpecialDateType.entries.forEachIndexed { index, type ->
+                Spacer(Modifier.height(if (index == 0) 24.dp else 16.dp))
+                val on = type in state.types
+                GroupedRow(
+                    title = stringResource(specialDateTypeLabel(type)),
+                    position = if (on) Position.Top else Position.Alone,
+                    trailing = {
+                        Switch(
+                            checked = on,
+                            onCheckedChange = { want ->
+                                if (want) viewModel.setSpecialDateTypeEnabled(type, true)
+                                else confirmDisableType = type
+                            },
+                        )
+                    },
+                    onClick = {
+                        if (on) confirmDisableType = type else viewModel.setSpecialDateTypeEnabled(type, true)
+                    },
+                )
+                if (on) {
+                    GroupedRow(
+                        title = stringResource(R.string.settings_special_dates_template),
+                        summary = state.titleTemplates[type].orEmpty(),
+                        position = Position.Middle,
+                        onClick = { editTemplate = type },
+                    )
+                    GroupedRow(
+                        title = stringResource(R.string.settings_special_dates_reminders),
+                        summary = reminderChoiceLabel(specialDatesReminderMinutes(state.reminderChoices[type])),
+                        position = Position.Bottom,
+                        onClick = { reminderPickerType = type },
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+            GroupedRow(
+                title = stringResource(R.string.settings_special_dates_show_year),
+                summary = stringResource(R.string.settings_special_dates_show_year_hint),
+                position = Position.Top,
+                trailing = {
+                    Switch(
+                        checked = state.showYear,
+                        onCheckedChange = viewModel::setSpecialDatesShowYear,
+                    )
+                },
+                onClick = { viewModel.setSpecialDatesShowYear(!state.showYear) },
+            )
+            GroupedRow(
+                title = stringResource(R.string.settings_special_dates_sync_now),
+                summary = specialDatesLastRunLabel(context, state.lastRun),
+                position = Position.Bottom,
+                onClick = viewModel::syncSpecialDatesNow,
+            )
+
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = stringResource(R.string.settings_special_dates_calendar_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        }
+    }
+
+    if (confirmDisableAll) {
+        SpecialDatesDisableDialog(
+            message = stringResource(R.string.settings_special_dates_disable_all_message),
+            onConfirm = { viewModel.setSpecialDatesEnabled(false); confirmDisableAll = false },
+            onDismiss = { confirmDisableAll = false },
+        )
+    }
+    confirmDisableType?.let { type ->
+        SpecialDatesDisableDialog(
+            message = stringResource(
+                R.string.settings_special_dates_disable_type_message,
+                stringResource(specialDateTypeLabel(type)),
+            ),
+            onConfirm = { viewModel.setSpecialDateTypeEnabled(type, false); confirmDisableType = null },
+            onDismiss = { confirmDisableType = null },
+        )
+    }
+    editTemplate?.let { type ->
+        SpecialDatesTemplateDialog(
+            initial = state.titleTemplates[type].orEmpty(),
+            onConfirm = { viewModel.setSpecialDatesTitleTemplate(type, it); editTemplate = null },
+            onDismiss = { editTemplate = null },
+        )
+    }
+    reminderPickerType?.let { type ->
+        ReminderDefaultPicker(
+            title = stringResource(R.string.settings_special_dates_reminders),
+            presets = ALLDAY_REMINDER_PRESETS,
+            selected = state.reminderChoices[type] ?: CalendarReminderOverride.None,
+            // Managed calendars own their reminders outright — no "inherit global".
+            allowInherit = false,
+            onSelect = { viewModel.setSpecialDatesReminders(type, it) },
+            onDismiss = { reminderPickerType = null },
+        )
+    }
+}
+
+/** The lead-time list backing a managed calendar's reminder choice (for the summary label). */
+private fun specialDatesReminderMinutes(choice: CalendarReminderOverride?): List<Int> =
+    (choice as? CalendarReminderOverride.Minutes)?.minutes.orEmpty()
+
+@Composable
+private fun SpecialDatesDisableDialog(
+    message: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_special_dates_disable_title)) },
+        text = { Text(message) },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.settings_special_dates_disable_confirm))
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dialog_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun SpecialDatesTemplateDialog(
+    initial: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by rememberSaveable { mutableStateOf(initial) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_special_dates_template)) },
+        text = {
+            Column {
+                // The app's borderless input over a tonal surface (the dialog
+                // convention — see DialogControls), not Material's outlined field.
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    InlineTextField(
+                        value = text,
+                        onValueChange = { text = it },
+                        placeholder = stringResource(R.string.settings_special_dates_template),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.settings_special_dates_template_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(
+                onClick = { onConfirm(text) },
+                enabled = text.isNotBlank(),
+            ) { Text(stringResource(R.string.dialog_save)) }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dialog_cancel))
+            }
+        },
+    )
+}
+
+private fun specialDateTypeLabel(type: SpecialDateType): Int = when (type) {
+    SpecialDateType.Birthday -> R.string.settings_special_dates_type_birthday
+    SpecialDateType.Anniversary -> R.string.settings_special_dates_type_anniversary
+    SpecialDateType.Custom -> R.string.settings_special_dates_type_custom
+}
+
+@Composable
+private fun specialDatesLastRunLabel(context: Context, lastRun: Long): String =
+    if (lastRun <= 0L) {
+        stringResource(R.string.settings_special_dates_never_synced)
+    } else {
+        stringResource(
+            R.string.settings_special_dates_last_synced,
+            android.text.format.DateUtils.getRelativeTimeSpanString(
+                lastRun,
+                System.currentTimeMillis(),
+                android.text.format.DateUtils.MINUTE_IN_MILLIS,
+            ).toString(),
+        )
+    }
+
 /** Which calendar + event kind a per-calendar reminder-override dialog targets. */
 private data class OverrideTarget(val calendarId: Long, val isAllDay: Boolean)
 
-/** A global default (null = none) as a picker choice for selection highlighting. */
-private fun Int?.toReminderChoice(): CalendarReminderOverride =
-    if (this == null) CalendarReminderOverride.None else CalendarReminderOverride.Minutes(this)
+/** A global default (empty = none) as a picker choice for selection highlighting. */
+private fun List<Int>.toReminderChoice(): CalendarReminderOverride =
+    if (isEmpty()) CalendarReminderOverride.None else CalendarReminderOverride.Minutes(this)
 
 /** A picked choice as global-default minutes (Inherit isn't offered for globals). */
-private fun CalendarReminderOverride.toMinutesOrNull(): Int? =
-    (this as? CalendarReminderOverride.Minutes)?.minutes
+private fun CalendarReminderOverride.toMinutesList(): List<Int> =
+    (this as? CalendarReminderOverride.Minutes)?.minutes ?: emptyList()
 
 /**
  * Whether Calendula is exempt from battery optimisation, re-read on every
@@ -1108,28 +1640,23 @@ private fun formatTimeOfDay(context: Context, minutesOfDay: Int): String {
     return DateFormat.getTimeFormat(context).format(time)
 }
 
-/** The stored override for [calendarId], as a picker choice (absent → inherit). */
-private fun Map<Long, Int?>.choiceFor(calendarId: Long): CalendarReminderOverride = when {
-    !containsKey(calendarId) -> CalendarReminderOverride.Inherit
-    this[calendarId] == null -> CalendarReminderOverride.None
-    else -> CalendarReminderOverride.Minutes(this.getValue(calendarId)!!)
-}
-
-/** Label for a global-default choice: null → "None", else the lead time. */
+/** Label for a global-default choice: empty → "None", else the lead times joined. */
 @Composable
-private fun reminderChoiceLabel(minutes: Int?): String =
-    if (minutes == null) stringResource(R.string.reminder_none) else reminderLeadTimeLabel(minutes)
+private fun reminderChoiceLabel(minutes: List<Int>): String {
+    if (minutes.isEmpty()) return stringResource(R.string.reminder_none)
+    return minutes.map { reminderLeadTimeLabel(it) }.joinToString(", ")
+}
 
 /** Row summary for a calendar: its override, or the inherited global default. */
 @Composable
 private fun calendarOverrideSummary(
     choice: CalendarReminderOverride,
-    globalDefault: Int?,
+    globalDefault: List<Int>,
 ): String = when (choice) {
     CalendarReminderOverride.Inherit ->
         stringResource(R.string.settings_calendar_reminder_inherits, reminderChoiceLabel(globalDefault))
     CalendarReminderOverride.None -> stringResource(R.string.reminder_none)
-    is CalendarReminderOverride.Minutes -> reminderLeadTimeLabel(choice.minutes)
+    is CalendarReminderOverride.Minutes -> reminderChoiceLabel(choice.minutes)
 }
 
 // ---------------------------------------------------------------------------
@@ -1179,6 +1706,152 @@ private fun themeLabel(mode: ThemeMode): String = stringResource(
         ThemeMode.DARK -> R.string.settings_theme_dark
     },
 )
+
+/** The summary label for a stored font token (issue #19). */
+@Composable
+private fun fontLabel(token: String): String = when (token) {
+    FONT_SYSTEM_TOKEN -> stringResource(R.string.settings_font_system)
+    FONT_CUSTOM_TOKEN -> stringResource(R.string.settings_font_custom_selected)
+    else -> BundledFont.fromToken(token)?.let { stringResource(it.labelRes) }
+        ?: stringResource(R.string.settings_font_system)
+}
+
+/**
+ * MIME types offered to the document picker so it lists only font files. Covers
+ * the modern `font/` types plus the legacy `application/` font aliases some
+ * providers still report. Anything that slips through is still validated by
+ * [de.jeanlucmakiola.calendula.data.fonts.CustomFontStore] before use.
+ */
+private val FONT_PICKER_MIME_TYPES = arrayOf(
+    "font/ttf",
+    "font/otf",
+    "font/sfnt",
+    "font/collection",
+    "application/x-font-ttf",
+    "application/x-font-otf",
+    "application/font-sfnt",
+    "application/vnd.ms-opentype",
+)
+
+/**
+ * Full-screen font chooser for one [FontRole]: the system default, each bundled
+ * font (previewed in its own face), and "Choose file…" which opens the system
+ * picker to load a .ttf/.otf. Selecting a system/bundled option applies at once;
+ * a file is validated and imported by the caller, switching to the custom font
+ * on success.
+ */
+@Composable
+private fun FontPicker(
+    title: String,
+    role: FontRole,
+    selected: String,
+    stamp: Int,
+    onSelect: (String) -> Unit,
+    onImport: (Uri) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val context = LocalContext.current
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            onImport(uri)
+            onDismiss()
+        }
+    }
+
+    // System default + the bundled fonts + the "Choose file…" row.
+    val rowCount = BundledFont.entries.size + 2
+    val isCustom = selected == FONT_CUSTOM_TOKEN
+    // Resolving the custom face stats the disk and builds a fresh FontFamily, so
+    // memoise it; re-keyed on [stamp] (bumped on re-import) so a replaced file
+    // refreshes the preview while plain recompositions reuse the cached family.
+    val customPreview = remember(role, isCustom, stamp) {
+        if (isCustom) resolveFontFamily(FONT_CUSTOM_TOKEN, role, context) else null
+    }
+
+    FullScreenPicker(title = title, onDismiss = onDismiss) {
+        FontOptionRow(
+            label = stringResource(R.string.settings_font_system),
+            preview = FontFamily.Default,
+            selected = selected == FONT_SYSTEM_TOKEN,
+            position = positionOf(0, rowCount),
+            onClick = {
+                onSelect(FONT_SYSTEM_TOKEN)
+                onDismiss()
+            },
+        )
+        BundledFont.entries.forEachIndexed { index, font ->
+            FontOptionRow(
+                label = stringResource(font.labelRes),
+                preview = font.family,
+                selected = selected == font.token,
+                position = positionOf(index + 1, rowCount),
+                onClick = {
+                    onSelect(font.token)
+                    onDismiss()
+                },
+            )
+        }
+        FontOptionRow(
+            label = if (isCustom) {
+                stringResource(R.string.settings_font_custom_selected)
+            } else {
+                stringResource(R.string.settings_font_choose_file)
+            },
+            // A loaded font previews in its own face; otherwise show an upload cue.
+            preview = customPreview,
+            leadingIcon = if (isCustom) null else Icons.Default.UploadFile,
+            selected = isCustom,
+            position = positionOf(rowCount - 1, rowCount),
+            onClick = { launcher.launch(FONT_PICKER_MIME_TYPES) },
+        )
+    }
+}
+
+/**
+ * One row in the [FontPicker]: the font's name, a leading "Ag" sample rendered in
+ * the option's own [preview] face (or an [leadingIcon] cue when there's nothing
+ * to preview), and a check when it's the current selection.
+ */
+@Composable
+private fun FontOptionRow(
+    label: String,
+    preview: FontFamily?,
+    selected: Boolean,
+    position: Position,
+    onClick: () -> Unit,
+    leadingIcon: ImageVector? = null,
+) {
+    GroupedRow(
+        title = label,
+        position = position,
+        selected = selected,
+        leading = {
+            if (preview != null) {
+                Text(
+                    text = "Ag",
+                    fontFamily = preview,
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            } else if (leadingIcon != null) {
+                Icon(imageVector = leadingIcon, contentDescription = null)
+            }
+        },
+        trailing = if (selected) {
+            {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        } else {
+            null
+        },
+        onClick = onClick,
+    )
+}
 
 /** Picker options: "Follow system" first, then Monday…Sunday in ISO order. */
 private val WEEK_START_OPTIONS: List<WeekStartPref> =

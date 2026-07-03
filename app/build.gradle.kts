@@ -28,8 +28,8 @@ android {
         // which builds this version and then creates the matching vX.Y.Z tag +
         // release itself (versionCode is pinned to MAJOR*10000 + MINOR*100 +
         // PATCH from versionName, e.g. 2.7.2 -> 20702). See docs/RELEASING.md.
-        versionCode = 21200
-        versionName = "2.12.0"
+        versionCode = 21300
+        versionName = "2.13.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -90,6 +90,8 @@ android {
 
     buildFeatures {
         compose = true
+        // BuildConfig.DEBUG gates the in-app debug ribbon (see DebugRibbon).
+        buildConfig = true
     }
 
     // Don't embed AGP's dependency-metadata block in the APK signing block. It's

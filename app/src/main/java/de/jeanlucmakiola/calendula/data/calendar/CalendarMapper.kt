@@ -24,5 +24,12 @@ internal fun ColumnReader.toCalendarSource(): CalendarSource {
         } else {
             null
         },
+        // A special-dates mirror calendar, recognised by its durable CAL_SYNC2
+        // marker (only meaningful on the local calendars the app owns). This is
+        // the source of truth for the editor lock — independent of any stored
+        // preference that a backup restore could have wiped.
+        isManaged = isLocal &&
+            getString(CalendarProjection.IDX_MANAGED_MARKER)
+                ?.startsWith(CalendarProjection.MANAGED_MARKER_PREFIX) == true,
     )
 }

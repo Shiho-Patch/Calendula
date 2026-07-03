@@ -5,6 +5,8 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
 import de.jeanlucmakiola.calendula.data.backup.BackupScheduler
 import de.jeanlucmakiola.calendula.data.backup.BackupWorker
+import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
+import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesSyncWorker
 import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +27,7 @@ class CalendulaApp : Application() {
         // respecting, on-device; the user submits the report by hand).
         CrashReporter.install(this)
         reconcileAutoBackup()
+        reconcileSpecialDates()
     }
 
     /**
@@ -41,6 +44,23 @@ class CalendulaApp : Application() {
                 enabled = prefs.autoBackupEnabled.first(),
                 intervalMinutes = prefs.autoBackupIntervalMinutes.first(),
                 hasFolder = prefs.autoBackupFolderUri.first() != null,
+            )
+        }
+    }
+
+    /**
+     * Re-arm (or cancel) the daily special-dates reconcile from the saved
+     * settings on every launch — like [reconcileAutoBackup], this cancels
+     * orphaned work after the feature is turned off and re-schedules after a
+     * reinstall. The foreground trigger (RootScreen ON_RESUME) does the on-open
+     * refresh, so no immediate run is needed here.
+     */
+    private fun reconcileSpecialDates() {
+        val deps = EntryPointAccessors.fromApplication(this, SpecialDatesSyncWorker.Deps::class.java)
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            SpecialDatesScheduler.apply(
+                context = this@CalendulaApp,
+                enabled = deps.settingsPrefs().specialDatesEnabled.first(),
             )
         }
     }

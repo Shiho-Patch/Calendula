@@ -67,16 +67,3 @@ fun ColorSwatchRow(
         }
     }
 }
-
-/** Google-Calendar-style palette; ARGB ints for a raw `CALENDAR_COLOR` / `EVENT_COLOR`. */
-val CALENDAR_COLOR_PALETTE: List<Int> = listOf(
-    0xFFD50000, // red
-    0xFFE67C00, // orange
-    0xFFF6BF26, // amber
-    0xFF33B679, // green
-    0xFF0B8043, // dark green
-    0xFF039BE5, // blue
-    0xFF3F51B5, // indigo
-    0xFF8E24AA, // purple
-    0xFF616161, // graphite
-).map { it.toInt() }

@@ -15,9 +15,17 @@ internal object CalendarProjection {
         // own we stash one in CAL_SYNC1 (synced rows put their sync token here,
         // so the mapper only reads it for local calendars).
         DESCRIPTION_COLUMN,
+        // The special-dates marker (CAL_SYNC2) — the durable identity the app
+        // uses to recognise its own managed calendars, independent of any
+        // stored preference id (which a backup restore / data wipe can lose).
+        MANAGED_MARKER_COLUMN,
     )
 
     const val DESCRIPTION_COLUMN: String = CalendarContract.Calendars.CAL_SYNC1
+    const val MANAGED_MARKER_COLUMN: String = CalendarContract.Calendars.CAL_SYNC2
+
+    /** Namespace prefix of every managed-calendar [MANAGED_MARKER_COLUMN] value. */
+    const val MANAGED_MARKER_PREFIX = "calendula.specialdates"
 
     const val IDX_ID = 0
     const val IDX_DISPLAY_NAME = 1
@@ -27,6 +35,7 @@ internal object CalendarProjection {
     const val IDX_VISIBLE = 5
     const val IDX_ACCESS_LEVEL = 6
     const val IDX_DESCRIPTION = 7
+    const val IDX_MANAGED_MARKER = 8
 }
 
 internal object InstanceProjection {

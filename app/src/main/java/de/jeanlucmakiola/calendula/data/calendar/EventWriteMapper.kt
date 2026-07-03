@@ -50,6 +50,42 @@ internal fun EventWriteTimes.toRfc2445Duration(isAllDay: Boolean): String = if (
 }
 
 /**
+ * Column values for a brand-new Events row: identity, times (the provider's
+ * invariant — recurring rows carry RRULE+DURATION and no DTEND, one-off rows
+ * carry DTEND), availability/access level and trimmed optional text. Shared by
+ * the user-event and managed-event insert paths, which differ only in the
+ * [uid] they stamp; colour and attendees are user-event concerns the caller
+ * layers on top.
+ */
+internal fun buildEventInsertValues(
+    form: EventForm,
+    uid: String,
+    times: EventWriteTimes,
+): Map<String, Any?> = buildMap {
+    put(
+        CalendarContract.Events.CALENDAR_ID,
+        requireNotNull(form.calendarId) { "EventForm.calendarId is required" },
+    )
+    put(CalendarContract.Events.UID_2445, uid)
+    put(CalendarContract.Events.TITLE, form.title.trim())
+    put(CalendarContract.Events.ALL_DAY, if (form.isAllDay) 1 else 0)
+    put(CalendarContract.Events.DTSTART, times.dtStartMillis)
+    if (form.rrule == null) {
+        put(CalendarContract.Events.DTEND, times.dtEndMillis)
+    } else {
+        put(CalendarContract.Events.RRULE, form.rrule)
+        put(CalendarContract.Events.DURATION, times.toRfc2445Duration(form.isAllDay))
+    }
+    put(CalendarContract.Events.EVENT_TIMEZONE, times.timezone)
+    put(CalendarContract.Events.AVAILABILITY, form.availability.toProviderValue())
+    put(CalendarContract.Events.ACCESS_LEVEL, form.accessLevel.toProviderValue())
+    form.location.trim().takeIf { it.isNotEmpty() }
+        ?.let { put(CalendarContract.Events.EVENT_LOCATION, it) }
+    form.description.trim().takeIf { it.isNotEmpty() }
+        ?.let { put(CalendarContract.Events.DESCRIPTION, it) }
+}
+
+/**
  * Dirty-checked column values for updating an existing Events row: only what
  * the user actually changed is written, so untouched fields can't stomp
  * concurrent external edits. Keys are `CalendarContract.Events` columns; a
@@ -118,8 +154,14 @@ internal fun buildEventUpdateValues(
  * provider clone the series row and apply these on top. Unlike the series
  * update there is no dirty check — the exception is a fresh row, so every
  * form-backed column is written (empty optionals as explicit NULLs, since the
- * clone starts from the parent's values). An exception is a single event:
- * DTEND, never RRULE/DURATION.
+ * clone starts from the parent's values).
+ *
+ * The occurrence's length travels as DURATION, never DTEND: the provider
+ * rejects DTEND on an exception outright (`CalendarProvider2`:
+ * "Exceptions can't overwrite dtend") and derives the instance end from
+ * DTSTART + DURATION itself, clearing the inherited RRULE in the process. This
+ * matches how AOSP Calendar/Etar write exceptions; sending DTEND is what made
+ * "only this event" fail on-device (Codeberg #16).
  */
 internal fun buildOccurrenceExceptionValues(
     form: EventForm,
@@ -131,7 +173,7 @@ internal fun buildOccurrenceExceptionValues(
     put(CalendarContract.Events.TITLE, form.title.trim())
     put(CalendarContract.Events.ALL_DAY, if (form.isAllDay) 1 else 0)
     put(CalendarContract.Events.DTSTART, times.dtStartMillis)
-    put(CalendarContract.Events.DTEND, times.dtEndMillis)
+    put(CalendarContract.Events.DURATION, times.toRfc2445Duration(form.isAllDay))
     put(CalendarContract.Events.EVENT_TIMEZONE, times.timezone)
     put(CalendarContract.Events.AVAILABILITY, form.availability.toProviderValue())
     put(CalendarContract.Events.ACCESS_LEVEL, form.accessLevel.toProviderValue())

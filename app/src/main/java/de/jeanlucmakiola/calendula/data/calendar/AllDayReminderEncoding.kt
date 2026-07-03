@@ -51,6 +51,27 @@ internal fun toProviderAllDayMinutes(
 }
 
 /**
+ * The next date on or after [today] carrying [month]/[day] — the date to sample
+ * a yearly all-day reminder's UTC offset at. A managed birthday's DTSTART is an
+ * ancient anchor (1972 for year-less dates), a year whose timezone rules
+ * (pre-DST offsets) differ from today's; sampling the offset there skews every
+ * modern occurrence by hours. Sampling at the upcoming occurrence makes the
+ * stored offset correct for it and its neighbours (only ±1h DST drift remains,
+ * the inherent limit). Feb-29 skips forward to the next leap year.
+ */
+internal fun nextYearlyOccurrence(month: Int, day: Int, today: LocalDate): LocalDate {
+    var year = today.year
+    // A Feb-29 date is valid only every ~4 years; 8 tries always reaches one.
+    repeat(8) {
+        val candidate = runCatching { LocalDate.of(year, month, day) }.getOrNull()
+        if (candidate != null && !candidate.isBefore(today)) return candidate
+        year++
+    }
+    // Unreachable for real month/day inputs; fall back to the raw anchor.
+    return LocalDate.of(today.year, month, day)
+}
+
+/**
  * Recover the semantic whole-day lead time from a raw all-day reminder
  * [rawMinutes]. Keys off the **local date** of the encoded fire instant, so it
  * returns the right day count regardless of which [timeOfDayMinutes] wrote the

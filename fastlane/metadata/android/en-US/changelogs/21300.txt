@@ -1,0 +1,70 @@
+### Added
+- Calendula now speaks Spanish and Italian. Both arrived as community
+  translations through [Calendula's Weblate](https://weblate.dev.jeanlucmakiola.de/projects/calendula/)
+  — a **huge thank you** to
+  [kikerw](https://weblate.dev.jeanlucmakiola.de/user/kikerw/) for the Spanish
+  translation and to
+  [corrent](https://weblate.dev.jeanlucmakiola.de/user/corrent/) for the Italian
+  one! Pick your language under Settings → Language or in Android's per-app
+  language settings. Strings added in this very release may still show in
+  English until the translations catch up. Want Calendula in your language?
+  Translating happens entirely in the browser — every contribution is welcome.
+- See your contacts' birthdays and anniversaries in your calendar. A new,
+  **optional** feature (Settings → Contact special dates) mirrors your contacts'
+  birthdays, anniversaries and other dates into local "Birthdays",
+  "Anniversaries" and "Other dates" calendars that stay in sync as your contacts
+  change. Each is a normal local calendar, so you set its colour, visibility and
+  reminders the usual way — new birthdays even start with a reminder a week before
+  *and* on the day. The title format is yours to customise (`{name}`, `{year}`).
+  This is the first feature to use the contacts permission: it is requested only
+  when you turn the feature on, everything stays on your device (Calendula has no
+  internet access), and your contacts are only ever read, never changed. Thanks
+  to @moonj for the suggestion ([#15]).
+- Set more than one default reminder per calendar. A calendar's default
+  reminders — and the global defaults under Settings → Notifications — can now
+  hold several lead times instead of just one, so new events can start with, say,
+  a reminder a week before *and* one on the day. The reminder pickers are now
+  multi-select; per-calendar overrides can still inherit the global default or
+  turn reminders off entirely. Thanks to @moonj for the suggestion ([#14]).
+- Widget headers now open the app. Tapping the month/year title on the month
+  widget opens the app on the month view, and tapping the "Upcoming" title on
+  the agenda widget opens it on your default view — so there's a one-tap way
+  back into the app that lands where you'd expect, instead of only through a day
+  or event. On the month widget, tapping anywhere on a day — not just the small
+  date number — now opens that day, and the "today" button snaps the grid back
+  to the current month in place. Thanks to @rgz46vic and @ptab for the
+  suggestions ([#18], [#20]).
+- Make Calendula's text your own. Settings → Appearance gains **Headings font**
+  and **Body font** pickers: keep the system default, choose a bundled face
+  (Atkinson Hyperlegible, Lora, JetBrains Mono — each previewed in its own
+  face), or load any `.ttf`/`.otf` file from your device, independently per
+  role. Font size and colour stay with Android's accessibility scaling and the
+  app theme, as discussed on the issue. Thanks to @abrossimow for the
+  suggestion ([#19]).
+- Choose what the view-switch button cycles through. Settings → Appearance now
+  lets you pick which views the top-right quick-switch button rotates between
+  and drag them into your preferred order; views you switch off stay reachable
+  from the navigation menu, which can be reordered the same way. Thanks to
+  @abrossimow for the suggestion ([#24]).
+
+### Fixed
+- Month widget arrows and "today" button work again. On release builds the
+  prev/next-month arrows and the jump-to-today control on the month widget did
+  nothing when tapped — code shrinking had stripped the tap handlers behind
+  them. They respond again. Thanks to @rgz46vic for the report ([#18]).
+- Disabled calendars no longer notify. Reminders for events in a calendar you
+  have disabled (Settings → Calendars) are now suppressed instead of still
+  popping up — matching how a disabled calendar's events already stay hidden
+  everywhere else in the app ([#17]).
+- Editing a single occurrence of a recurring event works again. Choosing **Only
+  this event** and saving a change to one event in a repeating series silently
+  did nothing — the change was rejected and the edit form simply reappeared with
+  nothing applied. The edited occurrence is now stored correctly, so the change
+  lands on just that one event and leaves the rest of the series untouched
+  ([#16]).
+- Every calendar can be picked when creating an event. The event editor's
+  calendar picker was a fixed-height dialog, so with many calendars anything
+  past the first nine or so was simply unreachable. It is now a full-screen,
+  scrollable list grouped by account, with each calendar's colour shown.
+  Thanks to @dschuermann for the report ([#29]).
+

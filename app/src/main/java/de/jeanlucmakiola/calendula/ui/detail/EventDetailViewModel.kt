@@ -154,6 +154,7 @@ class EventDetailViewModel @Inject constructor(
             detail = corrected,
             calendarName = calendar?.displayName,
             canModify = calendar?.canModifyContents == true,
+            isManaged = calendar?.isManaged == true,
         )
     } catch (e: CancellationException) {
         throw e

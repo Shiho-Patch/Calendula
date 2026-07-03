@@ -285,7 +285,6 @@
     <string name="reminder_none">Nessuno</string>
     <string name="reminder_use_default">Usa il promemoria standard</string>
     <string name="reminder_custom_amount">Valore</string>
-    <string name="reminder_custom_with_value">Personalizza (%1$s)</string>
     <string name="reminder_custom_set">Imposta</string>
     <string name="settings_calendar_reminders_title">Promemoria per calendario</string>
     <string name="settings_calendar_reminders_hint">Sovrascrivi i reminder standard con reminder specifici per calendario, separati per eventi giornalieri ed eventi ad ore. Ogni calendario può usare i promemoria di default, ignorarli o avere i suoi personalizzati.</string>

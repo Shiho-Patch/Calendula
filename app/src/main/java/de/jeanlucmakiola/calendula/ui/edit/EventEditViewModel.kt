@@ -108,10 +108,10 @@ class EventEditViewModel @Inject constructor(
     )
 
     private data class ReminderDefaults(
-        val timed: Int?,
-        val allDay: Int?,
-        val timedOverrides: Map<Long, Int?>,
-        val allDayOverrides: Map<Long, Int?>,
+        val timed: List<Int>,
+        val allDay: List<Int>,
+        val timedOverrides: Map<Long, List<Int>>,
+        val allDayOverrides: Map<Long, List<Int>>,
     )
 
     private data class ExternalInputs(
@@ -122,18 +122,24 @@ class EventEditViewModel @Inject constructor(
         val autofocusTitle: Boolean,
     )
 
+    /** Every calendar the provider exposes; the source for both lists below. */
+    private val allCalendars: Flow<List<CalendarSource>> =
+        repository.calendars().catch { emit(emptyList()) }
+
     /**
      * Writable calendars — the only valid event targets. Disabled calendars are
      * excluded, so you can't create into a calendar you've removed from the app;
      * a last-used preselect landing on a now-disabled calendar falls back to the
      * first remaining writable one (handled by [resolvedCalendarId] and [state]).
+     * Managed special-dates calendars are excluded too: their events are owned by
+     * the contact sync, which would delete any user event created there.
      */
     private val writableCalendars: Flow<List<CalendarSource>> = combine(
-        repository.calendars(),
+        allCalendars,
         prefs.disabledCalendarIds,
     ) { calendars, disabled ->
-        calendars.filter { it.canModifyContents && it.id !in disabled }
-    }.catch { emit(emptyList()) }
+        calendars.filter { it.canModifyContents && it.id !in disabled && !it.isManaged }
+    }
 
     /** The target calendar id, resolved exactly as the form shows it. */
     private val resolvedCalendarId: Flow<Long?> = combine(
@@ -165,21 +171,33 @@ class EventEditViewModel @Inject constructor(
             ::ExternalInputs,
         ).flowOn(io),
         colorPalette,
-    ) { local, external, palette ->
+        allCalendars,
+    ) { local, external, palette, allCalendars ->
         val form = local.form ?: return@combine null
         val resolvedId = form.calendarId
             ?: external.lastUsed?.takeIf { id -> external.writable.any { it.id == id } }
             ?: external.writable.firstOrNull()?.id
         val resolved = form.copy(calendarId = resolvedId)
+        val resolvedCalendar = allCalendars.firstOrNull { it.id == resolvedId }
+        // Editing an event in a managed calendar locks its synced fields. Keyed
+        // off the calendar's durable marker, not a stored id, so it holds after a
+        // backup restore too.
+        val isManaged = local.editTarget != null && resolvedCalendar?.isManaged == true
+        // The picker offers writable calendars only; when editing a managed event
+        // its own (excluded) calendar is added back so the row still names it.
+        val pickerCalendars =
+            if (isManaged && resolvedCalendar != null) external.writable + resolvedCalendar
+            else external.writable
         val visibleFields = external.defaultFields + local.revealed
         EventEditUiState(
             form = resolved,
-            calendars = external.writable,
+            calendars = pickerCalendars,
             problems = if (local.showProblems) resolved.problems() else emptySet(),
             saveState = local.saveState,
             visibleFields = visibleFields,
             hiddenFields = (EventFormField.entries.toSet() - visibleFields).sorted(),
             isEditing = local.editTarget != null,
+            isManaged = isManaged,
             autofocusTitle = external.autofocusTitle,
             // A modified-occurrence exception can't carry its own rule, so
             // the scope dialog drops "only this event" after a rule change.
@@ -260,7 +278,7 @@ class EventEditViewModel @Inject constructor(
             // Re-check after suspending: bail if the form closed or the user edited.
             val form = _form.value ?: return@launch
             if (_editTarget.value != null || _remindersTouched.value) return@launch
-            val default = resolveDefaultReminder(
+            val reminders = resolveDefaultReminder(
                 timedGlobal = defaults.timed,
                 allDayGlobal = defaults.allDay,
                 timedOverrides = defaults.timedOverrides,
@@ -268,7 +286,6 @@ class EventEditViewModel @Inject constructor(
                 calendarId = targetId,
                 isAllDay = form.isAllDay,
             )
-            val reminders = listOfNotNull(default)
             _form.value = form.copy(reminders = reminders)
             // Surface the section so an auto-applied default is visible and
             // removable, even when Reminders isn't a default-shown field.
@@ -418,7 +435,10 @@ class EventEditViewModel @Inject constructor(
             _saveState.value = SaveUiState.Saved
             return
         }
-        if (target != null && target.original.rrule != null) {
+        // Managed events are a yearly series whose editable fields (reminders,
+        // notes, location) live on the series row — never offer the scope dialog,
+        // which would split the series into an exception the sync then reverts.
+        if (target != null && target.original.rrule != null && !current.isManaged) {
             _saveState.value = SaveUiState.AwaitingScope
             return
         }
