@@ -5,9 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.13.0] — 2026-07-03
 
 ### Added
+- Calendula now speaks Spanish and Italian. Both arrived as community
+  translations through [Calendula's Weblate](https://weblate.dev.jeanlucmakiola.de/projects/calendula/)
+  — a **huge thank you** to
+  [kikerw](https://weblate.dev.jeanlucmakiola.de/user/kikerw/) for the Spanish
+  translation and to
+  [corrent](https://weblate.dev.jeanlucmakiola.de/user/corrent/) for the Italian
+  one! Pick your language under Settings → Language or in Android's per-app
+  language settings. Strings added in this very release may still show in
+  English until the translations catch up. Want Calendula in your language?
+  Translating happens entirely in the browser — every contribution is welcome.
 - See your contacts' birthdays and anniversaries in your calendar. A new,
   **optional** feature (Settings → Contact special dates) mirrors your contacts'
   birthdays, anniversaries and other dates into local "Birthdays",
@@ -33,6 +43,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   date number — now opens that day, and the "today" button snaps the grid back
   to the current month in place. Thanks to @rgz46vic and @ptab for the
   suggestions ([#18], [#20]).
+- Make Calendula's text your own. Settings → Appearance gains **Headings font**
+  and **Body font** pickers: keep the system default, choose a bundled face
+  (Atkinson Hyperlegible, Lora, JetBrains Mono — each previewed in its own
+  face), or load any `.ttf`/`.otf` file from your device, independently per
+  role. Font size and colour stay with Android's accessibility scaling and the
+  app theme, as discussed on the issue. Thanks to @abrossimow for the
+  suggestion ([#19]).
+- Choose what the view-switch button cycles through. Settings → Appearance now
+  lets you pick which views the top-right quick-switch button rotates between
+  and drag them into your preferred order; views you switch off stay reachable
+  from the navigation menu, which can be reordered the same way. Thanks to
+  @abrossimow for the suggestion ([#24]).
 
 ### Fixed
 - Month widget arrows and "today" button work again. On release builds the
@@ -49,6 +71,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nothing applied. The edited occurrence is now stored correctly, so the change
   lands on just that one event and leaves the rest of the series untouched
   ([#16]).
+- Every calendar can be picked when creating an event. The event editor's
+  calendar picker was a fixed-height dialog, so with many calendars anything
+  past the first nine or so was simply unreachable. It is now a full-screen,
+  scrollable list grouped by account, with each calendar's colour shown.
+  Thanks to @dschuermann for the report ([#29]).
 
 ## [2.12.0] — 2026-06-28
 
@@ -779,4 +806,7 @@ automatically, with zero telemetry and no internet permission.
 [#16]: https://codeberg.org/jlmakiola/calendula/issues/16
 [#17]: https://codeberg.org/jlmakiola/calendula/issues/17
 [#18]: https://codeberg.org/jlmakiola/calendula/issues/18
+[#19]: https://codeberg.org/jlmakiola/calendula/issues/19
 [#20]: https://codeberg.org/jlmakiola/calendula/issues/20
+[#24]: https://codeberg.org/jlmakiola/calendula/issues/24
+[#29]: https://codeberg.org/jlmakiola/calendula/issues/29
