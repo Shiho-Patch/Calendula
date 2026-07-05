@@ -443,4 +443,17 @@
     <string name="settings_special_dates_template_hint">Usa {name} per il contatto e {year} per l\'anno (l\'anno di nascita, o l\'anno di inizio di un anniversario; nascosto se sconosciuto).</string>
     <string name="settings_special_dates_reminders">Promemoria</string>
     <string name="settings_special_dates_show_year">Mostra anno</string>
+    <string name="settings_special_dates_show_year_hint">Include {year} nei titoli quando è noto</string>
+    <string name="settings_special_dates_sync_now">Sincronizza adesso</string>
+    <string name="settings_special_dates_never_synced">Ancora non sincronizzato</string>
+    <string name="settings_special_dates_last_synced">%1$s è un tempo relativo, per esempio \"5 minuti fa\"</string>
+    <string name="settings_special_dates_calendar_hint">Imposta colore e visibilità di ogni calendario nelle impostazioni dei calendari.</string>
+    <string name="settings_special_dates_paused_title">In pausa</string>
+    <string name="settings_special_dates_paused_hint">Calendula non può più leggere i tuoi contatti, quindi questi calendari non vengono aggiornati.</string>
+    <string name="settings_special_dates_grant">Concedi accesso</string>
+    <string name="settings_special_dates_disable_title">Disattivare date dei contatti?</string>
+    <string name="settings_special_dates_disable_all_message">Questo cancella i calendari delle date dei contatti ed i loro eventi. Ogni promemoria o note che erano stati aggiunti saranno persi.</string>
+    <string name="settings_special_dates_disable_type_message">Questo cancella il calendario “%1$s” ed i suoi eventi. Ogni promemoria o note che erano stati aggiunti saranno persi.</string>
+    <string name="settings_special_dates_disable_confirm">Spegni</string>
+    <string name="dialog_save">Salva</string>
 </resources>
