@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.13.1] — 2026-07-06
+
+### Added
+- Create events from other apps and widgets. Calendula now registers the
+  standard "insert event" intent (`ACTION_INSERT` on the calendar events type),
+  so other apps and home-screen widgets — such as the Todo Agenda widget — can
+  hand off to Calendula to create a new event. It opens the new-event form
+  prefilled with whatever they passed (title, start/end time, all-day, location,
+  description, recurrence), and picks your last-used or first writable calendar.
+  Thanks to @dschuermann for the suggestion ([#30]).
+
+### Fixed
+- Some recurring events could not be opened. Events in a series that started
+  before 1970 — for example yearly birthdays or anniversaries synced over CalDAV
+  — showed "Something went wrong" instead of opening, because their stored start
+  time is a negative value that was wrongly treated as invalid. They now open
+  normally and appear in search again. A related case (an event whose stored end
+  precedes its start) is now kept and openable instead of failing the same way.
+  Thanks to @dschuermann for the report ([#34]).
+- The time picker now follows your 24-hour setting. With Calendula set to
+  24-hour time, the clock dial for choosing an event's start and end time still
+  showed AM/PM instead of a 24-hour dial; it now matches your setting (and the
+  same fix applies to the all-day reminder time in Settings). Thanks to
+  @abrossimow for the report ([#27]).
+
 ## [2.13.0] — 2026-07-03
 
 ### Added
@@ -809,4 +834,7 @@ automatically, with zero telemetry and no internet permission.
 [#19]: https://codeberg.org/jlmakiola/calendula/issues/19
 [#20]: https://codeberg.org/jlmakiola/calendula/issues/20
 [#24]: https://codeberg.org/jlmakiola/calendula/issues/24
+[#27]: https://codeberg.org/jlmakiola/calendula/issues/27
 [#29]: https://codeberg.org/jlmakiola/calendula/issues/29
+[#30]: https://codeberg.org/jlmakiola/calendula/issues/30
+[#34]: https://codeberg.org/jlmakiola/calendula/issues/34
