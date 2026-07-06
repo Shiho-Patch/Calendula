@@ -107,11 +107,11 @@ class CalendarsViewModel @Inject constructor(
      * document [uri] as one `VCALENDAR`. Result (event count, or failure) lands
      * in [backupResult] for a one-shot message.
      */
-    fun exportBackup(uri: Uri) {
+    fun exportBackup(uri: Uri, calendarIds: Set<Long>? = null) {
         viewModelScope.launch {
             _backupResult.value = try {
                 val count = withContext(io) {
-                    val events = repository.exportEvents()
+                    val events = repository.exportEvents(calendarIds)
                     icsExporter.writeDocument(
                         uri = uri,
                         content = IcsWriter().writeCalendar(events, Clock.System.now()),
