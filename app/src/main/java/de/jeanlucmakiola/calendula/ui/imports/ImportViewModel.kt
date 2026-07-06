@@ -66,8 +66,13 @@ class ImportViewModel @Inject constructor(
     val state: StateFlow<ImportUiState> = _state.asStateFlow()
     private var started = false
 
-    /** Read + parse [uri] once; subsequent calls (recomposition) are ignored. */
-    fun load(uri: Uri) {
+    /**
+     * Read + parse [uri] once; subsequent calls (recomposition) are ignored.
+     * When [forceMany] is set (an in-app restore), a single-event file still goes
+     * through the bulk picker + summary rather than the prefilled create form —
+     * a restore is "bring back a backup", not "add this one event".
+     */
+    fun load(uri: Uri, forceMany: Boolean = false) {
         if (started) return
         started = true
         viewModelScope.launch {
@@ -77,7 +82,7 @@ class ImportViewModel @Inject constructor(
             _state.value = when {
                 parsed == null -> ImportUiState.Failed
                 parsed.events.isEmpty() -> ImportUiState.Empty
-                parsed.events.size == 1 -> ImportUiState.Single(
+                parsed.events.size == 1 && !forceMany -> ImportUiState.Single(
                     form = parsed.events.single().toEventForm(TimeZone.currentSystemDefault()),
                     warnings = parsed.warnings,
                 )

@@ -172,9 +172,15 @@ fun CalendarHost(
     // picker (many). A plain conditional overlay (no slide) — it's transient.
     var importUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var importForm by remember { mutableStateOf<EventForm?>(null) }
+    // A restore (in-app "Restore from .ics" button) always runs the full import
+    // flow — picker + summary — even for a single-event file, because the intent
+    // is "restore a backup", not "add this one event". An externally opened .ics
+    // keeps routing a single event straight into the prefilled create form.
+    var importForceMany by remember { mutableStateOf(false) }
     LaunchedEffect(requestedImportUri) {
         if (requestedImportUri != null) {
             importUri = requestedImportUri
+            importForceMany = false
             onImportConsumed()
         }
     }
@@ -414,7 +420,7 @@ fun CalendarHost(
         ) {
             CalendarsScreen(
                 onBack = { showCalendars = false },
-                onImport = { importUri = it },
+                onImport = { importUri = it; importForceMany = true },
             )
         }
 
@@ -423,6 +429,7 @@ fun CalendarHost(
         importUri?.let { uri ->
             ImportScreen(
                 uri = uri,
+                forceMany = importForceMany,
                 onClose = { importUri = null },
                 onOpenSingle = { form ->
                     importUri = null

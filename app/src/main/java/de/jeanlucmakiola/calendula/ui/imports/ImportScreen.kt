@@ -64,7 +64,9 @@ import de.jeanlucmakiola.calendula.ui.common.predictiveBack
  * Handles an opened/received `.ics` file. A single event is handed straight to
  * the prefilled create form via [onOpenSingle]; several events show a target-
  * calendar picker and import in bulk (dedup by UID), then a result summary.
- * Empty/failed files show a short message and close.
+ * Empty/failed files show a short message and close. [forceMany] keeps a
+ * single-event file on the bulk path — used by the in-app restore, whose intent
+ * is "restore a backup" rather than "add this one event".
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,9 +74,10 @@ fun ImportScreen(
     uri: Uri,
     onClose: () -> Unit,
     onOpenSingle: (EventForm) -> Unit,
+    forceMany: Boolean = false,
     viewModel: ImportViewModel = hiltViewModel(),
 ) {
-    LaunchedEffect(uri) { viewModel.load(uri) }
+    LaunchedEffect(uri) { viewModel.load(uri, forceMany) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     // A single event isn't shown here — it opens the create form for review.
