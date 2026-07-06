@@ -287,6 +287,8 @@
     <string name="settings_font_import_failed">Couldn\'t read that file as a font</string>
     <string name="settings_week_start">Week starts on</string>
     <string name="settings_week_start_auto">Automatic</string>
+    <string name="settings_week_numbers">Week numbers</string>
+    <string name="settings_week_numbers_summary">Show calendar-week numbers in month view</string>
     <string name="settings_time_format">Time format</string>
     <string name="settings_time_format_auto">Automatic</string>
     <string name="settings_time_format_12h">12-hour (2:00 PM)</string>
