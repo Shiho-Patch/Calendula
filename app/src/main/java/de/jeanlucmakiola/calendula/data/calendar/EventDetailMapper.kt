@@ -37,16 +37,15 @@ internal fun ColumnReader.toEventDetailCore(
     // Recurring events store DURATION instead of DTEND, so the series row's
     // DTEND is null. Keep the event (end == begin); callers that opened a
     // specific occurrence supply the real per-occurrence times from
-    // CalendarContract.Instances. Only a present-but-backwards DTEND is malformed.
+    // CalendarContract.Instances. A present-but-backwards DTEND is malformed,
+    // but dropping the row would make the event un-openable — the same trap as
+    // the pre-1970 DTSTART bug above (issue #34): it would surface as the
+    // generic error screen with no way to open the event and fix it. Clamp to a
+    // zero-length event instead (matching SearchMapper's coerceAtLeast).
     val end = if (isNull(EventDetailProjection.IDX_DTEND)) {
         begin
     } else {
-        val rawEnd = getLong(EventDetailProjection.IDX_DTEND)
-        if (rawEnd < begin) {
-            Log.w(TAG, "Dropping event with dtend=$rawEnd < dtstart=$begin")
-            return null
-        }
-        rawEnd
+        getLong(EventDetailProjection.IDX_DTEND).coerceAtLeast(begin)
     }
 
     // Kept raw (no untitled fallback): the detail screen substitutes its own

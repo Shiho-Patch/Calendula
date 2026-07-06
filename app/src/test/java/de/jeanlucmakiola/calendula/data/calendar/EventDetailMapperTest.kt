@@ -120,9 +120,14 @@ class EventDetailMapperTest {
     }
 
     @Test
-    fun `dtend before dtstart drops detail`() {
+    fun `dtend before dtstart is clamped to a zero-length event, not dropped`() {
+        // A backwards DTEND is malformed, but dropping it would make the event
+        // un-openable (the "Something went wrong" trap, same as issue #34); keep
+        // it as a zero-length event so the user can still open and fix it.
         val detail = detailReader(dtstart = 2000L, dtend = 1000L).toDetail()
-        assertThat(detail).isNull()
+        assertThat(detail).isNotNull()
+        assertThat(detail!!.instance.start.toEpochMilliseconds()).isEqualTo(2000L)
+        assertThat(detail.instance.end.toEpochMilliseconds()).isEqualTo(2000L)
     }
 
     @Test
