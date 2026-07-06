@@ -284,6 +284,7 @@ fun CalendarHost(
                 CalendarView.Week -> WeekScreen(
                     selectedView = currentView,
                     onSelectView = onSelectView,
+                    onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
                     onOpenSettings = onOpenSettings,
                     onOpenSearch = onOpenSearch,
@@ -315,6 +316,7 @@ fun CalendarHost(
                 CalendarView.Agenda -> AgendaScreen(
                     selectedView = currentView,
                     onSelectView = onSelectView,
+                    onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
                     onOpenSettings = onOpenSettings,
                     onOpenSearch = onOpenSearch,
