@@ -465,6 +465,7 @@
     <string name="import_failed">Couldn\'t read this file.</string>
     <string name="import_no_calendar">No writable calendar to import into. Create a local calendar first.</string>
     <string name="import_done_title">Import complete</string>
+    <string name="import_done_dedup_note">Events already in the calendar were skipped.</string>
     <string name="import_done_added_label">Added</string>
     <string name="import_done_skipped_label">Duplicates</string>
     <string name="import_close">Close</string>
