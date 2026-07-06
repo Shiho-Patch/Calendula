@@ -73,6 +73,7 @@ import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
+import de.jeanlucmakiola.calendula.ui.common.WeekNumberBadge
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.calendula.ui.common.rememberReduceMotion
@@ -360,8 +361,9 @@ private fun WeekdayHeader(weekStart: DayOfWeek, showWeekNumbers: Boolean) {
 
 private val EVENT_ROW_HEIGHT = 20.dp
 private val DAY_NUMBER_HEIGHT = 22.dp
-/** Width of the optional left gutter holding the calendar-week number (#25). */
-private val WEEK_NUMBER_GUTTER = 24.dp
+/** Width of the optional left gutter holding the calendar-week badge (#25); wide
+ *  enough to seat the shared [WeekNumberBadge] with a little breathing room. */
+private val WEEK_NUMBER_GUTTER = 40.dp
 private val DAY_NUMBER_GAP = 4.dp
 private val CELL_TOP_PADDING = 6.dp
 private val CELL_GAP = 2.dp
@@ -562,10 +564,10 @@ private fun MonthWeekRow(
 }
 
 /**
- * Left-gutter calendar-week number (#25), aligned with the day-number band. The
- * ISO week-of-week-based-year computed on the row's first day — the same basis
- * as the Week view's badge — so the two views agree. A low-emphasis label rather
- * than a filled badge: it repeats on all six rows, so it must recede.
+ * Left-gutter calendar-week indicator (#25), centred vertically in the row. Uses
+ * the shared [WeekNumberBadge] so it's identical to the Week view's, and computes
+ * the ISO week-of-week-based-year on the row's first day — the same basis — so the
+ * two views always agree.
  */
 @Composable
 private fun WeekNumberGutter(weekStart: LocalDate, modifier: Modifier = Modifier) {
@@ -573,23 +575,11 @@ private fun WeekNumberGutter(weekStart: LocalDate, modifier: Modifier = Modifier
         java.time.LocalDate.of(weekStart.year, weekStart.month.ordinal + 1, weekStart.day)
             .get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
     }
-    val label = stringResource(R.string.week_number_label)
-    Column(
-        modifier = modifier
-            .padding(top = CELL_TOP_PADDING)
-            .semantics { contentDescription = "$label $weekNumber" },
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier.height(DAY_NUMBER_HEIGHT),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = weekNumber.toString(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        WeekNumberBadge(weekNumber = weekNumber)
     }
 }
 

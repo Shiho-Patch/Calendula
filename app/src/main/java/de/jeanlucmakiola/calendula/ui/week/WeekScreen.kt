@@ -87,6 +87,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.NowLine
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
+import de.jeanlucmakiola.calendula.ui.common.WeekNumberBadge
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.calendula.ui.common.rememberReduceMotion
@@ -504,26 +505,6 @@ private fun WeekDayHeader(
                 }
             }
         }
-    }
-}
-
-/** Calendar-week badge shown in the header gutter, deliberately set apart with a
- *  filled box and bold number. */
-@Composable
-private fun WeekNumberBadge(weekNumber: Int, modifier: Modifier = Modifier) {
-    val label = stringResource(R.string.week_number_label)
-    Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        modifier = modifier.semantics { contentDescription = "$label $weekNumber" },
-    ) {
-        Text(
-            text = weekNumber.toString(),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-        )
     }
 }
 
