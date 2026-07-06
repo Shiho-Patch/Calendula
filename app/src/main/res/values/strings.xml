@@ -431,6 +431,7 @@
     <string name="calendars_export_title">Export calendars</string>
     <string name="calendars_export_hint">Choose which calendars to include in the .ics file.</string>
     <string name="calendars_export_action">Export</string>
+    <string name="calendars_restore_header">Restore</string>
     <string name="calendars_restore_action">Restore from .ics file</string>
     <string name="calendars_restore_hint">Import events from a backup or another calendar app.</string>
     <string name="calendars_auto_backup">Automatic backup</string>

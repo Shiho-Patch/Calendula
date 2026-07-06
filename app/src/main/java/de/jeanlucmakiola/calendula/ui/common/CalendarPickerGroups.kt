@@ -50,7 +50,7 @@ fun ColumnScope.CalendarPickerGroups(
     val local = remember(calendars) { calendars.filter { it.isLocal } }
     val syncedGroups = remember(calendars) {
         calendars.filterNot { it.isLocal }
-            .groupBy { it.accountName.ifBlank { it.accountType } }
+            .groupBy { it.accountName.ifBlank { it.accountType }.ifBlank { it.displayName } }
             .toList()
     }
 

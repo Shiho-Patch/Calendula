@@ -37,7 +37,6 @@ import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.EventAvailable
@@ -121,7 +120,6 @@ import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
 import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
 import de.jeanlucmakiola.calendula.ui.common.predictiveBack
 import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
-import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.CalendarPickerGroups
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow

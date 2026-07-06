@@ -8,7 +8,6 @@ import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -68,6 +66,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -75,10 +74,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
@@ -87,7 +83,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -243,7 +238,7 @@ private fun CalendarsList(
     val createBackup = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/calendar"),
     ) { uri -> uri?.let { onExportBackup(it, null) } }
-    var showExportPicker by remember { mutableStateOf(false) }
+    var showExportPicker by rememberSaveable { mutableStateOf(false) }
 
     // SAF "open document" picker for restoring events from a .ics file. The
     // picked Uri is handed up to the host, which runs it through the same import
@@ -333,6 +328,9 @@ private fun CalendarsList(
         // safety net. Offered only when there is something exportable: the user's
         // own local calendars (managed special-dates mirrors don't count).
         val exportable = local.filter { it.canModifyContents && !it.isManaged }
+        // Restore/import can target any writable, non-managed calendar (local or
+        // synced), so its availability is broader than export's.
+        val canImport = (local + synced).any { it.canModifyContents && !it.isManaged }
         if (exportable.isNotEmpty()) {
             Spacer(Modifier.height(16.dp))
             SectionHeader(stringResource(R.string.calendars_backup_header))
@@ -388,6 +386,19 @@ private fun CalendarsList(
                 )
                 HintText(backupStatusText(autoBackup.status))
             }
+        } else if (canImport) {
+            // Nothing to back up (no writable local calendar), but events can
+            // still be restored into a writable calendar — offer restore on its
+            // own so it isn't hidden behind export eligibility.
+            Spacer(Modifier.height(16.dp))
+            SectionHeader(stringResource(R.string.calendars_restore_header))
+            HintText(stringResource(R.string.calendars_restore_hint))
+            GroupedRow(
+                title = stringResource(R.string.calendars_restore_action),
+                position = Position.Alone,
+                leading = { LeadingAvatar(Icons.Default.FileUpload) },
+                onClick = { runCatching { openBackup.launch(RESTORE_MIME_TYPES) } },
+            )
         }
 
         Spacer(Modifier.height(16.dp))
@@ -475,7 +486,17 @@ private fun ExportCalendarPicker(
     onExport: (android.net.Uri, Set<Long>?) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var selected by remember(calendars) {
+    // Seed once with everything selected and hold it across recomposition and
+    // rotation. NOT keyed on [calendars]: the list is observer-driven, so keying
+    // it would silently reset the user's de-selections whenever the provider
+    // re-emits (a background sync, a recolor). Ids that later vanish are harmless
+    // — the data layer intersects the chosen set with the eligible calendars.
+    var selected by rememberSaveable(
+        stateSaver = listSaver(
+            save = { it.toList() },
+            restore = { it.toSet() },
+        ),
+    ) {
         mutableStateOf(calendars.map { it.id }.toSet())
     }
     val createBackup = rememberLauncherForActivityResult(
