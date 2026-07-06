@@ -520,13 +520,17 @@ private fun EventEditContent(
             .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 40.dp),
     ) {
         // Title: borderless headline, mirroring the detail screen's title +
-        // accent bar instead of a boxed Material text field.
+        // accent bar instead of a boxed Material text field. Multi-line so long
+        // titles wrap instead of scrolling off one line (#33); newlines are
+        // stripped in setTitle, so this stays a single logical line — the Enter
+        // key just has no effect.
         InlineField(
             value = form.title,
             onValueChange = viewModel::setTitle,
             placeholder = stringResource(R.string.event_edit_title_hint),
             textStyle = MaterialTheme.typography.headlineMedium
                 .copy(fontWeight = FontWeight.SemiBold),
+            singleLine = false,
             enabled = !locked,
             modifier = Modifier
                 .fillMaxWidth()
