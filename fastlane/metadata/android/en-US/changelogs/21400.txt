@@ -1,0 +1,7 @@
+### Added
+- Tap a date header to open that day. In Week and Agenda view, tapping a date
+  header now opens that date in Day view — the same drill-in that Month view and
+  the agenda widget already offered, so every view behaves the same way. It makes
+  jumping to a specific day quicker: switch to Week, swipe to the week you want,
+  then tap the date to open it. Thanks to @ptab for the suggestion ([#37]).
+

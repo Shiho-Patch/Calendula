@@ -66,8 +66,13 @@ class ImportViewModel @Inject constructor(
     val state: StateFlow<ImportUiState> = _state.asStateFlow()
     private var started = false
 
-    /** Read + parse [uri] once; subsequent calls (recomposition) are ignored. */
-    fun load(uri: Uri) {
+    /**
+     * Read + parse [uri] once; subsequent calls (recomposition) are ignored.
+     * When [forceMany] is set (an in-app restore), a single-event file still goes
+     * through the bulk picker + summary rather than the prefilled create form —
+     * a restore is "bring back a backup", not "add this one event".
+     */
+    fun load(uri: Uri, forceMany: Boolean = false) {
         if (started) return
         started = true
         viewModelScope.launch {
@@ -77,19 +82,21 @@ class ImportViewModel @Inject constructor(
             _state.value = when {
                 parsed == null -> ImportUiState.Failed
                 parsed.events.isEmpty() -> ImportUiState.Empty
-                parsed.events.size == 1 -> ImportUiState.Single(
+                parsed.events.size == 1 && !forceMany -> ImportUiState.Single(
                     form = parsed.events.single().toEventForm(TimeZone.currentSystemDefault()),
                     warnings = parsed.warnings,
                 )
                 else -> {
                     // A disabled calendar is removed from the app, so it can't be
                     // an import target — exclude it alongside the read-only ones.
+                    // Managed special-dates calendars are contact-derived and
+                    // editor-locked, so they're not a valid destination either.
                     val disabled = prefs.disabledCalendarIds.first()
                     ImportUiState.Many(
                         events = parsed.events,
                         warnings = parsed.warnings,
                         calendars = repository.calendars().first()
-                            .filter { it.canModifyContents && it.id !in disabled },
+                            .filter { it.canModifyContents && !it.isManaged && it.id !in disabled },
                     )
                 }
             }

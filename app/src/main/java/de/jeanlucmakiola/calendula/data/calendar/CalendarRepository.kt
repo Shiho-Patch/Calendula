@@ -41,8 +41,9 @@ interface CalendarRepository {
     /**
      * Every event of the writable local calendars, ready to serialise into a
      * whole-calendar `.ics` backup (see [CalendarDataSource.exportableEvents]).
+     * [calendarIds] narrows the export to a chosen subset; `null` exports all.
      */
-    suspend fun exportEvents(): List<IcsEvent>
+    suspend fun exportEvents(calendarIds: Set<Long>? = null): List<IcsEvent>
 
     /**
      * Bulk-import parsed `.ics` [events] into [targetCalendarId]. Events whose

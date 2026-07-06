@@ -71,9 +71,11 @@ interface CalendarDataSource {
     /**
      * Every master/one-off event of the writable local calendars, mapped for a
      * whole-calendar `.ics` backup. Modified-occurrence and cancelled-exception
-     * rows are excluded (see [EventExportProjection]).
+     * rows are excluded (see [EventExportProjection]). When [calendarIds] is
+     * given, only those calendars are exported (still intersected with the
+     * eligible set); `null` exports every eligible calendar.
      */
-    fun exportableEvents(): List<IcsEvent>
+    fun exportableEvents(calendarIds: Set<Long>? = null): List<IcsEvent>
 
     /**
      * The non-empty `Events.UID_2445` values present in [calendarId] — used to
@@ -611,12 +613,19 @@ class AndroidCalendarDataSource @Inject constructor(
             ?: emptyList()
     }
 
-    override fun exportableEvents(): List<IcsEvent> {
+    override fun exportableEvents(calendarIds: Set<Long>?): List<IcsEvent> {
         // Only the local calendars the app owns and can write — synced calendars
-        // already have a backup (their server). Map id → display name for the
+        // already have a backup (their server). Exclude the managed special-dates
+        // mirror calendars: their events are derived from contacts, not authored
+        // here, and re-materialise from the contact sync — backing them up would
+        // just duplicate them on restore. A non-null [calendarIds] narrows the
+        // export to the user's chosen subset. Map id → display name for the
         // X-CALENDULA-CALENDAR tag a restore uses to fan back out.
         val names = calendars()
-            .filter { it.isLocal && it.canModifyContents }
+            .filter {
+                it.isLocal && it.canModifyContents && !it.isManaged &&
+                    (calendarIds == null || it.id in calendarIds)
+            }
             .associate { it.id to it.displayName }
         if (names.isEmpty()) return emptyList()
 
