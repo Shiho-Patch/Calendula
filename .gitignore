@@ -55,3 +55,6 @@ Thumbs.db
 
 # KSP
 .ksp/
+
+# Claude Code
+/CLAUDE.md
