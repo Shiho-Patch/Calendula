@@ -34,8 +34,15 @@ else
 fi
 
 # 2. The foojay toolchain resolver must not be present in any Gradle script.
+#    This includes the floret-kit submodule: it's an included build (composite
+#    build via `includeBuild`), so F-Droid evaluates its Gradle scripts too when
+#    building from source — the same offline-scanner bar applies to it.
 gradle_files=("$SETTINGS" "$APP")
 [ -f build.gradle.kts ] && gradle_files+=(build.gradle.kts)
+if [ -d floret-kit ]; then
+  while IFS= read -r f; do gradle_files+=("$f"); done \
+    < <(find floret-kit -name '*.gradle.kts' -not -path '*/build/*')
+fi
 if grep -qi 'foojay' "${gradle_files[@]}"; then
   echo "ERROR: foojay toolchain resolver found in: $(grep -li foojay "${gradle_files[@]}" | tr '\n' ' ')" >&2
   echo "       F-Droid's source scanner rejects org.gradle.toolchains.foojay-resolver" >&2

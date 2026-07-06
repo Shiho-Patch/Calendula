@@ -4,7 +4,7 @@ import android.provider.CalendarContract
 import de.jeanlucmakiola.calendula.data.calendar.CalendarDataSource
 import de.jeanlucmakiola.calendula.data.calendar.ManagedEventRow
 import de.jeanlucmakiola.calendula.data.calendar.toWriteTimes
-import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
+import de.jeanlucmakiola.floret.reminders.ReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.EventForm
@@ -111,13 +111,13 @@ class SpecialDatesSyncEngine @Inject constructor(
      * all-day override so new events keep matching. No-op if the calendar for
      * [type] doesn't exist yet.
      */
-    suspend fun applyReminders(type: SpecialDateType, override: CalendarReminderOverride) {
+    suspend fun applyReminders(type: SpecialDateType, override: ReminderOverride) {
         val calendarId = prefs.specialDatesCalendars.first()[type] ?: return
         prefs.setCalendarAllDayReminderOverride(calendarId, override)
         val minutes = when (override) {
-            CalendarReminderOverride.Inherit -> prefs.defaultAllDayReminderMinutes.first()
-            CalendarReminderOverride.None -> emptyList()
-            is CalendarReminderOverride.Minutes -> override.minutes
+            ReminderOverride.Inherit -> prefs.defaultAllDayReminderMinutes.first()
+            ReminderOverride.None -> emptyList()
+            is ReminderOverride.Minutes -> override.minutes
         }
         calendars.applyManagedCalendarReminders(
             calendarId = calendarId,
@@ -169,7 +169,7 @@ class SpecialDatesSyncEngine @Inject constructor(
         if (!prefs.perCalendarAllDayReminderOverride.first().containsKey(id)) {
             prefs.setCalendarAllDayReminderOverride(
                 id,
-                CalendarReminderOverride.Minutes(DEFAULT_REMINDER_MINUTES),
+                ReminderOverride.Minutes(DEFAULT_REMINDER_MINUTES),
             )
         }
         return id

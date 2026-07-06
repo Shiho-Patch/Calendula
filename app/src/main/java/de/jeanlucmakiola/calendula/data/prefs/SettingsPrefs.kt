@@ -7,6 +7,11 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import de.jeanlucmakiola.floret.reminders.ReminderOverride
+import de.jeanlucmakiola.floret.reminders.ReminderOverrideCodec
+import de.jeanlucmakiola.floret.reminders.applyReminderOverride
+import de.jeanlucmakiola.floret.reminders.normalizeReminders
+import de.jeanlucmakiola.floret.reminders.reminderOverrideFor
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
@@ -436,14 +441,14 @@ class SettingsPrefs @Inject constructor(
      * (All-day events ignore this and use [defaultAllDayReminderMinutes].)
      */
     val perCalendarReminderOverride: Flow<Map<Long, List<Int>>> = store.data.map { prefs ->
-        parseReminderOverrides(prefs[CALENDAR_REMINDER_OVERRIDE_KEY])
+        reminderOverrideCodec.parse(prefs[CALENDAR_REMINDER_OVERRIDE_KEY])
     }
 
-    suspend fun setCalendarReminderOverride(calendarId: Long, override: CalendarReminderOverride) {
+    suspend fun setCalendarReminderOverride(calendarId: Long, override: ReminderOverride) {
         store.edit { prefs ->
-            val current = parseReminderOverrides(prefs[CALENDAR_REMINDER_OVERRIDE_KEY]).toMutableMap()
-            current.applyOverride(calendarId, override)
-            prefs[CALENDAR_REMINDER_OVERRIDE_KEY] = serializeReminderOverrides(current)
+            val current = reminderOverrideCodec.parse(prefs[CALENDAR_REMINDER_OVERRIDE_KEY]).toMutableMap()
+            current.applyReminderOverride(calendarId, override)
+            prefs[CALENDAR_REMINDER_OVERRIDE_KEY] = reminderOverrideCodec.serialize(current)
         }
     }
 
@@ -453,18 +458,18 @@ class SettingsPrefs @Inject constructor(
      * inherit the global all-day default; present null = no reminder).
      */
     val perCalendarAllDayReminderOverride: Flow<Map<Long, List<Int>>> = store.data.map { prefs ->
-        parseReminderOverrides(prefs[CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY])
+        reminderOverrideCodec.parse(prefs[CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY])
     }
 
     suspend fun setCalendarAllDayReminderOverride(
         calendarId: Long,
-        override: CalendarReminderOverride,
+        override: ReminderOverride,
     ) {
         store.edit { prefs ->
             val current =
-                parseReminderOverrides(prefs[CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY]).toMutableMap()
-            current.applyOverride(calendarId, override)
-            prefs[CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY] = serializeReminderOverrides(current)
+                reminderOverrideCodec.parse(prefs[CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY]).toMutableMap()
+            current.applyReminderOverride(calendarId, override)
+            prefs[CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY] = reminderOverrideCodec.serialize(current)
         }
     }
 
@@ -727,28 +732,6 @@ data class BackupStatus(
     val consecutiveFailures: Int,
 )
 
-/** A calendar's reminder-default override (see [SettingsPrefs.perCalendarReminderOverride]). */
-sealed interface CalendarReminderOverride {
-    /** No override — the calendar uses the global default. */
-    data object Inherit : CalendarReminderOverride
-    /** Explicit "no reminder" for this calendar, regardless of the global default. */
-    data object None : CalendarReminderOverride
-    /** Specific lead times in minutes before the event start (non-empty). */
-    data class Minutes(val minutes: List<Int>) : CalendarReminderOverride
-}
-
-/**
- * The stored override for [calendarId] in an override map, as a
- * [CalendarReminderOverride] (absent → [CalendarReminderOverride.Inherit],
- * empty → [CalendarReminderOverride.None]) — the inverse of how
- * [SettingsPrefs.setCalendarReminderOverride] stores a choice.
- */
-fun Map<Long, List<Int>>.choiceFor(calendarId: Long): CalendarReminderOverride = when {
-    !containsKey(calendarId) -> CalendarReminderOverride.Inherit
-    getValue(calendarId).isEmpty() -> CalendarReminderOverride.None
-    else -> CalendarReminderOverride.Minutes(getValue(calendarId))
-}
-
 /**
  * The lead times to prefill on a new event: the matching per-calendar override
  * if [calendarId] has one for this event kind, otherwise the global default for
@@ -770,21 +753,6 @@ fun resolveDefaultReminder(
         overrides.getValue(calendarId)
     } else {
         global
-    }
-}
-
-/**
- * Apply a [CalendarReminderOverride] to an override map ([Inherit] removes the
- * key; [None] and an empty [Minutes] both store the empty list).
- */
-private fun MutableMap<Long, List<Int>>.applyOverride(
-    calendarId: Long,
-    override: CalendarReminderOverride,
-) {
-    when (override) {
-        CalendarReminderOverride.Inherit -> remove(calendarId)
-        CalendarReminderOverride.None -> put(calendarId, emptyList())
-        is CalendarReminderOverride.Minutes -> put(calendarId, override.minutes.normalizeReminders())
     }
 }
 
@@ -812,8 +780,14 @@ private const val ENTRY_SEP = ";"
 private const val KEY_VALUE_SEP = "="
 private const val LIST_SEP = ","
 
-/** Distinct, ascending lead times — the canonical form stored and resolved. */
-private fun List<Int>.normalizeReminders(): List<Int> = distinct().sorted()
+/**
+ * The per-calendar override map codec, in Calendula's stored dialect
+ * (`id=minutes` entries joined by `;`, minutes comma-joined, `none` for an
+ * explicit no-reminder). The model and codec live in floret-kit; the dialect
+ * (fixed at release) stays here.
+ */
+private val reminderOverrideCodec =
+    ReminderOverrideCodec(entrySep = ENTRY_SEP, keyValueSep = KEY_VALUE_SEP, listSep = LIST_SEP, noneToken = NONE)
 
 /**
  * Parse a stored reminder value into lead times. `null`/empty/"none" → empty
@@ -829,25 +803,6 @@ private fun String?.toReminderList(): List<Int> = when {
 private fun List<Int>.toStoredReminders(): String =
     if (isEmpty()) NONE else normalizeReminders().joinToString(LIST_SEP) { it.toString() }
 
-private fun parseReminderOverrides(stored: String?): Map<Long, List<Int>> {
-    if (stored.isNullOrBlank()) return emptyMap()
-    return stored.split(ENTRY_SEP).mapNotNull { entry ->
-        val parts = entry.split(KEY_VALUE_SEP).takeIf { it.size == 2 } ?: return@mapNotNull null
-        val id = parts[0].toLongOrNull() ?: return@mapNotNull null
-        // Only the deliberate "none" sentinel means an explicit no-reminder
-        // override (empty list); a non-sentinel value that parses to no valid
-        // minutes is garbage and drops the entry, so the calendar inherits the
-        // global default rather than silently reading as "no reminder".
-        when (val value = parts[1]) {
-            NONE -> id to emptyList()
-            else -> value.toReminderList().takeIf { it.isNotEmpty() }?.let { id to it }
-                ?: return@mapNotNull null
-        }
-    }.toMap()
-}
-
-private fun serializeReminderOverrides(map: Map<Long, List<Int>>): String =
-    map.entries.joinToString(ENTRY_SEP) { (id, minutes) -> "$id$KEY_VALUE_SEP${minutes.toStoredReminders()}" }
 
 private inline fun <reified E : Enum<E>> String?.toEnum(default: E): E =
     this?.let { stored -> enumValues<E>().firstOrNull { it.name == stored } } ?: default

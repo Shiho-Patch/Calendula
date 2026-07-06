@@ -43,11 +43,21 @@ Builds:
     versionCode: 20705
     commit: v2.7.5
     subdir: app
+    submodules: true
     gradle:
       - yes
     # No NDK / no flavors. The release buildType applies a signingConfig only
     # when key.properties exists; on the buildserver it does not, so this
     # produces the unsigned APK F-Droid compares against our binary.
+    #
+    # submodules: true — REQUIRED from v2.11.0 onward, where the build pulls
+    # shared code from the `floret-kit` git submodule via a Gradle composite
+    # build (`includeBuild("floret-kit")`). Without it F-Droid checks out an
+    # empty floret-kit/ and the from-source build fails, stalling publishing.
+    # Inert for v2.7.5 (no submodule yet); kept here so AutoUpdateMode copies it
+    # onto every auto-generated future build entry. The kit is plain-Kotlin and
+    # carries no foojay toolchain resolver, so it clears the same reproducibility
+    # bar (enforced by scripts/check_reproducible_release.sh).
 
 # SHA-256 of our app signing certificate (public; embedded in every published
 # APK). Locks F-Droid to publish only binaries signed with our key.

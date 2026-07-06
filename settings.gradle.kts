@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Calendula"
 include(":app")
+includeBuild("floret-kit")

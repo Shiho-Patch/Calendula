@@ -38,8 +38,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.ics.IcsParseWarning
-import de.jeanlucmakiola.calendula.ui.common.predictiveBack
-import de.jeanlucmakiola.calendula.ui.common.OptionCard
+import de.jeanlucmakiola.floret.identity.predictiveBack
+import de.jeanlucmakiola.floret.components.OptionCard
 
 /**
  * Handles an opened/received `.ics` file. A single event is handed straight to

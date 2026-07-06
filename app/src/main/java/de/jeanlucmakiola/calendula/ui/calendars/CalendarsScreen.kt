@@ -96,17 +96,17 @@ import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
-import de.jeanlucmakiola.calendula.ui.common.DialogAmountField
-import de.jeanlucmakiola.calendula.ui.common.DialogUnitDropdown
-import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
-import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
-import de.jeanlucmakiola.calendula.ui.common.predictiveBack
-import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
+import de.jeanlucmakiola.floret.components.DialogAmountField
+import de.jeanlucmakiola.floret.components.DialogUnitDropdown
+import de.jeanlucmakiola.floret.identity.collapseExit
+import de.jeanlucmakiola.floret.identity.expandEnter
+import de.jeanlucmakiola.floret.identity.predictiveBack
+import de.jeanlucmakiola.floret.components.CollapsingScaffold
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
-import de.jeanlucmakiola.calendula.ui.common.GroupedRow
-import de.jeanlucmakiola.calendula.ui.common.InlineTextField
-import de.jeanlucmakiola.calendula.ui.common.Position
-import de.jeanlucmakiola.calendula.ui.common.pastelize
+import de.jeanlucmakiola.floret.components.GroupedRow
+import de.jeanlucmakiola.floret.components.InlineTextField
+import de.jeanlucmakiola.floret.components.Position
+import de.jeanlucmakiola.floret.components.pastelize
 import java.time.LocalDate
 
 /** Sentinel [editorId] meaning "the editor is composing a new calendar". */
@@ -253,6 +253,7 @@ private fun CalendarsList(
         title = stringResource(R.string.calendars_title),
         onBack = onBack,
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        predictiveBack = true,
     ) {
         // What the per-calendar / per-account switches below actually do.
         HintText(stringResource(R.string.calendars_disable_hint))
@@ -664,8 +665,8 @@ private fun CalendarGroup(
     )
     AnimatedVisibility(
         visible = expanded,
-        enter = calendarExpandEnter(),
-        exit = calendarCollapseExit(),
+        enter = expandEnter(),
+        exit = collapseExit(),
     ) {
         Column(content = body)
     }

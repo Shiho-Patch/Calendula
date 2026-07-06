@@ -24,7 +24,7 @@ import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaScreen
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarsScreen
-import de.jeanlucmakiola.calendula.ui.common.calendarFadeThrough
+import de.jeanlucmakiola.floret.identity.fadeThrough
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.drillToDay
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
@@ -274,7 +274,7 @@ fun CalendarHost(
         // Switching between the peer views (month/week/day/agenda) is lateral
         // navigation, so it fades through rather than sliding — paging *within* a
         // view keeps the directional slide. AnimatedContent keyed on the view type.
-        val viewSwitch = calendarFadeThrough()
+        val viewSwitch = fadeThrough()
         AnimatedContent(
             targetState = view,
             transitionSpec = { viewSwitch },

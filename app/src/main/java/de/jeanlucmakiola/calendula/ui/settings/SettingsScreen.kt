@@ -26,7 +26,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -59,9 +58,9 @@ import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.FilledTonalButton
+import de.jeanlucmakiola.floret.locale.AppLanguage
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -80,6 +79,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -94,42 +94,44 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.data.contacts.hasContactsPermission
-import de.jeanlucmakiola.calendula.data.crash.CrashReporter
-import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
-import de.jeanlucmakiola.calendula.data.prefs.choiceFor
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
+import de.jeanlucmakiola.floret.reminders.ReminderOverride
+import de.jeanlucmakiola.floret.reminders.reminderOverrideFor
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.qs.NewEventTileService
-import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
-import de.jeanlucmakiola.calendula.ui.crash.openIssueTracker
-import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
+import de.jeanlucmakiola.floret.crash.CrashReportDialog
+import de.jeanlucmakiola.floret.crash.CrashReporter
+import de.jeanlucmakiola.floret.crash.openIssueTracker
+import de.jeanlucmakiola.floret.crash.submitCrashReport
 import de.jeanlucmakiola.calendula.domain.FontRole
-import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
-import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
+import de.jeanlucmakiola.floret.identity.collapseExit
+import de.jeanlucmakiola.floret.identity.expandEnter
 import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
-import de.jeanlucmakiola.calendula.ui.common.FullScreenPicker
+import de.jeanlucmakiola.floret.components.FullScreenPicker
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
-import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
-import de.jeanlucmakiola.calendula.ui.common.GroupedRow
-import de.jeanlucmakiola.calendula.ui.common.InlineTextField
+import de.jeanlucmakiola.floret.components.AboutCard
+import de.jeanlucmakiola.floret.components.AboutLink
+import de.jeanlucmakiola.floret.components.CollapsingScaffold
+import de.jeanlucmakiola.floret.components.GroupedRow
+import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
-import de.jeanlucmakiola.calendula.ui.common.ReorderableColumn
-import de.jeanlucmakiola.calendula.ui.common.ReorderableRowHeight
+import de.jeanlucmakiola.floret.components.ReorderableColumn
+import de.jeanlucmakiola.floret.components.ReorderableRowHeight
 import de.jeanlucmakiola.calendula.ui.common.icon
 import de.jeanlucmakiola.calendula.ui.common.labelRes
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
-import de.jeanlucmakiola.calendula.ui.common.OptionPicker
-import de.jeanlucmakiola.calendula.ui.common.Position
+import de.jeanlucmakiola.floret.components.OptionPicker
+import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
 import de.jeanlucmakiola.calendula.ui.common.ReminderDefaultPicker
 import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
-import de.jeanlucmakiola.calendula.ui.common.positionOf
+import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
@@ -236,7 +238,7 @@ private fun SettingsHub(
     onOpenSection: (SettingsSection) -> Unit,
     onManageCalendars: () -> Unit,
 ) {
-    CollapsingScaffold(title = stringResource(R.string.settings_title), onBack = onBack) {
+    CollapsingScaffold(title = stringResource(R.string.settings_title), onBack = onBack, predictiveBack = true) {
         Box(Modifier.padding(horizontal = 16.dp)) { AboutCard() }
         Spacer(Modifier.height(16.dp))
 
@@ -357,7 +359,7 @@ private fun LanguageRow(position: Position) {
     var showDialog by remember { mutableStateOf(false) }
 
     // null = follow the system; the rest are BCP-47 tags from locales_config.xml.
-    val options = remember { listOf<String?>(null) + AppLanguage.supportedTags(context) }
+    val options = remember { listOf<String?>(null) + AppLanguage.supportedTags(context, R.xml.locales_config) }
 
     GroupedRow(
         title = stringResource(R.string.settings_language),
@@ -370,6 +372,7 @@ private fun LanguageRow(position: Position) {
     if (showDialog) {
         OptionPicker(
             title = stringResource(R.string.settings_language),
+            predictiveBack = true,
             options = options,
             selected = current,
             label = { languageLabel(it) },
@@ -396,83 +399,30 @@ private fun LanguageRow(position: Position) {
 
 @Composable
 private fun AboutCard() {
-    val context = LocalContext.current
-    val sourceUrl = stringResource(R.string.about_source_url)
-    val licenseUrl = stringResource(R.string.about_license_url)
-    val supportUrl = stringResource(R.string.about_support_url)
-
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(24.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AppLogo()
-                Spacer(Modifier.width(16.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_about_author),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(
-                    onClick = { openUrl(context, sourceUrl) },
-                    contentPadding = PaddingValues(horizontal = 12.dp),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_gitea),
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.settings_about_source))
-                }
-                OutlinedButton(
-                    onClick = { openUrl(context, licenseUrl) },
-                    contentPadding = PaddingValues(horizontal = 12.dp),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(
-                        Icons.Default.Gavel,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.settings_license))
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-            FilledTonalButton(
-                onClick = { openUrl(context, supportUrl) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(
-                    Icons.Default.Favorite,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.settings_about_support))
-            }
-        }
-    }
+    // The card layout lives in floret-kit (components.AboutCard); Calendula
+    // supplies its own logo, author and the source / licence / support links.
+    AboutCard(
+        logo = { AppLogo() },
+        appName = stringResource(R.string.app_name),
+        author = stringResource(R.string.settings_about_author),
+        primaryLinks = listOf(
+            AboutLink(
+                icon = ImageVector.vectorResource(R.drawable.ic_gitea),
+                label = stringResource(R.string.settings_about_source),
+                url = stringResource(R.string.about_source_url),
+            ),
+            AboutLink(
+                icon = Icons.Default.Gavel,
+                label = stringResource(R.string.settings_license),
+                url = stringResource(R.string.about_license_url),
+            ),
+        ),
+        highlightLink = AboutLink(
+            icon = Icons.Default.Favorite,
+            label = stringResource(R.string.settings_about_support),
+            url = stringResource(R.string.about_support_url),
+        ),
+    )
 }
 
 /** Plain centred version mark at the foot of the settings list (no card). */
@@ -550,6 +500,7 @@ private fun AppearanceScreen(
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_appearance),
         onBack = onBack,
+        predictiveBack = true,
     ) {
         // Theme & colour
         GroupedRow(
@@ -684,6 +635,7 @@ private fun AppearanceScreen(
     if (showTheme) {
         OptionPicker(
             title = stringResource(R.string.settings_theme),
+            predictiveBack = true,
             options = ThemeMode.entries,
             selected = state.themeMode,
             label = { themeLabel(it) },
@@ -716,6 +668,7 @@ private fun AppearanceScreen(
     if (showWeekStart) {
         OptionPicker(
             title = stringResource(R.string.settings_week_start),
+            predictiveBack = true,
             options = WEEK_START_OPTIONS,
             selected = state.weekStart,
             label = { weekStartLabel(it) },
@@ -744,6 +697,7 @@ private fun AppearanceScreen(
     if (showTimeFormat) {
         OptionPicker(
             title = stringResource(R.string.settings_time_format),
+            predictiveBack = true,
             options = TimeFormatPref.entries,
             selected = state.timeFormat,
             label = { timeFormatLabel(it) },
@@ -764,6 +718,7 @@ private fun AppearanceScreen(
     if (showDefaultView) {
         OptionPicker(
             title = stringResource(R.string.settings_default_view),
+            predictiveBack = true,
             options = IMPLEMENTED_VIEWS,
             selected = state.defaultView,
             label = { stringResource(it.labelRes) },
@@ -904,6 +859,7 @@ private fun EventFormScreen(
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_event_form),
         onBack = onBack,
+        predictiveBack = true,
     ) {
         Text(
             text = stringResource(R.string.settings_form_fields_hint),
@@ -1039,6 +995,7 @@ private fun NotificationsScreen(
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_notifications),
         onBack = onBack,
+        predictiveBack = true,
     ) {
         GroupedRow(
             title = stringResource(R.string.settings_reminders),
@@ -1129,8 +1086,8 @@ private fun NotificationsScreen(
             )
             AnimatedVisibility(
                 visible = calendarSectionExpanded,
-                enter = calendarExpandEnter(),
-                exit = calendarCollapseExit(),
+                enter = expandEnter(),
+                exit = collapseExit(),
             ) {
                 Column {
                     state.writableCalendars.forEach { calendar ->
@@ -1178,18 +1135,18 @@ private fun NotificationsScreen(
                         )
                         AnimatedVisibility(
                             visible = expanded,
-                            enter = calendarExpandEnter(),
-                            exit = calendarCollapseExit(),
+                            enter = expandEnter(),
+                            exit = collapseExit(),
                         ) {
                             Column {
-                                val timed = state.perCalendarReminderOverride.choiceFor(calendar.id)
+                                val timed = state.perCalendarReminderOverride.reminderOverrideFor(calendar.id)
                                 GroupedRow(
                                     title = stringResource(R.string.settings_default_reminder),
                                     summary = calendarOverrideSummary(timed, state.defaultReminderMinutes),
                                     position = Position.Middle,
                                     onClick = { overrideDialog = OverrideTarget(calendar.id, isAllDay = false) },
                                 )
-                                val allDay = state.perCalendarAllDayReminderOverride.choiceFor(calendar.id)
+                                val allDay = state.perCalendarAllDayReminderOverride.reminderOverrideFor(calendar.id)
                                 GroupedRow(
                                     title = stringResource(R.string.settings_default_reminder_allday),
                                     summary = calendarOverrideSummary(allDay, state.defaultAllDayReminderMinutes),
@@ -1207,6 +1164,7 @@ private fun NotificationsScreen(
     if (showSnooze) {
         OptionPicker(
             title = stringResource(R.string.settings_snooze_duration),
+            predictiveBack = true,
             options = SNOOZE_PRESETS,
             selected = state.snoozeMinutes,
             label = { snoozeDurationLabel(it) },
@@ -1262,7 +1220,7 @@ private fun NotificationsScreen(
                 },
             ),
             presets = if (target.isAllDay) ALLDAY_REMINDER_PRESETS else REMINDER_PRESETS,
-            selected = map.choiceFor(target.calendarId),
+            selected = map.reminderOverrideFor(target.calendarId),
             allowInherit = true,
             onSelect = {
                 if (target.isAllDay) {
@@ -1451,7 +1409,7 @@ private fun SpecialDatesScreen(
         ReminderDefaultPicker(
             title = stringResource(R.string.settings_special_dates_reminders),
             presets = ALLDAY_REMINDER_PRESETS,
-            selected = state.reminderChoices[type] ?: CalendarReminderOverride.None,
+            selected = state.reminderChoices[type] ?: ReminderOverride.None,
             // Managed calendars own their reminders outright — no "inherit global".
             allowInherit = false,
             onSelect = { viewModel.setSpecialDatesReminders(type, it) },
@@ -1461,8 +1419,8 @@ private fun SpecialDatesScreen(
 }
 
 /** The lead-time list backing a managed calendar's reminder choice (for the summary label). */
-private fun specialDatesReminderMinutes(choice: CalendarReminderOverride?): List<Int> =
-    (choice as? CalendarReminderOverride.Minutes)?.minutes.orEmpty()
+private fun specialDatesReminderMinutes(choice: ReminderOverride?): List<Int> =
+    (choice as? ReminderOverride.Minutes)?.minutes.orEmpty()
 
 @Composable
 private fun SpecialDatesDisableDialog(
@@ -1561,12 +1519,12 @@ private fun specialDatesLastRunLabel(context: Context, lastRun: Long): String =
 private data class OverrideTarget(val calendarId: Long, val isAllDay: Boolean)
 
 /** A global default (empty = none) as a picker choice for selection highlighting. */
-private fun List<Int>.toReminderChoice(): CalendarReminderOverride =
-    if (isEmpty()) CalendarReminderOverride.None else CalendarReminderOverride.Minutes(this)
+private fun List<Int>.toReminderChoice(): ReminderOverride =
+    if (isEmpty()) ReminderOverride.None else ReminderOverride.Minutes(this)
 
 /** A picked choice as global-default minutes (Inherit isn't offered for globals). */
-private fun CalendarReminderOverride.toMinutesList(): List<Int> =
-    (this as? CalendarReminderOverride.Minutes)?.minutes ?: emptyList()
+private fun ReminderOverride.toMinutesList(): List<Int> =
+    (this as? ReminderOverride.Minutes)?.minutes ?: emptyList()
 
 /**
  * Whether Calendula is exempt from battery optimisation, re-read on every
@@ -1650,13 +1608,13 @@ private fun reminderChoiceLabel(minutes: List<Int>): String {
 /** Row summary for a calendar: its override, or the inherited global default. */
 @Composable
 private fun calendarOverrideSummary(
-    choice: CalendarReminderOverride,
+    choice: ReminderOverride,
     globalDefault: List<Int>,
 ): String = when (choice) {
-    CalendarReminderOverride.Inherit ->
+    ReminderOverride.Inherit ->
         stringResource(R.string.settings_calendar_reminder_inherits, reminderChoiceLabel(globalDefault))
-    CalendarReminderOverride.None -> stringResource(R.string.reminder_none)
-    is CalendarReminderOverride.Minutes -> reminderChoiceLabel(choice.minutes)
+    ReminderOverride.None -> stringResource(R.string.reminder_none)
+    is ReminderOverride.Minutes -> reminderChoiceLabel(choice.minutes)
 }
 
 // ---------------------------------------------------------------------------

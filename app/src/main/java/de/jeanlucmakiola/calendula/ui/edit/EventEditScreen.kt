@@ -96,6 +96,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -117,33 +118,33 @@ import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.SimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.parseSimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.toRRule
-import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
-import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
-import de.jeanlucmakiola.calendula.ui.common.predictiveBack
+import de.jeanlucmakiola.floret.identity.collapseExit
+import de.jeanlucmakiola.floret.identity.expandEnter
+import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
-import de.jeanlucmakiola.calendula.ui.common.DialogAmountField
-import de.jeanlucmakiola.calendula.ui.common.DialogUnitDropdown
+import de.jeanlucmakiola.floret.components.DialogAmountField
+import de.jeanlucmakiola.floret.components.DialogUnitDropdown
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldIcon
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldLabel
-import de.jeanlucmakiola.calendula.ui.common.FullScreenPicker
-import de.jeanlucmakiola.calendula.ui.common.GroupedRow
+import de.jeanlucmakiola.floret.components.FullScreenPicker
+import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.MILLIS_PER_DAY
-import de.jeanlucmakiola.calendula.ui.common.InlineTextField
-import de.jeanlucmakiola.calendula.ui.common.OptionCard
-import de.jeanlucmakiola.calendula.ui.common.Position
-import de.jeanlucmakiola.calendula.ui.common.positionOf
+import de.jeanlucmakiola.floret.components.InlineTextField
+import de.jeanlucmakiola.floret.components.OptionCard
+import de.jeanlucmakiola.floret.components.Position
+import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
-import de.jeanlucmakiola.calendula.ui.common.ReminderUnit
 import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
+import de.jeanlucmakiola.floret.reminders.ReminderUnit
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.reminderUnitLabel
-import de.jeanlucmakiola.calendula.ui.common.pastelize
+import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.calendula.ui.common.recurrenceText
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -422,8 +423,8 @@ private fun OptionalFormSection(
 ) {
     AnimatedVisibility(
         visible = visible,
-        enter = calendarExpandEnter(),
-        exit = calendarCollapseExit(),
+        enter = expandEnter(),
+        exit = collapseExit(),
     ) {
         Column(modifier = Modifier.fillMaxWidth(), content = content)
     }
@@ -1612,6 +1613,7 @@ private fun AddGuestInlineCard(
                 value = text,
                 onValueChange = { text = it },
                 placeholder = stringResource(R.string.event_edit_add_guest_hint),
+                capitalization = KeyboardCapitalization.None,
                 keyboardType = KeyboardType.Email,
                 imeAction = ImeAction.Done,
                 onImeAction = { commit() },
@@ -1900,6 +1902,7 @@ private fun InlineField(
         minLines = minLines,
         enabled = enabled,
         keyboardType = keyboardType,
+        capitalization = KeyboardCapitalization.None,
     )
 }
 
