@@ -613,10 +613,13 @@ class AndroidCalendarDataSource @Inject constructor(
 
     override fun exportableEvents(): List<IcsEvent> {
         // Only the local calendars the app owns and can write — synced calendars
-        // already have a backup (their server). Map id → display name for the
+        // already have a backup (their server). Exclude the managed special-dates
+        // mirror calendars: their events are derived from contacts, not authored
+        // here, and re-materialise from the contact sync — backing them up would
+        // just duplicate them on restore. Map id → display name for the
         // X-CALENDULA-CALENDAR tag a restore uses to fan back out.
         val names = calendars()
-            .filter { it.isLocal && it.canModifyContents }
+            .filter { it.isLocal && it.canModifyContents && !it.isManaged }
             .associate { it.id to it.displayName }
         if (names.isEmpty()) return emptyList()
 
