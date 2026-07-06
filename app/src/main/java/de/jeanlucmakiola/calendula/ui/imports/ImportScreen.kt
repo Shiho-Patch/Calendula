@@ -75,7 +75,13 @@ fun ImportScreen(
     onClose: () -> Unit,
     onOpenSingle: (EventForm) -> Unit,
     forceMany: Boolean = false,
-    viewModel: ImportViewModel = hiltViewModel(),
+    // Key the VM by the file uri. This screen has no nav backstack, so an
+    // unkeyed hiltViewModel() resolves to the Activity's store and is retained
+    // across imports — its one-shot `load` guard would then show the *previous*
+    // file's parsed state on the next import (a second restore, export→restore,
+    // etc.). Keying per uri hands each distinct file a fresh VM (fresh Loading
+    // state), while the same uri (rotation) reuses it and holds the result.
+    viewModel: ImportViewModel = hiltViewModel(key = uri.toString()),
 ) {
     LaunchedEffect(uri) { viewModel.load(uri, forceMany) }
     val state by viewModel.state.collectAsStateWithLifecycle()
