@@ -1,0 +1,16 @@
+### Added
+- Create events from other apps and widgets. Calendula now registers the
+  standard "insert event" intent, so other apps and home-screen widgets (such as
+  the Todo Agenda widget) can hand off to Calendula to create a new event — it
+  opens the new-event form prefilled with whatever they passed (title, time,
+  location, description). Thanks to @dschuermann for the suggestion ([#30]).
+
+### Fixed
+- Some recurring events could not be opened. Events in a series that started
+  before 1970 — for example yearly birthdays or anniversaries synced over CalDAV
+  — showed "Something went wrong" instead of opening. They now open normally, and
+  show up in search again. Thanks to @dschuermann for the report ([#34]).
+- The time picker now follows your 24-hour setting. With Calendula set to
+  24-hour time, the dial for choosing an event's start and end time still showed
+  AM/PM; it now matches your setting. Thanks to @abrossimow for the report
+  ([#27]).

@@ -112,6 +112,17 @@
                 <data android:mimeType="text/calendar" />
             </intent-filter>
 
+            <!-- Let another app or widget (e.g. the Todo Agenda widget) launch us
+                 to create a new event, the way the AOSP calendar accepts it:
+                 ACTION_INSERT on the events dir mime type, carrying the new
+                 event's fields as CalendarContract extras
+                 (MainActivity.insertFormOrNull, issue #30). -->
+            <intent-filter>
+                <action android:name="android.intent.action.INSERT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.dir/event" />
+            </intent-filter>
+
             <!-- Launcher long-press shortcuts (e.g. "New event"). -->
             <meta-data
                 android:name="android.app.shortcuts"

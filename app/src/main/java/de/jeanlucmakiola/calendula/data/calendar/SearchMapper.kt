@@ -10,8 +10,11 @@ import de.jeanlucmakiola.calendula.domain.ics.parseRfc2445DurationMillis
  * of DTEND — reconstruct the end the same way the `.ics` export does.
  */
 internal fun ColumnReader.toSearchResult(): EventInstance? {
+    // A pre-1970 series anchor is a legitimately negative epoch-millis DTSTART
+    // (see EventDetailMapper / issue #34); drop only a genuinely absent one, so
+    // long-running birthdays/anniversaries still surface in search.
+    if (isNull(SearchProjection.IDX_DTSTART)) return null
     val dtStart = getLong(SearchProjection.IDX_DTSTART)
-    if (dtStart < 0L) return null
     val end = when {
         !isNull(SearchProjection.IDX_DTEND) -> getLong(SearchProjection.IDX_DTEND)
         else -> dtStart + parseRfc2445DurationMillis(getString(SearchProjection.IDX_DURATION))
