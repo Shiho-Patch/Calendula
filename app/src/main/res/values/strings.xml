@@ -462,6 +462,8 @@
     <string name="import_failed">Couldn\'t read this file.</string>
     <string name="import_no_calendar">No writable calendar to import into. Create a local calendar first.</string>
     <string name="import_done_title">Import complete</string>
+    <string name="import_done_added_label">Added</string>
+    <string name="import_done_skipped_label">Duplicates</string>
     <string name="import_close">Close</string>
     <string name="import_warning_recurrence">Some changed occurrences of recurring events were skipped.</string>
     <string name="import_warning_no_start">An event without a start time was skipped.</string>
