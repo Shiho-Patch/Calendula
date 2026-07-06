@@ -336,7 +336,11 @@ class EventEditViewModel @Inject constructor(
         _revealed.value = _revealed.value + field
     }
 
-    fun setTitle(value: String) = update { it.copy(title = value) }
+    // The title field wraps (multi-line) so long titles stay visible (#33), but
+    // a title is one logical line: drop any newline the IME's Enter key or a
+    // paste would introduce, so it never reaches the provider's TITLE column.
+    fun setTitle(value: String) =
+        update { it.copy(title = value.replace("\n", "").replace("\r", "")) }
     fun setLocation(value: String) = update { it.copy(location = value) }
     fun setDescription(value: String) = update { it.copy(description = value) }
     fun setAllDay(value: Boolean) {
