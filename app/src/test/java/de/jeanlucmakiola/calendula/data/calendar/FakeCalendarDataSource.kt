@@ -23,6 +23,8 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     var eventDetailResult: (Long) -> EventDetail? = { null }
     var eventColorPaletteResult: (Long) -> List<EventColorOption> = { emptyList() }
     var exportableEventsResult: List<IcsEvent> = emptyList()
+    /** The [calendarIds] the last [exportableEvents] call received (null = all). */
+    var lastExportableEventsCalendarIds: Set<Long>? = null
     /** UIDs the target calendar already holds, for import dedup. */
     var existingUidsResult: Set<String> = emptySet()
     /** Set to make the next write call throw. */
@@ -59,7 +61,10 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     override fun eventDetail(eventId: Long): EventDetail? = eventDetailResult(eventId)
     override fun eventColorPalette(calendarId: Long): List<EventColorOption> =
         eventColorPaletteResult(calendarId)
-    override fun exportableEvents(calendarIds: Set<Long>?): List<IcsEvent> = exportableEventsResult
+    override fun exportableEvents(calendarIds: Set<Long>?): List<IcsEvent> {
+        lastExportableEventsCalendarIds = calendarIds
+        return exportableEventsResult
+    }
 
     override fun existingUids(calendarId: Long): Set<String> = existingUidsResult
 
