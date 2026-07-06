@@ -35,6 +35,8 @@ fun RootScreen(
     onWidgetNavConsumed: () -> Unit = {},
     requestedImportUri: android.net.Uri? = null,
     onImportConsumed: () -> Unit = {},
+    requestedInsertForm: de.jeanlucmakiola.calendula.domain.EventForm? = null,
+    onInsertConsumed: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var hasPermission by remember {
@@ -84,6 +86,8 @@ fun RootScreen(
                         onWidgetNavConsumed = onWidgetNavConsumed,
                         requestedImportUri = requestedImportUri,
                         onImportConsumed = onImportConsumed,
+                        requestedInsertForm = requestedInsertForm,
+                        onInsertConsumed = onInsertConsumed,
                     )
                     false -> ReminderOnboardingScreen(
                         onFinished = reminderOnboarding::finish,
