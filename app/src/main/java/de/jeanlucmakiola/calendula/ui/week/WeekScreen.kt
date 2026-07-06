@@ -128,6 +128,7 @@ private fun WeekUiState.Success.allDayStripHeight(): Dp {
 fun WeekScreen(
     selectedView: CalendarView,
     onSelectView: (CalendarView) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
     onEventClick: (EventInstance) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenSearch: () -> Unit,
@@ -249,6 +250,7 @@ fun WeekScreen(
                     onSwipePrev = goPrev,
                     onRetry = jumpToToday,
                     onEventClick = onEventClick,
+                    onOpenDay = onOpenDay,
                     onCreateAt = { d, minutes -> onCreateEvent(d, minutes) },
                     modifier = Modifier
                         .padding(innerPadding)
@@ -268,6 +270,7 @@ private fun WeekContent(
     onSwipePrev: () -> Unit,
     onRetry: () -> Unit,
     onEventClick: (EventInstance) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -342,6 +345,7 @@ private fun WeekContent(
                 scrollState = scrollState,
                 allDayHeight = allDayHeight,
                 onEventClick = onEventClick,
+                onOpenDay = onOpenDay,
                 onCreateAt = onCreateAt,
             )
         }
@@ -355,6 +359,7 @@ private fun WeekSuccess(
     scrollState: ScrollState,
     allDayHeight: Dp,
     onEventClick: (EventInstance) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
@@ -363,7 +368,7 @@ private fun WeekSuccess(
                 .fillMaxWidth()
                 .background(topSectionColor),
         ) {
-            WeekDayHeader(days = state.days, today = state.today)
+            WeekDayHeader(days = state.days, today = state.today, onOpenDay = onOpenDay)
             AllDayStrip(state = state, height = allDayHeight, onEventClick = onEventClick)
         }
         // Breathing room between the (colour-shifting) top section and the
@@ -427,7 +432,11 @@ private fun WeekTopBar(
 }
 
 @Composable
-private fun WeekDayHeader(days: List<LocalDate>, today: LocalDate) {
+private fun WeekDayHeader(
+    days: List<LocalDate>,
+    today: LocalDate,
+    onOpenDay: (LocalDate) -> Unit,
+) {
     val locale = currentLocale()
     val weekStart = days.first()
     val weekNumber = remember(weekStart) {
@@ -453,7 +462,10 @@ private fun WeekDayHeader(days: List<LocalDate>, today: LocalDate) {
             val javaDow = java.time.DayOfWeek.of(date.dayOfWeek.ordinal + 1)
             val isToday = date == today
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onOpenDay(date) },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
