@@ -85,16 +85,50 @@ fun ImportScreen(
         (state as? ImportUiState.Single)?.let { onOpenSingle(it.form); onClose() }
     }
 
+    // Hoisted target calendar so the always-visible top-bar Import action can
+    // read it without the user scrolling to a bottom button. Re-defaults to the
+    // first calendar when the "many" list first arrives (keyed on it), then
+    // holds the user's pick.
+    val many = state as? ImportUiState.Many
+    var selected by rememberSaveable(many?.calendars?.firstOrNull()?.id) {
+        mutableStateOf(many?.calendars?.firstOrNull()?.id)
+    }
+
     Scaffold(
         modifier = Modifier
             .predictiveBack(onBack = onClose)
             .fillMaxSize(),
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.import_title)) },
+                title = {
+                    Text(
+                        if (many != null) {
+                            pluralStringResource(
+                                R.plurals.import_title_count,
+                                many.events.size,
+                                many.events.size,
+                            )
+                        } else {
+                            stringResource(R.string.import_title)
+                        },
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(Icons.Default.Close, contentDescription = stringResource(R.string.event_edit_close))
+                    }
+                },
+                actions = {
+                    // Only meaningful in the multi-event picker with a writable
+                    // target; every other state has nothing to confirm here.
+                    if (many != null && many.calendars.isNotEmpty()) {
+                        Button(
+                            onClick = { selected?.let(viewModel::import) },
+                            enabled = selected != null,
+                            modifier = Modifier.padding(end = 12.dp),
+                        ) {
+                            Text(stringResource(R.string.import_button))
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -112,7 +146,7 @@ fun ImportScreen(
 
                 ImportUiState.Empty -> CenteredMessage(stringResource(R.string.import_empty), onClose)
                 ImportUiState.Failed -> CenteredMessage(stringResource(R.string.import_failed), onClose)
-                is ImportUiState.Many -> ManyContent(s, onImport = viewModel::import)
+                is ImportUiState.Many -> ManyContent(s, selected, onSelect = { selected = it })
                 is ImportUiState.Done -> DoneContent(s, onClose)
             }
         }
@@ -120,27 +154,21 @@ fun ImportScreen(
 }
 
 @Composable
-private fun ManyContent(state: ImportUiState.Many, onImport: (Long) -> Unit) {
+private fun ManyContent(state: ImportUiState.Many, selected: Long?, onSelect: (Long) -> Unit) {
     // No writable calendar to import into — tell the user honestly.
     if (state.calendars.isEmpty()) {
         CenteredMessage(stringResource(R.string.import_no_calendar), onClose = null)
         return
     }
-    var selected by rememberSaveable { mutableStateOf(state.calendars.first().id) }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(vertical = 8.dp),
+            .padding(top = 8.dp, bottom = 24.dp),
     ) {
-        Text(
-            pluralStringResource(R.plurals.import_event_count, state.events.size, state.events.size),
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 12.dp),
-        )
         CalendarPickerGroups(
             calendars = state.calendars,
             selectedId = selected,
-            onSelect = { selected = it },
+            onSelect = onSelect,
         )
         if (state.warnings.isNotEmpty()) {
             Column(
@@ -149,12 +177,6 @@ private fun ManyContent(state: ImportUiState.Many, onImport: (Long) -> Unit) {
             ) {
                 state.warnings.forEach { WarningText(it) }
             }
-        }
-        Button(
-            onClick = { onImport(selected) },
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp),
-        ) {
-            Text(pluralStringResource(R.plurals.import_action, state.events.size, state.events.size))
         }
     }
 }

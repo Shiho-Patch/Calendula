@@ -473,6 +473,11 @@
     <string name="import_warning_no_start">An event without a start time was skipped.</string>
     <string name="import_warning_attendees">Guest lists weren\'t imported.</string>
     <string name="import_warning_timezone">An unknown time zone fell back to your device\'s.</string>
+    <string name="import_button">Import</string>
+    <plurals name="import_title_count">
+        <item quantity="one">Importing %d event</item>
+        <item quantity="other">Importing %d events</item>
+    </plurals>
     <plurals name="import_event_count">
         <item quantity="one">%d event in this file.</item>
         <item quantity="other">%d events in this file.</item>
