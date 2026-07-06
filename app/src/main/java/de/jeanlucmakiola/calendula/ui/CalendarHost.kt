@@ -72,6 +72,8 @@ fun CalendarHost(
     onWidgetNavConsumed: () -> Unit = {},
     requestedImportUri: android.net.Uri? = null,
     onImportConsumed: () -> Unit = {},
+    requestedInsertForm: EventForm? = null,
+    onInsertConsumed: () -> Unit = {},
     viewModel: CalendarHostViewModel = hiltViewModel(),
 ) {
     // Wait for the persisted default view before seeding the stack, so the app
@@ -174,6 +176,16 @@ fun CalendarHost(
         if (requestedImportUri != null) {
             importUri = requestedImportUri
             onImportConsumed()
+        }
+    }
+    // An external ACTION_INSERT launch (another app/widget creating an event,
+    // issue #30) arrives already prefilled — open it in the same create form the
+    // single-event .ics path uses. [importForm] is the topmost overlay, so it
+    // reveals on top of whatever was open without extra dismissal.
+    LaunchedEffect(requestedInsertForm) {
+        if (requestedInsertForm != null) {
+            importForm = requestedInsertForm
+            onInsertConsumed()
         }
     }
 

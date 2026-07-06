@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.CalendarContract
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -25,6 +26,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.is24Hour
+import de.jeanlucmakiola.calendula.domain.EventForm
+import de.jeanlucmakiola.calendula.domain.buildInsertEventForm
 import de.jeanlucmakiola.calendula.ui.RootScreen
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
@@ -42,6 +45,7 @@ import de.jeanlucmakiola.calendula.ui.theme.resolveFontFamily
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 import kotlin.time.Instant
 
 @AndroidEntryPoint
@@ -59,6 +63,11 @@ class MainActivity : AppCompatActivity() {
     // An .ics file opened/shared into the app (ACTION_VIEW/SEND). Consumed once
     // by CalendarHost's import flow.
     private var requestedImportUri by mutableStateOf<Uri?>(null)
+
+    // A prefilled new-event form from an external ACTION_INSERT launch (another
+    // app/widget asking us to create an event, issue #30). Consumed once by
+    // CalendarHost, which opens it in the create form for review.
+    private var requestedInsertForm by mutableStateOf<EventForm?>(null)
 
     // A captured crash report awaiting the user's decision, surfaced as a dialog
     // over the calendar on the next launch (the single-crash path). A startup
@@ -84,6 +93,7 @@ class MainActivity : AppCompatActivity() {
         requestedDetailKey = intent.detailKeyOrNull()
         requestedNav = intent.navRequestOrNull()
         requestedImportUri = intent.importUriOrNull()
+        requestedInsertForm = intent.insertFormOrNull()
         if (CrashReporter.shouldPrompt(this)) pendingCrashReport = CrashReporter.pendingReport(this)
         setContent {
             // One activity-scoped SettingsViewModel drives both the theme here
@@ -132,6 +142,8 @@ class MainActivity : AppCompatActivity() {
                             onWidgetNavConsumed = { requestedNav = null },
                             requestedImportUri = requestedImportUri,
                             onImportConsumed = { requestedImportUri = null },
+                            requestedInsertForm = requestedInsertForm,
+                            onInsertConsumed = { requestedInsertForm = null },
                         )
                     }
                     // A persistent corner marker so a debug build is never
@@ -169,6 +181,7 @@ class MainActivity : AppCompatActivity() {
         intent.detailKeyOrNull()?.let { requestedDetailKey = it }
         intent.navRequestOrNull()?.let { requestedNav = it }
         intent.importUriOrNull()?.let { requestedImportUri = it }
+        intent.insertFormOrNull()?.let { requestedInsertForm = it }
     }
 
     /**
@@ -187,6 +200,31 @@ class MainActivity : AppCompatActivity() {
         if (uri.host == CALENDAR_PROVIDER_HOST) return null
         return uri.takeIf { it.scheme == "content" || it.scheme == "file" }
     }
+
+    /**
+     * A prefilled new-event form from an external `ACTION_INSERT` launch — another
+     * app or widget (e.g. Todo Agenda) asking us to create an event (issue #30).
+     * The new event's fields ride as CalendarContract extras; anything omitted
+     * falls back to the in-app "new event" defaults in [buildInsertEventForm].
+     */
+    private fun Intent.insertFormOrNull(): EventForm? {
+        if (action != Intent.ACTION_INSERT) return null
+        return buildInsertEventForm(
+            beginMillis = longExtraOrNull(CalendarContract.EXTRA_EVENT_BEGIN_TIME),
+            endMillis = longExtraOrNull(CalendarContract.EXTRA_EVENT_END_TIME),
+            isAllDay = getBooleanExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, false),
+            title = getStringExtra(CalendarContract.Events.TITLE),
+            description = getStringExtra(CalendarContract.Events.DESCRIPTION),
+            location = getStringExtra(CalendarContract.Events.EVENT_LOCATION),
+            rrule = getStringExtra(CalendarContract.Events.RRULE),
+            zone = TimeZone.currentSystemDefault(),
+            now = Clock.System.now(),
+        )
+    }
+
+    /** A Long extra's value, or null when the extra is absent. */
+    private fun Intent.longExtraOrNull(key: String): Long? =
+        if (hasExtra(key)) getLongExtra(key, 0L) else null
 
     /**
      * The date a launcher/clock date tap points at, parsed from the AOSP calendar
