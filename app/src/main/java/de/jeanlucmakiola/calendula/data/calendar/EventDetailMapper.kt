@@ -23,12 +23,16 @@ internal fun ColumnReader.toEventDetailCore(
     attendees: List<Attendee>,
     reminders: List<Reminder>,
 ): EventDetail? {
-    val begin = getLong(EventDetailProjection.IDX_DTSTART)
-
-    if (begin < 0L) {
-        Log.w(TAG, "Dropping event with negative dtstart=$begin")
+    // DTSTART is epoch millis in UTC, so a series anchored before 1970 (common
+    // for yearly birthdays/anniversaries synced over CalDAV) is legitimately
+    // negative — only an *absent* DTSTART marks a malformed row worth dropping.
+    // Dropping negatives made every occurrence of such a series un-openable
+    // (the detail loads the ancient series-master DTSTART), see issue #34.
+    if (isNull(EventDetailProjection.IDX_DTSTART)) {
+        Log.w(TAG, "Dropping event with missing dtstart")
         return null
     }
+    val begin = getLong(EventDetailProjection.IDX_DTSTART)
 
     // Recurring events store DURATION instead of DTEND, so the series row's
     // DTEND is null. Keep the event (end == begin); callers that opened a

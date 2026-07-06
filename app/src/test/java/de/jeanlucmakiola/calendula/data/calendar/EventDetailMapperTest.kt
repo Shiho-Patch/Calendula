@@ -22,8 +22,8 @@ class EventDetailMapperTest {
         eventColor: Any? = null,
         eventColorKey: String? = null,
         calendarColor: Int = 0xFFAABBCC.toInt(),
-        dtstart: Long = 1_000_000_000L,
-        dtend: Long = 1_000_003_600L,
+        dtstart: Long? = 1_000_000_000L,
+        dtend: Long? = 1_000_003_600L,
         allDay: Int = 0,
         location: String? = "Berlin",
         calendarId: Long = 7L,
@@ -123,6 +123,23 @@ class EventDetailMapperTest {
     fun `dtend before dtstart drops detail`() {
         val detail = detailReader(dtstart = 2000L, dtend = 1000L).toDetail()
         assertThat(detail).isNull()
+    }
+
+    @Test
+    fun `pre-1970 negative dtstart is kept, not dropped (issue #34)`() {
+        // A yearly birthday/anniversary anchored before the epoch has a
+        // legitimately negative UTC epoch-millis DTSTART; recurring rows carry
+        // no DTEND (they use DURATION), so it stays end == begin.
+        val begin = -157_766_400_000L // 1965-01-01T00:00:00Z
+        val detail = detailReader(dtstart = begin, dtend = null).toDetail()
+        assertThat(detail).isNotNull()
+        assertThat(detail!!.instance.start.toEpochMilliseconds()).isEqualTo(begin)
+        assertThat(detail.instance.end.toEpochMilliseconds()).isEqualTo(begin)
+    }
+
+    @Test
+    fun `absent dtstart drops detail`() {
+        assertThat(detailReader(dtstart = null).toDetail()).isNull()
     }
 
     @Test
