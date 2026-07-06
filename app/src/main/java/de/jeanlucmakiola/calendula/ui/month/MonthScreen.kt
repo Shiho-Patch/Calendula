@@ -108,6 +108,7 @@ fun MonthScreen(
     val month by viewModel.month.collectAsStateWithLifecycle()
     val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
     val dimCompleted by viewModel.dimCompletedEvents.collectAsStateWithLifecycle()
+    val showWeekNumbers by viewModel.showWeekNumbers.collectAsStateWithLifecycle()
     // The instant before which an event counts as completed, or null when dimming
     // is off. derivedStateOf keeps the per-minute "now" from recomposing the
     // screen while the setting is off (it stays null regardless of the tick).
@@ -211,11 +212,12 @@ fun MonthScreen(
                     .padding(innerPadding)
                     .fillMaxSize(),
             ) {
-                WeekdayHeader(weekStart = weekStart)
+                WeekdayHeader(weekStart = weekStart, showWeekNumbers = showWeekNumbers)
                 CompositionLocalProvider(LocalDimCutoff provides dimCutoff) {
                     MonthContent(
                         state = state,
                         slideDir = slideDir,
+                        showWeekNumbers = showWeekNumbers,
                         onSwipeNext = goNext,
                         onSwipePrev = goPrev,
                         onRetry = jumpToToday,
@@ -231,6 +233,7 @@ fun MonthScreen(
 private fun MonthContent(
     state: MonthUiState,
     slideDir: Int,
+    showWeekNumbers: Boolean,
     onSwipeNext: () -> Unit,
     onSwipePrev: () -> Unit,
     onRetry: () -> Unit,
@@ -276,6 +279,7 @@ private fun MonthContent(
             is MonthUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
             is MonthUiState.Success -> MonthGrid(
                 state = s,
+                showWeekNumbers = showWeekNumbers,
                 onOpenDay = onOpenDay,
             )
         }
@@ -325,7 +329,7 @@ private fun MonthTopBar(
 }
 
 @Composable
-private fun WeekdayHeader(weekStart: DayOfWeek) {
+private fun WeekdayHeader(weekStart: DayOfWeek, showWeekNumbers: Boolean) {
     val locale = currentLocale()
     val days = remember(weekStart, locale) {
         (0 until 7).map { offset ->
@@ -337,6 +341,8 @@ private fun WeekdayHeader(weekStart: DayOfWeek) {
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
+        // Reserve the gutter so the weekday labels stay over their day columns.
+        if (showWeekNumbers) Spacer(Modifier.width(WEEK_NUMBER_GUTTER))
         days.forEach { dow ->
             val isWeekend = dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY
             val javaDow = java.time.DayOfWeek.of(dow.ordinal + 1)
@@ -354,6 +360,8 @@ private fun WeekdayHeader(weekStart: DayOfWeek) {
 
 private val EVENT_ROW_HEIGHT = 20.dp
 private val DAY_NUMBER_HEIGHT = 22.dp
+/** Width of the optional left gutter holding the calendar-week number (#25). */
+private val WEEK_NUMBER_GUTTER = 24.dp
 private val DAY_NUMBER_GAP = 4.dp
 private val CELL_TOP_PADDING = 6.dp
 private val CELL_GAP = 2.dp
@@ -363,6 +371,7 @@ private const val MAX_EVENT_ROWS = 3
 @Composable
 private fun MonthGrid(
     state: MonthUiState.Success,
+    showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
 ) {
     Column(
@@ -376,6 +385,7 @@ private fun MonthGrid(
                 week = week,
                 today = state.today,
                 month = state.month,
+                showWeekNumbers = showWeekNumbers,
                 onOpenDay = onOpenDay,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -397,6 +407,7 @@ private fun MonthWeekRow(
     week: MonthWeek,
     today: LocalDate,
     month: YearMonth,
+    showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -404,131 +415,180 @@ private fun MonthWeekRow(
     val laneCount = (week.spans.maxOfOrNull { it.lane } ?: -1) + 1
     val shownLanes = laneCount.coerceAtMost(MAX_EVENT_ROWS)
 
-    BoxWithConstraints(modifier) {
-        val colW = maxWidth / 7
-
-        // Per-day background pills — same surfaceContainer rounded surface the
-        // week/day views use, so the three views share one visual language.
-        // Spanning bars draw on top of these, bridging cells, so they still read
-        // as one continuous event.
-        Row(Modifier.matchParentSize()) {
-            week.days.forEach { d ->
-                val inMonth = d.month == month.month && d.year == month.year
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .padding(horizontal = CELL_GAP, vertical = 1.dp)
-                        .background(
-                            color = if (inMonth) MaterialTheme.colorScheme.surfaceContainer
-                            else MaterialTheme.colorScheme.surfaceContainerLow,
-                            shape = CELL_SHAPE,
-                        ),
-                )
-            }
-        }
-
-        Column(Modifier.fillMaxSize().padding(top = CELL_TOP_PADDING)) {
-            Row(Modifier.fillMaxWidth()) {
-                week.days.forEach { d ->
-                    DayNumberCell(
-                        date = d,
-                        isToday = d == today,
-                        inMonth = d.month == month.month && d.year == month.year,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-            // Breathing room between the day number (and today's circle) and the
-            // first event row.
-            Spacer(Modifier.height(DAY_NUMBER_GAP))
-            Box(
+    Row(modifier) {
+        // Optional calendar-week gutter, sized so the seven day columns below
+        // divide the remaining width — the absolute bar offsets stay correct
+        // because they're measured inside the grid box, not the whole row.
+        if (showWeekNumbers) {
+            WeekNumberGutter(
+                weekStart = week.days.first(),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .clipToBounds(),
-            ) {
-                // Spanning bars on their shared lanes.
-                week.spans.filter { it.lane < shownLanes }.forEach { span ->
-                    val cols = span.endCol - span.startCol + 1
-                    MonthBar(
-                        event = span.event,
-                        dark = dark,
-                        continuesLeft = span.continuesLeft,
-                        continuesRight = span.continuesRight,
-                        modifier = Modifier
-                            .offset(
-                                x = colW * span.startCol,
-                                y = EVENT_ROW_HEIGHT * span.lane,
-                            )
-                            .width(colW * cols)
-                            .height(EVENT_ROW_HEIGHT)
-                            .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
+                    .width(WEEK_NUMBER_GUTTER)
+                    .fillMaxHeight(),
+            )
+        }
+        BoxWithConstraints(
+            Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+        ) {
+            val colW = maxWidth / 7
+
+            // Per-day background pills — same surfaceContainer rounded surface the
+            // week/day views use, so the three views share one visual language.
+            // Spanning bars draw on top of these, bridging cells, so they still read
+            // as one continuous event.
+            Row(Modifier.matchParentSize()) {
+                week.days.forEach { d ->
+                    val inMonth = d.month == month.month && d.year == month.year
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(horizontal = CELL_GAP, vertical = 1.dp)
+                            .background(
+                                color = if (inMonth) MaterialTheme.colorScheme.surfaceContainer
+                                else MaterialTheme.colorScheme.surfaceContainerLow,
+                                shape = CELL_SHAPE,
+                            ),
                     )
                 }
-                // Single-day timed pills + overflow, per column. Pills fill the
-                // lane slots no bar occupies on THIS day (top-most first), so a
-                // bar-free day isn't pushed down by a multi-day event that only
-                // sits on other days of the week.
-                week.days.forEachIndexed { col, d ->
-                    val timed = week.timedByDay[d].orEmpty()
-                    val occupied = week.spans
-                        .filter { it.lane < shownLanes && col in it.startCol..it.endCol }
-                        .map { it.lane }
-                        .toSet()
-                    val freeSlots = (0 until MAX_EVENT_ROWS).filter { it !in occupied }
-                    val pillsShown = timed.take(freeSlots.size)
-                    pillsShown.forEachIndexed { i, ev ->
+            }
+
+            Column(Modifier.fillMaxSize().padding(top = CELL_TOP_PADDING)) {
+                Row(Modifier.fillMaxWidth()) {
+                    week.days.forEach { d ->
+                        DayNumberCell(
+                            date = d,
+                            isToday = d == today,
+                            inMonth = d.month == month.month && d.year == month.year,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                // Breathing room between the day number (and today's circle) and the
+                // first event row.
+                Spacer(Modifier.height(DAY_NUMBER_GAP))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .clipToBounds(),
+                ) {
+                    // Spanning bars on their shared lanes.
+                    week.spans.filter { it.lane < shownLanes }.forEach { span ->
+                        val cols = span.endCol - span.startCol + 1
                         MonthBar(
-                            event = ev,
+                            event = span.event,
                             dark = dark,
-                            continuesLeft = false,
-                            continuesRight = false,
+                            continuesLeft = span.continuesLeft,
+                            continuesRight = span.continuesRight,
                             modifier = Modifier
                                 .offset(
-                                    x = colW * col,
-                                    y = EVENT_ROW_HEIGHT * freeSlots[i],
+                                    x = colW * span.startCol,
+                                    y = EVENT_ROW_HEIGHT * span.lane,
                                 )
-                                .width(colW)
+                                .width(colW * cols)
                                 .height(EVENT_ROW_HEIGHT)
                                 .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
                         )
                     }
-                    val hidden = (week.countByDay[d] ?: 0) - occupied.size - pillsShown.size
-                    if (hidden > 0) {
-                        val hiddenColors = buildList {
-                            week.spans
-                                .filter { it.lane >= shownLanes && col in it.startCol..it.endCol }
-                                .forEach { add(it.event.color) }
-                            timed.drop(pillsShown.size).forEach { add(it.color) }
-                        }.distinct().take(3)
-                        OverflowDots(
-                            colors = hiddenColors,
-                            extra = hidden - hiddenColors.size,
-                            dark = dark,
-                            modifier = Modifier
-                                .offset(x = colW * col, y = EVENT_ROW_HEIGHT * MAX_EVENT_ROWS)
-                                .width(colW)
-                                .padding(horizontal = 3.dp),
-                        )
+                    // Single-day timed pills + overflow, per column. Pills fill the
+                    // lane slots no bar occupies on THIS day (top-most first), so a
+                    // bar-free day isn't pushed down by a multi-day event that only
+                    // sits on other days of the week.
+                    week.days.forEachIndexed { col, d ->
+                        val timed = week.timedByDay[d].orEmpty()
+                        val occupied = week.spans
+                            .filter { it.lane < shownLanes && col in it.startCol..it.endCol }
+                            .map { it.lane }
+                            .toSet()
+                        val freeSlots = (0 until MAX_EVENT_ROWS).filter { it !in occupied }
+                        val pillsShown = timed.take(freeSlots.size)
+                        pillsShown.forEachIndexed { i, ev ->
+                            MonthBar(
+                                event = ev,
+                                dark = dark,
+                                continuesLeft = false,
+                                continuesRight = false,
+                                modifier = Modifier
+                                    .offset(
+                                        x = colW * col,
+                                        y = EVENT_ROW_HEIGHT * freeSlots[i],
+                                    )
+                                    .width(colW)
+                                    .height(EVENT_ROW_HEIGHT)
+                                    .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
+                            )
+                        }
+                        val hidden = (week.countByDay[d] ?: 0) - occupied.size - pillsShown.size
+                        if (hidden > 0) {
+                            val hiddenColors = buildList {
+                                week.spans
+                                    .filter { it.lane >= shownLanes && col in it.startCol..it.endCol }
+                                    .forEach { add(it.event.color) }
+                                timed.drop(pillsShown.size).forEach { add(it.color) }
+                            }.distinct().take(3)
+                            OverflowDots(
+                                colors = hiddenColors,
+                                extra = hidden - hiddenColors.size,
+                                dark = dark,
+                                modifier = Modifier
+                                    .offset(x = colW * col, y = EVENT_ROW_HEIGHT * MAX_EVENT_ROWS)
+                                    .width(colW)
+                                    .padding(horizontal = 3.dp),
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        // Tap layer: in month view a tap on any day opens that day. Padded and
-        // clipped to the background pill so the ripple matches it.
-        Row(Modifier.matchParentSize()) {
-            week.days.forEach { d ->
-                Box(
-                    Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .padding(horizontal = CELL_GAP, vertical = 1.dp)
-                        .clip(CELL_SHAPE)
-                        .clickable { onOpenDay(d) },
-                )
+            // Tap layer: in month view a tap on any day opens that day. Padded and
+            // clipped to the background pill so the ripple matches it.
+            Row(Modifier.matchParentSize()) {
+                week.days.forEach { d ->
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(horizontal = CELL_GAP, vertical = 1.dp)
+                            .clip(CELL_SHAPE)
+                            .clickable { onOpenDay(d) },
+                    )
+                }
             }
+        }
+    }
+}
+
+/**
+ * Left-gutter calendar-week number (#25), aligned with the day-number band. The
+ * ISO week-of-week-based-year computed on the row's first day — the same basis
+ * as the Week view's badge — so the two views agree. A low-emphasis label rather
+ * than a filled badge: it repeats on all six rows, so it must recede.
+ */
+@Composable
+private fun WeekNumberGutter(weekStart: LocalDate, modifier: Modifier = Modifier) {
+    val weekNumber = remember(weekStart) {
+        java.time.LocalDate.of(weekStart.year, weekStart.month.ordinal + 1, weekStart.day)
+            .get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
+    }
+    val label = stringResource(R.string.week_number_label)
+    Column(
+        modifier = modifier
+            .padding(top = CELL_TOP_PADDING)
+            .semantics { contentDescription = "$label $weekNumber" },
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier.height(DAY_NUMBER_HEIGHT),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = weekNumber.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

@@ -116,9 +116,15 @@ class SettingsViewModel @Inject constructor(
                 prefs.agendaScreenRange,
                 prefs.agendaWidgetRange,
                 prefs.timeFormat,
-                prefs.showHourLines,
-            ) { view, screenRange, widgetRange, timeFormat, showHourLines ->
-                ViewSettings(view, screenRange, widgetRange, timeFormat, showHourLines)
+                // Two grid-display toggles folded into one flow so they fit this
+                // group — the outer combine is already at its five-arg limit.
+                combine(prefs.showHourLines, prefs.showWeekNumbers, ::Pair),
+            ) { view, screenRange, widgetRange, timeFormat, gridToggles ->
+                ViewSettings(
+                    view, screenRange, widgetRange, timeFormat,
+                    showHourLines = gridToggles.first,
+                    showWeekNumbers = gridToggles.second,
+                )
             },
             combine(
                 prefs.agendaShowRangeBar,
@@ -140,6 +146,7 @@ class SettingsViewModel @Inject constructor(
                 agendaWidgetRange = views.agendaWidgetRange,
                 timeFormat = views.timeFormat,
                 showHourLines = views.showHourLines,
+                showWeekNumbers = views.showWeekNumbers,
                 agendaShowRangeBar = misc.showRangeBar,
                 autofocusEventTitle = misc.autofocusEventTitle,
                 pastEventDisplay = misc.pastEventDisplay,
@@ -212,6 +219,7 @@ class SettingsViewModel @Inject constructor(
         val agendaWidgetRange: AgendaRange,
         val timeFormat: TimeFormatPref,
         val showHourLines: Boolean,
+        val showWeekNumbers: Boolean,
     )
 
     private data class MiscSettings(
@@ -396,6 +404,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setShowHourLines(enabled: Boolean) {
         viewModelScope.launch { prefs.setShowHourLines(enabled) }
+    }
+
+    fun setShowWeekNumbers(enabled: Boolean) {
+        viewModelScope.launch { prefs.setShowWeekNumbers(enabled) }
     }
 
     fun setPastEventDisplay(mode: PastEventDisplay) {

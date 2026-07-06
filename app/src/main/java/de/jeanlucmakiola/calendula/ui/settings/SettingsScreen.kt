@@ -614,6 +614,18 @@ private fun AppearanceScreen(
             onClick = { showWeekStart = true },
         )
         GroupedRow(
+            title = stringResource(R.string.settings_week_numbers),
+            summary = stringResource(R.string.settings_week_numbers_summary),
+            position = Position.Middle,
+            trailing = {
+                Switch(
+                    checked = state.showWeekNumbers,
+                    onCheckedChange = viewModel::setShowWeekNumbers,
+                )
+            },
+            onClick = { viewModel.setShowWeekNumbers(!state.showWeekNumbers) },
+        )
+        GroupedRow(
             title = stringResource(R.string.settings_time_format),
             summary = timeFormatLabel(state.timeFormat),
             position = Position.Middle,

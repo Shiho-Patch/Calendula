@@ -201,6 +201,19 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * Whether the Month grid shows the calendar-week (ISO) number in a left
+     * gutter (#25). Defaults to OFF — users opt in, since it narrows the day
+     * cells slightly. The Week view shows its number unconditionally.
+     */
+    val showWeekNumbers: Flow<Boolean> = store.data.map { prefs ->
+        prefs[SHOW_WEEK_NUMBERS_KEY] ?: false
+    }
+
+    suspend fun setShowWeekNumbers(enabled: Boolean) {
+        store.edit { it[SHOW_WEEK_NUMBERS_KEY] = enabled }
+    }
+
+    /**
      * How far ahead the in-app Agenda screen shows events (v2.11). Defaults to
      * [AgendaRange.Month] — a month of upcoming events. Independent of the
      * widget's [agendaWidgetRange].
@@ -659,6 +672,7 @@ class SettingsPrefs @Inject constructor(
         internal val SHOW_HOUR_LINES_KEY = booleanPreferencesKey("show_hour_lines")
         internal val PAST_EVENT_DISPLAY_KEY = stringPreferencesKey("agenda_past_event_display")
         internal val DIM_COMPLETED_EVENTS_KEY = booleanPreferencesKey("dim_completed_events")
+        internal val SHOW_WEEK_NUMBERS_KEY = booleanPreferencesKey("show_week_numbers")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
         internal val QUICK_SWITCH_VIEWS_KEY = stringPreferencesKey("quick_switch_views")
         internal val DRAWER_VIEW_ORDER_KEY = stringPreferencesKey("drawer_view_order")
