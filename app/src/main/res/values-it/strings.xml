@@ -456,4 +456,11 @@
     <string name="settings_special_dates_disable_type_message">Questo cancella il calendario “%1$s” ed i suoi eventi. Ogni promemoria o note che erano stati aggiunti saranno persi.</string>
     <string name="settings_special_dates_disable_confirm">Spegni</string>
     <string name="dialog_save">Salva</string>
+    <string name="font_atkinson_hyperlegible">Atkinson Hyperlegible</string>
+    <string name="settings_calendar_reminders_managed_hint">Impostato nelle date speciali dei contatti</string>
+    <string name="special_dates_calendar_birthday">Compleanni</string>
+    <string name="special_dates_calendar_anniversary">Anniversari</string>
+    <string name="special_dates_calendar_custom">Date speciali</string>
+    <string name="special_dates_default_title_birthday">Compleanno di {name} ({year})</string>
+    <string name="special_dates_default_title_anniversary">Anniversario di {name} ({year})</string>
 </resources>
