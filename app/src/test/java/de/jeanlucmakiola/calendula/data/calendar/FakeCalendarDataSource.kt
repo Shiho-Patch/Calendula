@@ -59,7 +59,7 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     override fun eventDetail(eventId: Long): EventDetail? = eventDetailResult(eventId)
     override fun eventColorPalette(calendarId: Long): List<EventColorOption> =
         eventColorPaletteResult(calendarId)
-    override fun exportableEvents(): List<IcsEvent> = exportableEventsResult
+    override fun exportableEvents(calendarIds: Set<Long>?): List<IcsEvent> = exportableEventsResult
 
     override fun existingUids(calendarId: Long): Set<String> = existingUidsResult
 

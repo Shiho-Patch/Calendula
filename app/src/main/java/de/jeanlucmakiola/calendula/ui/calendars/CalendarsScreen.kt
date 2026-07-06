@@ -46,6 +46,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -97,6 +98,8 @@ import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.FullScreenPicker
+import de.jeanlucmakiola.calendula.ui.common.positionOf
 import de.jeanlucmakiola.calendula.ui.common.LeadingAvatar
 import de.jeanlucmakiola.calendula.ui.common.SourceLogo
 import de.jeanlucmakiola.calendula.ui.common.curatedSourcePackage
@@ -206,7 +209,7 @@ private fun CalendarsList(
     error: Boolean,
     onConsumeError: () -> Unit,
     backupResult: BackupResult?,
-    onExportBackup: (android.net.Uri) -> Unit,
+    onExportBackup: (android.net.Uri, Set<Long>?) -> Unit,
     onImport: (android.net.Uri) -> Unit,
     onConsumeBackupResult: () -> Unit,
     autoBackup: AutoBackupUiState,
@@ -235,10 +238,12 @@ private fun CalendarsList(
     }
 
     // SAF "create document" target for the backup file. The picked Uri is handed
-    // to the VM to stream the .ics into.
+    // to the VM to stream the .ics into. This launcher exports everything
+    // eligible (null); the per-calendar selector owns its own launcher.
     val createBackup = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/calendar"),
-    ) { uri -> uri?.let(onExportBackup) }
+    ) { uri -> uri?.let { onExportBackup(it, null) } }
+    var showExportPicker by remember { mutableStateOf(false) }
 
     // SAF "open document" picker for restoring events from a .ics file. The
     // picked Uri is handed up to the host, which runs it through the same import
@@ -325,8 +330,10 @@ private fun CalendarsList(
         }
 
         // Backup — local calendars have no sync, so a .ics export is their only
-        // safety net. Offered only when there is something to back up.
-        if (local.isNotEmpty()) {
+        // safety net. Offered only when there is something exportable: the user's
+        // own local calendars (managed special-dates mirrors don't count).
+        val exportable = local.filter { it.canModifyContents && !it.isManaged }
+        if (exportable.isNotEmpty()) {
             Spacer(Modifier.height(16.dp))
             SectionHeader(stringResource(R.string.calendars_backup_header))
             HintText(stringResource(R.string.calendars_backup_hint))
@@ -337,7 +344,13 @@ private fun CalendarsList(
                 position = Position.Top,
                 leading = { LeadingAvatar(Icons.Default.FileDownload) },
                 onClick = {
-                    runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
+                    // With more than one exportable calendar, let the user choose
+                    // which to include; a single one exports straight away.
+                    if (exportable.size == 1) {
+                        runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
+                    } else {
+                        showExportPicker = true
+                    }
                 },
             )
             GroupedRow(
@@ -440,6 +453,76 @@ private fun CalendarsList(
             onConfirm = onSetAutoBackupInterval,
             onDismiss = { showInterval = false },
         )
+    }
+
+    if (showExportPicker) {
+        ExportCalendarPicker(
+            calendars = local.filter { it.canModifyContents && !it.isManaged },
+            onExport = onExportBackup,
+            onDismiss = { showExportPicker = false },
+        )
+    }
+}
+
+/**
+ * Choose which local calendars to include in a one-time `.ics` export. Defaults
+ * to all selected; the Export action opens the SAF save dialog and hands back
+ * the picked file with the chosen calendar ids.
+ */
+@Composable
+private fun ExportCalendarPicker(
+    calendars: List<CalendarSource>,
+    onExport: (android.net.Uri, Set<Long>?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var selected by remember(calendars) {
+        mutableStateOf(calendars.map { it.id }.toSet())
+    }
+    val createBackup = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/calendar"),
+    ) { uri ->
+        if (uri != null) {
+            onExport(uri, selected)
+            onDismiss()
+        }
+    }
+
+    FullScreenPicker(
+        title = stringResource(R.string.calendars_export_title),
+        onDismiss = onDismiss,
+    ) {
+        HintText(stringResource(R.string.calendars_export_hint))
+        calendars.forEachIndexed { index, calendar ->
+            val isSelected = calendar.id in selected
+            GroupedRow(
+                title = calendar.displayName,
+                summary = calendar.description,
+                position = positionOf(index, calendars.size),
+                leading = { CalendarColorChip(calendar.color) },
+                trailing = {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { checked ->
+                            selected = if (checked) selected + calendar.id else selected - calendar.id
+                        },
+                    )
+                },
+                onClick = {
+                    selected = if (isSelected) selected - calendar.id else selected + calendar.id
+                },
+            )
+        }
+        Button(
+            onClick = {
+                runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
+            },
+            enabled = selected.isNotEmpty(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+        ) {
+            Text(stringResource(R.string.calendars_export_action))
+        }
     }
 }
 
