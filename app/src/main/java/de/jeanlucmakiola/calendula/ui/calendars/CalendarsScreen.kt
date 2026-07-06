@@ -97,6 +97,9 @@ import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.LeadingAvatar
+import de.jeanlucmakiola.calendula.ui.common.SourceLogo
+import de.jeanlucmakiola.calendula.ui.common.curatedSourcePackage
 import de.jeanlucmakiola.calendula.ui.common.DialogAmountField
 import de.jeanlucmakiola.calendula.ui.common.DialogUnitDropdown
 import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
@@ -771,66 +774,6 @@ private fun CalendarGroupMenu(
     }
 }
 
-/**
- * The source app's launcher icon (Google Calendar, DAVx5, Nextcloud, …) as a
- * round 40dp chip, so each synced account is recognisable at a glance. We load
- * whatever app owns the account from [PackageManager] rather than bundling brand
- * logos — always accurate, nothing to license. Falls back to a neutral cloud
- * chip when no installed app resolves for the account.
- */
-@Composable
-private fun SourceLogo(accountType: String) {
-    val context = LocalContext.current
-    val logo = remember(accountType) { sourceAppLogo(context, accountType) }
-    if (logo != null) {
-        Image(
-            bitmap = logo,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape),
-        )
-    } else {
-        LeadingAvatar(Icons.Default.Cloud)
-    }
-}
-
-/** The launcher icon of the app backing [accountType], preferring the human-facing app. */
-private fun sourceAppLogo(context: Context, accountType: String): ImageBitmap? {
-    val pm = context.packageManager
-    val candidates = buildList {
-        curatedSourcePackage(accountType)?.let { add(it) }
-        AccountManager.get(context).authenticatorTypes
-            .firstOrNull { it.type.equals(accountType, ignoreCase = true) }
-            ?.packageName
-            ?.let { add(it) }
-    }
-    for (pkg in candidates) {
-        val bitmap = runCatching { pm.getApplicationIcon(pkg).toBitmap() }.getOrNull()
-        if (bitmap != null) return bitmap.asImageBitmap()
-    }
-    return null
-}
-
-/** Neutral circular chip carrying an arbitrary icon (e.g. the local-device mark). */
-@Composable
-private fun LeadingAvatar(icon: ImageVector) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(22.dp),
-        )
-    }
-}
 
 @Composable
 private fun SectionHeader(text: String) {
@@ -963,11 +906,5 @@ private fun sourceAppIntent(context: Context, accountType: String): Intent {
         pm.getLaunchIntentForPackage(pkg)?.let { return it }
     }
     return Intent(Settings.ACTION_SYNC_SETTINGS)
-}
-
-/** Preferred app for account types whose authenticator isn't the app to open. */
-private fun curatedSourcePackage(accountType: String): String? = when {
-    accountType.equals("com.google", ignoreCase = true) -> "com.google.android.calendar"
-    else -> null
 }
 

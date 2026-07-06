@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,9 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.ics.IcsParseWarning
-import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
-import de.jeanlucmakiola.calendula.ui.common.GroupedRow
-import de.jeanlucmakiola.calendula.ui.common.positionOf
+import de.jeanlucmakiola.calendula.ui.common.CalendarPickerGroups
 import de.jeanlucmakiola.calendula.ui.common.predictiveBack
 
 /**
@@ -109,18 +106,6 @@ private fun ManyContent(state: ImportUiState.Many, onImport: (Long) -> Unit) {
     }
     var selected by rememberSaveable { mutableStateOf(state.calendars.first().id) }
 
-    // Group by owning account, the same shape the event editor's calendar picker
-    // uses — coloured chip per calendar, a check on the selected one.
-    val groups = remember(state.calendars) {
-        state.calendars
-            .groupBy {
-                it.accountName.takeIf(String::isNotBlank)
-                    ?: it.accountType.takeIf(String::isNotBlank)
-                    ?: it.displayName
-            }
-            .toList()
-    }
-
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(vertical = 8.dp),
@@ -128,43 +113,13 @@ private fun ManyContent(state: ImportUiState.Many, onImport: (Long) -> Unit) {
         Text(
             pluralStringResource(R.plurals.import_event_count, state.events.size, state.events.size),
             style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 12.dp),
         )
-        Text(
-            stringResource(R.string.import_target_header),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 4.dp),
+        CalendarPickerGroups(
+            calendars = state.calendars,
+            selectedId = selected,
+            onSelect = { selected = it },
         )
-        groups.forEach { (account, cals) ->
-            Text(
-                text = account,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 4.dp),
-            )
-            cals.forEachIndexed { index, calendar ->
-                val isSelected = calendar.id == selected
-                GroupedRow(
-                    title = calendar.displayName,
-                    position = positionOf(index, cals.size),
-                    selected = isSelected,
-                    leading = { CalendarColorChip(calendar.color) },
-                    trailing = if (isSelected) {
-                        {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    } else {
-                        null
-                    },
-                    onClick = { selected = calendar.id },
-                )
-            }
-        }
         if (state.warnings.isNotEmpty()) {
             Column(
                 Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
