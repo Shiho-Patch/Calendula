@@ -84,12 +84,14 @@ class ImportViewModel @Inject constructor(
                 else -> {
                     // A disabled calendar is removed from the app, so it can't be
                     // an import target — exclude it alongside the read-only ones.
+                    // Managed special-dates calendars are contact-derived and
+                    // editor-locked, so they're not a valid destination either.
                     val disabled = prefs.disabledCalendarIds.first()
                     ImportUiState.Many(
                         events = parsed.events,
                         warnings = parsed.warnings,
                         calendars = repository.calendars().first()
-                            .filter { it.canModifyContents && it.id !in disabled },
+                            .filter { it.canModifyContents && !it.isManaged && it.id !in disabled },
                     )
                 }
             }
