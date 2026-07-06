@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -112,6 +113,16 @@ import java.time.LocalDate
 /** Sentinel [editorId] meaning "the editor is composing a new calendar". */
 private const val NEW_CALENDAR_ID = Long.MIN_VALUE
 
+// SAF mime filter for the restore picker. `.ics` files reach us under several
+// mimes depending on the source app (our own export uses text/calendar; others
+// hand them out as octet-stream or text/plain), so accept the common set rather
+// than hide valid backups behind an over-tight filter.
+private val RESTORE_MIME_TYPES = arrayOf(
+    "text/calendar",
+    "application/octet-stream",
+    "text/plain",
+)
+
 /**
  * Calendar manager (reached from Settings). Lists the app's own device-only
  * calendars with create / rename / recolor / delete (via a full-screen editor),
@@ -122,6 +133,7 @@ private const val NEW_CALENDAR_ID = Long.MIN_VALUE
 @Composable
 fun CalendarsScreen(
     onBack: () -> Unit,
+    onImport: (android.net.Uri) -> Unit,
     viewModel: CalendarsViewModel = hiltViewModel(),
 ) {
     val calendars by viewModel.calendars.collectAsStateWithLifecycle()
@@ -168,6 +180,7 @@ fun CalendarsScreen(
             onConsumeError = viewModel::consumeError,
             backupResult = backupResult,
             onExportBackup = viewModel::exportBackup,
+            onImport = onImport,
             onConsumeBackupResult = viewModel::consumeBackupResult,
             autoBackup = autoBackup,
             onSetAutoBackupEnabled = viewModel::setAutoBackupEnabled,
@@ -191,6 +204,7 @@ private fun CalendarsList(
     onConsumeError: () -> Unit,
     backupResult: BackupResult?,
     onExportBackup: (android.net.Uri) -> Unit,
+    onImport: (android.net.Uri) -> Unit,
     onConsumeBackupResult: () -> Unit,
     autoBackup: AutoBackupUiState,
     onSetAutoBackupEnabled: (Boolean) -> Unit,
@@ -222,6 +236,13 @@ private fun CalendarsList(
     val createBackup = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/calendar"),
     ) { uri -> uri?.let(onExportBackup) }
+
+    // SAF "open document" picker for restoring events from a .ics file. The
+    // picked Uri is handed up to the host, which runs it through the same import
+    // flow as an externally opened .ics (parse, dedup by UID, target picker).
+    val openBackup = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let(onImport) }
 
     // SAF folder picker for the automatic-backup destination; the VM persists the
     // write grant so background runs can keep writing to it.
@@ -314,6 +335,15 @@ private fun CalendarsList(
                 leading = { LeadingAvatar(Icons.Default.FileDownload) },
                 onClick = {
                     runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
+                },
+            )
+            GroupedRow(
+                title = stringResource(R.string.calendars_restore_action),
+                summary = stringResource(R.string.calendars_restore_hint),
+                position = Position.Middle,
+                leading = { LeadingAvatar(Icons.Default.FileUpload) },
+                onClick = {
+                    runCatching { openBackup.launch(RESTORE_MIME_TYPES) }
                 },
             )
             GroupedRow(

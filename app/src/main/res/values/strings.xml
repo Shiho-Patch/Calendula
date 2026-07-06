@@ -428,6 +428,8 @@
     <string name="calendars_backup_header">Backup</string>
     <string name="calendars_backup_hint">Local calendars aren\'t synced anywhere, so export them to an .ics file to keep a copy.</string>
     <string name="calendars_backup_action">Export as .ics file</string>
+    <string name="calendars_restore_action">Restore from .ics file</string>
+    <string name="calendars_restore_hint">Import events from a backup or another calendar app.</string>
     <string name="calendars_auto_backup">Automatic backup</string>
     <string name="calendars_auto_backup_hint">Periodically export your local calendars to a folder as an .ics file.</string>
     <string name="calendars_auto_backup_folder">Backup folder</string>

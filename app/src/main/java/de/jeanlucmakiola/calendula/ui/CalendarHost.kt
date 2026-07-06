@@ -412,7 +412,10 @@ fun CalendarHost(
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
             exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
         ) {
-            CalendarsScreen(onBack = { showCalendars = false })
+            CalendarsScreen(
+                onBack = { showCalendars = false },
+                onImport = { importUri = it },
+            )
         }
 
         // Import flow for an opened/received .ics file. A single event routes
