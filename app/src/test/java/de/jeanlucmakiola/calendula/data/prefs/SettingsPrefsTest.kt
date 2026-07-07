@@ -98,6 +98,14 @@ class SettingsPrefsTest {
     }
 
     @Test
+    fun `week numbers default off and round-trips`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.showWeekNumbers.first()).isFalse()
+        prefs.setShowWeekNumbers(true)
+        assertThat(prefs.showWeekNumbers.first()).isTrue()
+    }
+
+    @Test
     fun `autofocus event title defaults on and round-trips`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
         assertThat(prefs.autofocusEventTitle.first()).isTrue()

@@ -536,6 +536,30 @@ class CalendarRepositoryImplTest {
         assertThat(fake.importedEvents.map { it.second }).containsExactly(3L, 3L)
     }
 
+    @Test
+    fun `exportEvents forwards the chosen calendar-id subset to the data source`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val fake = FakeCalendarDataSource()
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+
+        repo.exportEvents(calendarIds = setOf(1L, 4L))
+
+        assertThat(fake.lastExportableEventsCalendarIds).containsExactly(1L, 4L)
+    }
+
+    @Test
+    fun `exportEvents defaults to null so every eligible calendar is exported`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val fake = FakeCalendarDataSource()
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+
+        repo.exportEvents()
+
+        assertThat(fake.lastExportableEventsCalendarIds).isNull()
+    }
+
     private fun parsedEvent(uid: String?) = de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent(
         uid = uid,
         summary = "E",

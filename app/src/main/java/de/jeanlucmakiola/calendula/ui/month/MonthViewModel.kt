@@ -67,6 +67,14 @@ class MonthViewModel @Inject constructor(
             initialValue = false,
         )
 
+    /** Whether to show the calendar-week number gutter (#25; display only). */
+    val showWeekNumbers: StateFlow<Boolean> = settingsPrefs.showWeekNumbers
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = false,
+        )
+
     private val todayDate: LocalDate
         get() = Clock.System.now().toLocalDateTime(zone).date
 

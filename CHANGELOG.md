@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.0] — 2026-07-06
+
+### Added
+- Restore events from a backup file. The backup section of Settings can now read
+  events back **in** from an `.ics` file, not just write one out: pick a file,
+  choose which calendar to import into, and Calendula adds the events — skipping
+  any that are already there and telling you how many it skipped. Export gained a
+  per-calendar selector at the same time, so you can back up just the calendars
+  you pick instead of everything at once ([#32]).
+- Week numbers in Month view. A new **Week numbers** setting (off by default)
+  adds a slim gutter down the left of the Month grid showing the calendar-week
+  number for each row, sized to match the day cells. Handy if you plan or refer
+  to dates by week number ([#25]).
+- Tap a date header to open that day. In Week and Agenda view, tapping a date
+  header now opens that date in Day view — the same drill-in that Month view and
+  the agenda widget already offered, so every view behaves the same way. It makes
+  jumping to a specific day quicker: switch to Week, swipe to the week you want,
+  then tap the date to open it. Thanks to @ptab for the suggestion ([#37]).
+- An early Simplified Chinese translation. Calendula has started speaking
+  Simplified Chinese, contributed as a community translation through
+  [Calendula's Weblate](https://weblate.dev.jeanlucmakiola.de/projects/calendula/).
+  It is still an early effort, so many parts of the app show in English until it
+  fills out — you can already pick it under Settings → Language or in Android's
+  per-app language settings. Thanks to
+  [zh-cn](https://weblate.dev.jeanlucmakiola.de/user/zh-cn/) for getting it
+  started; help finishing it is very welcome.
+
+### Changed
+- Long event titles wrap in the edit screen. When editing an event, a long title
+  now wraps onto multiple lines instead of being clipped to a single line, so you
+  can see and edit the whole thing ([#33]).
+
 ## [2.13.1] — 2026-07-06
 
 ### Added
@@ -834,7 +866,11 @@ automatically, with zero telemetry and no internet permission.
 [#19]: https://codeberg.org/jlmakiola/calendula/issues/19
 [#20]: https://codeberg.org/jlmakiola/calendula/issues/20
 [#24]: https://codeberg.org/jlmakiola/calendula/issues/24
+[#25]: https://codeberg.org/jlmakiola/calendula/issues/25
 [#27]: https://codeberg.org/jlmakiola/calendula/issues/27
 [#29]: https://codeberg.org/jlmakiola/calendula/issues/29
 [#30]: https://codeberg.org/jlmakiola/calendula/issues/30
+[#32]: https://codeberg.org/jlmakiola/calendula/issues/32
+[#33]: https://codeberg.org/jlmakiola/calendula/issues/33
 [#34]: https://codeberg.org/jlmakiola/calendula/issues/34
+[#37]: https://codeberg.org/jlmakiola/calendula/issues/37

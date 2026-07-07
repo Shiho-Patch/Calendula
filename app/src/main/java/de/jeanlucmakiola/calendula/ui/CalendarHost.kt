@@ -172,9 +172,15 @@ fun CalendarHost(
     // picker (many). A plain conditional overlay (no slide) — it's transient.
     var importUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var importForm by remember { mutableStateOf<EventForm?>(null) }
+    // A restore (in-app "Restore from .ics" button) always runs the full import
+    // flow — picker + summary — even for a single-event file, because the intent
+    // is "restore a backup", not "add this one event". An externally opened .ics
+    // keeps routing a single event straight into the prefilled create form.
+    var importForceMany by remember { mutableStateOf(false) }
     LaunchedEffect(requestedImportUri) {
         if (requestedImportUri != null) {
             importUri = requestedImportUri
+            importForceMany = false
             onImportConsumed()
         }
     }
@@ -284,6 +290,7 @@ fun CalendarHost(
                 CalendarView.Week -> WeekScreen(
                     selectedView = currentView,
                     onSelectView = onSelectView,
+                    onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
                     onOpenSettings = onOpenSettings,
                     onOpenSearch = onOpenSearch,
@@ -315,6 +322,7 @@ fun CalendarHost(
                 CalendarView.Agenda -> AgendaScreen(
                     selectedView = currentView,
                     onSelectView = onSelectView,
+                    onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
                     onOpenSettings = onOpenSettings,
                     onOpenSearch = onOpenSearch,
@@ -412,7 +420,10 @@ fun CalendarHost(
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
             exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
         ) {
-            CalendarsScreen(onBack = { showCalendars = false })
+            CalendarsScreen(
+                onBack = { showCalendars = false },
+                onImport = { importUri = it; importForceMany = true },
+            )
         }
 
         // Import flow for an opened/received .ics file. A single event routes
@@ -420,6 +431,7 @@ fun CalendarHost(
         importUri?.let { uri ->
             ImportScreen(
                 uri = uri,
+                forceMany = importForceMany,
                 onClose = { importUri = null },
                 onOpenSingle = { form ->
                     importUri = null
