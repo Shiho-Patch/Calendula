@@ -23,7 +23,6 @@ import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
-import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.is24Hour
 import de.jeanlucmakiola.calendula.domain.EventForm
@@ -33,12 +32,13 @@ import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.WidgetNavRequest
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
-import de.jeanlucmakiola.calendula.ui.common.DebugRibbon
+import de.jeanlucmakiola.floret.components.DebugRibbon
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportActivity
-import de.jeanlucmakiola.calendula.ui.crash.CrashReportDialog
-import de.jeanlucmakiola.calendula.ui.crash.submitCrashReport
 import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.calendula.ui.settings.SettingsViewModel
+import de.jeanlucmakiola.floret.crash.CrashReportDialog
+import de.jeanlucmakiola.floret.crash.CrashReporter
+import de.jeanlucmakiola.floret.crash.submitCrashReport
 import de.jeanlucmakiola.calendula.ui.theme.CalendulaTheme
 import de.jeanlucmakiola.calendula.ui.theme.calendulaTypography
 import de.jeanlucmakiola.calendula.ui.theme.resolveFontFamily

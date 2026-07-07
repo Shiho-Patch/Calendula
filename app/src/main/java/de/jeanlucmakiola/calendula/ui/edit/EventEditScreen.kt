@@ -37,7 +37,6 @@ import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.EventAvailable
@@ -96,6 +95,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -117,33 +117,35 @@ import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.SimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.parseSimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.toRRule
-import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
-import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
-import de.jeanlucmakiola.calendula.ui.common.predictiveBack
+import de.jeanlucmakiola.floret.identity.animateContentSizeMotion
+import de.jeanlucmakiola.floret.identity.collapseExit
+import de.jeanlucmakiola.floret.identity.expandEnter
+import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
-import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.CalendarPickerGroups
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
-import de.jeanlucmakiola.calendula.ui.common.DialogAmountField
-import de.jeanlucmakiola.calendula.ui.common.DialogUnitDropdown
+import de.jeanlucmakiola.floret.components.DialogAmountField
+import de.jeanlucmakiola.floret.components.DialogUnitDropdown
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldIcon
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldLabel
-import de.jeanlucmakiola.calendula.ui.common.FullScreenPicker
-import de.jeanlucmakiola.calendula.ui.common.GroupedRow
+import de.jeanlucmakiola.floret.components.FullScreenPicker
+import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.calendula.ui.common.MILLIS_PER_DAY
-import de.jeanlucmakiola.calendula.ui.common.InlineTextField
-import de.jeanlucmakiola.calendula.ui.common.OptionCard
-import de.jeanlucmakiola.calendula.ui.common.Position
-import de.jeanlucmakiola.calendula.ui.common.positionOf
+import de.jeanlucmakiola.floret.components.InlineTextField
+import de.jeanlucmakiola.floret.components.OptionCard
+import de.jeanlucmakiola.floret.components.OptionPicker
+import de.jeanlucmakiola.floret.components.Position
+import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
-import de.jeanlucmakiola.calendula.ui.common.ReminderUnit
 import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
+import de.jeanlucmakiola.floret.reminders.ReminderUnit
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.reminderUnitLabel
-import de.jeanlucmakiola.calendula.ui.common.pastelize
+import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.calendula.ui.common.recurrenceText
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -344,29 +346,29 @@ private fun SaveConflictDialog(
     onDiscard: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.event_edit_conflict_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.event_edit_conflict_body))
-                Spacer(Modifier.height(4.dp))
-                OptionCard(
-                    label = stringResource(R.string.event_edit_conflict_overwrite),
-                    supportingText = stringResource(R.string.event_edit_conflict_overwrite_hint),
-                    onClick = onOverwrite,
-                )
-                OptionCard(
-                    label = stringResource(R.string.event_edit_conflict_discard),
-                    supportingText = stringResource(R.string.event_edit_conflict_discard_hint),
-                    onClick = onDiscard,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
-        },
-    )
+    FullScreenPicker(
+        title = stringResource(R.string.event_edit_conflict_title),
+        onDismiss = onDismiss,
+    ) {
+        Text(
+            text = stringResource(R.string.event_edit_conflict_body),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        )
+        GroupedRow(
+            title = stringResource(R.string.event_edit_conflict_overwrite),
+            summary = stringResource(R.string.event_edit_conflict_overwrite_hint),
+            position = positionOf(0, 2),
+            onClick = onOverwrite,
+        )
+        GroupedRow(
+            title = stringResource(R.string.event_edit_conflict_discard),
+            summary = stringResource(R.string.event_edit_conflict_discard_hint),
+            position = positionOf(1, 2),
+            onClick = onDiscard,
+        )
+    }
 }
 
 /**
@@ -422,8 +424,8 @@ private fun OptionalFormSection(
 ) {
     AnimatedVisibility(
         visible = visible,
-        enter = calendarExpandEnter(),
-        exit = calendarCollapseExit(),
+        enter = expandEnter(),
+        exit = collapseExit(),
     ) {
         Column(modifier = Modifier.fillMaxWidth(), content = content)
     }
@@ -520,16 +522,23 @@ private fun EventEditContent(
             .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 40.dp),
     ) {
         // Title: borderless headline, mirroring the detail screen's title +
-        // accent bar instead of a boxed Material text field.
+        // accent bar instead of a boxed Material text field. Multi-line so long
+        // titles wrap instead of scrolling off one line (#33); newlines are
+        // stripped in setTitle, so this stays a single logical line — the Enter
+        // key just has no effect.
         InlineField(
             value = form.title,
             onValueChange = viewModel::setTitle,
             placeholder = stringResource(R.string.event_edit_title_hint),
             textStyle = MaterialTheme.typography.headlineMedium
                 .copy(fontWeight = FontWeight.SemiBold),
+            singleLine = false,
             enabled = !locked,
             modifier = Modifier
                 .fillMaxWidth()
+                // Ease the height change as the title wraps to another line
+                // instead of letting the accent bar + cards below jump.
+                .animateContentSizeMotion()
                 .padding(vertical = 4.dp)
                 .focusRequester(titleFocusRequester),
         )
@@ -1056,24 +1065,19 @@ private fun FieldPickerDialog(
     onSelect: (EventFormField) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.event_edit_more_fields)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                hiddenFields.forEach { field ->
-                    OptionCard(
-                        label = stringResource(eventFormFieldLabel(field)),
-                        onClick = { onSelect(field) },
-                        icon = eventFormFieldIcon(field),
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
-        },
-    )
+    FullScreenPicker(
+        title = stringResource(R.string.event_edit_more_fields),
+        onDismiss = onDismiss,
+    ) {
+        hiddenFields.forEachIndexed { index, field ->
+            GroupedRow(
+                title = stringResource(eventFormFieldLabel(field)),
+                position = positionOf(index, hiddenFields.size),
+                leading = { Icon(imageVector = eventFormFieldIcon(field), contentDescription = null) },
+                onClick = { onSelect(field) },
+            )
+        }
+    }
 }
 
 /** Quick-pick lead times offered as chips in the reminder dialog. */
@@ -1098,41 +1102,10 @@ private fun ReminderPickerDialog(
         ?.takeIf { it in 1..999 }
         ?.let { it * unit.minutesFactor }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.event_edit_add_reminder)) },
-        text = {
-            if (!customMode) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    REMINDER_QUICK_PICKS.filterNot { it in alreadyChosen }.forEach { minutes ->
-                        OptionCard(
-                            label = reminderLabel(minutes),
-                            onClick = { onSelect(minutes) },
-                        )
-                    }
-                    OptionCard(
-                        label = stringResource(R.string.event_edit_reminder_custom),
-                        onClick = { customMode = true },
-                        labelColor = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    DialogAmountField(
-                        value = amountText,
-                        onValueChange = { amountText = it },
-                        placeholder = "10",
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    DialogUnitDropdown(
-                        label = stringResource(reminderUnitLabel(unit)),
-                        entries = ReminderUnit.entries.map { stringResource(reminderUnitLabel(it)) },
-                        onPick = { unit = ReminderUnit.entries[it] },
-                    )
-                }
-            }
-        },
-        confirmButton = {
+    FullScreenPicker(
+        title = stringResource(R.string.event_edit_add_reminder),
+        onDismiss = onDismiss,
+        actions = {
             // The quick-pick list adds on tap; only the custom step needs Add.
             if (customMode) {
                 TextButton(
@@ -1141,10 +1114,41 @@ private fun ReminderPickerDialog(
                 ) { Text(stringResource(R.string.event_edit_add)) }
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
-        },
-    )
+    ) {
+        if (!customMode) {
+            val presets = REMINDER_QUICK_PICKS.filterNot { it in alreadyChosen }
+            val rowCount = presets.size + 1
+            presets.forEachIndexed { index, minutes ->
+                GroupedRow(
+                    title = reminderLabel(minutes),
+                    position = positionOf(index, rowCount),
+                    onClick = { onSelect(minutes) },
+                )
+            }
+            GroupedRow(
+                title = stringResource(R.string.event_edit_reminder_custom),
+                position = positionOf(rowCount - 1, rowCount),
+                onClick = { customMode = true },
+            )
+        } else {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            ) {
+                DialogAmountField(
+                    value = amountText,
+                    onValueChange = { amountText = it },
+                    placeholder = "10",
+                )
+                Spacer(Modifier.width(12.dp))
+                DialogUnitDropdown(
+                    label = stringResource(reminderUnitLabel(unit)),
+                    entries = ReminderUnit.entries.map { stringResource(reminderUnitLabel(it)) },
+                    onPick = { unit = ReminderUnit.entries[it] },
+                )
+            }
+        }
+    }
 }
 
 /** How a custom recurrence ends; mirrors [RecurrenceEnd] in saveable form. */
@@ -1214,109 +1218,10 @@ private fun RecurrencePickerDialog(
         null
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.event_detail_recurrence)) },
-        text = {
-            if (!customMode) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OptionCard(
-                        label = stringResource(R.string.event_edit_recurrence_none),
-                        onClick = { onSelect(null) },
-                        selected = current == null,
-                    )
-                    RecurrenceFreq.entries.forEach { entry ->
-                        OptionCard(
-                            label = stringResource(recurrencePresetLabel(entry)),
-                            onClick = { onSelect(SimpleRecurrence(entry).toRRule()) },
-                            selected = isPlainPreset && parsed?.freq == entry,
-                        )
-                    }
-                    OptionCard(
-                        label = stringResource(R.string.event_edit_recurrence_custom),
-                        onClick = { customMode = true },
-                        selected = current != null && !isPlainPreset,
-                        labelColor = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = stringResource(R.string.event_edit_recurrence_every),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        DialogAmountField(
-                            value = intervalText,
-                            onValueChange = { intervalText = it },
-                            placeholder = "1",
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        DialogUnitDropdown(
-                            label = stringResource(recurrenceUnitLabel(freq)),
-                            entries = RecurrenceFreq.entries.map {
-                                stringResource(recurrenceUnitLabel(it))
-                            },
-                            onPick = { freq = RecurrenceFreq.entries[it] },
-                        )
-                    }
-                    if (freq == RecurrenceFreq.Weekly) {
-                        Spacer(Modifier.height(4.dp))
-                        WeekdayToggleRow(
-                            selected = daysMask.toDaySet(),
-                            onToggle = { day -> daysMask = daysMask xor day.toMaskBit() },
-                            locale = locale,
-                        )
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(R.string.event_edit_recurrence_ends),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    OptionCard(
-                        label = stringResource(R.string.event_edit_recurrence_end_never),
-                        onClick = { endMode = RecurrenceEndMode.Never },
-                        selected = endMode == RecurrenceEndMode.Never,
-                    )
-                    OptionCard(
-                        label = stringResource(R.string.event_edit_recurrence_end_until),
-                        onClick = {
-                            endMode = RecurrenceEndMode.Until
-                            showUntilPicker = true
-                        },
-                        supportingText = untilDate?.let {
-                            remember(it, locale) {
-                                DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-                                    .withLocale(locale).format(it.toJavaLocalDate())
-                            }
-                        },
-                        selected = endMode == RecurrenceEndMode.Until,
-                    )
-                    OptionCard(
-                        label = stringResource(R.string.event_edit_recurrence_end_count),
-                        onClick = { endMode = RecurrenceEndMode.Count },
-                        selected = endMode == RecurrenceEndMode.Count,
-                    )
-                    if (endMode == RecurrenceEndMode.Count) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            DialogAmountField(
-                                value = countText,
-                                onValueChange = { countText = it },
-                                placeholder = "10",
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                text = stringResource(R.string.event_edit_recurrence_times),
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
+    FullScreenPicker(
+        title = stringResource(R.string.event_detail_recurrence),
+        onDismiss = onDismiss,
+        actions = {
             // The preset list applies on tap; only the custom step needs OK.
             if (customMode) {
                 TextButton(
@@ -1325,10 +1230,113 @@ private fun RecurrencePickerDialog(
                 ) { Text(stringResource(R.string.dialog_ok)) }
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
-        },
-    )
+    ) {
+        if (!customMode) {
+            val rowCount = RecurrenceFreq.entries.size + 2
+            GroupedRow(
+                title = stringResource(R.string.event_edit_recurrence_none),
+                position = positionOf(0, rowCount),
+                selected = current == null,
+                onClick = { onSelect(null) },
+            )
+            RecurrenceFreq.entries.forEachIndexed { index, entry ->
+                GroupedRow(
+                    title = stringResource(recurrencePresetLabel(entry)),
+                    position = positionOf(index + 1, rowCount),
+                    selected = isPlainPreset && parsed?.freq == entry,
+                    onClick = { onSelect(SimpleRecurrence(entry).toRRule()) },
+                )
+            }
+            GroupedRow(
+                title = stringResource(R.string.event_edit_recurrence_custom),
+                position = positionOf(rowCount - 1, rowCount),
+                selected = current != null && !isPlainPreset,
+                onClick = { customMode = true },
+            )
+        } else {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(horizontal = 24.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = stringResource(R.string.event_edit_recurrence_every),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    DialogAmountField(
+                        value = intervalText,
+                        onValueChange = { intervalText = it },
+                        placeholder = "1",
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    DialogUnitDropdown(
+                        label = stringResource(recurrenceUnitLabel(freq)),
+                        entries = RecurrenceFreq.entries.map {
+                            stringResource(recurrenceUnitLabel(it))
+                        },
+                        onPick = { freq = RecurrenceFreq.entries[it] },
+                    )
+                }
+                if (freq == RecurrenceFreq.Weekly) {
+                    WeekdayToggleRow(
+                        selected = daysMask.toDaySet(),
+                        onToggle = { day -> daysMask = daysMask xor day.toMaskBit() },
+                        locale = locale,
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.event_edit_recurrence_ends),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            GroupedRow(
+                title = stringResource(R.string.event_edit_recurrence_end_never),
+                position = positionOf(0, 3),
+                selected = endMode == RecurrenceEndMode.Never,
+                onClick = { endMode = RecurrenceEndMode.Never },
+            )
+            GroupedRow(
+                title = stringResource(R.string.event_edit_recurrence_end_until),
+                summary = untilDate?.let {
+                    remember(it, locale) {
+                        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+                            .withLocale(locale).format(it.toJavaLocalDate())
+                    }
+                },
+                position = positionOf(1, 3),
+                selected = endMode == RecurrenceEndMode.Until,
+                onClick = {
+                    endMode = RecurrenceEndMode.Until
+                    showUntilPicker = true
+                },
+            )
+            GroupedRow(
+                title = stringResource(R.string.event_edit_recurrence_end_count),
+                position = positionOf(2, 3),
+                selected = endMode == RecurrenceEndMode.Count,
+                onClick = { endMode = RecurrenceEndMode.Count },
+            )
+            if (endMode == RecurrenceEndMode.Count) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                ) {
+                    DialogAmountField(
+                        value = countText,
+                        onValueChange = { countText = it },
+                        placeholder = "10",
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = stringResource(R.string.event_edit_recurrence_times),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+            }
+        }
+    }
 
     if (showUntilPicker) {
         CalendarDatePickerDialog(
@@ -1612,6 +1620,7 @@ private fun AddGuestInlineCard(
                 value = text,
                 onValueChange = { text = it },
                 placeholder = stringResource(R.string.event_edit_add_guest_hint),
+                capitalization = KeyboardCapitalization.None,
                 keyboardType = KeyboardType.Email,
                 imeAction = ImeAction.Done,
                 onImeAction = { commit() },
@@ -1692,24 +1701,14 @@ private fun VisibilityPickerDialog(
     onSelect: (AccessLevel) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.event_edit_visibility)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                AccessLevel.entries.forEach { level ->
-                    OptionCard(
-                        label = stringResource(accessLevelLabel(level)),
-                        onClick = { onSelect(level) },
-                        icon = accessLevelIcon(level),
-                        selected = level == selected,
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
-        },
+    OptionPicker(
+        title = stringResource(R.string.event_edit_visibility),
+        options = AccessLevel.entries.toList(),
+        selected = selected,
+        label = { stringResource(accessLevelLabel(it)) },
+        onSelect = onSelect,
+        onDismiss = onDismiss,
+        leading = { Icon(imageVector = accessLevelIcon(it), contentDescription = null) },
     )
 }
 
@@ -1732,51 +1731,48 @@ private fun ColorPickerDialog(
     onDismiss: () -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.event_edit_color)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (palette.isNotEmpty()) {
-                    ColorSwatchRow(
-                        colors = palette.map { it.argb },
-                        selected = selected,
-                        onSelect = { argb ->
-                            palette.firstOrNull { it.argb == argb }
-                                ?.let { onPickKey(it.key, it.argb) }
-                        },
-                        dark = dark,
-                    )
-                } else {
-                    ColorSwatchRow(
-                        colors = CalendarColorPalette.all,
-                        selected = selected,
-                        onSelect = onPickRaw,
-                        dark = dark,
-                    )
-                    if (syncWarning) {
-                        Text(
-                            text = stringResource(R.string.event_edit_color_sync_warning),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
-        },
-        dismissButton = if (hasExplicitColor) {
-            {
+    FullScreenPicker(
+        title = stringResource(R.string.event_edit_color),
+        onDismiss = onDismiss,
+        actions = {
+            if (hasExplicitColor) {
                 TextButton(onClick = onClear) {
                     Text(stringResource(R.string.event_edit_color_reset))
                 }
             }
-        } else {
-            null
         },
-    )
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        ) {
+            if (palette.isNotEmpty()) {
+                ColorSwatchRow(
+                    colors = palette.map { it.argb },
+                    selected = selected,
+                    onSelect = { argb ->
+                        palette.firstOrNull { it.argb == argb }
+                            ?.let { onPickKey(it.key, it.argb) }
+                    },
+                    dark = dark,
+                )
+            } else {
+                ColorSwatchRow(
+                    colors = CalendarColorPalette.all,
+                    selected = selected,
+                    onSelect = onPickRaw,
+                    dark = dark,
+                )
+                if (syncWarning) {
+                    Text(
+                        text = stringResource(R.string.event_edit_color_sync_warning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
 }
 
 private fun accessLevelIcon(level: AccessLevel): ImageVector = when (level) {
@@ -1900,6 +1896,7 @@ private fun InlineField(
         minLines = minLines,
         enabled = enabled,
         keyboardType = keyboardType,
+        capitalization = KeyboardCapitalization.None,
     )
 }
 
@@ -1975,50 +1972,14 @@ private fun CalendarPicker(
     onSelect: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    // Group by owning account (name, else type, else the calendar's own name),
-    // preserving the provider's order within and across groups — the same
-    // grouping [groupByAccount] applies for the drawer filter.
-    val groups = remember(calendars) {
-        calendars
-            .groupBy {
-                it.accountName.takeIf(String::isNotBlank)
-                    ?: it.accountType.takeIf(String::isNotBlank)
-                    ?: it.displayName
-            }
-            .toList()
-    }
     FullScreenPicker(
         title = stringResource(R.string.event_detail_calendar),
         onDismiss = onDismiss,
     ) {
-        groups.forEach { (account, cals) ->
-            Text(
-                text = account,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 4.dp),
-            )
-            cals.forEachIndexed { index, calendar ->
-                val isSelected = calendar.id == selectedId
-                GroupedRow(
-                    title = calendar.displayName,
-                    position = positionOf(index, cals.size),
-                    selected = isSelected,
-                    leading = { CalendarColorChip(calendar.color) },
-                    trailing = if (isSelected) {
-                        {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                    } else {
-                        null
-                    },
-                    onClick = { onSelect(calendar.id) },
-                )
-            }
-        }
+        CalendarPickerGroups(
+            calendars = calendars,
+            selectedId = selectedId,
+            onSelect = onSelect,
+        )
     }
 }

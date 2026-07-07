@@ -8,7 +8,6 @@ import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -37,6 +35,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -45,6 +44,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,6 +66,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -73,10 +74,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringArrayResource
@@ -85,7 +83,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -96,21 +93,36 @@ import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
-import de.jeanlucmakiola.calendula.ui.common.DialogAmountField
-import de.jeanlucmakiola.calendula.ui.common.DialogUnitDropdown
-import de.jeanlucmakiola.calendula.ui.common.calendarCollapseExit
-import de.jeanlucmakiola.calendula.ui.common.calendarExpandEnter
-import de.jeanlucmakiola.calendula.ui.common.predictiveBack
-import de.jeanlucmakiola.calendula.ui.common.CollapsingScaffold
+import de.jeanlucmakiola.calendula.ui.common.LeadingAvatar
+import de.jeanlucmakiola.calendula.ui.common.SourceLogo
+import de.jeanlucmakiola.calendula.ui.common.curatedSourcePackage
+import de.jeanlucmakiola.floret.components.CollapsingScaffold
+import de.jeanlucmakiola.floret.components.DialogAmountField
+import de.jeanlucmakiola.floret.components.DialogUnitDropdown
+import de.jeanlucmakiola.floret.components.FullScreenPicker
+import de.jeanlucmakiola.floret.components.positionOf
+import de.jeanlucmakiola.floret.identity.collapseExit
+import de.jeanlucmakiola.floret.identity.expandEnter
+import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
-import de.jeanlucmakiola.calendula.ui.common.GroupedRow
-import de.jeanlucmakiola.calendula.ui.common.InlineTextField
-import de.jeanlucmakiola.calendula.ui.common.Position
-import de.jeanlucmakiola.calendula.ui.common.pastelize
+import de.jeanlucmakiola.floret.components.GroupedRow
+import de.jeanlucmakiola.floret.components.InlineTextField
+import de.jeanlucmakiola.floret.components.Position
+import de.jeanlucmakiola.floret.components.pastelize
 import java.time.LocalDate
 
 /** Sentinel [editorId] meaning "the editor is composing a new calendar". */
 private const val NEW_CALENDAR_ID = Long.MIN_VALUE
+
+// SAF mime filter for the restore picker. `.ics` files reach us under several
+// mimes depending on the source app (our own export uses text/calendar; others
+// hand them out as octet-stream or text/plain), so accept the common set rather
+// than hide valid backups behind an over-tight filter.
+private val RESTORE_MIME_TYPES = arrayOf(
+    "text/calendar",
+    "application/octet-stream",
+    "text/plain",
+)
 
 /**
  * Calendar manager (reached from Settings). Lists the app's own device-only
@@ -122,6 +134,7 @@ private const val NEW_CALENDAR_ID = Long.MIN_VALUE
 @Composable
 fun CalendarsScreen(
     onBack: () -> Unit,
+    onImport: (android.net.Uri) -> Unit,
     viewModel: CalendarsViewModel = hiltViewModel(),
 ) {
     val calendars by viewModel.calendars.collectAsStateWithLifecycle()
@@ -168,6 +181,7 @@ fun CalendarsScreen(
             onConsumeError = viewModel::consumeError,
             backupResult = backupResult,
             onExportBackup = viewModel::exportBackup,
+            onImport = onImport,
             onConsumeBackupResult = viewModel::consumeBackupResult,
             autoBackup = autoBackup,
             onSetAutoBackupEnabled = viewModel::setAutoBackupEnabled,
@@ -190,7 +204,8 @@ private fun CalendarsList(
     error: Boolean,
     onConsumeError: () -> Unit,
     backupResult: BackupResult?,
-    onExportBackup: (android.net.Uri) -> Unit,
+    onExportBackup: (android.net.Uri, Set<Long>?) -> Unit,
+    onImport: (android.net.Uri) -> Unit,
     onConsumeBackupResult: () -> Unit,
     autoBackup: AutoBackupUiState,
     onSetAutoBackupEnabled: (Boolean) -> Unit,
@@ -218,10 +233,19 @@ private fun CalendarsList(
     }
 
     // SAF "create document" target for the backup file. The picked Uri is handed
-    // to the VM to stream the .ics into.
+    // to the VM to stream the .ics into. This launcher exports everything
+    // eligible (null); the per-calendar selector owns its own launcher.
     val createBackup = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/calendar"),
-    ) { uri -> uri?.let(onExportBackup) }
+    ) { uri -> uri?.let { onExportBackup(it, null) } }
+    var showExportPicker by rememberSaveable { mutableStateOf(false) }
+
+    // SAF "open document" picker for restoring events from a .ics file. The
+    // picked Uri is handed up to the host, which runs it through the same import
+    // flow as an externally opened .ics (parse, dedup by UID, target picker).
+    val openBackup = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let(onImport) }
 
     // SAF folder picker for the automatic-backup destination; the VM persists the
     // write grant so background runs can keep writing to it.
@@ -253,6 +277,7 @@ private fun CalendarsList(
         title = stringResource(R.string.calendars_title),
         onBack = onBack,
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        predictiveBack = true,
     ) {
         // What the per-calendar / per-account switches below actually do.
         HintText(stringResource(R.string.calendars_disable_hint))
@@ -301,8 +326,13 @@ private fun CalendarsList(
         }
 
         // Backup — local calendars have no sync, so a .ics export is their only
-        // safety net. Offered only when there is something to back up.
-        if (local.isNotEmpty()) {
+        // safety net. Offered only when there is something exportable: the user's
+        // own local calendars (managed special-dates mirrors don't count).
+        val exportable = local.filter { it.canModifyContents && !it.isManaged }
+        // Restore/import can target any writable, non-managed calendar (local or
+        // synced), so its availability is broader than export's.
+        val canImport = (local + synced).any { it.canModifyContents && !it.isManaged }
+        if (exportable.isNotEmpty()) {
             Spacer(Modifier.height(16.dp))
             SectionHeader(stringResource(R.string.calendars_backup_header))
             HintText(stringResource(R.string.calendars_backup_hint))
@@ -313,7 +343,22 @@ private fun CalendarsList(
                 position = Position.Top,
                 leading = { LeadingAvatar(Icons.Default.FileDownload) },
                 onClick = {
-                    runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
+                    // With more than one exportable calendar, let the user choose
+                    // which to include; a single one exports straight away.
+                    if (exportable.size == 1) {
+                        runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
+                    } else {
+                        showExportPicker = true
+                    }
+                },
+            )
+            GroupedRow(
+                title = stringResource(R.string.calendars_restore_action),
+                summary = stringResource(R.string.calendars_restore_hint),
+                position = Position.Middle,
+                leading = { LeadingAvatar(Icons.Default.FileUpload) },
+                onClick = {
+                    runCatching { openBackup.launch(RESTORE_MIME_TYPES) }
                 },
             )
             GroupedRow(
@@ -342,6 +387,19 @@ private fun CalendarsList(
                 )
                 HintText(backupStatusText(autoBackup.status))
             }
+        } else if (canImport) {
+            // Nothing to back up (no writable local calendar), but events can
+            // still be restored into a writable calendar — offer restore on its
+            // own so it isn't hidden behind export eligibility.
+            Spacer(Modifier.height(16.dp))
+            SectionHeader(stringResource(R.string.calendars_restore_header))
+            HintText(stringResource(R.string.calendars_restore_hint))
+            GroupedRow(
+                title = stringResource(R.string.calendars_restore_action),
+                position = Position.Alone,
+                leading = { LeadingAvatar(Icons.Default.FileUpload) },
+                onClick = { runCatching { openBackup.launch(RESTORE_MIME_TYPES) } },
+            )
         }
 
         Spacer(Modifier.height(16.dp))
@@ -407,6 +465,86 @@ private fun CalendarsList(
             onConfirm = onSetAutoBackupInterval,
             onDismiss = { showInterval = false },
         )
+    }
+
+    if (showExportPicker) {
+        ExportCalendarPicker(
+            calendars = local.filter { it.canModifyContents && !it.isManaged },
+            onExport = onExportBackup,
+            onDismiss = { showExportPicker = false },
+        )
+    }
+}
+
+/**
+ * Choose which local calendars to include in a one-time `.ics` export. Defaults
+ * to all selected; the Export action opens the SAF save dialog and hands back
+ * the picked file with the chosen calendar ids.
+ */
+@Composable
+private fun ExportCalendarPicker(
+    calendars: List<CalendarSource>,
+    onExport: (android.net.Uri, Set<Long>?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    // Seed once with everything selected and hold it across recomposition and
+    // rotation. NOT keyed on [calendars]: the list is observer-driven, so keying
+    // it would silently reset the user's de-selections whenever the provider
+    // re-emits (a background sync, a recolor). Ids that later vanish are harmless
+    // — the data layer intersects the chosen set with the eligible calendars.
+    var selected by rememberSaveable(
+        stateSaver = listSaver(
+            save = { it.toList() },
+            restore = { it.toSet() },
+        ),
+    ) {
+        mutableStateOf(calendars.map { it.id }.toSet())
+    }
+    val createBackup = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/calendar"),
+    ) { uri ->
+        if (uri != null) {
+            onExport(uri, selected)
+            onDismiss()
+        }
+    }
+
+    FullScreenPicker(
+        title = stringResource(R.string.calendars_export_title),
+        onDismiss = onDismiss,
+    ) {
+        HintText(stringResource(R.string.calendars_export_hint))
+        calendars.forEachIndexed { index, calendar ->
+            val isSelected = calendar.id in selected
+            GroupedRow(
+                title = calendar.displayName,
+                summary = calendar.description,
+                position = positionOf(index, calendars.size),
+                leading = { CalendarColorChip(calendar.color) },
+                trailing = {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { checked ->
+                            selected = if (checked) selected + calendar.id else selected - calendar.id
+                        },
+                    )
+                },
+                onClick = {
+                    selected = if (isSelected) selected - calendar.id else selected + calendar.id
+                },
+            )
+        }
+        Button(
+            onClick = {
+                runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
+            },
+            enabled = selected.isNotEmpty(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+        ) {
+            Text(stringResource(R.string.calendars_export_action))
+        }
     }
 }
 
@@ -664,8 +802,8 @@ private fun CalendarGroup(
     )
     AnimatedVisibility(
         visible = expanded,
-        enter = calendarExpandEnter(),
-        exit = calendarCollapseExit(),
+        enter = expandEnter(),
+        exit = collapseExit(),
     ) {
         Column(content = body)
     }
@@ -741,66 +879,6 @@ private fun CalendarGroupMenu(
     }
 }
 
-/**
- * The source app's launcher icon (Google Calendar, DAVx5, Nextcloud, …) as a
- * round 40dp chip, so each synced account is recognisable at a glance. We load
- * whatever app owns the account from [PackageManager] rather than bundling brand
- * logos — always accurate, nothing to license. Falls back to a neutral cloud
- * chip when no installed app resolves for the account.
- */
-@Composable
-private fun SourceLogo(accountType: String) {
-    val context = LocalContext.current
-    val logo = remember(accountType) { sourceAppLogo(context, accountType) }
-    if (logo != null) {
-        Image(
-            bitmap = logo,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape),
-        )
-    } else {
-        LeadingAvatar(Icons.Default.Cloud)
-    }
-}
-
-/** The launcher icon of the app backing [accountType], preferring the human-facing app. */
-private fun sourceAppLogo(context: Context, accountType: String): ImageBitmap? {
-    val pm = context.packageManager
-    val candidates = buildList {
-        curatedSourcePackage(accountType)?.let { add(it) }
-        AccountManager.get(context).authenticatorTypes
-            .firstOrNull { it.type.equals(accountType, ignoreCase = true) }
-            ?.packageName
-            ?.let { add(it) }
-    }
-    for (pkg in candidates) {
-        val bitmap = runCatching { pm.getApplicationIcon(pkg).toBitmap() }.getOrNull()
-        if (bitmap != null) return bitmap.asImageBitmap()
-    }
-    return null
-}
-
-/** Neutral circular chip carrying an arbitrary icon (e.g. the local-device mark). */
-@Composable
-private fun LeadingAvatar(icon: ImageVector) {
-    Box(
-        modifier = Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(22.dp),
-        )
-    }
-}
 
 @Composable
 private fun SectionHeader(text: String) {
@@ -933,11 +1011,5 @@ private fun sourceAppIntent(context: Context, accountType: String): Intent {
         pm.getLaunchIntentForPackage(pkg)?.let { return it }
     }
     return Intent(Settings.ACTION_SYNC_SETTINGS)
-}
-
-/** Preferred app for account types whose authenticator isn't the app to open. */
-private fun curatedSourcePackage(accountType: String): String? = when {
-    accountType.equals("com.google", ignoreCase = true) -> "com.google.android.calendar"
-    else -> null
 }
 

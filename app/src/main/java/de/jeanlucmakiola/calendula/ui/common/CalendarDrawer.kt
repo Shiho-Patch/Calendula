@@ -37,6 +37,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.ui.filter.CalendarFilterList
+import de.jeanlucmakiola.floret.components.GroupedRow
+import de.jeanlucmakiola.floret.components.Position
+import de.jeanlucmakiola.floret.components.positionOf
 import kotlinx.datetime.LocalDate
 
 /**

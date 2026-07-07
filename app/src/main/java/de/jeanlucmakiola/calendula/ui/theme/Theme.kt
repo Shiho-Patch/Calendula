@@ -1,28 +1,24 @@
 package de.jeanlucmakiola.calendula.ui.theme
 
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialExpressiveTheme
-import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.Typography
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import de.jeanlucmakiola.floret.identity.FloretExpressiveTheme
 
 /**
- * App theme. Honors:
- *   - System light/dark.
- *   - Dynamic Color on API 31+, else falls back to the hand-tuned scheme
- *     derived from [CalendulaSeed].
- *   - A user-chosen [typography] (custom fonts, issue #19), defaulting to the
- *     Material scale on the system typeface.
+ * Calendula's theme: the family's [FloretExpressiveTheme] machinery — dynamic
+ * colour on API 31+, system light/dark, and the **standard** motion scheme
+ * (spring choreography without the overshoot) — fed with Calendula's own
+ * identity: its seed-derived fallback schemes ([CalendulaLightFallback] /
+ * [CalendulaDarkFallback]) and a [typography] that defaults to
+ * [CalendulaTypography] but is overridable for the user's custom-font choice
+ * (issue #19).
  *
- * The Settings screen overrides darkTheme, dynamicColor, and typography; the
- * bare defaults (used by the crash screen) just follow the system.
+ * The mechanics live in floret-kit's identity module; the look stays here, so a
+ * sibling app reuses the same theming without inheriting Calendula's palette.
+ * The Settings screen overrides darkTheme, dynamicColor and typography; the bare
+ * defaults (used by the crash screen) just follow the system.
  */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CalendulaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -30,24 +26,12 @@ fun CalendulaTheme(
     typography: Typography = CalendulaTypography,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val ctx = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
-        }
-        darkTheme -> CalendulaDarkFallback
-        else -> CalendulaLightFallback
-    }
-
-    // MaterialExpressiveTheme routes all component + custom motion through
-    // MaterialTheme.motionScheme (switches, chips, pickers, calendar slide,
-    // FAB, field reveal). The STANDARD scheme is a deliberate choice over
-    // expressive(): same spring choreography, but without the overshoot —
-    // the bouncy variant felt overdone in review (2026-06-11).
-    MaterialExpressiveTheme(
-        colorScheme = colorScheme,
+    FloretExpressiveTheme(
+        lightScheme = CalendulaLightFallback,
+        darkScheme = CalendulaDarkFallback,
+        darkTheme = darkTheme,
+        dynamicColor = dynamicColor,
         typography = typography,
-        motionScheme = MotionScheme.standard(),
         content = content,
     )
 }

@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
+import de.jeanlucmakiola.floret.time.toEpochMillis
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
@@ -117,7 +118,8 @@ class CalendarRepositoryImpl @Inject constructor(
     override suspend fun deleteCalendar(id: Long) =
         withContext(io) { dataSource.deleteCalendar(id) }
 
-    override suspend fun exportEvents() = withContext(io) { dataSource.exportableEvents() }
+    override suspend fun exportEvents(calendarIds: Set<Long>?) =
+        withContext(io) { dataSource.exportableEvents(calendarIds) }
 
     override suspend fun importEvents(
         targetCalendarId: Long,

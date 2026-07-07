@@ -50,7 +50,7 @@ import de.jeanlucmakiola.calendula.MainActivity
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
-import de.jeanlucmakiola.calendula.ui.common.pastelize
+import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.calendula.ui.month.MonthWeek
 import de.jeanlucmakiola.calendula.ui.month.layoutMonthWeeks
 import de.jeanlucmakiola.calendula.widget.CalendulaGlanceTheme

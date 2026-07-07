@@ -28,8 +28,8 @@ android {
         // which builds this version and then creates the matching vX.Y.Z tag +
         // release itself (versionCode is pinned to MAJOR*10000 + MINOR*100 +
         // PATCH from versionName, e.g. 2.7.2 -> 20702). See docs/RELEASING.md.
-        versionCode = 21301
-        versionName = "2.13.1"
+        versionCode = 21400
+        versionName = "2.14.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -161,6 +161,12 @@ dependencies {
     implementation(libs.androidx.glance.material3)
 
     implementation(libs.kotlinx.datetime)
+    implementation("de.jeanlucmakiola.floret:core-time")
+    implementation("de.jeanlucmakiola.floret:core-locale")
+    implementation("de.jeanlucmakiola.floret:core-crash")
+    implementation("de.jeanlucmakiola.floret:core-reminders")
+    implementation("de.jeanlucmakiola.floret:identity")
+    implementation("de.jeanlucmakiola.floret:components")
     implementation(libs.kotlinx.coroutines.core)
 
     debugImplementation(libs.androidx.ui.tooling)

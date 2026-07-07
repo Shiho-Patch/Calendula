@@ -59,19 +59,19 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.hasEnded
 import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
-import de.jeanlucmakiola.calendula.ui.common.calendarAnimateItem
+import de.jeanlucmakiola.floret.identity.animateItemMotion
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
-import de.jeanlucmakiola.calendula.ui.common.GroupedRow
-import de.jeanlucmakiola.calendula.ui.common.Position
+import de.jeanlucmakiola.floret.components.GroupedRow
+import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.next
-import de.jeanlucmakiola.calendula.ui.common.pastelize
-import de.jeanlucmakiola.calendula.ui.common.positionOf
+import de.jeanlucmakiola.floret.components.pastelize
+import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
@@ -93,6 +93,7 @@ private val zone = TimeZone.currentSystemDefault()
 fun AgendaScreen(
     selectedView: CalendarView,
     onSelectView: (CalendarView) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
     onEventClick: (EventInstance) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenSearch: () -> Unit,
@@ -191,6 +192,7 @@ fun AgendaScreen(
                     pastDisplay = pastDisplay,
                     onRetry = viewModel::goToToday,
                     onEventClick = onEventClick,
+                    onOpenDay = onOpenDay,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
@@ -289,6 +291,7 @@ private fun AgendaContent(
     pastDisplay: PastEventDisplay,
     onRetry: () -> Unit,
     onEventClick: (EventInstance) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when (state) {
@@ -318,6 +321,7 @@ private fun AgendaContent(
                     dimPast = pastDisplay == PastEventDisplay.DIM,
                     now = now,
                     onEventClick = onEventClick,
+                    onOpenDay = onOpenDay,
                     modifier = modifier,
                 )
             }
@@ -333,6 +337,7 @@ private fun AgendaList(
     dimPast: Boolean,
     now: Instant,
     onEventClick: (EventInstance) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -342,7 +347,7 @@ private fun AgendaList(
     ) {
         days.forEach { day ->
             stickyHeader(key = "header-${day.date}") {
-                AgendaDayHeader(date = day.date, today = today)
+                AgendaDayHeader(date = day.date, today = today, onOpenDay = onOpenDay)
             }
             itemsIndexed(
                 items = day.events,
@@ -352,7 +357,7 @@ private fun AgendaList(
                     event = event,
                     position = positionOf(index, day.events.size),
                     dimmed = dimPast && event.hasEnded(now),
-                    modifier = calendarAnimateItem(),
+                    modifier = animateItemMotion(),
                     onClick = { onEventClick(event) },
                 )
             }
@@ -362,10 +367,16 @@ private fun AgendaList(
 }
 
 @Composable
-private fun AgendaDayHeader(date: LocalDate, today: LocalDate) {
+private fun AgendaDayHeader(
+    date: LocalDate,
+    today: LocalDate,
+    onOpenDay: (LocalDate) -> Unit,
+) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenDay(date) },
     ) {
         Text(
             text = agendaDayLabel(date, today),

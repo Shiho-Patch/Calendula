@@ -1,5 +1,7 @@
 package de.jeanlucmakiola.calendula.data.prefs
 
+import de.jeanlucmakiola.floret.reminders.ReminderOverride
+
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
@@ -93,6 +95,14 @@ class SettingsPrefsTest {
         assertThat(prefs.showHourLines.first()).isFalse()
         prefs.setShowHourLines(true)
         assertThat(prefs.showHourLines.first()).isTrue()
+    }
+
+    @Test
+    fun `week numbers default off and round-trips`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.showWeekNumbers.first()).isFalse()
+        prefs.setShowWeekNumbers(true)
+        assertThat(prefs.showWeekNumbers.first()).isTrue()
     }
 
     @Test
@@ -323,14 +333,14 @@ class SettingsPrefsTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
         assertThat(prefs.perCalendarReminderOverride.first()).isEmpty()
 
-        prefs.setCalendarReminderOverride(7L, CalendarReminderOverride.Minutes(listOf(15, 10_080)))
-        prefs.setCalendarReminderOverride(9L, CalendarReminderOverride.None)
+        prefs.setCalendarReminderOverride(7L, ReminderOverride.Minutes(listOf(15, 10_080)))
+        prefs.setCalendarReminderOverride(9L, ReminderOverride.None)
         prefs.perCalendarReminderOverride.first().let { map ->
             assertThat(map).containsExactly(7L, listOf(15, 10_080), 9L, emptyList<Int>())
         }
 
         // Inherit drops the override entirely (absent != an empty-list value).
-        prefs.setCalendarReminderOverride(9L, CalendarReminderOverride.Inherit)
+        prefs.setCalendarReminderOverride(9L, ReminderOverride.Inherit)
         prefs.perCalendarReminderOverride.first().let { map ->
             assertThat(map).containsExactly(7L, listOf(15, 10_080))
             assertThat(map.containsKey(9L)).isFalse()
@@ -370,12 +380,12 @@ class SettingsPrefsTest {
     @Test
     fun `per-calendar all-day override round-trips independently of the timed one`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
-        prefs.setCalendarReminderOverride(7L, CalendarReminderOverride.Minutes(listOf(15)))
-        prefs.setCalendarAllDayReminderOverride(7L, CalendarReminderOverride.Minutes(listOf(1_440)))
+        prefs.setCalendarReminderOverride(7L, ReminderOverride.Minutes(listOf(15)))
+        prefs.setCalendarAllDayReminderOverride(7L, ReminderOverride.Minutes(listOf(1_440)))
         assertThat(prefs.perCalendarReminderOverride.first()).containsExactly(7L, listOf(15))
         assertThat(prefs.perCalendarAllDayReminderOverride.first()).containsExactly(7L, listOf(1_440))
         // Clearing the all-day override leaves the timed one untouched.
-        prefs.setCalendarAllDayReminderOverride(7L, CalendarReminderOverride.Inherit)
+        prefs.setCalendarAllDayReminderOverride(7L, ReminderOverride.Inherit)
         assertThat(prefs.perCalendarAllDayReminderOverride.first()).isEmpty()
         assertThat(prefs.perCalendarReminderOverride.first()).containsExactly(7L, listOf(15))
     }

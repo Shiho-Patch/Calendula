@@ -1,0 +1,25 @@
+Calendula es una aplicación de calendario moderna y de código abierto
+para Android. Funciona directamente sobre el proveedor de calendario del
+sistema: cualquier origen sincronizado en tu dispositivo — Nextcloud
+mediante DAVx5, Google, calendarios locales, suscripciones WebCal —
+aparece automáticamente, y los cambios que hagas se sincronizan de vuelta
+del mismo modo.
+
+Crea, edita y elimina eventos, incluidos los recurrentes con cambios
+acotados (solo este evento / este y todos los siguientes / toda la serie)
+y un sencillo selector de repetición. Calendula también entrega los
+recordatorios de tus eventos como notificaciones: toca una y estarás en
+el evento.
+
+Si quieres, muestra en tu calendario los cumpleaños, aniversarios y otras
+fechas especiales de tus contactos. Tú mismo lo activas; los contactos se
+leen solo en tu dispositivo, nunca se suben y nunca se modifican —
+Calendula solo refleja las fechas en calendarios locales que controlas
+por completo.
+
+El factor diferenciador es el diseño: auténtico Material 3 Expressive en
+toda la aplicación, con Dynamic Color, movimiento expresivo y formas
+expresivas.
+
+Privacidad: cero telemetría, sin analíticas, sin acceso a la red — tus
+datos nunca salen del dispositivo.

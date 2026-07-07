@@ -1,5 +1,9 @@
 package de.jeanlucmakiola.calendula.ui.permission
 
+import de.jeanlucmakiola.floret.components.BenefitRow
+import de.jeanlucmakiola.floret.components.OnboardingScaffold
+import de.jeanlucmakiola.floret.components.OnboardingSpace
+
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult

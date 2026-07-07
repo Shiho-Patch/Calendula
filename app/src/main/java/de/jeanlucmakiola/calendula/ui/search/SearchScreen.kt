@@ -42,22 +42,23 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
-import de.jeanlucmakiola.calendula.ui.common.calendarAnimateItem
-import de.jeanlucmakiola.calendula.ui.common.predictiveBack
-import de.jeanlucmakiola.calendula.ui.common.GroupedRow
-import de.jeanlucmakiola.calendula.ui.common.InlineTextField
-import de.jeanlucmakiola.calendula.ui.common.Position
+import de.jeanlucmakiola.floret.identity.animateItemMotion
+import de.jeanlucmakiola.floret.identity.predictiveBack
+import de.jeanlucmakiola.floret.components.GroupedRow
+import de.jeanlucmakiola.floret.components.InlineTextField
+import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
-import de.jeanlucmakiola.calendula.ui.common.pastelize
-import de.jeanlucmakiola.calendula.ui.common.positionOf
+import de.jeanlucmakiola.floret.components.pastelize
+import de.jeanlucmakiola.floret.components.positionOf
 import java.time.Instant as JavaInstant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -101,6 +102,7 @@ fun SearchScreen(
                         value = query,
                         onValueChange = viewModel::setQuery,
                         placeholder = stringResource(R.string.search_hint),
+                        capitalization = KeyboardCapitalization.None,
                         imeAction = ImeAction.Search,
                         onImeAction = { keyboard?.hide() },
                         modifier = Modifier
@@ -175,7 +177,7 @@ private fun SearchResults(
             SearchResultRow(
                 event = event,
                 position = positionOf(index, events.size),
-                modifier = calendarAnimateItem(),
+                modifier = animateItemMotion(),
                 onClick = { onEventClick(event) },
             )
         }

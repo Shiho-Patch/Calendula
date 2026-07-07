@@ -17,8 +17,8 @@ import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesSyncEngine
 import de.jeanlucmakiola.calendula.data.contacts.resolveTitleTemplate
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.fonts.CustomFontStore
-import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
-import de.jeanlucmakiola.calendula.data.prefs.choiceFor
+import de.jeanlucmakiola.floret.reminders.ReminderOverride
+import de.jeanlucmakiola.floret.reminders.reminderOverrideFor
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SpecialDatesStalledReason
@@ -116,9 +116,15 @@ class SettingsViewModel @Inject constructor(
                 prefs.agendaScreenRange,
                 prefs.agendaWidgetRange,
                 prefs.timeFormat,
-                prefs.showHourLines,
-            ) { view, screenRange, widgetRange, timeFormat, showHourLines ->
-                ViewSettings(view, screenRange, widgetRange, timeFormat, showHourLines)
+                // Two grid-display toggles folded into one flow so they fit this
+                // group — the outer combine is already at its five-arg limit.
+                combine(prefs.showHourLines, prefs.showWeekNumbers, ::Pair),
+            ) { view, screenRange, widgetRange, timeFormat, gridToggles ->
+                ViewSettings(
+                    view, screenRange, widgetRange, timeFormat,
+                    showHourLines = gridToggles.first,
+                    showWeekNumbers = gridToggles.second,
+                )
             },
             combine(
                 prefs.agendaShowRangeBar,
@@ -140,6 +146,7 @@ class SettingsViewModel @Inject constructor(
                 agendaWidgetRange = views.agendaWidgetRange,
                 timeFormat = views.timeFormat,
                 showHourLines = views.showHourLines,
+                showWeekNumbers = views.showWeekNumbers,
                 agendaShowRangeBar = misc.showRangeBar,
                 autofocusEventTitle = misc.autofocusEventTitle,
                 pastEventDisplay = misc.pastEventDisplay,
@@ -212,6 +219,7 @@ class SettingsViewModel @Inject constructor(
         val agendaWidgetRange: AgendaRange,
         val timeFormat: TimeFormatPref,
         val showHourLines: Boolean,
+        val showWeekNumbers: Boolean,
     )
 
     private data class MiscSettings(
@@ -255,7 +263,7 @@ class SettingsViewModel @Inject constructor(
         base.copy(
             // An override is always seeded on creation; present-empty = None.
             reminderChoices = calendars.mapValues { (_, calendarId) ->
-                allDayOverrides.choiceFor(calendarId)
+                allDayOverrides.reminderOverrideFor(calendarId)
             },
         )
     }.stateIn(
@@ -309,7 +317,7 @@ class SettingsViewModel @Inject constructor(
      * Set a type's managed-calendar reminder default and apply it to all its
      * existing events (managed calendars own their reminders calendar-wide).
      */
-    fun setSpecialDatesReminders(type: SpecialDateType, override: CalendarReminderOverride) {
+    fun setSpecialDatesReminders(type: SpecialDateType, override: ReminderOverride) {
         viewModelScope.launch { withContext(io) { specialDatesEngine.applyReminders(type, override) } }
     }
 
@@ -398,6 +406,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setShowHourLines(enabled) }
     }
 
+    fun setShowWeekNumbers(enabled: Boolean) {
+        viewModelScope.launch { prefs.setShowWeekNumbers(enabled) }
+    }
+
     fun setPastEventDisplay(mode: PastEventDisplay) {
         viewModelScope.launch {
             prefs.setPastEventDisplay(mode)
@@ -476,11 +488,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setSnoozeMinutes(minutes) }
     }
 
-    fun setCalendarReminderOverride(calendarId: Long, override: CalendarReminderOverride) {
+    fun setCalendarReminderOverride(calendarId: Long, override: ReminderOverride) {
         viewModelScope.launch { prefs.setCalendarReminderOverride(calendarId, override) }
     }
 
-    fun setCalendarAllDayReminderOverride(calendarId: Long, override: CalendarReminderOverride) {
+    fun setCalendarAllDayReminderOverride(calendarId: Long, override: ReminderOverride) {
         viewModelScope.launch { prefs.setCalendarAllDayReminderOverride(calendarId, override) }
     }
 

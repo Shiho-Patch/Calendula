@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
+import de.jeanlucmakiola.floret.time.toKotlinInstantFromEpochMillis
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.ics.parseRfc2445DurationMillis
 
