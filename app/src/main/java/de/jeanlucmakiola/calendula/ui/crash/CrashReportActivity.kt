@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import de.jeanlucmakiola.calendula.data.crash.CrashReporter
 import de.jeanlucmakiola.calendula.ui.theme.CalendulaTheme
+import de.jeanlucmakiola.floret.crash.CrashReportDialog
+import de.jeanlucmakiola.floret.crash.CrashReporter
+import de.jeanlucmakiola.floret.crash.submitCrashReport
 
 /**
  * A deliberately minimal, standalone surface for a captured crash report.

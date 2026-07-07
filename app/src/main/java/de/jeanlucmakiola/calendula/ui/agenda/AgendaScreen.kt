@@ -59,19 +59,19 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.hasEnded
 import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
-import de.jeanlucmakiola.calendula.ui.common.calendarAnimateItem
+import de.jeanlucmakiola.floret.identity.animateItemMotion
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
-import de.jeanlucmakiola.calendula.ui.common.GroupedRow
-import de.jeanlucmakiola.calendula.ui.common.Position
+import de.jeanlucmakiola.floret.components.GroupedRow
+import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.next
-import de.jeanlucmakiola.calendula.ui.common.pastelize
-import de.jeanlucmakiola.calendula.ui.common.positionOf
+import de.jeanlucmakiola.floret.components.pastelize
+import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
@@ -357,7 +357,7 @@ private fun AgendaList(
                     event = event,
                     position = positionOf(index, day.events.size),
                     dimmed = dimPast && event.hasEnded(now),
-                    modifier = calendarAnimateItem(),
+                    modifier = animateItemMotion(),
                     onClick = { onEventClick(event) },
                 )
             }

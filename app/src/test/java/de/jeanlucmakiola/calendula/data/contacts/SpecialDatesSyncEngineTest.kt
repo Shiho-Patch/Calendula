@@ -7,7 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.data.calendar.FakeCalendarDataSource
 import de.jeanlucmakiola.calendula.data.calendar.ManagedEventRow
-import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
+import de.jeanlucmakiola.floret.reminders.ReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.contacts.ContactSpecialDate
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
@@ -169,7 +169,7 @@ class SpecialDatesSyncEngineTest {
         engine.sync()
         val birthdayCal = settings.specialDatesCalendars.first().getValue(SpecialDateType.Birthday)
 
-        engine.applyReminders(SpecialDateType.Birthday, CalendarReminderOverride.Minutes(listOf(0, 1440)))
+        engine.applyReminders(SpecialDateType.Birthday, ReminderOverride.Minutes(listOf(0, 1440)))
 
         // Persisted as the per-calendar all-day override (so new events match)...
         assertThat(settings.perCalendarAllDayReminderOverride.first()[birthdayCal])
@@ -187,7 +187,7 @@ class SpecialDatesSyncEngineTest {
         engine.sync()
         val birthdayCal = settings.specialDatesCalendars.first().getValue(SpecialDateType.Birthday)
 
-        engine.applyReminders(SpecialDateType.Birthday, CalendarReminderOverride.None)
+        engine.applyReminders(SpecialDateType.Birthday, ReminderOverride.None)
 
         assertThat(settings.perCalendarAllDayReminderOverride.first()[birthdayCal]).isEmpty()
         assertThat(calendars.appliedManagedReminders.last().third).isEmpty()

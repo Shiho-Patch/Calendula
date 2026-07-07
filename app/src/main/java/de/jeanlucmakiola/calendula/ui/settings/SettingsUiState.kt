@@ -1,6 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.settings
 
-import de.jeanlucmakiola.calendula.data.prefs.CalendarReminderOverride
+import de.jeanlucmakiola.floret.reminders.ReminderOverride
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
@@ -98,7 +98,7 @@ data class SpecialDatesUiState(
     val types: Set<SpecialDateType> = SpecialDateType.entries.toSet(),
     val titleTemplates: Map<SpecialDateType, String> = emptyMap(),
     /** The reminder choice per type's managed calendar (applied to all its events). */
-    val reminderChoices: Map<SpecialDateType, CalendarReminderOverride> = emptyMap(),
+    val reminderChoices: Map<SpecialDateType, ReminderOverride> = emptyMap(),
     /** Whether {year} resolves in titles (the source year is static and always correct). */
     val showYear: Boolean = true,
     /** True when READ_CONTACTS was revoked after enabling — the mirror is paused. */

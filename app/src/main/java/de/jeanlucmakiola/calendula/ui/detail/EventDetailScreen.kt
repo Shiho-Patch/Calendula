@@ -91,13 +91,13 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.EventStatus
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.Reminder
-import de.jeanlucmakiola.calendula.ui.common.predictiveBack
+import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
-import de.jeanlucmakiola.calendula.ui.common.OptionCard
+import de.jeanlucmakiola.floret.components.OptionCard
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
-import de.jeanlucmakiola.calendula.ui.common.pastelize
+import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.calendula.ui.common.recurrenceText
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import kotlinx.coroutines.launch

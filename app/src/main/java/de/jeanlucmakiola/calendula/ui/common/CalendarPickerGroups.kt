@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.floret.components.GroupedRow
+import de.jeanlucmakiola.floret.components.Position
 
 /**
  * The app's single "which calendar" selection list, shared by the event editor

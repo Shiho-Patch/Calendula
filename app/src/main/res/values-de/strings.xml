@@ -245,6 +245,7 @@
     <!-- Einstellungen (M4) -->
     <string name="settings_title">Einstellungen</string>
     <string name="settings_back">Zurück</string>
+    <string name="back">Zurück</string>
     <string name="settings_section_appearance">Darstellung</string>
     <string name="settings_theme">Design</string>
     <string name="settings_theme_system">System</string>
@@ -377,15 +378,15 @@
         <item quantity="other">%d bereits in diesem Kalender übersprungen.</item>
     </plurals>
     <!-- Absturzberichte: vom Nutzer selbst als Gitea-Issue einreichbar -->
-    <string name="crash_dialog_title">Calendula ist abgestürzt</string>
-    <string name="crash_dialog_message">Calendula wurde beim letzten Mal unerwartet beendet. Du kannst bei der Behebung helfen, indem du diesen Bericht als Issue sendest. Er bleibt auf deinem Gerät, bis du ihn teilst, und enthält keine persönlichen Daten oder Kalenderinhalte — nur die technischen Angaben unten.</string>
+    <string name="crash_dialog_title">%1$s ist abgestürzt</string>
+    <string name="crash_dialog_message">%1$s wurde beim letzten Mal unerwartet beendet. Du kannst bei der Behebung helfen, indem du diesen Bericht als Issue sendest. Er bleibt auf deinem Gerät, bis du ihn teilst, und enthält keine persönlichen Daten oder Kalenderinhalte — nur die technischen Angaben unten.</string>
     <string name="crash_dialog_report">Melden</string>
     <string name="crash_dialog_dismiss">Nicht jetzt</string>
     <string name="crash_report_issue_title">Absturzbericht</string>
-    <string name="crash_report_clip_label">Calendula-Absturzbericht</string>
+    <string name="crash_report_clip_label">%1$s-Absturzbericht</string>
     <string name="crash_report_copied">Bericht in die Zwischenablage kopiert</string>
     <string name="crash_report_open_failed">Der Issue-Tracker konnte nicht geöffnet werden. Der Bericht ist in deiner Zwischenablage.</string>
-    <string name="crash_report_body_template">Danke, dass du einen Absturz in Calendula meldest. Bitte ergänze, was du gerade getan hast, und sende dann ab.\n\n### Was ist passiert\n\n\n### Absturzbericht\n%1$s\n</string>
+    <string name="crash_report_body_template">Danke, dass du einen Absturz in %1$s meldest. Bitte ergänze, was du gerade getan hast, und sende dann ab.\n\n### Was ist passiert\n\n\n### Absturzbericht\n%2$s\n</string>
     <string name="crash_report_body_paste">_(Der Bericht war zu lang für diesen Link — füge ihn aus deiner Zwischenablage hier ein.)_</string>
     <string name="event_edit_managed_hint">Verwaltet durch “%1$s” — der Titel, das Datum und Wiederholungen werden synchron mit deinen Kontakten gehalten. Erinnerungen, Ort und Beschreibung kannst du frei bearbeiten.</string>
     <plurals name="duration_days">

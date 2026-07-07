@@ -161,6 +161,12 @@ dependencies {
     implementation(libs.androidx.glance.material3)
 
     implementation(libs.kotlinx.datetime)
+    implementation("de.jeanlucmakiola.floret:core-time")
+    implementation("de.jeanlucmakiola.floret:core-locale")
+    implementation("de.jeanlucmakiola.floret:core-crash")
+    implementation("de.jeanlucmakiola.floret:core-reminders")
+    implementation("de.jeanlucmakiola.floret:identity")
+    implementation("de.jeanlucmakiola.floret:components")
     implementation(libs.kotlinx.coroutines.core)
 
     debugImplementation(libs.androidx.ui.tooling)

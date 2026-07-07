@@ -268,6 +268,8 @@
     <!-- Settings (M4) -->
     <string name="settings_title">Settings</string>
     <string name="settings_back">Back</string>
+    <!-- Overrides floret-kit components' CollapsingScaffold back-button label. -->
+    <string name="back">Back</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_theme">Theme</string>
     <string name="settings_theme_system">System</string>
@@ -513,15 +515,15 @@
 
     <!-- Crash reporting: a captured report the user can submit, by hand, as a
          Gitea issue (the app sends nothing automatically). -->
-    <string name="crash_dialog_title">Calendula crashed</string>
-    <string name="crash_dialog_message">Calendula closed unexpectedly last time. You can help fix it by sending this report as an issue. It stays on your device until you choose to share it, and includes no personal data or calendar content — only the technical details below.</string>
+    <string name="crash_dialog_title">%1$s crashed</string>
+    <string name="crash_dialog_message">%1$s closed unexpectedly last time. You can help fix it by sending this report as an issue. It stays on your device until you choose to share it, and includes no personal data or calendar content — only the technical details below.</string>
     <string name="crash_dialog_report">Report</string>
     <string name="crash_dialog_dismiss">Not now</string>
     <string name="crash_report_issue_title">Crash report</string>
-    <string name="crash_report_clip_label">Calendula crash report</string>
+    <string name="crash_report_clip_label">%1$s crash report</string>
     <string name="crash_report_copied">Report copied to your clipboard</string>
     <string name="crash_report_open_failed">Couldn\'t open the issue tracker. The report is on your clipboard.</string>
-    <string name="crash_report_body_template">Thanks for reporting a crash in Calendula. Please add anything you remember about what you were doing, then submit.\n\n### What happened\n\n\n### Crash report\n%1$s\n</string>
+    <string name="crash_report_body_template">Thanks for reporting a crash in %1$s. Please add anything you remember about what you were doing, then submit.\n\n### What happened\n\n\n### Crash report\n%2$s\n</string>
     <string name="crash_report_body_paste">_(The report was too long for this link — paste it from your clipboard here.)_</string>
     <string name="report_issue_url" translatable="false">https://codeberg.org/jlmakiola/calendula/issues/new</string>
     <string name="report_issue_choose_url" translatable="false">https://codeberg.org/jlmakiola/calendula/issues/new/choose</string>

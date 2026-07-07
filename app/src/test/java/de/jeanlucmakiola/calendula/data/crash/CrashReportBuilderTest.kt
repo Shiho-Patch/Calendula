@@ -1,8 +1,17 @@
 package de.jeanlucmakiola.calendula.data.crash
 
 import com.google.common.truth.Truth.assertThat
+import de.jeanlucmakiola.floret.crash.CrashContext
+import de.jeanlucmakiola.floret.crash.buildCrashReport
 import org.junit.jupiter.api.Test
 
+/**
+ * Guards the privacy contract of the report Calendula ships: the report builder
+ * itself now lives in floret-kit's core-crash, but the allowlist — exactly the
+ * app/Android/device/locale/time header lines plus the stack trace, and nothing
+ * else — is what Calendula relies on, so it stays pinned here with Calendula's
+ * own app label.
+ */
 class CrashReportBuilderTest {
 
     private val context = CrashContext(
@@ -17,7 +26,7 @@ class CrashReportBuilderTest {
 
     @Test
     fun `report carries the allowlisted facts and the stack trace`() {
-        val report = buildCrashReport(context, IllegalStateException("boom"), nowMillis = 0L)
+        val report = buildCrashReport(context, IllegalStateException("boom"), nowMillis = 0L, appLabel = "Calendula")
 
         assertThat(report).startsWith("Calendula crash report")
         assertThat(report).contains("App version: 2.7.0 (20700)")
@@ -33,7 +42,7 @@ class CrashReportBuilderTest {
     @Test
     fun `nested causes are included`() {
         val cause = NullPointerException("inner")
-        val report = buildCrashReport(context, RuntimeException("outer", cause), nowMillis = 0L)
+        val report = buildCrashReport(context, RuntimeException("outer", cause), nowMillis = 0L, appLabel = "Calendula")
 
         assertThat(report).contains("outer")
         assertThat(report).contains("Caused by")
@@ -42,7 +51,7 @@ class CrashReportBuilderTest {
 
     @Test
     fun `report holds only the allowlisted lines before the stack trace`() {
-        val report = buildCrashReport(context, Exception("x"), nowMillis = 0L)
+        val report = buildCrashReport(context, Exception("x"), nowMillis = 0L, appLabel = "Calendula")
         val header = report.substringBefore("Stack trace:").trim().lines()
 
         // No identifiers, accounts, or extra fields ever creep into the header:
