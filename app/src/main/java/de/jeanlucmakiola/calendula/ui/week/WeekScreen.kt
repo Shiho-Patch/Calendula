@@ -99,11 +99,13 @@ import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.floret.components.pastelize
+import de.jeanlucmakiola.floret.time.isoWeekNumber
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
+import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import java.time.format.TextStyle as JavaTextStyle
@@ -439,10 +441,7 @@ private fun WeekDayHeader(
 ) {
     val locale = currentLocale()
     val weekStart = days.first()
-    val weekNumber = remember(weekStart) {
-        java.time.LocalDate.of(weekStart.year, weekStart.month.ordinal + 1, weekStart.day)
-            .get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
-    }
+    val weekNumber = remember(weekStart) { weekStart.toJavaLocalDate().isoWeekNumber() }
     Row(
         modifier = Modifier
             .fillMaxWidth()

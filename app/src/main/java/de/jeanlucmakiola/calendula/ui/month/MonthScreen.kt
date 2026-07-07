@@ -80,11 +80,13 @@ import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.floret.components.pastelize
+import de.jeanlucmakiola.floret.time.isoWeekNumber
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.YearMonth
+import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import java.time.format.TextStyle as JavaTextStyle
@@ -571,10 +573,7 @@ private fun MonthWeekRow(
  */
 @Composable
 private fun WeekNumberGutter(weekStart: LocalDate, modifier: Modifier = Modifier) {
-    val weekNumber = remember(weekStart) {
-        java.time.LocalDate.of(weekStart.year, weekStart.month.ordinal + 1, weekStart.day)
-            .get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)
-    }
+    val weekNumber = remember(weekStart) { weekStart.toJavaLocalDate().isoWeekNumber() }
     val label = stringResource(R.string.week_number_label)
     Box(
         modifier = modifier
