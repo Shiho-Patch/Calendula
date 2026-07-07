@@ -117,6 +117,7 @@ import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.SimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.parseSimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.toRRule
+import de.jeanlucmakiola.floret.identity.animateContentSizeMotion
 import de.jeanlucmakiola.floret.identity.collapseExit
 import de.jeanlucmakiola.floret.identity.expandEnter
 import de.jeanlucmakiola.floret.identity.predictiveBack
@@ -534,6 +535,9 @@ private fun EventEditContent(
             enabled = !locked,
             modifier = Modifier
                 .fillMaxWidth()
+                // Ease the height change as the title wraps to another line
+                // instead of letting the accent bar + cards below jump.
+                .animateContentSizeMotion()
                 .padding(vertical = 4.dp)
                 .focusRequester(titleFocusRequester),
         )
