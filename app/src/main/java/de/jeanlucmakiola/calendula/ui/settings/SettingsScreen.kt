@@ -160,7 +160,7 @@ private enum class ChipAccent { Neutral, Primary, Tertiary }
  * Settings (M4), restructured in v2.3 into a category hub with sub-screens.
  * Both the hub and the sub-screens use a collapsing [LargeTopAppBar] and the
  * grouped-row card system. Calendars opens the separate manager hoisted in
- * [CalendarHost]; Language opens an inline OptionCard dialog; About is a card
+ * [CalendarHost]; Language opens a full-screen picker; About is a card
  * at the top. A full-screen destination; [onBack] pops it.
  */
 @Composable
