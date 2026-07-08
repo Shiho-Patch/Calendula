@@ -1,26 +1,14 @@
 package de.jeanlucmakiola.calendula.ui.common
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,13 +17,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
-import de.jeanlucmakiola.floret.components.DialogAmountField
+import de.jeanlucmakiola.floret.components.CustomAmountEditor
 import de.jeanlucmakiola.floret.components.FullScreenPicker
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.Position
@@ -195,56 +182,18 @@ private fun CustomReminderEditor(
     onConfirm: (Int) -> Unit,
 ) {
     val amount = amountText.toIntOrNull()?.takeIf { it in 1..999 }
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        // A Position.Bottom shape: tight top corners meeting the row, full bottom.
-        shape = RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 22.dp, bottomEnd = 22.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            // Unit toggle first so it stays visible above the keyboard once the
-            // amount field (the bottom row) is focused and scrolled into view.
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                ReminderUnit.entries.forEachIndexed { index, entry ->
-                    SegmentedButton(
-                        selected = unit == entry,
-                        onClick = { onUnitChange(entry) },
-                        shape = SegmentedButtonDefaults.itemShape(index, ReminderUnit.entries.size),
-                        label = { Text(stringResource(reminderUnitLabel(entry))) },
-                    )
-                }
-            }
-            // Amount, a live preview of the lead time it resolves to, and Set —
-            // all on one row, sitting just above the keyboard.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                DialogAmountField(
-                    value = amountText,
-                    onValueChange = onAmountChange,
-                    placeholder = "10",
-                )
-                Spacer(Modifier.width(16.dp))
-                Text(
-                    text = amount?.let { reminderLeadTimeLabel(it * unit.minutesFactor) }
-                        ?: stringResource(R.string.reminder_custom_amount),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-                Spacer(Modifier.width(16.dp))
-                FilledTonalButton(
-                    onClick = { amount?.let { onConfirm(it * unit.minutesFactor) } },
-                    enabled = amount != null,
-                ) {
-                    Text(stringResource(R.string.reminder_custom_set))
-                }
-            }
-        }
-    }
+    CustomAmountEditor(
+        amountText = amountText,
+        onAmountChange = onAmountChange,
+        unitLabels = ReminderUnit.entries.map { stringResource(reminderUnitLabel(it)) },
+        selectedUnit = unit.ordinal,
+        onUnitChange = { onUnitChange(ReminderUnit.entries[it]) },
+        preview = amount?.let { reminderLeadTimeLabel(it * unit.minutesFactor) }
+            ?: stringResource(R.string.reminder_custom_amount),
+        setLabel = stringResource(R.string.reminder_custom_set),
+        confirmEnabled = amount != null,
+        onConfirm = { amount?.let { onConfirm(it * unit.minutesFactor) } },
+    )
 }
 
 /** A short explanatory paragraph shown under a picker's title, above the rows. */
@@ -364,39 +313,134 @@ private fun CustomDaysEditor(
 ) {
     val days = amountText.toIntOrNull()
         ?.takeIf { it in AgendaRange.MIN_CUSTOM_DAYS..AgendaRange.MAX_CUSTOM_DAYS }
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 22.dp, bottomEnd = 22.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    CustomAmountEditor(
+        amountText = amountText,
+        onAmountChange = onAmountChange,
+        placeholder = "30",
+        preview = days?.let { pluralStringResource(R.plurals.agenda_range_days, it, it) }
+            ?: stringResource(R.string.agenda_range_custom_hint),
+        setLabel = stringResource(R.string.reminder_custom_set),
+        confirmEnabled = days != null,
+        onConfirm = { days?.let(onConfirm) },
+    )
+}
+
+/**
+ * Snooze-duration picker, full-screen and **single-select**: the [presets]
+ * (whole-minute delays) each sit as a checkmark row, with a "Custom" row that
+ * expands an inline amount field plus a Minutes/Hours unit toggle to enter an
+ * arbitrary delay. Mirrors [AgendaRangePicker]'s custom-expand pattern; picking
+ * a preset or confirming a custom value applies via [onSelect] and closes.
+ * [label] renders a delay in minutes as a duration ("10 minutes", "1 hour") and
+ * is reused for both the rows and the custom preview.
+ */
+@Composable
+fun SnoozeDurationPicker(
+    title: String,
+    presets: List<Int>,
+    selected: Int,
+    label: @Composable (Int) -> String,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val customSelected = selected !in presets
+    val rowCount = presets.size + 1 // + the custom row
+
+    var customExpanded by rememberSaveable { mutableStateOf(false) }
+    var amountText by rememberSaveable {
+        mutableStateOf(if (customSelected) snoozeCustomAmount(selected).toString() else "")
+    }
+    var unit by rememberSaveable {
+        mutableStateOf(if (customSelected) snoozeCustomUnit(selected) else ReminderUnit.Minutes)
+    }
+
+    FullScreenPicker(title = title, onDismiss = onDismiss, predictiveBack = true) {
+        presets.forEachIndexed { index, minute ->
+            val isSelected = minute == selected
+            GroupedRow(
+                title = label(minute),
+                position = positionOf(index, rowCount),
+                selected = isSelected,
+                trailing = if (isSelected) {
+                    { SelectedCheck() }
+                } else {
+                    null
+                },
+                onClick = {
+                    onSelect(minute)
+                    onDismiss()
+                },
+            )
+        }
+        // The Custom row connects downward into the editor card when expanded, so
+        // the two read as one grouped container (the shared custom-expand pattern).
+        GroupedRow(
+            title = if (customSelected) label(selected) else stringResource(R.string.event_edit_reminder_custom),
+            position = if (customExpanded) Position.Top else positionOf(presets.size, rowCount),
+            selected = customSelected,
+            trailing = if (customSelected) {
+                { SelectedCheck() }
+            } else {
+                null
+            },
+            onClick = { customExpanded = !customExpanded },
+        )
+        AnimatedVisibility(
+            visible = customExpanded,
+            enter = expandEnter(),
+            exit = collapseExit(),
         ) {
-            DialogAmountField(
-                value = amountText,
-                onValueChange = onAmountChange,
-                placeholder = "30",
+            CustomSnoozeEditor(
+                amountText = amountText,
+                onAmountChange = { amountText = it },
+                unit = unit,
+                onUnitChange = { unit = it },
+                label = label,
+                onConfirm = { minutes ->
+                    onSelect(minutes)
+                    onDismiss()
+                },
             )
-            Spacer(Modifier.width(16.dp))
-            Text(
-                text = days?.let { pluralStringResource(R.plurals.agenda_range_days, it, it) }
-                    ?: stringResource(R.string.agenda_range_custom_hint),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.width(16.dp))
-            FilledTonalButton(
-                onClick = { days?.let(onConfirm) },
-                enabled = days != null,
-            ) {
-                Text(stringResource(R.string.reminder_custom_set))
-            }
         }
     }
+}
+
+/** Whole hours if the delay divides evenly, else minutes. */
+private fun snoozeCustomUnit(minutes: Int): ReminderUnit =
+    if (minutes % ReminderUnit.Hours.minutesFactor == 0) ReminderUnit.Hours else ReminderUnit.Minutes
+
+private fun snoozeCustomAmount(minutes: Int): Int =
+    if (minutes % ReminderUnit.Hours.minutesFactor == 0) minutes / ReminderUnit.Hours.minutesFactor else minutes
+
+/**
+ * The expanded "Custom" snooze editor: a tonal card connected to the Custom row
+ * above it. A Minutes/Hours unit toggle, an amount field with a live preview of
+ * the delay it resolves to, and a tonal confirm enabled only for a valid 1–999
+ * amount. [onConfirm] receives the final delay in minutes.
+ */
+@Composable
+private fun CustomSnoozeEditor(
+    amountText: String,
+    onAmountChange: (String) -> Unit,
+    unit: ReminderUnit,
+    onUnitChange: (ReminderUnit) -> Unit,
+    label: @Composable (Int) -> String,
+    onConfirm: (Int) -> Unit,
+) {
+    val units = remember { listOf(ReminderUnit.Minutes, ReminderUnit.Hours) }
+    val amount = amountText.toIntOrNull()?.takeIf { it in 1..999 }
+    CustomAmountEditor(
+        amountText = amountText,
+        onAmountChange = onAmountChange,
+        unitLabels = units.map { stringResource(reminderUnitLabel(it)) },
+        selectedUnit = units.indexOf(unit).coerceAtLeast(0),
+        onUnitChange = { onUnitChange(units[it]) },
+        preview = amount?.let { label(it * unit.minutesFactor) }
+            ?: stringResource(R.string.reminder_custom_amount),
+        setLabel = stringResource(R.string.reminder_custom_set),
+        confirmEnabled = amount != null,
+        onConfirm = { amount?.let { onConfirm(it * unit.minutesFactor) } },
+    )
 }
 
 /** Human label for an [AgendaRange] (used by the picker rows and settings summary). */
