@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- A tidy colour picker on CalDAV calendars. For calendars synced by a CalDAV
+  app (such as DAVx5), the event colour picker showed every colour the account
+  publishes — nearly 150 swatches in alphabetical order, many of them
+  duplicates or near-identical shades. The picker now shows only visually
+  distinct colours, arranged as a rainbow; near-duplicate shades and the
+  washed-out neutrals are folded away so no two swatches look alike. Picked
+  colours still sync exactly as before, and calendars with hand-picked
+  palettes (like Google's) are unaffected. Thanks to @ptab for the report
+  ([#22]).
+
 ## [2.14.0] — 2026-07-06
 
 ### Added
@@ -865,6 +878,7 @@ automatically, with zero telemetry and no internet permission.
 [#18]: https://codeberg.org/jlmakiola/calendula/issues/18
 [#19]: https://codeberg.org/jlmakiola/calendula/issues/19
 [#20]: https://codeberg.org/jlmakiola/calendula/issues/20
+[#22]: https://codeberg.org/jlmakiola/calendula/issues/22
 [#24]: https://codeberg.org/jlmakiola/calendula/issues/24
 [#25]: https://codeberg.org/jlmakiola/calendula/issues/25
 [#27]: https://codeberg.org/jlmakiola/calendula/issues/27
