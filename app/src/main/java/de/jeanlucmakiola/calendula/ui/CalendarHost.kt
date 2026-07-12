@@ -33,6 +33,7 @@ import de.jeanlucmakiola.calendula.ui.common.viewBaseStack
 import de.jeanlucmakiola.calendula.ui.day.DayScreen
 import de.jeanlucmakiola.calendula.ui.detail.EventDetailScreen
 import de.jeanlucmakiola.calendula.ui.edit.EventEditScreen
+import de.jeanlucmakiola.calendula.ui.edit.ImportSource
 import de.jeanlucmakiola.calendula.ui.imports.ImportScreen
 import de.jeanlucmakiola.calendula.ui.month.MonthScreen
 import de.jeanlucmakiola.calendula.ui.search.SearchScreen
@@ -172,6 +173,9 @@ fun CalendarHost(
     // picker (many). A plain conditional overlay (no slide) — it's transient.
     var importUri by remember { mutableStateOf<android.net.Uri?>(null) }
     var importForm by remember { mutableStateOf<EventForm?>(null) }
+    // Which channel filled [importForm]: an .ics file (prompt to apply the default
+    // reminder) or an ACTION_INSERT intent (apply it automatically) — #49.
+    var importFormSource by remember { mutableStateOf(ImportSource.File) }
     // A restore (in-app "Restore from .ics" button) always runs the full import
     // flow — picker + summary — even for a single-event file, because the intent
     // is "restore a backup", not "add this one event". An externally opened .ics
@@ -190,6 +194,7 @@ fun CalendarHost(
     // reveals on top of whatever was open without extra dismissal.
     LaunchedEffect(requestedInsertForm) {
         if (requestedInsertForm != null) {
+            importFormSource = ImportSource.Insert
             importForm = requestedInsertForm
             onInsertConsumed()
         }
@@ -435,6 +440,7 @@ fun CalendarHost(
                 onClose = { importUri = null },
                 onOpenSingle = { form ->
                     importUri = null
+                    importFormSource = ImportSource.File
                     importForm = form
                 },
             )
@@ -443,6 +449,7 @@ fun CalendarHost(
             EventEditScreen(
                 initialDateIso = null,
                 initialForm = form,
+                initialFormSource = importFormSource,
                 onClose = { importForm = null },
                 onSaved = { importForm = null },
             )
