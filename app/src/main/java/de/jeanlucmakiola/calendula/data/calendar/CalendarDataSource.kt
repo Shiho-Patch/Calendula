@@ -492,7 +492,13 @@ class AndroidCalendarDataSource @Inject constructor(
         return resolver.query(
             uri,
             InstanceProjection.COLUMNS,
-            null, null,
+            // Hide cancelled occurrences: "delete only this event" writes a
+            // cancelled exception for the one instance (#47). A NULL status is a
+            // normal, un-cancelled event, so it must survive the filter — a bare
+            // `!= CANCELED` would drop it (NULL != 2 is NULL, not true).
+            "${CalendarContract.Instances.STATUS} IS NULL OR " +
+                "${CalendarContract.Instances.STATUS} != ${CalendarContract.Events.STATUS_CANCELED}",
+            null,
             CalendarContract.Instances.BEGIN + " ASC",
         )?.use { c -> c.mapAllNotNull { CursorColumnReader(c).toEventInstance() } } ?: emptyList()
     }
@@ -1183,15 +1189,25 @@ class AndroidCalendarDataSource @Inject constructor(
 
     override fun deleteOccurrence(eventId: Long, beginMillis: Long) {
         // A cancelled exception row hides exactly this occurrence; the sync
-        // adapter turns it into an EXDATE/cancelled VEVENT upstream.
-        val values = ContentValues().apply {
-            put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, beginMillis)
-            put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CANCELED)
-        }
+        // adapter turns it into an EXDATE/cancelled VEVENT upstream. It has to
+        // carry the full time set (DTSTART + DURATION + zone), not just STATUS:
+        // the provider only demotes the cloned exception to a single instance —
+        // clearing the inherited RRULE — when it can derive that instance from
+        // those columns. A STATUS-only cancel left the RRULE standing and
+        // cancelled the whole series, wiping every other occurrence (#47), the
+        // same trap the edit path documents (Codeberg #16).
+        val row = querySeriesRow(eventId)
+        val values = buildOccurrenceCancelValues(
+            originalInstanceMillis = beginMillis,
+            dtStartMillis = beginMillis,
+            duration = row.duration,
+            timezone = row.timezone,
+            allDay = row.allDay,
+        )
         val uri = ContentUris.withAppendedId(
             CalendarContract.Events.CONTENT_EXCEPTION_URI, eventId,
         )
-        resolver.insert(uri, values)
+        resolver.insert(uri, values.toContentValues())
             ?: throw WriteFailedException("cancel occurrence event id=$eventId begin=$beginMillis")
     }
 

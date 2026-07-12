@@ -220,6 +220,46 @@ class EventWriteMapperTest {
         assertThat(values).containsEntry(CalendarContract.Events.DESCRIPTION, null)
     }
 
+    // --- buildOccurrenceCancelValues ("delete only this event") ---
+
+    @Test
+    fun `occurrence cancel anchors a single instance and cancels only it`() {
+        val values = buildOccurrenceCancelValues(
+            originalInstanceMillis = 1_700_000_000_000L,
+            dtStartMillis = 1_700_000_000_000L,
+            duration = "P3600S",
+            timezone = "Europe/Berlin",
+            allDay = 0,
+        )
+        assertThat(values[CalendarContract.Events.ORIGINAL_INSTANCE_TIME])
+            .isEqualTo(1_700_000_000_000L)
+        // DTSTART + DURATION make the provider derive a single instance and drop
+        // the inherited RRULE, so only this occurrence is cancelled — not the
+        // whole series (#47). DTEND is never sent (the provider rejects it).
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_700_000_000_000L)
+        assertThat(values[CalendarContract.Events.DURATION]).isEqualTo("P3600S")
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("Europe/Berlin")
+        assertThat(values[CalendarContract.Events.STATUS])
+            .isEqualTo(CalendarContract.Events.STATUS_CANCELED)
+        assertThat(values).doesNotContainKey(CalendarContract.Events.DTEND)
+        assertThat(values).doesNotContainKey(CalendarContract.Events.RRULE)
+    }
+
+    @Test
+    fun `all-day occurrence cancel keeps the all-day flag and utc zone`() {
+        val values = buildOccurrenceCancelValues(
+            originalInstanceMillis = 1_700_000_000_000L,
+            dtStartMillis = 1_700_000_000_000L,
+            duration = "P1D",
+            timezone = "UTC",
+            allDay = 1,
+        )
+        assertThat(values[CalendarContract.Events.ALL_DAY]).isEqualTo(1)
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("UTC")
+        assertThat(values[CalendarContract.Events.STATUS])
+            .isEqualTo(CalendarContract.Events.STATUS_CANCELED)
+    }
+
     // --- per-event colour ---
 
     @Test

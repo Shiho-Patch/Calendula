@@ -183,6 +183,33 @@ internal fun buildOccurrenceExceptionValues(
 }
 
 /**
+ * Column values for a *cancelled*-occurrence exception row ("delete only this
+ * event"): inserting them at `Events.CONTENT_EXCEPTION_URI/<id>` makes the
+ * provider clone the series row and cancel exactly this one instance.
+ *
+ * As with [buildOccurrenceExceptionValues], the occurrence must be anchored with
+ * DTSTART + DURATION so the provider derives a single instance and clears the
+ * inherited RRULE. A STATUS-only cancel skips that: the clone keeps the RRULE, so
+ * the *whole series* is cancelled and every other occurrence disappears
+ * (Codeberg #47). The occurrence's length/zone come straight from the series row
+ * — cancelling never changes them.
+ */
+internal fun buildOccurrenceCancelValues(
+    originalInstanceMillis: Long,
+    dtStartMillis: Long,
+    duration: String?,
+    timezone: String?,
+    allDay: Int,
+): Map<String, Any?> = buildMap {
+    put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, originalInstanceMillis)
+    put(CalendarContract.Events.DTSTART, dtStartMillis)
+    put(CalendarContract.Events.DURATION, duration)
+    put(CalendarContract.Events.EVENT_TIMEZONE, timezone)
+    put(CalendarContract.Events.ALL_DAY, allDay)
+    put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CANCELED)
+}
+
+/**
  * The `EVENT_COLOR` / `EVENT_COLOR_KEY` columns for a colour selection. A
  * [colorKey] writes the key alone (the provider derives `EVENT_COLOR` from the
  * account's palette, so the colour round-trips through sync); a raw [color]
