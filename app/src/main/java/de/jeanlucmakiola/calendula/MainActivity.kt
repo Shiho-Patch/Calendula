@@ -32,6 +32,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.WidgetNavRequest
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.detail.EventDetailViewModel.Companion.NO_OCCURRENCE_TIME
 import de.jeanlucmakiola.floret.components.DebugRibbon
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportActivity
 import de.jeanlucmakiola.calendula.domain.FontRole
@@ -90,7 +91,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         enableEdgeToEdge()
-        requestedDetailKey = intent.detailKeyOrNull()
+        requestedDetailKey = intent.detailKeyOrNull() ?: intent.viewEventKeyOrNull()
         requestedNav = intent.navRequestOrNull()
         requestedImportUri = intent.importUriOrNull()
         requestedInsertForm = intent.insertFormOrNull()
@@ -178,7 +179,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intent.detailKeyOrNull()?.let { requestedDetailKey = it }
+        (intent.detailKeyOrNull() ?: intent.viewEventKeyOrNull())?.let { requestedDetailKey = it }
         intent.navRequestOrNull()?.let { requestedNav = it }
         intent.importUriOrNull()?.let { requestedImportUri = it }
         intent.insertFormOrNull()?.let { requestedInsertForm = it }
@@ -290,6 +291,30 @@ class MainActivity : AppCompatActivity() {
             eventId,
             getLongExtra(EXTRA_BEGIN_MILLIS, 0L),
             getLongExtra(EXTRA_END_MILLIS, 0L),
+        )
+    }
+
+    /**
+     * The detail key for an external "open this event" — ACTION_VIEW on
+     * `content://com.android.calendar/events/<id>`, the way AOSP fires it (e.g.
+     * tapping an existing event in the Todo Agenda widget, issue #48). Reuses the
+     * same occurrence-key channel as reminder taps. The launcher passes the
+     * occurrence's times as `EXTRA_EVENT_BEGIN_TIME` / `EXTRA_EVENT_END_TIME` when
+     * it has them; a bare URI omits them, so we carry [NO_OCCURRENCE_TIME] and
+     * [EventDetailViewModel] falls back to the event row's own DTSTART/DTEND
+     * rather than rendering at the epoch.
+     */
+    private fun Intent.viewEventKeyOrNull(): LongArray? {
+        if (action != Intent.ACTION_VIEW) return null
+        val uri = data ?: return null
+        if (uri.host != CALENDAR_PROVIDER_HOST) return null
+        val segments = uri.pathSegments
+        if (segments.firstOrNull() != "events") return null
+        val eventId = segments.getOrNull(1)?.toLongOrNull() ?: return null
+        return longArrayOf(
+            eventId,
+            longExtraOrNull(CalendarContract.EXTRA_EVENT_BEGIN_TIME) ?: NO_OCCURRENCE_TIME,
+            longExtraOrNull(CalendarContract.EXTRA_EVENT_END_TIME) ?: NO_OCCURRENCE_TIME,
         )
     }
 
