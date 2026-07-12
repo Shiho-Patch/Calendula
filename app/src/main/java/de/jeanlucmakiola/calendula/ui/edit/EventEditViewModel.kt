@@ -241,18 +241,31 @@ class EventEditViewModel @Inject constructor(
     }
 
     /**
-     * Seed a fresh event from a parsed `.ics` file (the single-event "open into
-     * the create form" path). [form] already carries the file's fields; its
-     * [EventForm.calendarId] is null so the calendar still resolves to the
-     * last-used/first-writable one, and reminders are frozen as touched so the
-     * settings default never overwrites what the file specified. No-op when a
-     * form is already open, so the prefill survives configuration changes.
+     * Seed a fresh event from a prefilled [form] — a parsed single-event `.ics`
+     * file or an external `ACTION_INSERT` intent (another app/widget creating an
+     * event, e.g. Google Maps' "add to calendar"; #30, #49). [EventForm.calendarId]
+     * is null so the calendar still resolves to the last-used/first-writable one.
+     *
+     * Reminders follow the source rather than the path: a form that carries its
+     * own (an `.ics` with VALARMs) freezes them as touched, so the settings
+     * default never overwrites what it specified; a form with none — every
+     * insert intent, and an `.ics` without VALARMs — falls back to the settings
+     * default exactly like [openNew], instead of the empty freeze suppressing it.
+     * No-op when a form is already open, so the prefill survives configuration
+     * changes.
      */
     fun openImported(form: EventForm) {
         if (_form.value != null || _editTarget.value != null) return
-        _remindersTouched.value = true
         _revealed.value = form.populatedFields()
         _form.value = form
+        if (form.reminders.isNotEmpty()) {
+            // Source specified its own reminders — freeze so the default can't
+            // clobber them (and a later calendar/all-day switch won't re-apply).
+            _remindersTouched.value = true
+        } else {
+            // Nothing carried: inherit the settings default like a new event.
+            applyDefaultReminder()
+        }
     }
 
     /**
