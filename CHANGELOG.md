@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Deleting one occurrence of a repeating event no longer breaks the series.
+  Choosing "This event" when deleting an occurrence of a recurring event could
+  wipe out every *other* occurrence while leaving the one you deleted behind as
+  a stale, still-tappable ghost — and deleting it again brought the series back.
+  A single-occurrence delete now removes exactly that occurrence and leaves the
+  rest of the series untouched, and the deleted occurrence disappears from the
+  grid straight away. Thanks to @moonj for the report ([#47]).
+- Tapping an event in a third-party widget opens it in Calendula. v2.13.1 taught
+  Calendula to answer the "new event" hand-off from other apps and widgets; now
+  it also answers the "open this event" one, so tapping an existing event in a
+  widget such as Todo Agenda offers Calendula and lands on that event's details.
+  Thanks to @bushrang3r for the report ([#48]).
+- Events created from other apps get your default reminder. An event handed over
+  by another app or widget — Google Maps' "add to calendar", the Todo Agenda
+  widget's "+" — opened with no reminder at all, ignoring the default set in
+  Settings. It now starts with your default reminder, the same as an event you
+  create in Calendula. Events imported from an `.ics` file still keep the
+  reminders the file carries; when the file brings its own, Calendula asks once
+  whether to apply your default instead of deciding for you ([#49]).
 - A tidy colour picker on CalDAV calendars. For calendars synced by a CalDAV
   app (such as DAVx5), the event colour picker showed every colour the account
   publishes — nearly 150 swatches in alphabetical order, many of them
@@ -888,3 +907,6 @@ automatically, with zero telemetry and no internet permission.
 [#33]: https://codeberg.org/jlmakiola/calendula/issues/33
 [#34]: https://codeberg.org/jlmakiola/calendula/issues/34
 [#37]: https://codeberg.org/jlmakiola/calendula/issues/37
+[#47]: https://codeberg.org/jlmakiola/calendula/issues/47
+[#48]: https://codeberg.org/jlmakiola/calendula/issues/48
+[#49]: https://codeberg.org/jlmakiola/calendula/issues/49
