@@ -1747,12 +1747,21 @@ private fun ColorPickerDialog(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         ) {
             if (palette.isNotEmpty()) {
+                // The event's current colour may not be in the curated palette
+                // (a thinned near-duplicate, or a raw colour set elsewhere) —
+                // append it so the selection ring has a home.
+                val swatches = palette.map { it.argb }.let {
+                    if (selected != null && selected !in it) it + selected else it
+                }
                 ColorSwatchRow(
-                    colors = palette.map { it.argb },
+                    colors = swatches,
                     selected = selected,
                     onSelect = { argb ->
-                        palette.firstOrNull { it.argb == argb }
-                            ?.let { onPickKey(it.key, it.argb) }
+                        val option = palette.firstOrNull { it.argb == argb }
+                        // The appended current colour has no provider key to
+                        // write — it is already the event's colour, so just
+                        // close.
+                        if (option != null) onPickKey(option.key, option.argb) else onDismiss()
                     },
                     dark = dark,
                 )

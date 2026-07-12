@@ -22,6 +22,7 @@ import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventAttendee
 import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
+import de.jeanlucmakiola.calendula.domain.curatedForPicker
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.EventStatus
@@ -63,10 +64,12 @@ interface CalendarDataSource {
 
     /**
      * The event-colour palette the calendar's account publishes
-     * (`CalendarContract.Colors`, `TYPE_EVENT`), sorted by key. Empty when the
-     * account exposes no palette (most local calendars, some CalDAV) — the
-     * signal that a custom colour can only be written as a raw `EVENT_COLOR`,
-     * which a synced calendar may drop on its next sync.
+     * (`CalendarContract.Colors`, `TYPE_EVENT`), curated for display — deduped,
+     * thinned to visually distinct swatches when oversized (CalDAV adapters
+     * publish all ~147 CSS3 names, #22) and hue-sorted; see [curatedForPicker].
+     * Empty when the account exposes no palette (most local calendars, some
+     * CalDAV) — the signal that a custom colour can only be written as a raw
+     * `EVENT_COLOR`, which a synced calendar may drop on its next sync.
      */
     fun eventColorPalette(calendarId: Long): List<EventColorOption>
 
@@ -617,7 +620,7 @@ class AndroidCalendarDataSource @Inject constructor(
             c.mapAll { EventColorOption(key = it.getString(0).orEmpty(), argb = it.getInt(1)) }
         }
             ?.filter { it.key.isNotEmpty() }
-            ?.sortedBy { it.key }
+            ?.curatedForPicker()
             ?: emptyList()
     }
 
