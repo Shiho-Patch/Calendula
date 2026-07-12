@@ -84,6 +84,9 @@ internal object EventDetailProjection {
         CalendarContract.Events.EVENT_TIMEZONE,
         CalendarContract.Events.SELF_ATTENDEE_STATUS,
         CalendarContract.Events.EVENT_COLOR_KEY,
+        // Recurring rows carry DURATION instead of DTEND; the detail screen
+        // needs it to render a series opened without a named occurrence.
+        CalendarContract.Events.DURATION,
     )
 
     const val IDX_EVENT_ID = 0
@@ -104,6 +107,7 @@ internal object EventDetailProjection {
     const val IDX_EVENT_TIMEZONE = 15
     const val IDX_SELF_ATTENDEE_STATUS = 16
     const val IDX_EVENT_COLOR_KEY = 17
+    const val IDX_DURATION = 18
 }
 
 /**
