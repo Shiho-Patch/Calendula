@@ -21,6 +21,7 @@ import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.populatedFields
 import de.jeanlucmakiola.calendula.domain.problems
 import de.jeanlucmakiola.calendula.domain.toEditSnapshot
+import de.jeanlucmakiola.calendula.ui.detail.EventDetailViewModel.Companion.NO_OCCURRENCE_TIME
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -396,8 +397,12 @@ class EventEditViewModel @Inject constructor(
 
     /**
      * Load an existing event into the form. [beginMillis]/[endMillis] are the
-     * tapped occurrence's own times, like on the detail screen. No-op while a
-     * form is open, so user edits survive configuration changes.
+     * tapped occurrence's own times, like on the detail screen. An external
+     * "edit this event" (`ACTION_EDIT`) that names no occurrence passes
+     * [NO_OCCURRENCE_TIME]; the row's own DTSTART/DTEND is used then, so the
+     * form loads the event's real times instead of the epoch (mirrors the
+     * detail screen's #48 fallback). No-op while a form is open, so user edits
+     * survive configuration changes.
      */
     fun openForEdit(eventId: Long, beginMillis: Long, endMillis: Long) {
         if (_form.value != null || _editTarget.value != null) return
@@ -411,8 +416,12 @@ class EventEditViewModel @Inject constructor(
                 return@launch
             }
             val zone = TimeZone.currentSystemDefault()
-            val snapshot = detail.toEditSnapshot(beginMillis, endMillis, zone)
-            _editTarget.value = EditTarget(eventId, snapshot, beginMillis, endMillis, zone)
+            val begin = beginMillis.takeUnless { it == NO_OCCURRENCE_TIME }
+                ?: detail.instance.start.toEpochMilliseconds()
+            val end = endMillis.takeUnless { it == NO_OCCURRENCE_TIME }
+                ?: detail.instance.end.toEpochMilliseconds()
+            val snapshot = detail.toEditSnapshot(begin, end, zone)
+            _editTarget.value = EditTarget(eventId, snapshot, begin, end, zone)
             // Sections holding data must show even when not in the defaults.
             _revealed.value = snapshot.form.populatedFields()
             _form.value = snapshot.form
