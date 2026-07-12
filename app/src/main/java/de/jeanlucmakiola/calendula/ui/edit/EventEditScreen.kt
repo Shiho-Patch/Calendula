@@ -89,6 +89,7 @@ import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -182,12 +183,14 @@ fun EventEditScreen(
     editKey: LongArray? = null,
     initialStartMinutes: Int? = null,
     initialForm: EventForm? = null,
+    initialFormSource: ImportSource = ImportSource.File,
     viewModel: EventEditViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(initialDateIso, editKey, initialForm) {
         when {
-            // Single-event .ics open: the form arrives prefilled for review.
-            initialForm != null -> viewModel.openImported(initialForm)
+            // A prefilled open: a single-event .ics for review, or an external
+            // ACTION_INSERT intent. The source drives how reminders are seeded.
+            initialForm != null -> viewModel.openImported(initialForm, initialFormSource)
             editKey != null -> viewModel.openForEdit(
                 eventId = editKey[0],
                 beginMillis = editKey[1],
@@ -202,6 +205,7 @@ fun EventEditScreen(
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val loadFailed by viewModel.loadFailed.collectAsStateWithLifecycle()
+    val importReminderPrompt by viewModel.importReminderPrompt.collectAsStateWithLifecycle()
 
     // The form is intentionally forgotten on every close (cancel or save) so
     // the next open starts clean; it survives rotation because openNew /
@@ -332,6 +336,56 @@ fun EventEditScreen(
             },
         )
     }
+
+    // A .ics import respects the file's reminders, but offers to swap in the
+    // configured default rather than silently deciding for the user (#49).
+    importReminderPrompt?.let { prompt ->
+        ImportReminderPromptDialog(
+            currentReminderCount = prompt.currentReminderCount,
+            onApply = viewModel::applyImportedReminderDefault,
+            onKeep = viewModel::dismissImportedReminderPrompt,
+        )
+    }
+}
+
+/**
+ * Offer to apply the settings default reminder to an event opened from a `.ics`
+ * file. The file's own reminders are kept unless the user accepts. A plain
+ * two-choice confirmation, so an [AlertDialog] (not a full-screen picker).
+ */
+@Composable
+private fun ImportReminderPromptDialog(
+    currentReminderCount: Int,
+    onApply: () -> Unit,
+    onKeep: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onKeep,
+        title = { Text(stringResource(R.string.import_reminder_prompt_title)) },
+        text = {
+            Text(
+                if (currentReminderCount == 0) {
+                    stringResource(R.string.import_reminder_prompt_body_none)
+                } else {
+                    pluralStringResource(
+                        R.plurals.import_reminder_prompt_body_existing,
+                        currentReminderCount,
+                        currentReminderCount,
+                    )
+                },
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onApply) {
+                Text(stringResource(R.string.import_reminder_prompt_apply))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onKeep) {
+                Text(stringResource(R.string.import_reminder_prompt_keep))
+            }
+        },
+    )
 }
 
 /**
