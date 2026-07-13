@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.14.1] — 2026-07-13
+
 ### Fixed
 - Deleting one occurrence of a repeating event no longer breaks the series.
   Choosing "This event" when deleting an occurrence of a recurring event could
