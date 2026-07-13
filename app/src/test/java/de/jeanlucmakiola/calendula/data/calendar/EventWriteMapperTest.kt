@@ -260,6 +260,77 @@ class EventWriteMapperTest {
             .isEqualTo(CalendarContract.Events.STATUS_CANCELED)
     }
 
+    // --- buildOccurrenceExdateValues ("delete only this event", no _sync_id) ---
+
+    @Test
+    fun `exdate drop excludes the occurrence and rewrites the recurrence set`() {
+        // 2026-07-15T08:00:00Z.
+        val values = buildOccurrenceExdateValues(
+            existingExdate = null,
+            occurrenceMillis = 1_784_102_400_000L,
+            dtStartMillis = 1_783_929_600_000L,
+            rrule = "FREQ=DAILY;COUNT=5",
+            duration = "PT1H",
+            timezone = "Europe/Berlin",
+            allDay = 0,
+        )
+        assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260715T080000Z")
+        // The whole time/recurrence set rides along: an EXDATE-only update is not
+        // treated as a recurrence change, so the provider would leave the expanded
+        // instances (and the occurrence) in place. DTSTART alone is worse — it
+        // makes the provider recompute lastDate as a single instance and collapse
+        // the series to its first occurrence.
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_783_929_600_000L)
+        assertThat(values[CalendarContract.Events.RRULE]).isEqualTo("FREQ=DAILY;COUNT=5")
+        assertThat(values[CalendarContract.Events.DURATION]).isEqualTo("PT1H")
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("Europe/Berlin")
+    }
+
+    @Test
+    fun `exdate drop appends to an existing exdate list`() {
+        val values = buildOccurrenceExdateValues(
+            existingExdate = "20260714T080000Z",
+            occurrenceMillis = 1_784_102_400_000L,
+            dtStartMillis = 1_783_929_600_000L,
+            rrule = "FREQ=DAILY;COUNT=5",
+            duration = "PT1H",
+            timezone = "Europe/Berlin",
+            allDay = 0,
+        )
+        assertThat(values[CalendarContract.Events.EXDATE])
+            .isEqualTo("20260714T080000Z,20260715T080000Z")
+    }
+
+    @Test
+    fun `exdate drop folds away a repeated occurrence`() {
+        val values = buildOccurrenceExdateValues(
+            existingExdate = "20260715T080000Z",
+            occurrenceMillis = 1_784_102_400_000L,
+            dtStartMillis = 1_783_929_600_000L,
+            rrule = "FREQ=DAILY;COUNT=5",
+            duration = "PT1H",
+            timezone = "Europe/Berlin",
+            allDay = 0,
+        )
+        assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260715T080000Z")
+    }
+
+    @Test
+    fun `all-day exdate drop uses the date-only form`() {
+        // An all-day DTSTART sits at UTC midnight, so the date reads off UTC.
+        val values = buildOccurrenceExdateValues(
+            existingExdate = null,
+            occurrenceMillis = 1_784_073_600_000L, // 2026-07-15T00:00:00Z
+            dtStartMillis = 1_783_900_800_000L,
+            rrule = "FREQ=YEARLY",
+            duration = "P1D",
+            timezone = "UTC",
+            allDay = 1,
+        )
+        assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260715")
+        assertThat(values[CalendarContract.Events.ALL_DAY]).isEqualTo(1)
+    }
+
     // --- per-event colour ---
 
     @Test

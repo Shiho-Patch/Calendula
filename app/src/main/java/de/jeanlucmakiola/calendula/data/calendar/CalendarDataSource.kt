@@ -979,6 +979,8 @@ class AndroidCalendarDataSource @Inject constructor(
             CalendarContract.Events.EVENT_TIMEZONE,
             CalendarContract.Events.DURATION,
             CalendarContract.Events.ALL_DAY,
+            CalendarContract.Events._SYNC_ID,
+            CalendarContract.Events.EXDATE,
         ),
         null, null, null,
     )?.use { c ->
@@ -989,6 +991,8 @@ class AndroidCalendarDataSource @Inject constructor(
                 timezone = c.getString(2),
                 duration = c.getString(3),
                 allDay = c.getInt(4),
+                syncId = c.getString(5),
+                exdate = c.getString(6),
             )
         } else {
             null
@@ -1001,6 +1005,9 @@ class AndroidCalendarDataSource @Inject constructor(
         val timezone: String?,
         val duration: String?,
         val allDay: Int,
+        /** Null on a local calendar (and before a synced event's first push). */
+        val syncId: String? = null,
+        val exdate: String? = null,
     ) {
         /** UNTIL cutoff for ending the series before the occurrence at [beginMillis]. */
         fun truncationCutoff(beginMillis: Long): Long = previousLocalDayEndUtcMillis(
@@ -1191,15 +1198,38 @@ class AndroidCalendarDataSource @Inject constructor(
     }
 
     override fun deleteOccurrence(eventId: Long, beginMillis: Long) {
-        // A cancelled exception row hides exactly this occurrence; the sync
-        // adapter turns it into an EXDATE/cancelled VEVENT upstream. It has to
-        // carry the full time set (DTSTART + DURATION + zone), not just STATUS:
-        // the provider only demotes the cloned exception to a single instance —
-        // clearing the inherited RRULE — when it can derive that instance from
-        // those columns. A STATUS-only cancel left the RRULE standing and
-        // cancelled the whole series, wiping every other occurrence (#47), the
-        // same trap the edit path documents (Codeberg #16).
         val row = querySeriesRow(eventId)
+        if (row.syncId == null) {
+            // No _sync_id — a local calendar, or a synced event not pushed yet.
+            // A cancelled exception can only attach to its parent through
+            // ORIGINAL_SYNC_ID, so with none the link never forms and the
+            // provider's expansion of the *parent* collapses, taking every other
+            // occurrence with it (#47 on a local calendar). EXDATE needs no link.
+            // Calendula's own contact special-date calendars are local and hold
+            // yearly series, so this path is reached in normal use.
+            val values = buildOccurrenceExdateValues(
+                existingExdate = row.exdate,
+                occurrenceMillis = beginMillis,
+                dtStartMillis = row.dtStartMillis,
+                rrule = row.rrule,
+                duration = row.duration,
+                timezone = row.timezone,
+                allDay = row.allDay,
+            )
+            val updated = resolver.update(
+                ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId),
+                values.toContentValues(), null, null,
+            )
+            if (updated == 0) {
+                throw WriteFailedException("exdate occurrence event id=$eventId begin=$beginMillis")
+            }
+            return
+        }
+        // A cancelled exception row hides exactly this occurrence; the sync
+        // adapter turns it into an EXDATE/cancelled VEVENT upstream. It carries
+        // the full time set (DTSTART + DURATION + zone) so the provider derives a
+        // single instance rather than cloning the master's RRULE — the same trap
+        // the edit path documents (Codeberg #16).
         val values = buildOccurrenceCancelValues(
             originalInstanceMillis = beginMillis,
             dtStartMillis = beginMillis,
