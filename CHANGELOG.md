@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a stale, still-tappable ghost — and deleting it again brought the series back.
   A single-occurrence delete now removes exactly that occurrence and leaves the
   rest of the series untouched, and the deleted occurrence disappears from the
-  grid straight away. Thanks to @moonj for the report ([#47]).
+  grid straight away. This holds on every kind of calendar, including the
+  on-device ones Calendula keeps for contact birthdays and anniversaries, where
+  the series is a yearly repeat. Thanks to @moonj for the report ([#47]).
 - Tapping an event in a third-party widget opens it in Calendula. v2.13.1 taught
   Calendula to answer the "new event" hand-off from other apps and widgets; now
   it also answers the "open this event" one, so tapping an existing event in a
