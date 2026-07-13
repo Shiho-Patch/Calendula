@@ -62,6 +62,20 @@ interface CalendarRepository {
     suspend fun updateEvent(eventId: Long, original: EventForm, updated: EventForm)
 
     /**
+     * Move an event (recurring: the whole series, with its exceptions) to
+     * [targetCalendarId] and apply the [original]→[updated] field edits; returns
+     * the new event's `Events._ID`. Copy+delete under the hood
+     * (see [CalendarDataSource.moveEvent]) — `CALENDAR_ID` can't be updated in
+     * place.
+     */
+    suspend fun moveEvent(
+        eventId: Long,
+        targetCalendarId: Long,
+        original: EventForm,
+        updated: EventForm,
+    ): Long
+
+    /**
      * Change a single occurrence of a recurring event (exception row with the
      * form's values); returns the exception's `Events._ID`.
      */

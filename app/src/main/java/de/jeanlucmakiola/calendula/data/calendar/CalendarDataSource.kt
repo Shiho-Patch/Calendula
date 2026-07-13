@@ -18,6 +18,8 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.domain.Attendee
+import de.jeanlucmakiola.calendula.domain.AttendeeRelationship
+import de.jeanlucmakiola.calendula.domain.AttendeeType
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventAttendee
 import de.jeanlucmakiola.calendula.domain.EventColorOption
@@ -175,6 +177,25 @@ interface CalendarDataSource {
         updated: EventForm,
         allDayReminderTimeMinutes: Int,
     )
+
+    /**
+     * Move an event (for recurring events: the whole series, with its modified
+     * and cancelled occurrences) to [targetCalendarId], returning the new
+     * `Events._ID`. `CALENDAR_ID` is sync-adapter-owned and can't be updated in
+     * place, so this is copy+delete: the row is re-inserted on the target (its
+     * `UID_2445` preserved), its exceptions, reminders and editable guests
+     * replayed, the [original]→[updated] field edits applied, then the source
+     * deleted. The source is removed only once the copy fully succeeds; a failure
+     * before that rolls the new event back, leaving the original untouched.
+     * [allDayReminderTimeMinutes]: see [insertEvent].
+     */
+    fun moveEvent(
+        eventId: Long,
+        targetCalendarId: Long,
+        original: EventForm,
+        updated: EventForm,
+        allDayReminderTimeMinutes: Int,
+    ): Long
 
     /**
      * Change a single occurrence of a recurring event by inserting a
@@ -875,6 +896,190 @@ class AndroidCalendarDataSource @Inject constructor(
             reconcileAttendees(eventId, updated.attendees)
         }
     }
+
+    override fun moveEvent(
+        eventId: Long,
+        targetCalendarId: Long,
+        original: EventForm,
+        updated: EventForm,
+        allDayReminderTimeMinutes: Int,
+    ): Long {
+        // CALENDAR_ID can't be updated in place, so re-create the event on the
+        // target calendar and delete the source. Everything that identifies or
+        // hangs off the event is copied first; the source row is removed only
+        // once the copy (including its exceptions) is complete — a failure
+        // anywhere before that rolls the new event back, so the move is
+        // all-or-nothing and never leaves a half-copied duplicate.
+        val master = queryMoveMaster(eventId)
+            ?: throw WriteFailedException("read event to move id=$eventId")
+        // Keep the source UID so an .ics backup dedups and a sync adapter can
+        // recognise the moved event; mint one only if the source carried none.
+        val uid = master.uid?.takeIf { it.isNotEmpty() } ?: "${UUID.randomUUID()}@calendula"
+        val newEventId = resolver.insert(
+            CalendarContract.Events.CONTENT_URI,
+            buildMovedMasterValues(master.event, targetCalendarId, uid).toContentValues(),
+        )?.let(ContentUris::parseId)
+            ?: throw WriteFailedException("insert moved event into calendar id=$targetCalendarId")
+        try {
+            copyReminderRows(fromEventId = eventId, toEventId = newEventId)
+            insertAttendees(newEventId, editableAttendees(eventId))
+            copyExceptions(fromEventId = eventId, toEventId = newEventId)
+            // Apply the user's field edits exactly as a same-calendar "all
+            // events" save would: the moved master carries the source's values,
+            // so the dirty diff against [original] writes only what changed
+            // (including a time or rrule edit made in the same save).
+            updateEvent(newEventId, original, updated, allDayReminderTimeMinutes)
+        } catch (t: Throwable) {
+            // Undo the partial copy so a failed move leaves nothing behind; the
+            // source is still intact (it's deleted only past this point).
+            runCatching { deleteEvent(newEventId) }
+            throw t
+        }
+        deleteEvent(eventId)
+        return newEventId
+    }
+
+    /** The master row of the event to move, as a verbatim-insert snapshot. */
+    private fun queryMoveMaster(eventId: Long): MoveMaster? = resolver.query(
+        ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId),
+        MoveMasterProjection.COLUMNS,
+        null, null, null,
+    )?.use { c ->
+        if (!c.moveToFirst()) return@use null
+        val r = CursorColumnReader(c)
+        MoveMaster(
+            uid = r.getString(MoveMasterProjection.IDX_UID),
+            event = MasterEventSnapshot(
+                title = r.getString(MoveMasterProjection.IDX_TITLE).orEmpty(),
+                isAllDay = r.getInt(MoveMasterProjection.IDX_ALL_DAY) != 0,
+                dtStartMillis = r.getLong(MoveMasterProjection.IDX_DTSTART),
+                dtEndMillis = r.getLong(MoveMasterProjection.IDX_DTEND)
+                    .takeUnless { r.isNull(MoveMasterProjection.IDX_DTEND) },
+                duration = r.getString(MoveMasterProjection.IDX_DURATION),
+                rrule = r.getString(MoveMasterProjection.IDX_RRULE)?.takeIf { it.isNotBlank() },
+                rdate = r.getString(MoveMasterProjection.IDX_RDATE),
+                exdate = r.getString(MoveMasterProjection.IDX_EXDATE),
+                timezone = r.getString(MoveMasterProjection.IDX_EVENT_TIMEZONE),
+                availability = r.getInt(MoveMasterProjection.IDX_AVAILABILITY),
+                accessLevel = r.getInt(MoveMasterProjection.IDX_ACCESS_LEVEL),
+                status = r.getInt(MoveMasterProjection.IDX_STATUS)
+                    .takeUnless { r.isNull(MoveMasterProjection.IDX_STATUS) },
+                location = r.getString(MoveMasterProjection.IDX_LOCATION),
+                description = r.getString(MoveMasterProjection.IDX_DESCRIPTION),
+            ),
+        )
+    }
+
+    private data class MoveMaster(val uid: String?, val event: MasterEventSnapshot)
+
+    /** Copy every stored reminder row (raw offsets and method) onto [toEventId]. */
+    private fun copyReminderRows(fromEventId: Long, toEventId: Long) = resolver.query(
+        CalendarContract.Reminders.CONTENT_URI,
+        arrayOf(CalendarContract.Reminders.MINUTES, CalendarContract.Reminders.METHOD),
+        CalendarContract.Reminders.EVENT_ID + " = ?",
+        arrayOf(fromEventId.toString()),
+        null,
+    )?.use { c ->
+        while (c.moveToNext()) {
+            val values = ContentValues().apply {
+                put(CalendarContract.Reminders.EVENT_ID, toEventId)
+                put(CalendarContract.Reminders.MINUTES, c.getInt(0))
+                put(CalendarContract.Reminders.METHOD, c.getInt(1))
+            }
+            if (resolver.insert(CalendarContract.Reminders.CONTENT_URI, values) == null) {
+                Log.w(TAG, "Failed to copy a reminder to moved event $toEventId")
+            }
+        }
+    } ?: Unit
+
+    /**
+     * The event's editable guests as [EventAttendee]s — the rows the move
+     * re-creates. Mirrors the edit form's filter: the organizer and resource
+     * rows (backend-owned, not user-editable) and any without an email are
+     * dropped; the response status resets to "invited" on re-insert.
+     */
+    private fun editableAttendees(eventId: Long): List<EventAttendee> = queryAttendees(eventId)
+        .filter {
+            it.relationship != AttendeeRelationship.Organizer && it.type != AttendeeType.Resource
+        }
+        .mapNotNull { a ->
+            a.email?.takeIf { it.isNotBlank() }?.let { email ->
+                EventAttendee(email = email, name = a.name, optional = a.type == AttendeeType.Optional)
+            }
+        }
+
+    /**
+     * Replay every exception of the series [fromEventId] against the moved series
+     * [toEventId]. The copy preserved the recurrence skeleton, so each occurrence
+     * time still resolves: a cancelled occurrence is re-hidden with a cancelled
+     * exception, a modified one is re-inserted with its fields (then its reminders
+     * reconciled and editable guests copied). No-op for a non-recurring event.
+     */
+    private fun copyExceptions(fromEventId: Long, toEventId: Long) {
+        queryExceptionRows(fromEventId).forEach { ex ->
+            if (ex.isCancelled) {
+                val values = ContentValues().apply {
+                    put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, ex.originalInstanceMillis)
+                    put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CANCELED)
+                }
+                resolver.insert(
+                    ContentUris.withAppendedId(
+                        CalendarContract.Events.CONTENT_EXCEPTION_URI, toEventId,
+                    ),
+                    values,
+                ) ?: throw WriteFailedException("copy cancelled occurrence to event id=$toEventId")
+            } else {
+                val uri = resolver.insert(
+                    ContentUris.withAppendedId(
+                        CalendarContract.Events.CONTENT_EXCEPTION_URI, toEventId,
+                    ),
+                    buildCopiedExceptionValues(ex).toContentValues(),
+                ) ?: throw WriteFailedException("copy modified occurrence to event id=$toEventId")
+                val newExceptionId = ContentUris.parseId(uri)
+                // The provider may clone the parent's reminders onto the new
+                // exception; reconcile to the source exception's exact set so
+                // they neither double nor drop. Same DTSTART → same all-day
+                // encoding, so the stored offsets match directly.
+                reconcileReminders(
+                    newExceptionId,
+                    queryReminders(ex.exceptionEventId).map { it.minutes },
+                )
+                insertAttendees(newExceptionId, editableAttendees(ex.exceptionEventId))
+            }
+        }
+    }
+
+    /** The series' exception rows (modified + cancelled), oldest occurrence first. */
+    private fun queryExceptionRows(seriesEventId: Long): List<ExceptionRowSnapshot> = resolver.query(
+        CalendarContract.Events.CONTENT_URI,
+        ExceptionProjection.COLUMNS,
+        "${CalendarContract.Events.ORIGINAL_ID} = ? AND ${CalendarContract.Events.DELETED} = 0",
+        arrayOf(seriesEventId.toString()),
+        CalendarContract.Events.ORIGINAL_INSTANCE_TIME + " ASC",
+    )?.use { c ->
+        c.mapAll {
+            val r = CursorColumnReader(c)
+            val status = r.getInt(ExceptionProjection.IDX_STATUS)
+                .takeUnless { r.isNull(ExceptionProjection.IDX_STATUS) }
+            ExceptionRowSnapshot(
+                exceptionEventId = r.getLong(ExceptionProjection.IDX_ID),
+                originalInstanceMillis = r.getLong(ExceptionProjection.IDX_ORIGINAL_INSTANCE_TIME),
+                isCancelled = status == CalendarContract.Events.STATUS_CANCELED,
+                status = status,
+                title = r.getString(ExceptionProjection.IDX_TITLE).orEmpty(),
+                isAllDay = r.getInt(ExceptionProjection.IDX_ALL_DAY) != 0,
+                dtStartMillis = r.getLong(ExceptionProjection.IDX_DTSTART),
+                dtEndMillis = r.getLong(ExceptionProjection.IDX_DTEND)
+                    .takeUnless { r.isNull(ExceptionProjection.IDX_DTEND) },
+                duration = r.getString(ExceptionProjection.IDX_DURATION),
+                timezone = r.getString(ExceptionProjection.IDX_EVENT_TIMEZONE),
+                availability = r.getInt(ExceptionProjection.IDX_AVAILABILITY),
+                accessLevel = r.getInt(ExceptionProjection.IDX_ACCESS_LEVEL),
+                location = r.getString(ExceptionProjection.IDX_LOCATION),
+                description = r.getString(ExceptionProjection.IDX_DESCRIPTION),
+            )
+        }
+    } ?: emptyList()
 
     override fun updateOccurrence(
         eventId: Long,

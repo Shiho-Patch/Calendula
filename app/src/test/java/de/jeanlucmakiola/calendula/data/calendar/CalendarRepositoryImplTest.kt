@@ -313,6 +313,46 @@ class CalendarRepositoryImplTest {
     }
 
     @Test
+    fun `moveEvent forwards id, target calendar and both forms`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource().apply { nextInsertId = 77L }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+        val original = EventForm(
+            calendarId = 1L,
+            title = "Stand-up",
+            start = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(9, 15)),
+        )
+        val updated = original.copy(calendarId = 3L)
+
+        val newId = repo.moveEvent(eventId = 42L, targetCalendarId = 3L, original = original, updated = updated)
+
+        assertThat(newId).isEqualTo(77L)
+        assertThat(fake.movedEvents).containsExactly(
+            FakeCalendarDataSource.MovedEvent(42L, 3L, original, updated),
+        )
+    }
+
+    @Test
+    fun `moveEvent propagates write failures`(@TempDir tempDir: Path) = runTest {
+        val fake = FakeCalendarDataSource().apply {
+            writeError = WriteFailedException("insert moved event into calendar id=3")
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+        val form = EventForm(
+            calendarId = 1L,
+            start = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(10, 0)),
+        )
+
+        try {
+            repo.moveEvent(eventId = 42L, targetCalendarId = 3L, original = form, updated = form.copy(calendarId = 3L))
+            error("Expected WriteFailedException")
+        } catch (expected: WriteFailedException) {
+            assertThat(expected.message).contains("3")
+        }
+    }
+
+    @Test
     fun `updateEvent propagates write failures`(@TempDir tempDir: Path) = runTest {
         val fake = FakeCalendarDataSource().apply {
             writeError = WriteFailedException("update event id=42")

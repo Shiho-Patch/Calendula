@@ -298,4 +298,114 @@ class EventWriteMapperTest {
         assertThat(values).containsEntry(CalendarContract.Events.EVENT_COLOR, null)
         assertThat(values).containsEntry(CalendarContract.Events.EVENT_COLOR_KEY, null)
     }
+
+    // --- buildMovedMasterValues (calendar move: verbatim series copy) ---
+
+    private fun masterSnapshot(
+        isAllDay: Boolean = false,
+        dtStartMillis: Long = 1_781_164_800_000L,
+        dtEndMillis: Long? = 1_781_164_800_000L + 5_400_000L,
+        duration: String? = null,
+        rrule: String? = null,
+        rdate: String? = null,
+        exdate: String? = null,
+    ) = MasterEventSnapshot(
+        title = "Standup",
+        isAllDay = isAllDay,
+        dtStartMillis = dtStartMillis,
+        dtEndMillis = dtEndMillis,
+        duration = duration,
+        rrule = rrule,
+        rdate = rdate,
+        exdate = exdate,
+        timezone = "Europe/Berlin",
+        availability = CalendarContract.Events.AVAILABILITY_BUSY,
+        accessLevel = CalendarContract.Events.ACCESS_DEFAULT,
+        status = CalendarContract.Events.STATUS_CONFIRMED,
+        location = "Room 1",
+        description = "",
+    )
+
+    @Test
+    fun `moved one-off carries target calendar, uid and DTEND but no recurrence`() {
+        val values = buildMovedMasterValues(masterSnapshot(), targetCalendarId = 9L, uid = "u@calendula")
+        assertThat(values[CalendarContract.Events.CALENDAR_ID]).isEqualTo(9L)
+        assertThat(values[CalendarContract.Events.UID_2445]).isEqualTo("u@calendula")
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_781_164_800_000L)
+        assertThat(values[CalendarContract.Events.DTEND]).isEqualTo(1_781_164_800_000L + 5_400_000L)
+        assertThat(values).doesNotContainKey(CalendarContract.Events.RRULE)
+        assertThat(values).doesNotContainKey(CalendarContract.Events.DURATION)
+        // Empty description clears explicitly; a raw/keyed colour is never copied
+        // (may be invalid on the target account — the copy inherits its colour).
+        assertThat(values).containsEntry(CalendarContract.Events.DESCRIPTION, null)
+        assertThat(values).doesNotContainKey(CalendarContract.Events.EVENT_COLOR)
+        assertThat(values).doesNotContainKey(CalendarContract.Events.EVENT_COLOR_KEY)
+    }
+
+    @Test
+    fun `moved series preserves the recurrence skeleton as RRULE plus DURATION`() {
+        val values = buildMovedMasterValues(
+            masterSnapshot(dtEndMillis = null, duration = "P5400S", rrule = "FREQ=WEEKLY", exdate = "20260618T080000Z"),
+            targetCalendarId = 9L,
+            uid = "u@calendula",
+        )
+        assertThat(values[CalendarContract.Events.RRULE]).isEqualTo("FREQ=WEEKLY")
+        assertThat(values[CalendarContract.Events.DURATION]).isEqualTo("P5400S")
+        assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260618T080000Z")
+        // Recurring rows never carry DTEND (the provider's invariant).
+        assertThat(values).doesNotContainKey(CalendarContract.Events.DTEND)
+    }
+
+    @Test
+    fun `moved series without a stored duration derives it from DTEND`() {
+        val values = buildMovedMasterValues(
+            masterSnapshot(duration = null, rrule = "FREQ=DAILY"),
+            targetCalendarId = 9L,
+            uid = "u@calendula",
+        )
+        assertThat(values[CalendarContract.Events.DURATION]).isEqualTo("P5400S")
+    }
+
+    // --- buildCopiedExceptionValues (calendar move: exception replay) ---
+
+    private fun exceptionSnapshot(
+        isCancelled: Boolean = false,
+        duration: String? = null,
+        // Occurrence starts one hour into the day and runs 30 minutes.
+        dtEndMillis: Long? = 1_781_164_800_000L + 3_600_000L + 1_800_000L,
+    ) = ExceptionRowSnapshot(
+        exceptionEventId = 42L,
+        originalInstanceMillis = 1_781_164_800_000L,
+        isCancelled = isCancelled,
+        status = if (isCancelled) CalendarContract.Events.STATUS_CANCELED else CalendarContract.Events.STATUS_CONFIRMED,
+        title = "Moved occurrence",
+        isAllDay = false,
+        dtStartMillis = 1_781_164_800_000L + 3_600_000L,
+        dtEndMillis = dtEndMillis,
+        duration = duration,
+        timezone = "Europe/Berlin",
+        availability = CalendarContract.Events.AVAILABILITY_BUSY,
+        accessLevel = CalendarContract.Events.ACCESS_DEFAULT,
+        location = "",
+        description = "Notes",
+    )
+
+    @Test
+    fun `copied modified occurrence carries the original instance and DURATION not DTEND`() {
+        val values = buildCopiedExceptionValues(exceptionSnapshot())
+        assertThat(values[CalendarContract.Events.ORIGINAL_INSTANCE_TIME])
+            .isEqualTo(1_781_164_800_000L)
+        assertThat(values[CalendarContract.Events.TITLE]).isEqualTo("Moved occurrence")
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_781_164_800_000L + 3_600_000L)
+        // 30-minute occurrence derived from DTEND, written as DURATION only.
+        assertThat(values[CalendarContract.Events.DURATION]).isEqualTo("P1800S")
+        assertThat(values).doesNotContainKey(CalendarContract.Events.DTEND)
+        assertThat(values).containsEntry(CalendarContract.Events.EVENT_LOCATION, null)
+    }
+
+    @Test
+    fun `copied modified occurrence keeps a stored duration verbatim`() {
+        val values = buildCopiedExceptionValues(exceptionSnapshot(duration = "P900S", dtEndMillis = null))
+        assertThat(values[CalendarContract.Events.DURATION]).isEqualTo("P900S")
+    }
 }
