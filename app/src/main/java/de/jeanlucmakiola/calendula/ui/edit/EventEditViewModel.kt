@@ -439,10 +439,15 @@ class EventEditViewModel @Inject constructor(
             _saveState.value = SaveUiState.Saved
             return
         }
+        // Changing the calendar moves the event (copy+delete — CALENDAR_ID can't
+        // be updated in place) and is inherently whole-series: an occurrence
+        // can't live in a different calendar than its series, so a move skips the
+        // scope dialog even for a recurring event.
+        val movingCalendar = target != null && form.calendarId != target.original.calendarId
         // Managed events are a yearly series whose editable fields (reminders,
         // notes, location) live on the series row — never offer the scope dialog,
         // which would split the series into an exception the sync then reverts.
-        if (target != null && target.original.rrule != null && !current.isManaged) {
+        if (target != null && target.original.rrule != null && !current.isManaged && !movingCalendar) {
             _saveState.value = SaveUiState.AwaitingScope
             return
         }
@@ -496,6 +501,17 @@ class EventEditViewModel @Inject constructor(
             _saveState.value = try {
                 if (target == null) {
                     repository.createEvent(form)
+                    prefs.setLastUsedCalendarId(requireNotNull(form.calendarId))
+                } else if (form.calendarId != target.original.calendarId) {
+                    // Move to the picked calendar (copy+delete), carrying any
+                    // field edits made in the same save. The target becomes the
+                    // last-used calendar, like a create does.
+                    repository.moveEvent(
+                        eventId = target.eventId,
+                        targetCalendarId = requireNotNull(form.calendarId),
+                        original = target.original,
+                        updated = form,
+                    )
                     prefs.setLastUsedCalendarId(requireNotNull(form.calendarId))
                 } else {
                     when (scope) {

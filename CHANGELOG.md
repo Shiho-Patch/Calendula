@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Move an event to another calendar. When editing an existing event, the
+  calendar row is now tappable — pick a different calendar and saving moves the
+  event across, instead of having to delete it and recreate it elsewhere.
+  Recurring series move as a whole, keeping their individually-edited and
+  cancelled occurrences, and any reminders and guests come along too. A calendar
+  can't simply be reassigned underneath an event, so Calendula recreates it on
+  the target and removes the original — the same approach other calendar apps
+  take. Thanks to @prismplex for the suggestion ([#39]).
+
 ## [2.14.0] — 2026-07-06
 
 ### Added
@@ -874,3 +886,4 @@ automatically, with zero telemetry and no internet permission.
 [#33]: https://codeberg.org/jlmakiola/calendula/issues/33
 [#34]: https://codeberg.org/jlmakiola/calendula/issues/34
 [#37]: https://codeberg.org/jlmakiola/calendula/issues/37
+[#39]: https://codeberg.org/jlmakiola/calendula/issues/39

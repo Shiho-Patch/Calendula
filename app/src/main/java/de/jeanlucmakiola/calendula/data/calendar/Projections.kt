@@ -186,6 +186,86 @@ internal object SearchProjection {
     const val IDX_RDATE = 11
 }
 
+/**
+ * The master/one-off Events row of an event about to be moved to another
+ * calendar, read for a verbatim re-insert (see [MasterEventSnapshot]). Carries
+ * the full recurrence skeleton (RRULE/DURATION, RDATE/EXDATE) so the moved copy
+ * generates the same instances, and `UID_2445` so identity survives the move.
+ */
+internal object MoveMasterProjection {
+    val COLUMNS: Array<String> = arrayOf(
+        CalendarContract.Events.UID_2445,
+        CalendarContract.Events.TITLE,
+        CalendarContract.Events.DTSTART,
+        CalendarContract.Events.DTEND,
+        CalendarContract.Events.DURATION,
+        CalendarContract.Events.RRULE,
+        CalendarContract.Events.RDATE,
+        CalendarContract.Events.EXDATE,
+        CalendarContract.Events.EVENT_TIMEZONE,
+        CalendarContract.Events.ALL_DAY,
+        CalendarContract.Events.AVAILABILITY,
+        CalendarContract.Events.ACCESS_LEVEL,
+        CalendarContract.Events.STATUS,
+        CalendarContract.Events.EVENT_LOCATION,
+        CalendarContract.Events.DESCRIPTION,
+    )
+
+    const val IDX_UID = 0
+    const val IDX_TITLE = 1
+    const val IDX_DTSTART = 2
+    const val IDX_DTEND = 3
+    const val IDX_DURATION = 4
+    const val IDX_RRULE = 5
+    const val IDX_RDATE = 6
+    const val IDX_EXDATE = 7
+    const val IDX_EVENT_TIMEZONE = 8
+    const val IDX_ALL_DAY = 9
+    const val IDX_AVAILABILITY = 10
+    const val IDX_ACCESS_LEVEL = 11
+    const val IDX_STATUS = 12
+    const val IDX_LOCATION = 13
+    const val IDX_DESCRIPTION = 14
+}
+
+/**
+ * The exception rows of a recurring series (`ORIGINAL_ID` = the series), read to
+ * replay them against a moved copy (see [ExceptionRowSnapshot]). Both modified
+ * occurrences and cancellations (`STATUS_CANCELED`) are read; the query filters
+ * `DELETED = 0` so provider tombstones aren't replayed.
+ */
+internal object ExceptionProjection {
+    val COLUMNS: Array<String> = arrayOf(
+        CalendarContract.Events._ID,
+        CalendarContract.Events.ORIGINAL_INSTANCE_TIME,
+        CalendarContract.Events.STATUS,
+        CalendarContract.Events.TITLE,
+        CalendarContract.Events.ALL_DAY,
+        CalendarContract.Events.DTSTART,
+        CalendarContract.Events.DTEND,
+        CalendarContract.Events.DURATION,
+        CalendarContract.Events.EVENT_TIMEZONE,
+        CalendarContract.Events.AVAILABILITY,
+        CalendarContract.Events.ACCESS_LEVEL,
+        CalendarContract.Events.EVENT_LOCATION,
+        CalendarContract.Events.DESCRIPTION,
+    )
+
+    const val IDX_ID = 0
+    const val IDX_ORIGINAL_INSTANCE_TIME = 1
+    const val IDX_STATUS = 2
+    const val IDX_TITLE = 3
+    const val IDX_ALL_DAY = 4
+    const val IDX_DTSTART = 5
+    const val IDX_DTEND = 6
+    const val IDX_DURATION = 7
+    const val IDX_EVENT_TIMEZONE = 8
+    const val IDX_AVAILABILITY = 9
+    const val IDX_ACCESS_LEVEL = 10
+    const val IDX_LOCATION = 11
+    const val IDX_DESCRIPTION = 12
+}
+
 internal object AttendeeProjection {
     val COLUMNS: Array<String> = arrayOf(
         CalendarContract.Attendees.ATTENDEE_NAME,
