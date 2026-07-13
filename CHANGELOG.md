@@ -26,9 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by another app or widget — Google Maps' "add to calendar", the Todo Agenda
   widget's "+" — opened with no reminder at all, ignoring the default set in
   Settings. It now starts with your default reminder, the same as an event you
-  create in Calendula. Events imported from an `.ics` file still keep the
-  reminders the file carries; when the file brings its own, Calendula asks once
-  whether to apply your default instead of deciding for you ([#49]).
+  create in Calendula. An event opened from an `.ics` file is treated differently,
+  because the file has its own say: Calendula keeps whatever reminders it carries
+  (including none at all) and asks you once whether to apply your default instead
+  — it never quietly overrides the file. If you have no default set, it doesn't
+  ask ([#49]).
 - A tidy colour picker on CalDAV calendars. For calendars synced by a CalDAV
   app (such as DAVx5), the event colour picker showed every colour the account
   publishes — nearly 150 swatches in alphabetical order, many of them
