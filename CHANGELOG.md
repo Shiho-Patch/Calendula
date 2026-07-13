@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- A custom snooze duration. The **Snooze duration** setting (Settings →
+  Notifications) gains a **Custom…** option next to the minute presets: pick any
+  amount and switch between minutes and hours, so a snoozed reminder comes back
+  after exactly the delay you want instead of only a preset one ([#40]).
 - Move an event to another calendar. When editing an existing event, the
   calendar row is now tappable — pick a different calendar and saving moves the
   event across, instead of having to delete it and recreate it elsewhere.
@@ -887,3 +891,4 @@ automatically, with zero telemetry and no internet permission.
 [#34]: https://codeberg.org/jlmakiola/calendula/issues/34
 [#37]: https://codeberg.org/jlmakiola/calendula/issues/37
 [#39]: https://codeberg.org/jlmakiola/calendula/issues/39
+[#40]: https://codeberg.org/jlmakiola/calendula/issues/40
