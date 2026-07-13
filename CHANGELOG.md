@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the target and removes the original — the same approach other calendar apps
   take. Thanks to @prismplex for the suggestion ([#39]).
 
+### Fixed
+- Reminders for events on another day no longer read as if they were today. A
+  reminder fired ahead of time — say, the day before — used to show only the
+  event's time, making it look like it was happening now. The notification now
+  says which day: **Tomorrow** or **Yesterday**, the weekday for another day this
+  week, or the date for anything further out. Thanks to @moonj for the report
+  ([#46]).
+
 ## [2.14.0] — 2026-07-06
 
 ### Added
@@ -892,3 +900,4 @@ automatically, with zero telemetry and no internet permission.
 [#37]: https://codeberg.org/jlmakiola/calendula/issues/37
 [#39]: https://codeberg.org/jlmakiola/calendula/issues/39
 [#40]: https://codeberg.org/jlmakiola/calendula/issues/40
+[#46]: https://codeberg.org/jlmakiola/calendula/issues/46
