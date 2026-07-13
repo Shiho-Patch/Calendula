@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [2.14.1] — 2026-07-13
+
+### Fixed
+- Deleting one occurrence of a repeating event no longer breaks the series.
+  Choosing "This event" when deleting an occurrence of a recurring event could
+  wipe out every *other* occurrence while leaving the one you deleted behind as
+  a stale, still-tappable ghost — and deleting it again brought the series back.
+  A single-occurrence delete now removes exactly that occurrence and leaves the
+  rest of the series untouched, and the deleted occurrence disappears from the
+  grid straight away. This holds on every kind of calendar, including the
+  on-device ones Calendula keeps for contact birthdays and anniversaries, where
+  the series is a yearly repeat. Thanks to @moonj for the report ([#47]).
+- Tapping an event in a third-party widget opens it in Calendula. v2.13.1 taught
+  Calendula to answer the "new event" hand-off from other apps and widgets; now
+  it also answers the "open this event" one, so tapping an existing event in a
+  widget such as Todo Agenda offers Calendula and lands on that event's details.
+  Thanks to @bushrang3r for the report ([#48]).
+- Events created from other apps get your default reminder. An event handed over
+  by another app or widget — Google Maps' "add to calendar", the Todo Agenda
+  widget's "+" — opened with no reminder at all, ignoring the default set in
+  Settings. It now starts with your default reminder, the same as an event you
+  create in Calendula. An event opened from an `.ics` file is treated differently,
+  because the file has its own say: Calendula keeps whatever reminders it carries
+  (including none at all) and asks you once whether to apply your default instead
+  — it never quietly overrides the file. If you have no default set, it doesn't
+  ask ([#49]).
+- A tidy colour picker on CalDAV calendars. For calendars synced by a CalDAV
+  app (such as DAVx5), the event colour picker showed every colour the account
+  publishes — nearly 150 swatches in alphabetical order, many of them
+  duplicates or near-identical shades. The picker now shows only visually
+  distinct colours, arranged as a rainbow; near-duplicate shades and the
+  washed-out neutrals are folded away so no two swatches look alike. Picked
+  colours still sync exactly as before, and calendars with hand-picked
+  palettes (like Google's) are unaffected. Thanks to @ptab for the report
+  ([#22]).
+
 ## [2.14.0] — 2026-07-06
 
 ### Added
@@ -865,6 +903,7 @@ automatically, with zero telemetry and no internet permission.
 [#18]: https://codeberg.org/jlmakiola/calendula/issues/18
 [#19]: https://codeberg.org/jlmakiola/calendula/issues/19
 [#20]: https://codeberg.org/jlmakiola/calendula/issues/20
+[#22]: https://codeberg.org/jlmakiola/calendula/issues/22
 [#24]: https://codeberg.org/jlmakiola/calendula/issues/24
 [#25]: https://codeberg.org/jlmakiola/calendula/issues/25
 [#27]: https://codeberg.org/jlmakiola/calendula/issues/27
@@ -874,3 +913,6 @@ automatically, with zero telemetry and no internet permission.
 [#33]: https://codeberg.org/jlmakiola/calendula/issues/33
 [#34]: https://codeberg.org/jlmakiola/calendula/issues/34
 [#37]: https://codeberg.org/jlmakiola/calendula/issues/37
+[#47]: https://codeberg.org/jlmakiola/calendula/issues/47
+[#48]: https://codeberg.org/jlmakiola/calendula/issues/48
+[#49]: https://codeberg.org/jlmakiola/calendula/issues/49

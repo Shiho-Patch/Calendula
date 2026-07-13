@@ -14,6 +14,7 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.EventStatus
 import de.jeanlucmakiola.calendula.domain.Reminder
 import de.jeanlucmakiola.calendula.domain.ReminderMethod
+import de.jeanlucmakiola.calendula.domain.ics.parseRfc2445DurationMillis
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -36,15 +37,18 @@ internal fun ColumnReader.toEventDetailCore(
     val begin = getLong(EventDetailProjection.IDX_DTSTART)
 
     // Recurring events store DURATION instead of DTEND, so the series row's
-    // DTEND is null. Keep the event (end == begin); callers that opened a
-    // specific occurrence supply the real per-occurrence times from
-    // CalendarContract.Instances. A present-but-backwards DTEND is malformed,
-    // but dropping the row would make the event un-openable — the same trap as
-    // the pre-1970 DTSTART bug above (issue #34): it would surface as the
-    // generic error screen with no way to open the event and fix it. Clamp to a
-    // zero-length event instead (matching SearchMapper's coerceAtLeast).
+    // DTEND is null — derive the length from DURATION (as SearchMapper and
+    // IcsExportMapper do). Callers that opened a specific occurrence overwrite
+    // both times with the per-occurrence values from CalendarContract.Instances;
+    // a caller that names no occurrence (a bare content://.../events/<id> VIEW
+    // intent, issue #48) keeps this row's own times, so the length has to be
+    // right here or the series renders zero-length. A present-but-backwards
+    // DTEND is malformed, but dropping the row would make the event un-openable
+    // — the same trap as the pre-1970 DTSTART bug above (issue #34): it would
+    // surface as the generic error screen with no way to open the event and fix
+    // it. Clamp to a zero-length event instead (matching SearchMapper).
     val end = if (isNull(EventDetailProjection.IDX_DTEND)) {
-        begin
+        begin + parseRfc2445DurationMillis(getString(EventDetailProjection.IDX_DURATION))
     } else {
         getLong(EventDetailProjection.IDX_DTEND).coerceAtLeast(begin)
     }

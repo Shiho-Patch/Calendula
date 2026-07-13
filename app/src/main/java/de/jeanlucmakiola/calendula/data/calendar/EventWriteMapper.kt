@@ -183,6 +183,100 @@ internal fun buildOccurrenceExceptionValues(
 }
 
 /**
+ * Column values for a *cancelled*-occurrence exception row ("delete only this
+ * event"): inserting them at `Events.CONTENT_EXCEPTION_URI/<id>` makes the
+ * provider clone the series row and cancel exactly this one instance.
+ *
+ * As with [buildOccurrenceExceptionValues], the occurrence must be anchored with
+ * DTSTART + DURATION so the provider derives a single instance and clears the
+ * inherited RRULE. A STATUS-only cancel skips that: the clone keeps the RRULE, so
+ * the *whole series* is cancelled and every other occurrence disappears
+ * (Codeberg #47). The occurrence's length/zone come straight from the series row
+ * — cancelling never changes them.
+ */
+internal fun buildOccurrenceCancelValues(
+    originalInstanceMillis: Long,
+    dtStartMillis: Long,
+    duration: String?,
+    timezone: String?,
+    allDay: Int,
+): Map<String, Any?> = buildMap {
+    put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, originalInstanceMillis)
+    put(CalendarContract.Events.DTSTART, dtStartMillis)
+    put(CalendarContract.Events.DURATION, duration)
+    put(CalendarContract.Events.EVENT_TIMEZONE, timezone)
+    put(CalendarContract.Events.ALL_DAY, allDay)
+    put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CANCELED)
+}
+
+/**
+ * The master-row columns that drop the occurrence at [occurrenceMillis] from a
+ * series by adding it to `EXDATE` — the path for events that have **no
+ * `_sync_id`** (a local calendar, or a synced event not yet pushed).
+ *
+ * A cancelled exception row (see [buildOccurrenceCancelValues]) only attaches to
+ * its parent through `ORIGINAL_SYNC_ID`. Without a `_sync_id` the link never
+ * forms, and the provider's expansion of the *parent* collapses — every other
+ * occurrence disappears (Codeberg #47, reproduced on a local calendar). EXDATE
+ * needs no link, and is the canonical iCalendar way to drop an occurrence, so a
+ * sync adapter carries it upstream unchanged if the calendar later syncs.
+ *
+ * The whole time/recurrence set is rewritten alongside it on purpose. The
+ * provider does **not** treat an EXDATE-only update as a recurrence change: it
+ * leaves the expanded `Instances` rows untouched, so the occurrence stays visible
+ * (and, symmetrically, un-excluding one leaves it hidden). Writing DTSTART with
+ * it forces the re-expansion — but DTSTART *alone* makes the provider recompute
+ * `lastDate` as if the event were a single instance, collapsing the series to its
+ * first occurrence. Passing DTSTART + DURATION + RRULE + zone together is what
+ * re-expands it correctly. All observed on a Pixel; see the #47 notes.
+ *
+ * EXDATE is a comma-separated list, so an existing one is appended to (a repeat
+ * of the same occurrence is folded away). All-day series take the `VALUE=DATE`
+ * form (`yyyyMMdd`), timed ones the UTC date-time form (`yyyyMMddTHHmmssZ`).
+ */
+internal fun buildOccurrenceExdateValues(
+    existingExdate: String?,
+    occurrenceMillis: Long,
+    dtStartMillis: Long,
+    rrule: String?,
+    duration: String?,
+    timezone: String?,
+    allDay: Int,
+): Map<String, Any?> {
+    val stamp = formatExdateStamp(occurrenceMillis, isAllDay = allDay != 0)
+    val existing = existingExdate?.split(',')
+        ?.map { it.trim() }
+        ?.filter { it.isNotEmpty() }
+        .orEmpty()
+    val merged = (existing + stamp).distinct().joinToString(",")
+    return mapOf(
+        CalendarContract.Events.EXDATE to merged,
+        CalendarContract.Events.DTSTART to dtStartMillis,
+        CalendarContract.Events.RRULE to rrule,
+        CalendarContract.Events.DURATION to duration,
+        CalendarContract.Events.EVENT_TIMEZONE to timezone,
+        CalendarContract.Events.ALL_DAY to allDay,
+    )
+}
+
+/**
+ * One EXDATE entry for the occurrence starting at [occurrenceMillis]. Both forms
+ * are UTC: the provider stores an all-day DTSTART at UTC midnight, so its date
+ * reads off the UTC calendar day.
+ */
+private fun formatExdateStamp(occurrenceMillis: Long, isAllDay: Boolean): String {
+    val utc = Instant.ofEpochMilli(occurrenceMillis).atZone(ZoneOffset.UTC)
+    return if (isAllDay) {
+        "%04d%02d%02d".format(utc.year, utc.monthValue, utc.dayOfMonth)
+    } else {
+        "%04d%02d%02dT%02d%02d%02dZ".format(
+            utc.year, utc.monthValue, utc.dayOfMonth,
+            utc.hour, utc.minute, utc.second,
+        )
+    }
+}
+
+/**
  * The `EVENT_COLOR` / `EVENT_COLOR_KEY` columns for a colour selection. A
  * [colorKey] writes the key alone (the provider derives `EVENT_COLOR` from the
  * account's palette, so the colour round-trips through sync); a raw [color]

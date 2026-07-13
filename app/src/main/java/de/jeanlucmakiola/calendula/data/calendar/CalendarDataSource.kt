@@ -22,6 +22,7 @@ import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventAttendee
 import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
+import de.jeanlucmakiola.calendula.domain.curatedForPicker
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.EventStatus
@@ -63,10 +64,12 @@ interface CalendarDataSource {
 
     /**
      * The event-colour palette the calendar's account publishes
-     * (`CalendarContract.Colors`, `TYPE_EVENT`), sorted by key. Empty when the
-     * account exposes no palette (most local calendars, some CalDAV) — the
-     * signal that a custom colour can only be written as a raw `EVENT_COLOR`,
-     * which a synced calendar may drop on its next sync.
+     * (`CalendarContract.Colors`, `TYPE_EVENT`), curated for display — deduped,
+     * thinned to visually distinct swatches when oversized (CalDAV adapters
+     * publish all ~147 CSS3 names, #22) and hue-sorted; see [curatedForPicker].
+     * Empty when the account exposes no palette (most local calendars, some
+     * CalDAV) — the signal that a custom colour can only be written as a raw
+     * `EVENT_COLOR`, which a synced calendar may drop on its next sync.
      */
     fun eventColorPalette(calendarId: Long): List<EventColorOption>
 
@@ -492,7 +495,13 @@ class AndroidCalendarDataSource @Inject constructor(
         return resolver.query(
             uri,
             InstanceProjection.COLUMNS,
-            null, null,
+            // Hide cancelled occurrences: "delete only this event" writes a
+            // cancelled exception for the one instance (#47). A NULL status is a
+            // normal, un-cancelled event, so it must survive the filter — a bare
+            // `!= CANCELED` would drop it (NULL != 2 is NULL, not true).
+            "${CalendarContract.Instances.STATUS} IS NULL OR " +
+                "${CalendarContract.Instances.STATUS} != ${CalendarContract.Events.STATUS_CANCELED}",
+            null,
             CalendarContract.Instances.BEGIN + " ASC",
         )?.use { c -> c.mapAllNotNull { CursorColumnReader(c).toEventInstance() } } ?: emptyList()
     }
@@ -611,7 +620,7 @@ class AndroidCalendarDataSource @Inject constructor(
             c.mapAll { EventColorOption(key = it.getString(0).orEmpty(), argb = it.getInt(1)) }
         }
             ?.filter { it.key.isNotEmpty() }
-            ?.sortedBy { it.key }
+            ?.curatedForPicker()
             ?: emptyList()
     }
 
@@ -970,6 +979,8 @@ class AndroidCalendarDataSource @Inject constructor(
             CalendarContract.Events.EVENT_TIMEZONE,
             CalendarContract.Events.DURATION,
             CalendarContract.Events.ALL_DAY,
+            CalendarContract.Events._SYNC_ID,
+            CalendarContract.Events.EXDATE,
         ),
         null, null, null,
     )?.use { c ->
@@ -980,6 +991,8 @@ class AndroidCalendarDataSource @Inject constructor(
                 timezone = c.getString(2),
                 duration = c.getString(3),
                 allDay = c.getInt(4),
+                syncId = c.getString(5),
+                exdate = c.getString(6),
             )
         } else {
             null
@@ -992,6 +1005,9 @@ class AndroidCalendarDataSource @Inject constructor(
         val timezone: String?,
         val duration: String?,
         val allDay: Int,
+        /** Null on a local calendar (and before a synced event's first push). */
+        val syncId: String? = null,
+        val exdate: String? = null,
     ) {
         /** UNTIL cutoff for ending the series before the occurrence at [beginMillis]. */
         fun truncationCutoff(beginMillis: Long): Long = previousLocalDayEndUtcMillis(
@@ -1182,16 +1198,49 @@ class AndroidCalendarDataSource @Inject constructor(
     }
 
     override fun deleteOccurrence(eventId: Long, beginMillis: Long) {
-        // A cancelled exception row hides exactly this occurrence; the sync
-        // adapter turns it into an EXDATE/cancelled VEVENT upstream.
-        val values = ContentValues().apply {
-            put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, beginMillis)
-            put(CalendarContract.Events.STATUS, CalendarContract.Events.STATUS_CANCELED)
+        val row = querySeriesRow(eventId)
+        if (row.syncId == null) {
+            // No _sync_id — a local calendar, or a synced event not pushed yet.
+            // A cancelled exception can only attach to its parent through
+            // ORIGINAL_SYNC_ID, so with none the link never forms and the
+            // provider's expansion of the *parent* collapses, taking every other
+            // occurrence with it (#47 on a local calendar). EXDATE needs no link.
+            // Calendula's own contact special-date calendars are local and hold
+            // yearly series, so this path is reached in normal use.
+            val values = buildOccurrenceExdateValues(
+                existingExdate = row.exdate,
+                occurrenceMillis = beginMillis,
+                dtStartMillis = row.dtStartMillis,
+                rrule = row.rrule,
+                duration = row.duration,
+                timezone = row.timezone,
+                allDay = row.allDay,
+            )
+            val updated = resolver.update(
+                ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId),
+                values.toContentValues(), null, null,
+            )
+            if (updated == 0) {
+                throw WriteFailedException("exdate occurrence event id=$eventId begin=$beginMillis")
+            }
+            return
         }
+        // A cancelled exception row hides exactly this occurrence; the sync
+        // adapter turns it into an EXDATE/cancelled VEVENT upstream. It carries
+        // the full time set (DTSTART + DURATION + zone) so the provider derives a
+        // single instance rather than cloning the master's RRULE — the same trap
+        // the edit path documents (Codeberg #16).
+        val values = buildOccurrenceCancelValues(
+            originalInstanceMillis = beginMillis,
+            dtStartMillis = beginMillis,
+            duration = row.duration,
+            timezone = row.timezone,
+            allDay = row.allDay,
+        )
         val uri = ContentUris.withAppendedId(
             CalendarContract.Events.CONTENT_EXCEPTION_URI, eventId,
         )
-        resolver.insert(uri, values)
+        resolver.insert(uri, values.toContentValues())
             ?: throw WriteFailedException("cancel occurrence event id=$eventId begin=$beginMillis")
     }
 
