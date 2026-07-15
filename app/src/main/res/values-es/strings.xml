@@ -403,15 +403,15 @@
     <string name="shortcut_new_event_long">Crear un nuevo evento</string>
     <string name="settings_qs_tile">Añadir mosaico de ajustes rápidos</string>
     <string name="settings_qs_tile_hint">Añadir un recuadro de \"nuevo evento\" al panel de ajustes rápidos.</string>
-    <string name="crash_dialog_title">Calendula ha fallado</string>
-    <string name="crash_dialog_message">Calendula se cerro de forma inesperada la ultima vez. Puedes ayudar a solucionarlo enviando un reporte del problema. Este permanece en tu dispositivo hasta que decidas enviarlo, y no contiene información personal o contenido de tu calendario — solo los detalles técnicos de mas abajo.</string>
+    <string name="crash_dialog_title">%1$s ha fallado</string>
+    <string name="crash_dialog_message">%1$s se cerro de forma inesperada la ultima vez. Puedes ayudar a solucionarlo enviando un reporte del problema. Este permanece en tu dispositivo hasta que decidas enviarlo, y no contiene información personal o contenido de tu calendario — solo los detalles técnicos de mas abajo.</string>
     <string name="crash_dialog_report">Reportar</string>
     <string name="crash_dialog_dismiss">No por ahora</string>
     <string name="crash_report_issue_title">Reporte de error</string>
-    <string name="crash_report_clip_label">Reporte de error de Calendula</string>
+    <string name="crash_report_clip_label">Reporte de error de %1$s</string>
     <string name="crash_report_copied">Reporte copiado a tu porta papeles</string>
     <string name="crash_report_open_failed">No se pudo abrir el sistema de seguimiento de errores. El reporte es en tu portapapeles.</string>
-    <string name="crash_report_body_template">Gracias por reportar un error en Calendula. Por favor añade todo lo que recuerdas sobre lo que estabas haciendo y luego publicalo.\n\n### que sucedió\n\n\n### reporte de error\n%1$s\n</string>
+    <string name="crash_report_body_template">Gracias por reportar un error en %1$s. Por favor añade todo lo que recuerdas sobre lo que estabas haciendo y luego publicalo.\n\n### que sucedió\n\n\n### reporte de error\n%2$s\n</string>
     <string name="crash_report_body_paste">_(el reporte es demasiado largo para este link — pegalo aquí desde su portapeles.)_</string>
     <string name="event_attendee_resource">Recurso</string>
     <string name="settings_section_about">Acerca de</string>
@@ -466,4 +466,31 @@
     <string name="settings_special_dates_grant">Permitir acceso</string>
     <string name="dialog_save">Guardar</string>
     <string name="settings_font_system">Igual que el sistema</string>
+    <string name="import_reminder_prompt_title">¿Aplicar tus recordatorios por defecto?</string>
+    <string name="import_reminder_prompt_body_none">Este evento fue importado sin ningún recordatorio.</string>
+    <plurals name="import_reminder_prompt_body_existing">
+        <item quantity="one">Este evento fue importado con %1$d recordatorio.</item>
+        <item quantity="many">Este evento fue portado con %1$d recordatorios.</item>
+        <item quantity="other">Este evento fue importado con %1$d recordatorios.</item>
+    </plurals>
+    <string name="import_reminder_prompt_apply">Aplicar por defecto</string>
+    <string name="import_reminder_prompt_keep">Mantener como esta</string>
+    <string name="back">Atras</string>
+    <string name="settings_week_numbers">Números de semana</string>
+    <string name="settings_week_numbers_summary">Muestra los números de las semanas en la vista mensual</string>
+    <string name="calendars_export_title">Exportar calendarios</string>
+    <string name="calendars_export_hint">Escoge que calendarios incluir en el archivo .ics</string>
+    <string name="calendars_export_action">Exportar</string>
+    <string name="calendars_restore_header">Restaurar</string>
+    <string name="calendars_restore_action">Restaurar por archivo .ics</string>
+    <string name="calendars_restore_hint">Importar eventos desde un respaldo u otra aplicación de calendario.</string>
+    <string name="import_done_dedup_note">Se omitieron los eventos ya presentes en el calendario.</string>
+    <string name="import_done_added_label">Añadido</string>
+    <string name="import_done_skipped_label">Duplicados</string>
+    <string name="import_button">Importar</string>
+    <plurals name="import_title_count">
+        <item quantity="one">Importando %d evento</item>
+        <item quantity="many">Importando %d eventos</item>
+        <item quantity="other">Importando %d eventos</item>
+    </plurals>
 </resources>
