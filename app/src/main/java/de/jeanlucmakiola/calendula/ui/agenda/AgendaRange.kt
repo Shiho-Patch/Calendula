@@ -1,10 +1,9 @@
 package de.jeanlucmakiola.calendula.ui.agenda
 
+import de.jeanlucmakiola.calendula.ui.common.localizedDateFormatter
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import java.util.Locale
 
 /**
@@ -87,10 +86,12 @@ fun parseAgendaRange(stored: String?, default: AgendaRange): AgendaRange = when 
 
 /**
  * The concrete span the range covers, starting at [start] through [end]
- * (inclusive), for a human-readable header:
- * - [AgendaRange.Day] → a single medium date ("27 Jun 2026")
+ * (inclusive), for a human-readable header. Both ends use the same day-month
+ * order so a span never mixes "15 Jul" with "Aug 13, 2026":
+ * - [AgendaRange.Day] → a single date ("27 Jun 2026")
  * - [AgendaRange.ThisMonth] → month and year ("June 2026")
- * - everything else → "start – end" ("27 Jun – 3 Jul 2026")
+ * - everything else → "start – end" ("27 Jun – 3 Jul 2026"), with the start's
+ *   year shown too only when it differs from the end's.
  */
 fun agendaRangeWindowSummary(
     range: AgendaRange,
@@ -100,11 +101,15 @@ fun agendaRangeWindowSummary(
 ): String {
     val javaStart = java.time.LocalDate.of(start.year, start.month.ordinal + 1, start.day)
     val javaEnd = java.time.LocalDate.of(end.year, end.month.ordinal + 1, end.day)
-    val medium = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
+    val dayMonth = localizedDateFormatter(locale, "dMMM")
+    val dayMonthYear = localizedDateFormatter(locale, "dMMMy")
     return when (range) {
-        AgendaRange.Day -> medium.format(javaStart)
-        AgendaRange.ThisMonth -> DateTimeFormatter.ofPattern("LLLL yyyy", locale).format(javaStart)
-        else -> "${DateTimeFormatter.ofPattern("d MMM", locale).format(javaStart)} – ${medium.format(javaEnd)}"
+        AgendaRange.Day -> dayMonthYear.format(javaStart)
+        AgendaRange.ThisMonth -> localizedDateFormatter(locale, "LLLLy").format(javaStart)
+        else -> {
+            val startFmt = if (start.year == end.year) dayMonth else dayMonthYear
+            "${startFmt.format(javaStart)} – ${dayMonthYear.format(javaEnd)}"
+        }
     }
 }
 

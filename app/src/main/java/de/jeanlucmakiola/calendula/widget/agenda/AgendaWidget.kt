@@ -55,6 +55,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
+import de.jeanlucmakiola.calendula.ui.common.localizedDateFormatter
 import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.calendula.widget.AgendaWidgetData
 import de.jeanlucmakiola.calendula.widget.CalendulaGlanceTheme
@@ -67,7 +68,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
-import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
 /**
@@ -399,9 +399,9 @@ private fun agendaDayLabel(context: Context, date: LocalDate, today: LocalDate):
     }
     val locale = Locale.getDefault()
     val java = java.time.LocalDate.of(date.year, date.month.ordinal + 1, date.day)
-    val weekday = java.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, locale)
-    val monthName = java.month.getDisplayName(JavaTextStyle.SHORT, locale)
-    val formatted = "$weekday, ${date.day} $monthName"
+    // Weekday + date in the locale's own field order (compact: no year), rather
+    // than a hardcoded day-month layout.
+    val formatted = localizedDateFormatter(locale, "EEEdMMM").format(java)
     return if (relative != null) "$relative · $formatted" else formatted
 }
 
