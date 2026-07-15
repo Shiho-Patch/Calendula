@@ -237,6 +237,9 @@
     <string name="reminder_onboarding_skip_button">Not now</string>
     <string name="reminder_action_snooze">Snooze</string>
     <string name="reminder_action_dismiss">Dismiss</string>
+    <!-- Day context prefix in a reminder for an event on another day (v2.15.0) -->
+    <string name="reminder_day_tomorrow">Tomorrow</string>
+    <string name="reminder_day_yesterday">Yesterday</string>
 
     <!-- View switcher (M1) -->
     <string name="view_month">Month</string>
@@ -253,6 +256,7 @@
     <string name="agenda_header_today">Today</string>
     <string name="agenda_header_tomorrow">Tomorrow</string>
     <string name="agenda_empty_title">You\'re all caught up</string>
+    <string name="agenda_no_more_today">No more events today</string>
 
     <!-- Event search -->
     <string name="search_action">Search</string>
@@ -319,6 +323,8 @@
     <string name="settings_agenda_range_hint">How far ahead the Agenda screen lists events.</string>
     <string name="settings_agenda_widget_range">Agenda widget range</string>
     <string name="settings_agenda_widget_range_hint">How far ahead the agenda home-screen widget lists events.</string>
+    <string name="settings_agenda_show_today">Always show today</string>
+    <string name="settings_agenda_show_today_hint">Keep today at the top of the agenda and its widget, even once nothing is left today.</string>
     <string name="settings_agenda_range_bar">Range bar</string>
     <string name="settings_agenda_range_bar_hint">Show a bar at the top of the agenda naming the dates shown, with a button to switch the range for the session</string>
     <string name="agenda_range_day">Today</string>

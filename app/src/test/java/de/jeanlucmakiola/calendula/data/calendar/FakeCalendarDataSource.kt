@@ -34,6 +34,13 @@ internal class FakeCalendarDataSource : CalendarDataSource {
 
     val insertedForms = mutableListOf<EventForm>()
     val updatedEvents = mutableListOf<Triple<Long, EventForm, EventForm>>()
+    data class MovedEvent(
+        val eventId: Long,
+        val targetCalendarId: Long,
+        val original: EventForm,
+        val updated: EventForm,
+    )
+    val movedEvents = mutableListOf<MovedEvent>()
     val updatedOccurrences = mutableListOf<Triple<Long, Long, EventForm>>()
     val updatedFromOccurrences = mutableListOf<Triple<Long, Long, EventForm>>()
     val deletedEventIds = mutableListOf<Long>()
@@ -114,6 +121,19 @@ internal class FakeCalendarDataSource : CalendarDataSource {
         writeError?.let { throw it }
         updatedEvents += Triple(eventId, original, updated)
         allDayReminderTimes += allDayReminderTimeMinutes
+    }
+
+    override fun moveEvent(
+        eventId: Long,
+        targetCalendarId: Long,
+        original: EventForm,
+        updated: EventForm,
+        allDayReminderTimeMinutes: Int,
+    ): Long {
+        writeError?.let { throw it }
+        movedEvents += MovedEvent(eventId, targetCalendarId, original, updated)
+        allDayReminderTimes += allDayReminderTimeMinutes
+        return nextInsertId
     }
 
     override fun updateOccurrence(

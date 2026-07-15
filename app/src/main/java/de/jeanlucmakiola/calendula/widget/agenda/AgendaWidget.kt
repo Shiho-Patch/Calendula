@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
@@ -48,11 +49,13 @@ import de.jeanlucmakiola.calendula.data.prefs.parsePastEventDisplay
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.hasEnded
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
+import de.jeanlucmakiola.calendula.ui.agenda.anchorTodayIfMissing
 import de.jeanlucmakiola.calendula.ui.agenda.dayCount
 import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
+import de.jeanlucmakiola.calendula.ui.common.localizedDateFormatter
 import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.calendula.widget.AgendaWidgetData
 import de.jeanlucmakiola.calendula.widget.CalendulaGlanceTheme
@@ -65,7 +68,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
-import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
 /**
@@ -90,6 +92,14 @@ internal val AGENDA_RANGE_KEY = stringPreferencesKey("agenda_range")
  * widget without depending on the `provideGlance` preamble re-running.
  */
 internal val AGENDA_PAST_DISPLAY_KEY = stringPreferencesKey("agenda_past_display")
+
+/**
+ * Per-instance Glance state key holding the "always show today" toggle (#35).
+ * Read reactively in the composition for the same reason as [AGENDA_RANGE_KEY] —
+ * so toggling the setting reflects on the live widget without depending on the
+ * `provideGlance` preamble re-running.
+ */
+internal val AGENDA_SHOW_TODAY_STATE_KEY = booleanPreferencesKey("agenda_show_today")
 
 class AgendaWidget : GlanceAppWidget() {
 
@@ -118,6 +128,8 @@ class RefreshAgendaAction : ActionCallback {
 private sealed interface AgendaRow {
     data class Header(val date: LocalDate, val today: LocalDate) : AgendaRow
     data class Event(val event: EventInstance) : AgendaRow
+    /** "Nothing left today" line under an anchored, event-less today (#35). */
+    data class Placeholder(val date: LocalDate) : AgendaRow
 }
 
 @Composable
@@ -139,37 +151,49 @@ private fun AgendaWidgetBody(data: AgendaWidgetData, dark: Boolean) {
                 val range = parseAgendaRange(currentState(AGENDA_RANGE_KEY), data.savedRange)
                 val pastDisplay =
                     parsePastEventDisplay(currentState(AGENDA_PAST_DISPLAY_KEY), data.savedPastDisplay)
+                val showToday = currentState(AGENDA_SHOW_TODAY_STATE_KEY) ?: data.savedShowToday
                 val rangeEnd = data.today.plus(
                     range.dayCount(data.today, data.weekStart) - 1,
                     DateTimeUnit.DAY,
                 )
                 // Slice to the chosen range, then drop finished events (and any day
                 // they leave empty) when the mode is Hide — so "Upcoming" really is.
-                val visibleDays = data.days
-                    .filter { it.date <= rangeEnd }
-                    .let { days ->
-                        if (pastDisplay == PastEventDisplay.HIDE) {
-                            days.mapNotNull { day ->
-                                val remaining = day.events.filterNot { it.hasEnded(data.now) }
-                                if (remaining.isEmpty()) null else day.copy(events = remaining)
+                // Finally re-anchor today (as an empty placeholder day) when the
+                // "always show today" pref is on and today has no events left (#35).
+                val visibleDays = anchorTodayIfMissing(
+                    days = data.days
+                        .filter { it.date <= rangeEnd }
+                        .let { days ->
+                            if (pastDisplay == PastEventDisplay.HIDE) {
+                                days.mapNotNull { day ->
+                                    val remaining = day.events.filterNot { it.hasEnded(data.now) }
+                                    if (remaining.isEmpty()) null else day.copy(events = remaining)
+                                }
+                            } else {
+                                days
                             }
-                        } else {
-                            days
-                        }
-                    }
+                        },
+                    today = data.today,
+                    enabled = showToday,
+                )
                 if (visibleDays.isEmpty()) {
                     WidgetMessage(R.string.agenda_empty_title)
                 } else {
                     val rows = buildList {
                         visibleDays.forEach { day ->
                             add(AgendaRow.Header(day.date, data.today))
-                            day.events.forEach { add(AgendaRow.Event(it)) }
+                            if (day.events.isEmpty()) {
+                                add(AgendaRow.Placeholder(day.date))
+                            } else {
+                                day.events.forEach { add(AgendaRow.Event(it)) }
+                            }
                         }
                     }
                     LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
                         items(rows.size) { index ->
                             when (val row = rows[index]) {
                                 is AgendaRow.Header -> DayHeaderRow(row.date, row.today)
+                                is AgendaRow.Placeholder -> PlaceholderRow(row.date)
                                 is AgendaRow.Event -> EventRow(
                                     event = row.event,
                                     dark = dark,
@@ -262,6 +286,44 @@ private fun DayHeaderRow(date: LocalDate, today: LocalDate) {
     )
 }
 
+/**
+ * A card under an anchored, event-less today (#35) — echoing the widget's
+ * full-empty message ("You're all caught up" here becomes "No more events
+ * today") in a rounded surface so today's slot never looks like a bare header.
+ */
+@Composable
+private fun PlaceholderRow(date: LocalDate) {
+    val context = androidx.glance.LocalContext.current
+    Box(
+        modifier = GlanceModifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .clickable(
+                actionStartActivity(
+                    MainActivity.openDateIntent(context, date, CalendarView.Agenda),
+                ),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = GlanceModifier
+                .fillMaxWidth()
+                .background(GlanceTheme.colors.surfaceVariant)
+                .cornerRadius(16.dp)
+                .padding(vertical = 18.dp, horizontal = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = context.getString(R.string.agenda_no_more_today),
+                style = TextStyle(
+                    color = GlanceTheme.colors.onSurfaceVariant,
+                    fontSize = 14.sp,
+                ),
+            )
+        }
+    }
+}
+
 @Composable
 private fun EventRow(event: EventInstance, dark: Boolean, is24Hour: Boolean, dimmed: Boolean) {
     val context = androidx.glance.LocalContext.current
@@ -337,9 +399,9 @@ private fun agendaDayLabel(context: Context, date: LocalDate, today: LocalDate):
     }
     val locale = Locale.getDefault()
     val java = java.time.LocalDate.of(date.year, date.month.ordinal + 1, date.day)
-    val weekday = java.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, locale)
-    val monthName = java.month.getDisplayName(JavaTextStyle.SHORT, locale)
-    val formatted = "$weekday, ${date.day} $monthName"
+    // Weekday + date in the locale's own field order (compact: no year), rather
+    // than a hardcoded day-month layout.
+    val formatted = localizedDateFormatter(locale, "EEEdMMM").format(java)
     return if (relative != null) "$relative · $formatted" else formatted
 }
 

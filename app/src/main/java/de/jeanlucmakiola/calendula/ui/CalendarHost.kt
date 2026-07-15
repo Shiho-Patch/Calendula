@@ -75,6 +75,8 @@ fun CalendarHost(
     onImportConsumed: () -> Unit = {},
     requestedInsertForm: EventForm? = null,
     onInsertConsumed: () -> Unit = {},
+    requestedEditKey: LongArray? = null,
+    onEditKeyConsumed: () -> Unit = {},
     viewModel: CalendarHostViewModel = hiltViewModel(),
 ) {
     // Wait for the persisted default view before seeding the stack, so the app
@@ -210,6 +212,20 @@ fun CalendarHost(
         editKey = null
         importUri = null
         importForm = null
+    }
+
+    // An external "edit this event" (ACTION_EDIT, e.g. an assistant/task app or
+    // widget) opens the occurrence straight in the edit form. Drop any covering
+    // overlay first — the edit overlay sits below Settings/import in the Box, so
+    // without this it would open hidden underneath them. Same held-key pattern as
+    // a detail-screen "Edit" tap; a saved edit just returns to the calendar.
+    LaunchedEffect(requestedEditKey) {
+        if (requestedEditKey != null) {
+            dismissCoveringOverlays()
+            heldEditKey = requestedEditKey
+            editKey = requestedEditKey
+            onEditKeyConsumed()
+        }
     }
 
     // A home-screen widget launch asks to open a date (→ day view), open an

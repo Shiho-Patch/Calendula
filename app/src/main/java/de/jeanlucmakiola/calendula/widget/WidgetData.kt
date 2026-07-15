@@ -66,6 +66,12 @@ sealed interface AgendaWidgetData {
         val savedRange: AgendaRange,
         /** Saved past-event display pref — the fallback before Glance state is set. */
         val savedPastDisplay: PastEventDisplay,
+        /**
+         * Saved "always show today" pref (#35) — anchors today at the top with a
+         * placeholder even when it has no events left. The fallback read reactively
+         * from Glance state before an instance has its own state set.
+         */
+        val savedShowToday: Boolean,
         /** Snapshot instant the data was read at, for "has this event ended?" tests. */
         val now: Instant,
     ) : AgendaWidgetData
@@ -117,6 +123,7 @@ internal suspend fun Context.loadAgendaWidgetData(): AgendaWidgetData {
     val prefs = ep.settingsPrefs()
     val savedRange = prefs.agendaWidgetRange.first()
     val savedPastDisplay = prefs.pastEventDisplay.first()
+    val showToday = prefs.agendaShowToday.first()
     val weekStart = prefs.weekStart.first().resolveFirstDay(Locale.getDefault())
     // Load the widest selectable window once; the displayed range is sliced in
     // the composition from Glance state, so changing the range is a plain
@@ -132,6 +139,7 @@ internal suspend fun Context.loadAgendaWidgetData(): AgendaWidgetData {
         weekStart = weekStart,
         savedRange = savedRange,
         savedPastDisplay = savedPastDisplay,
+        savedShowToday = showToday,
         now = Clock.System.now(),
     )
 }

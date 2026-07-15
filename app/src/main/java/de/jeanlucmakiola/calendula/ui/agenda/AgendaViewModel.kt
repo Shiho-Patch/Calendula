@@ -66,6 +66,19 @@ class AgendaViewModel @Inject constructor(
             initialValue = PastEventDisplay.SHOW,
         )
 
+    /**
+     * Whether to keep today anchored at the top with a "nothing left today"
+     * placeholder even once it has no remaining events (#35). A display concern
+     * applied in the composition (after past-event filtering), so it rides
+     * alongside the data state like [pastEventDisplay] rather than re-querying.
+     */
+    val showToday: StateFlow<Boolean> = settingsPrefs.agendaShowToday
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = true,
+        )
+
     private val zone = TimeZone.currentSystemDefault()
 
     private val todayDate: LocalDate

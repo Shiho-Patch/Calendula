@@ -43,10 +43,19 @@ internal fun EventForm.toWriteTimes(zone: ZoneId): EventWriteTimes = if (isAllDa
  * DURATION instead of DTEND when an RRULE is set): whole days for all-day
  * events, seconds otherwise.
  */
-internal fun EventWriteTimes.toRfc2445Duration(isAllDay: Boolean): String = if (isAllDay) {
-    "P${(dtEndMillis - dtStartMillis) / MILLIS_PER_DAY}D"
+internal fun EventWriteTimes.toRfc2445Duration(isAllDay: Boolean): String =
+    rfc2445Duration(dtEndMillis - dtStartMillis, isAllDay)
+
+/**
+ * RFC 2445 duration for a [spanMillis]-long event: whole days for all-day
+ * events (the provider's convention), seconds otherwise. Shared by the write
+ * paths that need a DURATION but start from a raw millisecond span (the series
+ * copy and exception replay of a calendar move) rather than [EventWriteTimes].
+ */
+internal fun rfc2445Duration(spanMillis: Long, isAllDay: Boolean): String = if (isAllDay) {
+    "P${spanMillis / MILLIS_PER_DAY}D"
 } else {
-    "P${(dtEndMillis - dtStartMillis) / 1_000L}S"
+    "P${spanMillis / 1_000L}S"
 }
 
 /**
@@ -181,6 +190,121 @@ internal fun buildOccurrenceExceptionValues(
     put(CalendarContract.Events.DESCRIPTION, form.description.trim().ifEmpty { null })
     putAll(eventColorColumns(form.colorKey, form.color))
 }
+
+/**
+ * Raw provider snapshot of a master/one-off Events row, enough to re-insert it
+ * verbatim on another calendar (a calendar move is copy+delete — `CALENDAR_ID`
+ * is sync-adapter-owned and can't be updated in place). Recurring rows carry
+ * [rrule]/[duration] (and any [rdate]/[exdate]) with a null [dtEndMillis];
+ * one-off rows carry [dtEndMillis]. Colour is deliberately absent: a raw
+ * `EVENT_COLOR` or account-scoped `EVENT_COLOR_KEY` may be invalid on the target
+ * account, so the moved copy inherits the target calendar's colour instead.
+ */
+internal data class MasterEventSnapshot(
+    val title: String,
+    val isAllDay: Boolean,
+    val dtStartMillis: Long,
+    val dtEndMillis: Long?,
+    val duration: String?,
+    val rrule: String?,
+    val rdate: String?,
+    val exdate: String?,
+    val timezone: String?,
+    val availability: Int,
+    val accessLevel: Int,
+    val status: Int?,
+    val location: String?,
+    val description: String?,
+)
+
+/**
+ * Column values re-creating [snapshot] as a fresh Events row on
+ * [targetCalendarId], keeping its [uid] so `.ics` backup dedup and sync identity
+ * survive the move. Preserves the recurrence skeleton (DTSTART/RRULE/DURATION,
+ * RDATE/EXDATE) so the series' generated instances — and therefore the
+ * ORIGINAL_INSTANCE_TIME of every copied exception — line up unchanged. The
+ * caller layers the user's field edits on top with a normal series update.
+ */
+internal fun buildMovedMasterValues(
+    snapshot: MasterEventSnapshot,
+    targetCalendarId: Long,
+    uid: String,
+): Map<String, Any?> = buildMap {
+    put(CalendarContract.Events.CALENDAR_ID, targetCalendarId)
+    put(CalendarContract.Events.UID_2445, uid)
+    put(CalendarContract.Events.TITLE, snapshot.title)
+    put(CalendarContract.Events.ALL_DAY, if (snapshot.isAllDay) 1 else 0)
+    put(CalendarContract.Events.DTSTART, snapshot.dtStartMillis)
+    put(CalendarContract.Events.EVENT_TIMEZONE, snapshot.timezone ?: "UTC")
+    if (snapshot.rrule != null) {
+        put(CalendarContract.Events.RRULE, snapshot.rrule)
+        snapshot.rdate?.takeIf { it.isNotBlank() }?.let { put(CalendarContract.Events.RDATE, it) }
+        snapshot.exdate?.takeIf { it.isNotBlank() }?.let { put(CalendarContract.Events.EXDATE, it) }
+        put(CalendarContract.Events.DURATION, snapshot.movedDuration())
+    } else {
+        snapshot.dtEndMillis?.let { put(CalendarContract.Events.DTEND, it) }
+    }
+    put(CalendarContract.Events.AVAILABILITY, snapshot.availability)
+    put(CalendarContract.Events.ACCESS_LEVEL, snapshot.accessLevel)
+    snapshot.status?.let { put(CalendarContract.Events.STATUS, it) }
+    put(CalendarContract.Events.EVENT_LOCATION, snapshot.location?.ifEmpty { null })
+    put(CalendarContract.Events.DESCRIPTION, snapshot.description?.ifEmpty { null })
+}
+
+/** The recurring copy's DURATION: its own if present, else derived from DTEND. */
+private fun MasterEventSnapshot.movedDuration(): String = duration?.takeIf { it.isNotBlank() }
+    ?: rfc2445Duration((dtEndMillis ?: dtStartMillis) - dtStartMillis, isAllDay)
+
+/**
+ * Raw provider snapshot of one exception row of a recurring series (a modified
+ * or cancelled occurrence, `ORIGINAL_ID` = the series). [originalInstanceMillis]
+ * ties it to the occurrence it overrides; a [isCancelled] row only needs that.
+ */
+internal data class ExceptionRowSnapshot(
+    val exceptionEventId: Long,
+    val originalInstanceMillis: Long,
+    val isCancelled: Boolean,
+    val status: Int?,
+    val title: String,
+    val isAllDay: Boolean,
+    val dtStartMillis: Long,
+    val dtEndMillis: Long?,
+    val duration: String?,
+    val timezone: String?,
+    val availability: Int,
+    val accessLevel: Int,
+    val location: String?,
+    val description: String?,
+)
+
+/**
+ * Column values replaying a *modified* occurrence [snapshot] against the moved
+ * series via `CONTENT_EXCEPTION_URI`. Like [buildOccurrenceExceptionValues] the
+ * length travels as DURATION (the provider rejects DTEND on an exception). A
+ * cancelled occurrence is written separately (ORIGINAL_INSTANCE_TIME +
+ * STATUS_CANCELED) — this builder is only for the modified case.
+ */
+internal fun buildCopiedExceptionValues(snapshot: ExceptionRowSnapshot): Map<String, Any?> =
+    buildMap {
+        put(CalendarContract.Events.ORIGINAL_INSTANCE_TIME, snapshot.originalInstanceMillis)
+        put(CalendarContract.Events.TITLE, snapshot.title)
+        put(CalendarContract.Events.ALL_DAY, if (snapshot.isAllDay) 1 else 0)
+        put(CalendarContract.Events.DTSTART, snapshot.dtStartMillis)
+        put(
+            CalendarContract.Events.DURATION,
+            snapshot.duration?.takeIf { it.isNotBlank() }
+                ?: rfc2445Duration(
+                    (snapshot.dtEndMillis ?: snapshot.dtStartMillis) - snapshot.dtStartMillis,
+                    snapshot.isAllDay,
+                ),
+        )
+        put(CalendarContract.Events.EVENT_TIMEZONE, snapshot.timezone ?: "UTC")
+        put(CalendarContract.Events.AVAILABILITY, snapshot.availability)
+        put(CalendarContract.Events.ACCESS_LEVEL, snapshot.accessLevel)
+        put(CalendarContract.Events.EVENT_LOCATION, snapshot.location?.ifEmpty { null })
+        put(CalendarContract.Events.DESCRIPTION, snapshot.description?.ifEmpty { null })
+        snapshot.status?.let { put(CalendarContract.Events.STATUS, it) }
+    }
 
 /**
  * Column values for a *cancelled*-occurrence exception row ("delete only this

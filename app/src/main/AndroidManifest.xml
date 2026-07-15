@@ -97,30 +97,56 @@
                 <data android:mimeType="time/epoch" />
             </intent-filter>
 
-            <!-- Open a .ics file (file manager / email attachment / browser). -->
+            <!-- Open a .ics/.vcs file (file manager / email attachment / browser).
+                 The three MIME types cover the common labels the same calendar
+                 data arrives under: iCalendar 2.0 (text/calendar), the older
+                 vCalendar 1.0 / .vcs (text/x-vcalendar), and application/ics some
+                 mail apps emit — Android cross-products the scheme and mimeType
+                 tags, so each MIME is accepted on both schemes (matches Etar). -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="content" android:mimeType="text/calendar" />
-                <data android:scheme="file" android:mimeType="text/calendar" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="text/calendar" />
+                <data android:mimeType="text/x-vcalendar" />
+                <data android:mimeType="application/ics" />
             </intent-filter>
-            <!-- Receive a .ics shared from another app. -->
+            <!-- Receive a .ics/.vcs shared from another app (same MIME set). -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/calendar" />
+                <data android:mimeType="text/x-vcalendar" />
+                <data android:mimeType="application/ics" />
             </intent-filter>
 
             <!-- Let another app or widget (e.g. the Todo Agenda widget) launch us
                  to create a new event, the way the AOSP calendar accepts it:
                  ACTION_INSERT on the events dir mime type, carrying the new
                  event's fields as CalendarContract extras
-                 (MainActivity.insertFormOrNull, issue #30). -->
+                 (MainActivity.insertFormOrNull, issue #30). ACTION_EDIT on the
+                 dir mime is AOSP's "edit a new event" — i.e. create — so it maps
+                 to the same prefilled create form. -->
             <intent-filter>
                 <action android:name="android.intent.action.INSERT" />
+                <action android:name="android.intent.action.EDIT" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="vnd.android.cursor.dir/event" />
+            </intent-filter>
+
+            <!-- Edit an existing event another app/assistant/widget points at:
+                 ACTION_EDIT on content://com.android.calendar/events/<id>, the way
+                 AOSP fires it. Opens the occurrence in the edit form (not the
+                 read-only detail — that's the VIEW filter above). Matched by the
+                 provider's item MIME type, like the VIEW filter. The occurrence's
+                 times ride as EXTRA_EVENT_BEGIN_TIME / EXTRA_EVENT_END_TIME when
+                 supplied (MainActivity.editEventKeyOrNull). -->
+            <intent-filter>
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="vnd.android.cursor.item/event" />
             </intent-filter>
 
             <!-- Open an existing event another app/widget points at (e.g. tapping

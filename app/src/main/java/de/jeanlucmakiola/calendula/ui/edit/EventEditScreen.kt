@@ -672,15 +672,16 @@ private fun EventEditContent(
 
         Spacer(Modifier.height(gap))
 
-        // Calendar card — tap anywhere to pick the target calendar. Editing
-        // keeps the owning calendar (moving events between calendars is a
-        // sync-adapter minefield; every stock calendar app locks it too).
+        // Calendar card — tap anywhere to pick the target calendar. Picking a
+        // different one while editing *moves* the event (copy+delete on save,
+        // since CALENDAR_ID can't be updated in place). Managed special-dates
+        // events stay locked: the contact sync owns their calendar.
         EditCard(
             icon = Icons.Default.CalendarMonth,
             iconContentDescription = stringResource(R.string.event_detail_calendar),
             iconTint = accent,
             onClick = { showCalendarPicker = true }
-                .takeIf { state.calendars.isNotEmpty() && !state.isEditing },
+                .takeIf { state.calendars.isNotEmpty() && !state.isManaged },
         ) {
             Text(
                 text = selectedCalendar?.displayName

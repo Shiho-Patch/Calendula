@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A custom snooze duration. The **Snooze duration** setting (Settings →
+  Notifications) gains a **Custom…** option next to the minute presets: pick any
+  amount and switch between minutes and hours, so a snoozed reminder comes back
+  after exactly the delay you want instead of only a preset one ([#40]).
+- Move an event to another calendar. When editing an existing event, the
+  calendar row is now tappable — pick a different calendar and saving moves the
+  event across, instead of having to delete it and recreate it elsewhere.
+  Recurring series move as a whole, keeping their individually-edited and
+  cancelled occurrences, and any reminders and guests come along too. A calendar
+  can't simply be reassigned underneath an event, so Calendula recreates it on
+  the target and removes the original — the same approach other calendar apps
+  take. Thanks to @prismplex for the suggestion ([#39]).
+- Open an event straight into the edit form from another app. Calendula already
+  answered the "new event" and "open this event" hand-offs from other apps and
+  widgets; it now also answers the "edit this event" one, so an assistant, task
+  app, or widget can send an existing event to Calendula and land on its edit
+  screen rather than the read-only details. A hand-off with no event attached
+  opens the same prefilled create form as "new event". Calendula also recognises
+  a couple more file labels the same calendar data arrives under (`.vcs`
+  vCalendar files and the `application/ics` type), so opening or sharing those
+  into Calendula works too.
+- Keep today at the top of the agenda. A new **Always show today** setting
+  (Settings → Agenda, on by default) anchors today as the first entry in both the
+  Agenda screen and its home-screen widget even once nothing is left today —
+  under today's header a small "No more events today" card appears — so the first
+  events you see are clearly today's rather than a future day's. Turn it off to
+  keep the agenda purely upcoming. Thanks to @ptab for the suggestion ([#35]).
+
+### Fixed
+- Reminders for events on another day no longer read as if they were today. A
+  reminder fired ahead of time — say, the day before — used to show only the
+  event's time, making it look like it was happening now. The notification now
+  says which day: **Tomorrow** or **Yesterday**, the weekday for another day this
+  week, or the date for anything further out. Thanks to @moonj for the report
+  ([#46]).
+
 ## [2.14.1] — 2026-07-13
 
 ### Fixed
@@ -913,6 +950,10 @@ automatically, with zero telemetry and no internet permission.
 [#33]: https://codeberg.org/jlmakiola/calendula/issues/33
 [#34]: https://codeberg.org/jlmakiola/calendula/issues/34
 [#37]: https://codeberg.org/jlmakiola/calendula/issues/37
+[#39]: https://codeberg.org/jlmakiola/calendula/issues/39
+[#35]: https://codeberg.org/jlmakiola/calendula/issues/35
+[#40]: https://codeberg.org/jlmakiola/calendula/issues/40
+[#46]: https://codeberg.org/jlmakiola/calendula/issues/46
 [#47]: https://codeberg.org/jlmakiola/calendula/issues/47
 [#48]: https://codeberg.org/jlmakiola/calendula/issues/48
 [#49]: https://codeberg.org/jlmakiola/calendula/issues/49
