@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Card
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -106,6 +107,7 @@ fun AgendaScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val anchor by viewModel.anchor.collectAsStateWithLifecycle()
     val pastDisplay by viewModel.pastEventDisplay.collectAsStateWithLifecycle()
+    val showToday by viewModel.showToday.collectAsStateWithLifecycle()
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -190,6 +192,7 @@ fun AgendaScreen(
                 AgendaContent(
                     state = state,
                     pastDisplay = pastDisplay,
+                    showToday = showToday,
                     onRetry = viewModel::goToToday,
                     onEventClick = onEventClick,
                     onOpenDay = onOpenDay,
@@ -289,6 +292,7 @@ private fun AgendaRangeBanner(
 private fun AgendaContent(
     state: AgendaUiState,
     pastDisplay: PastEventDisplay,
+    showToday: Boolean,
     onRetry: () -> Unit,
     onEventClick: (EventInstance) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
@@ -304,7 +308,7 @@ private fun AgendaContent(
             // Hiding drops finished events — and any day they leave empty; dimming
             // keeps them but fades the row. Recomputed each minute so events fall
             // away (or fade) as they end while the screen stays open.
-            val days = if (pastDisplay == PastEventDisplay.HIDE) {
+            val filtered = if (pastDisplay == PastEventDisplay.HIDE) {
                 state.days.mapNotNull { day ->
                     val remaining = day.events.filterNot { it.hasEnded(now) }
                     if (remaining.isEmpty()) null else day.copy(events = remaining)
@@ -312,6 +316,14 @@ private fun AgendaContent(
             } else {
                 state.days
             }
+            // Anchor today with a "nothing left today" placeholder — but only when
+            // the window actually starts on today; a jumped-to date has no today in
+            // it, so anchoring there would be misleading (#35).
+            val days = anchorTodayIfMissing(
+                days = filtered,
+                today = state.today,
+                enabled = showToday && state.anchor == state.today,
+            )
             if (days.isEmpty()) {
                 AgendaEmpty(modifier)
             } else {
@@ -349,17 +361,24 @@ private fun AgendaList(
             stickyHeader(key = "header-${day.date}") {
                 AgendaDayHeader(date = day.date, today = today, onOpenDay = onOpenDay)
             }
-            itemsIndexed(
-                items = day.events,
-                key = { _, event -> event.instanceId },
-            ) { index, event ->
-                AgendaEventRow(
-                    event = event,
-                    position = positionOf(index, day.events.size),
-                    dimmed = dimPast && event.hasEnded(now),
-                    modifier = animateItemMotion(),
-                    onClick = { onEventClick(event) },
-                )
+            if (day.events.isEmpty()) {
+                // An anchored, event-less today (#35) — "nothing left today".
+                item(key = "placeholder-${day.date}") {
+                    AgendaEmptyDayRow(onClick = { onOpenDay(day.date) })
+                }
+            } else {
+                itemsIndexed(
+                    items = day.events,
+                    key = { _, event -> event.instanceId },
+                ) { index, event ->
+                    AgendaEventRow(
+                        event = event,
+                        position = positionOf(index, day.events.size),
+                        dimmed = dimPast && event.hasEnded(now),
+                        modifier = animateItemMotion(),
+                        onClick = { onEventClick(event) },
+                    )
+                }
             }
             item(key = "gap-${day.date}") { Spacer(Modifier.height(8.dp)) }
         }
@@ -388,6 +407,42 @@ private fun AgendaDayHeader(
             },
             modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 16.dp, bottom = 8.dp),
         )
+    }
+}
+
+/**
+ * A card under an anchored, event-less today (#35) — the same coffee-cup motif
+ * as the full-screen [AgendaEmpty] state, boxed into a card so today keeps a
+ * visible slot when nothing is left rather than a bare header.
+ */
+@Composable
+private fun AgendaEmptyDayRow(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clickable(onClick = onClick),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 18.dp, horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Coffee,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(36.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.agenda_no_more_today),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 

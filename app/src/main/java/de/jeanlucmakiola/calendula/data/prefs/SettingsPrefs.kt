@@ -253,6 +253,20 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * Whether the agenda (both the in-app screen and the home-screen widget)
+     * always anchors today at the top with a "nothing left today" placeholder,
+     * even once today has no remaining events (issue #35). Default ON — makes
+     * today's events easy to tell apart from a future day's at a glance.
+     */
+    val agendaShowToday: Flow<Boolean> = store.data.map { prefs ->
+        prefs[AGENDA_SHOW_TODAY_KEY] ?: true
+    }
+
+    suspend fun setAgendaShowToday(enabled: Boolean) {
+        store.edit { it[AGENDA_SHOW_TODAY_KEY] = enabled }
+    }
+
+    /**
      * The calendar view the app opens on (M1). Defaults to [CalendarView.Week] —
      * the historical hard-coded startup view — so existing users see no change
      * until they pick another. Also the bottom of the in-app view back stack, so
@@ -673,6 +687,8 @@ class SettingsPrefs @Inject constructor(
         internal val AGENDA_SCREEN_RANGE_KEY = stringPreferencesKey("agenda_screen_range")
         internal val AGENDA_WIDGET_RANGE_KEY = stringPreferencesKey("agenda_widget_range")
         internal val AGENDA_SHOW_RANGE_BAR_KEY = booleanPreferencesKey("agenda_show_range_bar")
+        internal val AGENDA_SHOW_TODAY_KEY =
+            booleanPreferencesKey("agenda_show_today")
         internal val TIME_FORMAT_KEY = stringPreferencesKey("time_format")
         internal val SHOW_HOUR_LINES_KEY = booleanPreferencesKey("show_hour_lines")
         internal val PAST_EVENT_DISPLAY_KEY = stringPreferencesKey("agenda_past_event_display")

@@ -632,6 +632,18 @@ private fun AppearanceScreen(
             onClick = { showAgendaWidgetRange = true },
         )
         GroupedRow(
+            title = stringResource(R.string.settings_agenda_show_today),
+            summary = stringResource(R.string.settings_agenda_show_today_hint),
+            position = Position.Middle,
+            trailing = {
+                Switch(
+                    checked = state.agendaShowToday,
+                    onCheckedChange = viewModel::setAgendaShowToday,
+                )
+            },
+            onClick = { viewModel.setAgendaShowToday(!state.agendaShowToday) },
+        )
+        GroupedRow(
             title = stringResource(R.string.settings_agenda_range_bar),
             summary = stringResource(R.string.settings_agenda_range_bar_hint),
             position = Position.Bottom,

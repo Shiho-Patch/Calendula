@@ -39,6 +39,8 @@ data class SettingsUiState(
     val agendaScreenRange: AgendaRange = AgendaRange.Month,
     /** How far ahead the agenda widget shows events (v2.11). */
     val agendaWidgetRange: AgendaRange = AgendaRange.Month,
+    /** Whether the agenda (screen + widget) always anchors today at the top (#35). */
+    val agendaShowToday: Boolean = true,
     /** Whether the agenda shows its top range bar — header + switcher (v2.11). */
     val agendaShowRangeBar: Boolean = true,
     /** The calendar view the app opens on, and the home of the view back stack (M1). */

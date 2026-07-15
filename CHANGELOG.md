@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a couple more file labels the same calendar data arrives under (`.vcs`
   vCalendar files and the `application/ics` type), so opening or sharing those
   into Calendula works too.
+- Keep today at the top of the agenda. A new **Always show today** setting
+  (Settings → Agenda, on by default) anchors today as the first entry in both the
+  Agenda screen and its home-screen widget even once nothing is left today —
+  under today's header a small "No more events today" card appears — so the first
+  events you see are clearly today's rather than a future day's. Turn it off to
+  keep the agenda purely upcoming. Thanks to @ptab for the suggestion ([#35]).
 
 ### Fixed
 - Reminders for events on another day no longer read as if they were today. A
@@ -945,6 +951,7 @@ automatically, with zero telemetry and no internet permission.
 [#34]: https://codeberg.org/jlmakiola/calendula/issues/34
 [#37]: https://codeberg.org/jlmakiola/calendula/issues/37
 [#39]: https://codeberg.org/jlmakiola/calendula/issues/39
+[#35]: https://codeberg.org/jlmakiola/calendula/issues/35
 [#40]: https://codeberg.org/jlmakiola/calendula/issues/40
 [#46]: https://codeberg.org/jlmakiola/calendula/issues/46
 [#47]: https://codeberg.org/jlmakiola/calendula/issues/47
