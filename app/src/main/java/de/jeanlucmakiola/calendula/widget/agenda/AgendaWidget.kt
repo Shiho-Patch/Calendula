@@ -287,41 +287,25 @@ private fun DayHeaderRow(date: LocalDate, today: LocalDate) {
 }
 
 /**
- * A card under an anchored, event-less today (#35) — echoing the widget's
- * full-empty message ("You're all caught up" here becomes "No more events
- * today") in a rounded surface so today's slot never looks like a bare header.
+ * "No more events today" under an anchored, event-less today (#35). Kept plain —
+ * a muted line indented to the event titles — since the widget's event rows are
+ * plain too (a stripe + text, not cards), so a card here would look out of place.
  */
 @Composable
 private fun PlaceholderRow(date: LocalDate) {
     val context = androidx.glance.LocalContext.current
-    Box(
+    Text(
+        text = context.getString(R.string.agenda_no_more_today),
+        style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 14.sp),
         modifier = GlanceModifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 4.dp)
+            .padding(start = 19.dp, end = 8.dp, top = 2.dp, bottom = 6.dp)
             .clickable(
                 actionStartActivity(
                     MainActivity.openDateIntent(context, date, CalendarView.Agenda),
                 ),
             ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = GlanceModifier
-                .fillMaxWidth()
-                .background(GlanceTheme.colors.surfaceVariant)
-                .cornerRadius(16.dp)
-                .padding(vertical = 18.dp, horizontal = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = context.getString(R.string.agenda_no_more_today),
-                style = TextStyle(
-                    color = GlanceTheme.colors.onSurfaceVariant,
-                    fontSize = 14.sp,
-                ),
-            )
-        }
-    }
+    )
 }
 
 @Composable
