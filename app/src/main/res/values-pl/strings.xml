@@ -515,4 +515,6 @@
     <string name="settings_soften_colors_summary">Dopasuj intensywność kolorów kalendarza i wydarzeń do motywu. Wyłącz tę opcję, aby wyświetlać oryginalne kolory ze źródła kalendarza.</string>
     <string name="settings_agenda_show_today">Zawsze pokazuj dzisiejszy dzień</string>
     <string name="settings_agenda_show_today_hint">Zachowaj dzisiejszy dzień na górze agendy i widżetu, nawet gdy nie ma już na dziś żadnych zadań.</string>
+    <string name="special_dates_calendar_birthday">Urodziny</string>
+    <string name="special_dates_calendar_anniversary">Rocznice</string>
 </resources>
