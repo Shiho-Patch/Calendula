@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Keep today at the top of the agenda. A new **Always show today** setting
   (Settings → Agenda, on by default) anchors today as the first entry in both the
   Agenda screen and its home-screen widget even once nothing is left today —
-  under today's header a small "No more events today" card appears — so the first
+  under today's header a "No more events today" note appears — so the first
   events you see are clearly today's rather than a future day's. Turn it off to
   keep the agenda purely upcoming. Thanks to @ptab for the suggestion ([#35]).
 - Duplicate an event. The event details now carry a **Duplicate** action that
@@ -52,6 +52,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   says which day: **Tomorrow** or **Yesterday**, the weekday for another day this
   week, or the date for anything further out. Thanks to @moonj for the report
   ([#46]).
+- Agenda dates now read in your locale's format. The agenda's range bar and its
+  day headers used a fixed day-month-year layout — and the range span even mixed
+  two orders (e.g. "15 Jul – Aug 13, 2026") — instead of following your language's
+  conventions. Dates across the agenda and its widget now use your locale's own
+  field order, matching the rest of the app. The range bar also no longer repeats
+  the range's name from the selector button beside it, showing just the dates.
+- Calendar gutters line up with the menu button. The Month view's week-number
+  column, and the Week and Day views' hour labels, sat a few pixels left of the
+  hamburger menu above them; they now line up with it. In Month view the day
+  cells also sit squarely under their weekday letters.
 
 ## [2.14.1] — 2026-07-13
 
