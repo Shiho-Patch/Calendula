@@ -49,6 +49,7 @@
     <string name="event_detail_edit">Edit</string>
     <string name="event_detail_delete">Delete</string>
     <string name="event_detail_share">Share</string>
+    <string name="event_detail_duplicate">Duplicate</string>
     <string name="event_share_chooser_title">Share event</string>
     <string name="event_share_failed">Couldn\'t share this event.</string>
     <string name="event_delete_title">Delete event?</string>

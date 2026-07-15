@@ -368,6 +368,14 @@ fun CalendarHost(
                         heldEditKey = key
                         editKey = key
                     },
+                    onDuplicate = { form ->
+                        // Reuse the prefilled-create overlay: a duplicate is a
+                        // fresh event, so it applies the default reminder like an
+                        // in-app new event (#52).
+                        importFormSource = ImportSource.Insert
+                        importForm = form
+                        detailKey = null
+                    },
                 )
             }
         }
