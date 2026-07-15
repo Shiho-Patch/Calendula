@@ -20,6 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   can't simply be reassigned underneath an event, so Calendula recreates it on
   the target and removes the original — the same approach other calendar apps
   take. Thanks to @prismplex for the suggestion ([#39]).
+- Open an event straight into the edit form from another app. Calendula already
+  answered the "new event" and "open this event" hand-offs from other apps and
+  widgets; it now also answers the "edit this event" one, so an assistant, task
+  app, or widget can send an existing event to Calendula and land on its edit
+  screen rather than the read-only details. A hand-off with no event attached
+  opens the same prefilled create form as "new event". Calendula also recognises
+  a couple more file labels the same calendar data arrives under (`.vcs`
+  vCalendar files and the `application/ics` type), so opening or sharing those
+  into Calendula works too.
 
 ### Fixed
 - Reminders for events on another day no longer read as if they were today. A
