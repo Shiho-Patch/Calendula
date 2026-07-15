@@ -44,6 +44,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   editor if you want it). Duplicate works from read-only calendars too, dropping
   the copy into a writable one. Thanks to @internet-rando for the suggestion
   ([#52]).
+- French and Polish, in early form. Calendula has started speaking French and
+  Polish, both contributed as community translations through
+  [Calendula's Weblate](https://weblate.dev.jeanlucmakiola.de/projects/calendula/).
+  They are partway there, so untranslated parts still show in English until they
+  fill out — you can already pick either under Settings → Language or in Android's
+  per-app language settings. Thanks to Thomas Tref (French) and Bazyli Cyran
+  (Polish) for getting them started; help finishing them is very welcome.
 
 ### Fixed
 - Reminders for events on another day no longer read as if they were today. A
