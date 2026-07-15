@@ -97,6 +97,10 @@ import kotlin.math.roundToInt
 
 private val HOUR_HEIGHT = 56.dp
 private val GUTTER_WIDTH = 48.dp
+/** Start inset for the gutter's hour labels so they centre on the top bar's
+ *  hamburger: with a 48dp gutter, 8dp lands the centre at 28dp (the app bar's
+ *  4dp inset + 24dp half icon button), matching the week view. */
+private val GUTTER_CONTENT_START_INSET = 8.dp
 private val MIN_EVENT_HEIGHT = 24.dp
 private val ALL_DAY_ROW_HEIGHT = 24.dp
 private val ALL_DAY_VERTICAL_PADDING = 6.dp
@@ -484,10 +488,12 @@ private fun Timeline(
         // static, rounded-clipped window — the content scrolls inside it, so the
         // soft corners are permanent at any scroll position.
         Row(modifier = Modifier.fillMaxSize()) {
-            // Hour gutter (scrolls in sync with the day column)
+            // Hour gutter (scrolls in sync with the day column). Start inset so the
+            // labels centre on the top bar hamburger, matching the week view.
             Column(
                 modifier = Modifier
                     .width(GUTTER_WIDTH)
+                    .padding(start = GUTTER_CONTENT_START_INSET)
                     .fillMaxHeight()
                     .verticalScroll(scrollState),
             ) {
