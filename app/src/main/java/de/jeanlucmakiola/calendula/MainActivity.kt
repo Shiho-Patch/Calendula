@@ -29,6 +29,7 @@ import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.buildInsertEventForm
 import de.jeanlucmakiola.calendula.ui.RootScreen
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
+import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.WidgetNavRequest
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
@@ -70,6 +71,11 @@ class MainActivity : AppCompatActivity() {
     // CalendarHost, which opens it in the create form for review.
     private var requestedInsertForm by mutableStateOf<EventForm?>(null)
 
+    // An external "edit this event" (ACTION_EDIT on content://.../events/<id>):
+    // opens the occurrence in the edit form. Same occurrence-key shape as the
+    // detail channel; consumed once by CalendarHost.
+    private var requestedEditKey by mutableStateOf<LongArray?>(null)
+
     // A captured crash report awaiting the user's decision, surfaced as a dialog
     // over the calendar on the next launch (the single-crash path). A startup
     // crash-loop is handled out of band, before setContent — see below.
@@ -95,6 +101,7 @@ class MainActivity : AppCompatActivity() {
         requestedNav = intent.navRequestOrNull()
         requestedImportUri = intent.importUriOrNull()
         requestedInsertForm = intent.insertFormOrNull()
+        requestedEditKey = intent.editEventKeyOrNull()
         if (CrashReporter.shouldPrompt(this)) pendingCrashReport = CrashReporter.pendingReport(this)
         setContent {
             // One activity-scoped SettingsViewModel drives both the theme here
@@ -134,6 +141,7 @@ class MainActivity : AppCompatActivity() {
                     CompositionLocalProvider(
                         LocalUse24HourFormat provides use24Hour,
                         LocalShowHourLines provides settings.showHourLines,
+                        LocalSoftenColors provides settings.softenColors,
                     ) {
                         RootScreen(
                             modifier = Modifier.fillMaxSize(),
@@ -145,6 +153,8 @@ class MainActivity : AppCompatActivity() {
                             onImportConsumed = { requestedImportUri = null },
                             requestedInsertForm = requestedInsertForm,
                             onInsertConsumed = { requestedInsertForm = null },
+                            requestedEditKey = requestedEditKey,
+                            onEditKeyConsumed = { requestedEditKey = null },
                         )
                     }
                     // A persistent corner marker so a debug build is never
@@ -183,6 +193,7 @@ class MainActivity : AppCompatActivity() {
         intent.navRequestOrNull()?.let { requestedNav = it }
         intent.importUriOrNull()?.let { requestedImportUri = it }
         intent.insertFormOrNull()?.let { requestedInsertForm = it }
+        intent.editEventKeyOrNull()?.let { requestedEditKey = it }
     }
 
     /**
@@ -203,13 +214,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * A prefilled new-event form from an external `ACTION_INSERT` launch — another
-     * app or widget (e.g. Todo Agenda) asking us to create an event (issue #30).
-     * The new event's fields ride as CalendarContract extras; anything omitted
-     * falls back to the in-app "new event" defaults in [buildInsertEventForm].
+     * A prefilled new-event form from an external launch asking us to create an
+     * event — another app or widget (e.g. Todo Agenda) firing `ACTION_INSERT`
+     * (issue #30), or `ACTION_EDIT` with no concrete event id (AOSP's "edit a new
+     * event", i.e. create). The new event's fields ride as CalendarContract
+     * extras; anything omitted falls back to the in-app "new event" defaults in
+     * [buildInsertEventForm].
      */
     private fun Intent.insertFormOrNull(): EventForm? {
-        if (action != Intent.ACTION_INSERT) return null
+        // ACTION_EDIT on an existing event routes to the edit form instead
+        // ([editEventKeyOrNull]); only an id-less EDIT is a create.
+        val isCreate = action == Intent.ACTION_INSERT ||
+            (action == Intent.ACTION_EDIT && editEventKeyOrNull() == null)
+        if (!isCreate) return null
         return buildInsertEventForm(
             beginMillis = longExtraOrNull(CalendarContract.EXTRA_EVENT_BEGIN_TIME),
             endMillis = longExtraOrNull(CalendarContract.EXTRA_EVENT_END_TIME),
@@ -306,6 +323,31 @@ class MainActivity : AppCompatActivity() {
      */
     private fun Intent.viewEventKeyOrNull(): LongArray? {
         if (action != Intent.ACTION_VIEW) return null
+        val uri = data ?: return null
+        if (uri.host != CALENDAR_PROVIDER_HOST) return null
+        val segments = uri.pathSegments
+        if (segments.firstOrNull() != "events") return null
+        val eventId = segments.getOrNull(1)?.toLongOrNull() ?: return null
+        return longArrayOf(
+            eventId,
+            longExtraOrNull(CalendarContract.EXTRA_EVENT_BEGIN_TIME) ?: NO_OCCURRENCE_TIME,
+            longExtraOrNull(CalendarContract.EXTRA_EVENT_END_TIME) ?: NO_OCCURRENCE_TIME,
+        )
+    }
+
+    /**
+     * The occurrence key for an external "edit this event" — `ACTION_EDIT` on
+     * `content://com.android.calendar/events/<id>`, the way AOSP fires it (e.g.
+     * an assistant, task app, or widget that wants to open the event for editing
+     * rather than viewing). Opens it in the edit form. Reuses the same
+     * occurrence-key channel as reminder/view taps; the caller passes the
+     * occurrence's times as `EXTRA_EVENT_BEGIN_TIME` / `EXTRA_EVENT_END_TIME`
+     * when it has them, otherwise we carry [NO_OCCURRENCE_TIME] and
+     * [EventEditViewModel.openForEdit] falls back to the event row's own
+     * DTSTART/DTEND. An id-less `ACTION_EDIT` is a create instead ([insertFormOrNull]).
+     */
+    private fun Intent.editEventKeyOrNull(): LongArray? {
+        if (action != Intent.ACTION_EDIT) return null
         val uri = data ?: return null
         if (uri.host != CALENDAR_PROVIDER_HOST) return null
         val segments = uri.pathSegments

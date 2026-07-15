@@ -14,16 +14,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
-import de.jeanlucmakiola.floret.components.pastelize
 
 /**
  * Leading avatar for a calendar: a neutral chip holding a calendar glyph tinted
- * in the calendar's (pastelised) colour. Shared by the calendar manager and the
- * visibility filter so they read identically.
+ * in the calendar's colour — softened to a pastel, or raw when the softener is
+ * off (issue #36). Shared by the calendar manager and the visibility filter so
+ * they read identically.
  */
 @Composable
 fun CalendarColorChip(color: Int, modifier: Modifier = Modifier) {
     val dark = isSystemInDarkTheme()
+    val soften = LocalSoftenColors.current
     Box(
         modifier = modifier
             .size(40.dp)
@@ -34,7 +35,7 @@ fun CalendarColorChip(color: Int, modifier: Modifier = Modifier) {
         Icon(
             Icons.Filled.CalendarMonth,
             contentDescription = null,
-            tint = pastelize(color, dark),
+            tint = eventFill(color, dark, soften),
             modifier = Modifier.size(22.dp),
         )
     }

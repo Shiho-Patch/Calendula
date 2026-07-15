@@ -17,7 +17,11 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.is24Hour
+import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import kotlinx.coroutines.flow.first
+import kotlinx.datetime.isoDayNumber
+import java.time.DayOfWeek
+import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
 import javax.inject.Inject
@@ -55,13 +59,22 @@ class ReminderNotifier @Inject constructor(
         val title = alert.title.ifBlank { context.getString(R.string.event_untitled) }
         val is24Hour = settingsPrefs.timeFormat.first()
             .is24Hour(android.text.format.DateFormat.is24HourFormat(context))
+        val zone = ZoneId.systemDefault()
+        val locale = Locale.getDefault()
+        // resolveFirstDay yields a kotlinx.datetime day; bridge it to java.time by
+        // its shared ISO number (1..7) for the date math in reminderTimeText.
+        val firstDayOfWeek = DayOfWeek.of(settingsPrefs.weekStart.first().resolveFirstDay(locale).isoDayNumber)
         val time = reminderTimeText(
             beginMillis = alert.beginMillis,
             endMillis = alert.endMillis,
             isAllDay = alert.isAllDay,
-            zone = ZoneId.systemDefault(),
-            locale = Locale.getDefault(),
+            zone = zone,
+            locale = locale,
             is24Hour = is24Hour,
+            today = Instant.now().atZone(zone).toLocalDate(),
+            firstDayOfWeek = firstDayOfWeek,
+            tomorrowLabel = context.getString(R.string.reminder_day_tomorrow),
+            yesterdayLabel = context.getString(R.string.reminder_day_yesterday),
         )
         val text = listOfNotNull(time, alert.location).joinToString(" · ")
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)

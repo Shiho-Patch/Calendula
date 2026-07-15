@@ -42,6 +42,24 @@ fun groupAgendaDays(
         }
 
 /**
+ * Ensure [today] surfaces as the first agenda day even when it carries no
+ * (remaining) events, by prepending an empty-event [AgendaDay] the agenda widget
+ * renders as a "nothing left today" placeholder. A no-op unless [enabled], and
+ * when today already has its own day in [days]. Keeps today anchored at the top
+ * so a glance tells today's events apart from a future day's (issue #35).
+ */
+fun anchorTodayIfMissing(
+    days: List<AgendaDay>,
+    today: LocalDate,
+    enabled: Boolean,
+): List<AgendaDay> =
+    if (enabled && days.none { it.date == today }) {
+        listOf(AgendaDay(today, emptyList())) + days
+    } else {
+        days
+    }
+
+/**
  * State for the Agenda view: a flat, forward-looking list of upcoming events
  * grouped by day (only days that actually have events appear).
  */

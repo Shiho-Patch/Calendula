@@ -15,16 +15,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Coffee
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
 import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,6 +59,8 @@ import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.hasEnded
 import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
+import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.floret.identity.animateItemMotion
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
@@ -65,12 +68,12 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.localizedDateFormatter
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.next
-import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
@@ -83,7 +86,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
-import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
 private val zone = TimeZone.currentSystemDefault()
@@ -106,6 +108,7 @@ fun AgendaScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val anchor by viewModel.anchor.collectAsStateWithLifecycle()
     val pastDisplay by viewModel.pastEventDisplay.collectAsStateWithLifecycle()
+    val showToday by viewModel.showToday.collectAsStateWithLifecycle()
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -170,9 +173,11 @@ fun AgendaScreen(
                 successState?.takeIf { it.showRangeBar }?.let { s ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
+                        // end aligns the selector's right edge with the top-bar view
+                        // switcher (its 8.dp margin + the app bar's 4.dp inset).
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 28.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                            .padding(start = 28.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
                     ) {
                         AgendaRangeBanner(
                             range = s.range,
@@ -190,6 +195,7 @@ fun AgendaScreen(
                 AgendaContent(
                     state = state,
                     pastDisplay = pastDisplay,
+                    showToday = showToday,
                     onRetry = viewModel::goToToday,
                     onEventClick = onEventClick,
                     onOpenDay = onOpenDay,
@@ -213,9 +219,11 @@ fun AgendaScreen(
 }
 
 /**
- * A compact tonal pill showing the agenda's current range. Tapping it opens the
- * range picker as a session-only override. Filled with the primary container
- * while an override is active, so the temporary state is obvious.
+ * The agenda's current range, tapped to open the range picker as a session-only
+ * override. Shares the top-bar view switcher's button shape so the two read as a
+ * family, but stays low-emphasis — a subtle neutral surface tint rather than the
+ * switcher's secondary container, so it doesn't compete. Fills with the primary
+ * container only while an override is active, to make that temporary state clear.
  */
 @Composable
 private fun AgendaRangePill(
@@ -224,43 +232,34 @@ private fun AgendaRangePill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val container = if (isOverride) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHigh
-    }
-    val content = if (isOverride) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Surface(
-        color = container,
-        contentColor = content,
-        shape = RoundedCornerShape(50),
-        modifier = modifier.clickable(onClick = onClick),
+    FilledTonalButton(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.large,
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = if (isOverride) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+            contentColor = if (isOverride) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        ),
+        modifier = modifier,
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Filled.DateRange,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = agendaRangeLabel(range),
-                style = MaterialTheme.typography.labelLarge,
-            )
-        }
+        Text(
+            text = agendaRangeLabel(range),
+            style = MaterialTheme.typography.labelLarge,
+        )
     }
 }
 
 /**
- * A header naming the concrete window currently shown, e.g. "Showing all events
- * for · Today, 27 Jun 2026" / "This week, 27 Jun – 3 Jul" / "This month, June 2026".
+ * A header naming the concrete window currently shown under a "showing …" label,
+ * e.g. "27 Jun 2026" / "27 Jun – 3 Jul 2026" / "June 2026". The range's name
+ * lives on the selector button beside it, so it isn't repeated here.
  */
 @Composable
 private fun AgendaRangeBanner(
@@ -277,8 +276,10 @@ private fun AgendaRangeBanner(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        // Just the concrete dates — the range's name ("Next 30 days") already
+        // sits on the selector button to the right, so repeating it here is noise.
         Text(
-            text = "${agendaRangeLabel(range)}, $window",
+            text = window,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -289,6 +290,7 @@ private fun AgendaRangeBanner(
 private fun AgendaContent(
     state: AgendaUiState,
     pastDisplay: PastEventDisplay,
+    showToday: Boolean,
     onRetry: () -> Unit,
     onEventClick: (EventInstance) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
@@ -304,7 +306,7 @@ private fun AgendaContent(
             // Hiding drops finished events — and any day they leave empty; dimming
             // keeps them but fades the row. Recomputed each minute so events fall
             // away (or fade) as they end while the screen stays open.
-            val days = if (pastDisplay == PastEventDisplay.HIDE) {
+            val filtered = if (pastDisplay == PastEventDisplay.HIDE) {
                 state.days.mapNotNull { day ->
                     val remaining = day.events.filterNot { it.hasEnded(now) }
                     if (remaining.isEmpty()) null else day.copy(events = remaining)
@@ -312,6 +314,14 @@ private fun AgendaContent(
             } else {
                 state.days
             }
+            // Anchor today with a "nothing left today" placeholder — but only when
+            // the window actually starts on today; a jumped-to date has no today in
+            // it, so anchoring there would be misleading (#35).
+            val days = anchorTodayIfMissing(
+                days = filtered,
+                today = state.today,
+                enabled = showToday && state.anchor == state.today,
+            )
             if (days.isEmpty()) {
                 AgendaEmpty(modifier)
             } else {
@@ -349,17 +359,24 @@ private fun AgendaList(
             stickyHeader(key = "header-${day.date}") {
                 AgendaDayHeader(date = day.date, today = today, onOpenDay = onOpenDay)
             }
-            itemsIndexed(
-                items = day.events,
-                key = { _, event -> event.instanceId },
-            ) { index, event ->
-                AgendaEventRow(
-                    event = event,
-                    position = positionOf(index, day.events.size),
-                    dimmed = dimPast && event.hasEnded(now),
-                    modifier = animateItemMotion(),
-                    onClick = { onEventClick(event) },
-                )
+            if (day.events.isEmpty()) {
+                // An anchored, event-less today (#35) — "nothing left today".
+                item(key = "placeholder-${day.date}") {
+                    AgendaEmptyDayRow(onClick = { onOpenDay(day.date) })
+                }
+            } else {
+                itemsIndexed(
+                    items = day.events,
+                    key = { _, event -> event.instanceId },
+                ) { index, event ->
+                    AgendaEventRow(
+                        event = event,
+                        position = positionOf(index, day.events.size),
+                        dimmed = dimPast && event.hasEnded(now),
+                        modifier = animateItemMotion(),
+                        onClick = { onEventClick(event) },
+                    )
+                }
             }
             item(key = "gap-${day.date}") { Spacer(Modifier.height(8.dp)) }
         }
@@ -391,6 +408,44 @@ private fun AgendaDayHeader(
     }
 }
 
+/**
+ * A card under an anchored, event-less today (#35) — the same coffee-cup motif
+ * as the full-screen [AgendaEmpty] state, boxed into a card so today keeps a
+ * visible slot when nothing is left rather than a bare header.
+ */
+@Composable
+private fun AgendaEmptyDayRow(onClick: () -> Unit) {
+    Card(
+        // Match a single event row's resting corner radius (floret groupedShape).
+        shape = RoundedCornerShape(22.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .clickable(onClick = onClick),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 18.dp, horizontal = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Coffee,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(36.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.agenda_no_more_today),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
 @Composable
 private fun AgendaEventRow(
     event: EventInstance,
@@ -400,6 +455,7 @@ private fun AgendaEventRow(
     onClick: () -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
+    val soften = LocalSoftenColors.current
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     GroupedRow(
         modifier = if (dimmed) modifier.alpha(EventDimAlpha) else modifier,
@@ -412,7 +468,7 @@ private fun AgendaEventRow(
                 modifier = Modifier
                     .size(width = 6.dp, height = 36.dp)
                     .clip(RoundedCornerShape(3.dp))
-                    .background(pastelize(event.color, dark)),
+                    .background(eventFill(event.color, dark, soften)),
             )
         },
         onClick = onClick,
@@ -520,7 +576,7 @@ private fun formatTime(instant: Instant, is24Hour: Boolean, locale: Locale): Str
 private fun formatAgendaDate(date: LocalDate): String {
     val locale = Locale.getDefault()
     val java = java.time.LocalDate.of(date.year, date.month.ordinal + 1, date.day)
-    val weekday = java.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, locale)
-    val monthName = java.month.getDisplayName(JavaTextStyle.SHORT, locale)
-    return "$weekday, ${date.day}. $monthName ${date.year}"
+    // Weekday + date in the locale's own field order (e.g. "Wed, Jun 17, 2026"
+    // vs "Mi., 17. Juni 2026") rather than a hardcoded day-month-year layout.
+    return localizedDateFormatter(locale, "EEEdMMMy").format(java)
 }

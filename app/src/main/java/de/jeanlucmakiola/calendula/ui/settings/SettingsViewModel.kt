@@ -37,6 +37,7 @@ import de.jeanlucmakiola.calendula.ui.theme.AppFontSettings
 import de.jeanlucmakiola.calendula.ui.theme.FONT_CUSTOM_TOKEN
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_PAST_DISPLAY_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_RANGE_KEY
+import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_SHOW_TODAY_STATE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AgendaWidget
 import de.jeanlucmakiola.calendula.widget.month.MonthWidget
 import kotlinx.coroutines.CoroutineDispatcher
@@ -116,14 +117,23 @@ class SettingsViewModel @Inject constructor(
                 prefs.agendaScreenRange,
                 prefs.agendaWidgetRange,
                 prefs.timeFormat,
-                // Two grid-display toggles folded into one flow so they fit this
-                // group — the outer combine is already at its five-arg limit.
-                combine(prefs.showHourLines, prefs.showWeekNumbers, ::Pair),
-            ) { view, screenRange, widgetRange, timeFormat, gridToggles ->
+                // Display toggles folded into one flow so they fit this group —
+                // the outer combine is already at its five-arg limit.
+                combine(
+                    prefs.showHourLines,
+                    prefs.showWeekNumbers,
+                    prefs.agendaShowToday,
+                    prefs.softenCalendarColors,
+                ) { hourLines, weekNumbers, showToday, soften ->
+                    DisplayToggles(hourLines, weekNumbers, showToday, soften)
+                },
+            ) { view, screenRange, widgetRange, timeFormat, toggles ->
                 ViewSettings(
                     view, screenRange, widgetRange, timeFormat,
-                    showHourLines = gridToggles.first,
-                    showWeekNumbers = gridToggles.second,
+                    showHourLines = toggles.showHourLines,
+                    showWeekNumbers = toggles.showWeekNumbers,
+                    agendaShowToday = toggles.agendaShowToday,
+                    softenColors = toggles.softenColors,
                 )
             },
             combine(
@@ -147,6 +157,8 @@ class SettingsViewModel @Inject constructor(
                 timeFormat = views.timeFormat,
                 showHourLines = views.showHourLines,
                 showWeekNumbers = views.showWeekNumbers,
+                agendaShowToday = views.agendaShowToday,
+                softenColors = views.softenColors,
                 agendaShowRangeBar = misc.showRangeBar,
                 autofocusEventTitle = misc.autofocusEventTitle,
                 pastEventDisplay = misc.pastEventDisplay,
@@ -220,6 +232,15 @@ class SettingsViewModel @Inject constructor(
         val timeFormat: TimeFormatPref,
         val showHourLines: Boolean,
         val showWeekNumbers: Boolean,
+        val agendaShowToday: Boolean,
+        val softenColors: Boolean,
+    )
+
+    private data class DisplayToggles(
+        val showHourLines: Boolean,
+        val showWeekNumbers: Boolean,
+        val agendaShowToday: Boolean,
+        val softenColors: Boolean,
     )
 
     private data class MiscSettings(
@@ -332,6 +353,19 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setDynamicColor(enabled) }
     }
 
+    fun setSoftenColors(enabled: Boolean) {
+        viewModelScope.launch {
+            prefs.setSoftenCalendarColors(enabled)
+            // Both widgets paint event colours through the same softener, so a
+            // change has to redraw them too (they read the flag in their data
+            // preamble, like is24Hour).
+            widgetRefreshMutex.withLock {
+                AgendaWidget().updateAll(appContext)
+                MonthWidget().updateAll(appContext)
+            }
+        }
+    }
+
     fun setFont(role: FontRole, token: String) {
         viewModelScope.launch {
             when (role) {
@@ -396,6 +430,22 @@ class SettingsViewModel @Inject constructor(
 
     fun setAgendaShowRangeBar(enabled: Boolean) {
         viewModelScope.launch { prefs.setAgendaShowRangeBar(enabled) }
+    }
+
+    fun setAgendaShowToday(enabled: Boolean) {
+        viewModelScope.launch {
+            prefs.setAgendaShowToday(enabled)
+            // The agenda widget reads this reactively, so push it into each
+            // instance's Glance state and recompose — same reliable-update path as
+            // setPastEventDisplay (updateAll alone won't re-run the data preamble).
+            widgetRefreshMutex.withLock {
+                val manager = GlanceAppWidgetManager(appContext)
+                manager.getGlanceIds(AgendaWidget::class.java).forEach { id ->
+                    updateAppWidgetState(appContext, id) { it[AGENDA_SHOW_TODAY_STATE_KEY] = enabled }
+                }
+                AgendaWidget().updateAll(appContext)
+            }
+        }
     }
 
     fun setTimeFormat(pref: TimeFormatPref) {

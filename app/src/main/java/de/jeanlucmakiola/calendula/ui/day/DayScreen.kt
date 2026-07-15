@@ -79,7 +79,9 @@ import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.calendula.ui.common.next
-import de.jeanlucmakiola.floret.components.pastelize
+import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventFill
+import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
@@ -97,6 +99,10 @@ import kotlin.math.roundToInt
 
 private val HOUR_HEIGHT = 56.dp
 private val GUTTER_WIDTH = 48.dp
+/** Start inset for the gutter's hour labels so they centre on the top bar's
+ *  hamburger: with a 48dp gutter, 8dp lands the centre at 28dp (the app bar's
+ *  4dp inset + 24dp half icon button), matching the week view. */
+private val GUTTER_CONTENT_START_INSET = 8.dp
 private val MIN_EVENT_HEIGHT = 24.dp
 private val ALL_DAY_ROW_HEIGHT = 24.dp
 private val ALL_DAY_VERTICAL_PADDING = 6.dp
@@ -448,9 +454,11 @@ private fun AllDayBar(
     modifier: Modifier = Modifier,
 ) {
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
+    val soften = LocalSoftenColors.current
+    val fill = eventFill(event.color, dark, soften)
     Box(
         modifier = modifier
-            .background(pastelize(event.color, dark), RoundedCornerShape(4.dp))
+            .background(fill, RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 2.dp)
             .semantics { contentDescription = title },
@@ -461,7 +469,7 @@ private fun AllDayBar(
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            color = Color.Black.copy(alpha = 0.8f),
+            color = eventInk(fill),
         )
     }
 }
@@ -484,10 +492,12 @@ private fun Timeline(
         // static, rounded-clipped window — the content scrolls inside it, so the
         // soft corners are permanent at any scroll position.
         Row(modifier = Modifier.fillMaxSize()) {
-            // Hour gutter (scrolls in sync with the day column)
+            // Hour gutter (scrolls in sync with the day column). Start inset so the
+            // labels centre on the top bar hamburger, matching the week view.
             Column(
                 modifier = Modifier
                     .width(GUTTER_WIDTH)
+                    .padding(start = GUTTER_CONTENT_START_INSET)
                     .fillMaxHeight()
                     .verticalScroll(scrollState),
             ) {
@@ -610,9 +620,11 @@ private fun EventBlock(
     val timeLabel = "${minToHm(block.startMin, use24Hour, locale)}–" +
         minToHm(block.endMin, use24Hour, locale)
     val showTime = block.endMin - block.startMin >= 45
+    val soften = LocalSoftenColors.current
+    val fill = eventFill(block.event.color, dark, soften)
     Box(
         modifier = modifier
-            .background(pastelize(block.event.color, dark), RoundedCornerShape(4.dp))
+            .background(fill, RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 2.dp)
             .semantics { contentDescription = "$title, $timeLabel" },
@@ -623,7 +635,7 @@ private fun EventBlock(
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = if (showTime) 1 else 2,
                 overflow = TextOverflow.Ellipsis,
-                color = Color.Black.copy(alpha = 0.85f),
+                color = eventInk(fill, alpha = 0.85f),
             )
             if (showTime) {
                 Text(
@@ -631,7 +643,7 @@ private fun EventBlock(
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = Color.Black.copy(alpha = 0.6f),
+                    color = eventInk(fill, alpha = 0.6f),
                 )
             }
         }

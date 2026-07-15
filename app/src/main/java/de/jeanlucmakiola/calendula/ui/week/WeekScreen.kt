@@ -84,6 +84,9 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
+import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventFill
+import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.ui.common.NowLine
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
@@ -98,7 +101,6 @@ import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
-import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.floret.time.isoWeekNumber
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -114,6 +116,10 @@ import kotlin.math.roundToInt
 
 private val HOUR_HEIGHT = 56.dp
 private val GUTTER_WIDTH = 48.dp
+/** Start inset for the gutter's content (week badge + hour labels) so it centres
+ *  on the top bar's hamburger: with a 48dp gutter, 8dp lands the centre at 28dp
+ *  (the app bar's 4dp inset + 24dp half icon button). */
+private val GUTTER_CONTENT_START_INSET = 8.dp
 private val MIN_EVENT_HEIGHT = 24.dp
 private val ALL_DAY_ROW_HEIGHT = 24.dp
 private val ALL_DAY_VERTICAL_PADDING = 6.dp
@@ -448,9 +454,10 @@ private fun WeekDayHeader(
             .padding(top = 4.dp, bottom = 8.dp),
     ) {
         // Mirror the day-column layout (empty weekday line + spacer) so the
-        // badge lines up vertically with the date numbers.
+        // badge lines up vertically with the date numbers. The start inset centres
+        // the badge on the top bar's hamburger (see GUTTER_CONTENT_START_INSET).
         Column(
-            modifier = Modifier.width(GUTTER_WIDTH),
+            modifier = Modifier.width(GUTTER_WIDTH).padding(start = GUTTER_CONTENT_START_INSET),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(text = " ", style = MaterialTheme.typography.labelSmall)
@@ -584,9 +591,11 @@ private fun AllDayBar(
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && event.hasEnded(dimCutoff)
+    val soften = LocalSoftenColors.current
+    val fill = eventFill(event.color, dark, soften)
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
-            .background(pastelize(event.color, dark), RoundedCornerShape(4.dp))
+            .background(fill, RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 2.dp)
             .semantics { contentDescription = title },
@@ -597,7 +606,7 @@ private fun AllDayBar(
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            color = Color.Black.copy(alpha = 0.8f),
+            color = eventInk(fill),
         )
     }
 }
@@ -621,10 +630,12 @@ private fun Timeline(
         // soft corners are permanent at any scroll position (not just at the
         // day's start/end).
         Row(modifier = Modifier.fillMaxSize()) {
-            // Hour gutter (scrolls in sync with the day columns)
+            // Hour gutter (scrolls in sync with the day columns). Same start inset
+            // as the header badge so the labels sit under it and on the hamburger.
             Column(
                 modifier = Modifier
                     .width(GUTTER_WIDTH)
+                    .padding(start = GUTTER_CONTENT_START_INSET)
                     .fillMaxHeight()
                     .verticalScroll(scrollState),
             ) {
@@ -774,9 +785,11 @@ private fun EventBlock(
     val titleMaxLines = (contentHeight / titleLineHeight).toInt().coerceAtLeast(1)
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && block.event.hasEnded(dimCutoff)
+    val soften = LocalSoftenColors.current
+    val fill = eventFill(block.event.color, dark, soften)
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
-            .background(pastelize(block.event.color, dark), RoundedCornerShape(4.dp))
+            .background(fill, RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 4.dp, vertical = 2.dp)
             .semantics { contentDescription = "$title, $timeLabel" },
@@ -787,7 +800,7 @@ private fun EventBlock(
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = titleMaxLines,
                 overflow = TextOverflow.Ellipsis,
-                color = Color.Black.copy(alpha = 0.85f),
+                color = eventInk(fill, alpha = 0.85f),
             )
             if (showTime) {
                 Text(
@@ -795,7 +808,7 @@ private fun EventBlock(
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = Color.Black.copy(alpha = 0.6f),
+                    color = eventInk(fill, alpha = 0.6f),
                 )
             }
         }

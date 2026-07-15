@@ -37,6 +37,8 @@ fun RootScreen(
     onImportConsumed: () -> Unit = {},
     requestedInsertForm: de.jeanlucmakiola.calendula.domain.EventForm? = null,
     onInsertConsumed: () -> Unit = {},
+    requestedEditKey: LongArray? = null,
+    onEditKeyConsumed: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var hasPermission by remember {
@@ -88,6 +90,8 @@ fun RootScreen(
                         onImportConsumed = onImportConsumed,
                         requestedInsertForm = requestedInsertForm,
                         onInsertConsumed = onInsertConsumed,
+                        requestedEditKey = requestedEditKey,
+                        onEditKeyConsumed = onEditKeyConsumed,
                     )
                     false -> ReminderOnboardingScreen(
                         onFinished = reminderOnboarding::finish,

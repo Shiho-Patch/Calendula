@@ -5,7 +5,81 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.15.0] — 2026-07-15
+
+### Added
+- Show raw calendar colours. Calendula normally softens each calendar and event
+  colour toward a theme-fitting pastel so harsh sync colours read well on both
+  light and dark; a new **Soften calendar colours** setting (Settings → Design,
+  on by default) lets you turn that off and paint the exact colours your calendar
+  source publishes — matching DAVx5/CalDAV and other calendar apps. Thanks to
+  @leonp5 for the report ([#36]).
+- Readable titles on dark event colours. An event bar's title now shows in white
+  on a dark colour and near-black on a light one, chosen automatically from the
+  colour's brightness, so a deep blue or purple event is legible at a glance in
+  the busy Week and Month views instead of dark-on-dark. This applies whether or
+  not colours are softened. Thanks to @ptab for the suggestion ([#21]).
+- A custom snooze duration. The **Snooze duration** setting (Settings →
+  Notifications) gains a **Custom…** option next to the minute presets: pick any
+  amount and switch between minutes and hours, so a snoozed reminder comes back
+  after exactly the delay you want instead of only a preset one ([#40]).
+- Move an event to another calendar. When editing an existing event, the
+  calendar row is now tappable — pick a different calendar and saving moves the
+  event across, instead of having to delete it and recreate it elsewhere.
+  Recurring series move as a whole, keeping their individually-edited and
+  cancelled occurrences, and any reminders and guests come along too. A calendar
+  can't simply be reassigned underneath an event, so Calendula recreates it on
+  the target and removes the original — the same approach other calendar apps
+  take. Thanks to @prismplex for the suggestion ([#39]).
+- Open an event straight into the edit form from another app. Calendula already
+  answered the "new event" and "open this event" hand-offs from other apps and
+  widgets; it now also answers the "edit this event" one, so an assistant, task
+  app, or widget can send an existing event to Calendula and land on its edit
+  screen rather than the read-only details. A hand-off with no event attached
+  opens the same prefilled create form as "new event". Calendula also recognises
+  a couple more file labels the same calendar data arrives under (`.vcs`
+  vCalendar files and the `application/ics` type), so opening or sharing those
+  into Calendula works too.
+- Keep today at the top of the agenda. A new **Always show today** setting
+  (Settings → Agenda, on by default) anchors today as the first entry in both the
+  Agenda screen and its home-screen widget even once nothing is left today —
+  under today's header a "No more events today" note appears — so the first
+  events you see are clearly today's rather than a future day's. Turn it off to
+  keep the agenda purely upcoming. Thanks to @ptab for the suggestion ([#35]).
+- Duplicate an event. The event details now carry a **Duplicate** action that
+  opens the editor pre-filled with a copy of the event as a new, unsaved one, so
+  a one-off like a shift or an appointment can be recreated by just changing the
+  day and time instead of re-typing every field. The copy keeps the original's
+  time, and its title, location, notes, colour, guests and reminders come along;
+  it's saved as its own single event (any repeat is left off — add one in the
+  editor if you want it). Duplicate works from read-only calendars too, dropping
+  the copy into a writable one. Thanks to @internet-rando for the suggestion
+  ([#52]).
+- French and Polish, in early form. Calendula has started speaking French and
+  Polish, both contributed as community translations through
+  [Calendula's Weblate](https://weblate.dev.jeanlucmakiola.de/projects/calendula/).
+  They are partway there, so untranslated parts still show in English until they
+  fill out — you can already pick either under Settings → Language or in Android's
+  per-app language settings. Thanks to Thomas Tref (French) and Bazyli Cyran
+  (Polish) for getting them started; help finishing them is very welcome.
+
+### Fixed
+- Reminders for events on another day no longer read as if they were today. A
+  reminder fired ahead of time — say, the day before — used to show only the
+  event's time, making it look like it was happening now. The notification now
+  says which day: **Tomorrow** or **Yesterday**, the weekday for another day this
+  week, or the date for anything further out. Thanks to @moonj for the report
+  ([#46]).
+- Agenda dates now read in your locale's format. The agenda's range bar and its
+  day headers used a fixed day-month-year layout — and the range span even mixed
+  two orders (e.g. "15 Jul – Aug 13, 2026") — instead of following your language's
+  conventions. Dates across the agenda and its widget now use your locale's own
+  field order, matching the rest of the app. The range bar also no longer repeats
+  the range's name from the selector button beside it, showing just the dates.
+- Calendar gutters line up with the menu button. The Month view's week-number
+  column, and the Week and Day views' hour labels, sat a few pixels left of the
+  hamburger menu above them; they now line up with it. In Month view the day
+  cells also sit squarely under their weekday letters.
 
 ## [2.14.1] — 2026-07-13
 
@@ -908,11 +982,18 @@ automatically, with zero telemetry and no internet permission.
 [#25]: https://codeberg.org/jlmakiola/calendula/issues/25
 [#27]: https://codeberg.org/jlmakiola/calendula/issues/27
 [#29]: https://codeberg.org/jlmakiola/calendula/issues/29
+[#21]: https://codeberg.org/jlmakiola/calendula/issues/21
 [#30]: https://codeberg.org/jlmakiola/calendula/issues/30
 [#32]: https://codeberg.org/jlmakiola/calendula/issues/32
 [#33]: https://codeberg.org/jlmakiola/calendula/issues/33
 [#34]: https://codeberg.org/jlmakiola/calendula/issues/34
+[#36]: https://codeberg.org/jlmakiola/calendula/issues/36
 [#37]: https://codeberg.org/jlmakiola/calendula/issues/37
+[#39]: https://codeberg.org/jlmakiola/calendula/issues/39
+[#35]: https://codeberg.org/jlmakiola/calendula/issues/35
+[#40]: https://codeberg.org/jlmakiola/calendula/issues/40
+[#46]: https://codeberg.org/jlmakiola/calendula/issues/46
 [#47]: https://codeberg.org/jlmakiola/calendula/issues/47
 [#48]: https://codeberg.org/jlmakiola/calendula/issues/48
 [#49]: https://codeberg.org/jlmakiola/calendula/issues/49
+[#52]: https://codeberg.org/jlmakiola/calendula/issues/52

@@ -71,6 +71,9 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
+import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventFill
+import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
@@ -79,7 +82,6 @@ import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
-import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.floret.time.isoWeekNumber
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DayOfWeek
@@ -380,7 +382,10 @@ private fun MonthGrid(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 4.dp, vertical = 4.dp),
+            // Match the weekday header's 8dp inset so day cells sit under their
+            // labels, and so the week-number gutter's centre lines up with the
+            // top bar's hamburger (4dp bar inset + 24dp half icon button).
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         state.weeks.forEach { week ->
@@ -627,7 +632,7 @@ private fun DayNumberCell(
     }
 }
 
-/** A filled event pill/bar — pastelized fill, title clipped to one line. */
+/** A filled event pill/bar — softened (or raw) fill, title clipped to one line. */
 @Composable
 private fun MonthBar(
     event: de.jeanlucmakiola.calendula.domain.EventInstance,
@@ -639,6 +644,8 @@ private fun MonthBar(
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && event.hasEnded(dimCutoff)
+    val soften = LocalSoftenColors.current
+    val fill = eventFill(event.color, dark, soften)
     val shape = RoundedCornerShape(
         topStart = if (continuesLeft) 0.dp else 4.dp,
         bottomStart = if (continuesLeft) 0.dp else 4.dp,
@@ -647,7 +654,7 @@ private fun MonthBar(
     )
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
-            .background(pastelize(event.color, dark), shape)
+            .background(fill, shape)
             .padding(horizontal = 4.dp)
             .semantics { contentDescription = title },
         contentAlignment = Alignment.CenterStart,
@@ -657,7 +664,7 @@ private fun MonthBar(
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            color = Color.Black.copy(alpha = 0.8f),
+            color = eventInk(fill),
         )
     }
 }
@@ -670,6 +677,7 @@ private fun OverflowDots(
     dark: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val soften = LocalSoftenColors.current
     Row(
         modifier = modifier.height(EVENT_ROW_HEIGHT),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -679,7 +687,7 @@ private fun OverflowDots(
             Box(
                 modifier = Modifier
                     .size(6.dp)
-                    .background(pastelize(argb, dark), CircleShape),
+                    .background(eventFill(argb, dark, soften), CircleShape),
             )
         }
         if (extra > 0) {

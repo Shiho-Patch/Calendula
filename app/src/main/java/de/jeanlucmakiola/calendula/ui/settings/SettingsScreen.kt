@@ -133,6 +133,7 @@ import de.jeanlucmakiola.calendula.ui.common.ReminderDefaultPicker
 import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
+import de.jeanlucmakiola.calendula.ui.common.SnoozeDurationPicker
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldIcon
@@ -516,7 +517,7 @@ private fun AppearanceScreen(
             } else {
                 stringResource(R.string.settings_dynamic_color_unavailable)
             },
-            position = Position.Bottom,
+            position = Position.Middle,
             trailing = {
                 Switch(
                     checked = state.dynamicColor,
@@ -529,6 +530,18 @@ private fun AppearanceScreen(
             } else {
                 null
             },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_soften_colors),
+            summary = stringResource(R.string.settings_soften_colors_summary),
+            position = Position.Bottom,
+            trailing = {
+                Switch(
+                    checked = state.softenColors,
+                    onCheckedChange = viewModel::setSoftenColors,
+                )
+            },
+            onClick = { viewModel.setSoftenColors(!state.softenColors) },
         )
 
         Spacer(Modifier.height(16.dp))
@@ -629,6 +642,18 @@ private fun AppearanceScreen(
             summary = agendaRangeLabel(state.agendaWidgetRange),
             position = Position.Middle,
             onClick = { showAgendaWidgetRange = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_agenda_show_today),
+            summary = stringResource(R.string.settings_agenda_show_today_hint),
+            position = Position.Middle,
+            trailing = {
+                Switch(
+                    checked = state.agendaShowToday,
+                    onCheckedChange = viewModel::setAgendaShowToday,
+                )
+            },
+            onClick = { viewModel.setAgendaShowToday(!state.agendaShowToday) },
         )
         GroupedRow(
             title = stringResource(R.string.settings_agenda_range_bar),
@@ -1174,10 +1199,9 @@ private fun NotificationsScreen(
     }
 
     if (showSnooze) {
-        OptionPicker(
+        SnoozeDurationPicker(
             title = stringResource(R.string.settings_snooze_duration),
-            predictiveBack = true,
-            options = SNOOZE_PRESETS,
+            presets = SNOOZE_PRESETS,
             selected = state.snoozeMinutes,
             label = { snoozeDurationLabel(it) },
             onSelect = { viewModel.setSnoozeMinutes(it) },

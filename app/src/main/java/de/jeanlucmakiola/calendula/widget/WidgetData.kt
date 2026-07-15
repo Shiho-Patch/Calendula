@@ -60,12 +60,20 @@ sealed interface AgendaWidgetData {
         val days: List<AgendaDay>,
         /** Resolved clock convention for event time labels (the time-format pref). */
         val is24Hour: Boolean,
+        /** Whether event colours are softened to pastels, or shown raw (#36). */
+        val soften: Boolean,
         /** First day of the week, for the calendar-aligned "this week" range. */
         val weekStart: DayOfWeek,
         /** Saved range pref — the fallback when an instance has no Glance state yet. */
         val savedRange: AgendaRange,
         /** Saved past-event display pref — the fallback before Glance state is set. */
         val savedPastDisplay: PastEventDisplay,
+        /**
+         * Saved "always show today" pref (#35) — anchors today at the top with a
+         * placeholder even when it has no events left. The fallback read reactively
+         * from Glance state before an instance has its own state set.
+         */
+        val savedShowToday: Boolean,
         /** Snapshot instant the data was read at, for "has this event ended?" tests. */
         val now: Instant,
     ) : AgendaWidgetData
@@ -117,6 +125,7 @@ internal suspend fun Context.loadAgendaWidgetData(): AgendaWidgetData {
     val prefs = ep.settingsPrefs()
     val savedRange = prefs.agendaWidgetRange.first()
     val savedPastDisplay = prefs.pastEventDisplay.first()
+    val showToday = prefs.agendaShowToday.first()
     val weekStart = prefs.weekStart.first().resolveFirstDay(Locale.getDefault())
     // Load the widest selectable window once; the displayed range is sliced in
     // the composition from Glance state, so changing the range is a plain
@@ -125,13 +134,16 @@ internal suspend fun Context.loadAgendaWidgetData(): AgendaWidgetData {
     val instances = ep.calendarRepository().instances(window).first()
     val is24Hour = prefs.timeFormat.first()
         .is24Hour(android.text.format.DateFormat.is24HourFormat(this))
+    val soften = prefs.softenCalendarColors.first()
     return AgendaWidgetData.Ready(
         today = anchor,
         days = groupAgendaDays(anchor, instances, zone),
         is24Hour = is24Hour,
+        soften = soften,
         weekStart = weekStart,
         savedRange = savedRange,
         savedPastDisplay = savedPastDisplay,
+        savedShowToday = showToday,
         now = Clock.System.now(),
     )
 }

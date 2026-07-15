@@ -49,6 +49,7 @@
     <string name="event_detail_edit">Edit</string>
     <string name="event_detail_delete">Delete</string>
     <string name="event_detail_share">Share</string>
+    <string name="event_detail_duplicate">Duplicate</string>
     <string name="event_share_chooser_title">Share event</string>
     <string name="event_share_failed">Couldn\'t share this event.</string>
     <string name="event_delete_title">Delete event?</string>
@@ -236,6 +237,9 @@
     <string name="reminder_onboarding_skip_button">Not now</string>
     <string name="reminder_action_snooze">Snooze</string>
     <string name="reminder_action_dismiss">Dismiss</string>
+    <!-- Day context prefix in a reminder for an event on another day (v2.15.0) -->
+    <string name="reminder_day_tomorrow">Tomorrow</string>
+    <string name="reminder_day_yesterday">Yesterday</string>
 
     <!-- View switcher (M1) -->
     <string name="view_month">Month</string>
@@ -252,6 +256,7 @@
     <string name="agenda_header_today">Today</string>
     <string name="agenda_header_tomorrow">Tomorrow</string>
     <string name="agenda_empty_title">You\'re all caught up</string>
+    <string name="agenda_no_more_today">No more events today</string>
 
     <!-- Event search -->
     <string name="search_action">Search</string>
@@ -288,6 +293,8 @@
     <string name="settings_default_view">Default view</string>
     <string name="settings_dynamic_color">Dynamic colour</string>
     <string name="settings_dynamic_color_unavailable">Requires Android 12 or newer</string>
+    <string name="settings_soften_colors">Soften calendar colours</string>
+    <string name="settings_soften_colors_summary">Tone calendar and event colours down to fit the theme. Turn off to show the raw colours from the calendar source.</string>
     <string name="settings_font_headings">Headings font</string>
     <string name="settings_font_body">Body font</string>
     <string name="settings_font_system">System default</string>
@@ -318,6 +325,8 @@
     <string name="settings_agenda_range_hint">How far ahead the Agenda screen lists events.</string>
     <string name="settings_agenda_widget_range">Agenda widget range</string>
     <string name="settings_agenda_widget_range_hint">How far ahead the agenda home-screen widget lists events.</string>
+    <string name="settings_agenda_show_today">Always show today</string>
+    <string name="settings_agenda_show_today_hint">Keep today at the top of the agenda and its widget, even once nothing is left today.</string>
     <string name="settings_agenda_range_bar">Range bar</string>
     <string name="settings_agenda_range_bar_hint">Show a bar at the top of the agenda naming the dates shown, with a button to switch the range for the session</string>
     <string name="agenda_range_day">Today</string>

@@ -24,6 +24,8 @@ data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val dynamicColorAvailable: Boolean = true,
+    /** Whether raw provider colours are softened to theme-fitting pastels (#36). */
+    val softenColors: Boolean = true,
     val weekStart: WeekStartPref = WeekStartPref.Auto,
     /** Clock convention for time labels (v2.11). AUTO follows the system setting. */
     val timeFormat: TimeFormatPref = TimeFormatPref.AUTO,
@@ -39,6 +41,8 @@ data class SettingsUiState(
     val agendaScreenRange: AgendaRange = AgendaRange.Month,
     /** How far ahead the agenda widget shows events (v2.11). */
     val agendaWidgetRange: AgendaRange = AgendaRange.Month,
+    /** Whether the agenda (screen + widget) always anchors today at the top (#35). */
+    val agendaShowToday: Boolean = true,
     /** Whether the agenda shows its top range bar — header + switcher (v2.11). */
     val agendaShowRangeBar: Boolean = true,
     /** The calendar view the app opens on, and the home of the view back stack (M1). */

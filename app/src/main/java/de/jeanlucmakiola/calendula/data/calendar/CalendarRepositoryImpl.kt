@@ -157,6 +157,17 @@ class CalendarRepositoryImpl @Inject constructor(
         dataSource.deleteEvent(eventId)
     }
 
+    override suspend fun moveEvent(
+        eventId: Long,
+        targetCalendarId: Long,
+        original: EventForm,
+        updated: EventForm,
+    ): Long = withContext(io) {
+        dataSource.moveEvent(
+            eventId, targetCalendarId, original, updated, allDayReminderTimeMinutes(),
+        )
+    }
+
     override suspend fun updateOccurrence(
         eventId: Long,
         beginMillis: Long,
