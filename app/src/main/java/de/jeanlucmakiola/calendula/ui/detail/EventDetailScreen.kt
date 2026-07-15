@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
@@ -87,6 +88,7 @@ import de.jeanlucmakiola.calendula.domain.AttendeeRelationship
 import de.jeanlucmakiola.calendula.domain.AttendeeStatus
 import de.jeanlucmakiola.calendula.domain.AttendeeType
 import de.jeanlucmakiola.calendula.domain.Availability
+import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.EventStatus
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
@@ -116,7 +118,10 @@ import kotlin.time.Instant
  * top-bar arrow both return to the calendar. Events in writable calendars can
  * be deleted (v1.1) and edited (v1.3) from here; [onEdit] opens the shared
  * event form for this occurrence — for recurring events the form asks how
- * far the change reaches when saving.
+ * far the change reaches when saving. [onDuplicate] opens the same form
+ * seeded with a copy of this event as a new, unsaved event (#52) — offered
+ * for any event, including read-only ones, since the copy lands in an
+ * editable calendar.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,6 +131,7 @@ fun EventDetailScreen(
     endMillis: Long,
     onBack: () -> Unit,
     onEdit: () -> Unit,
+    onDuplicate: (EventForm) -> Unit,
     viewModel: EventDetailViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(eventId, beginMillis, endMillis) {
@@ -160,15 +166,14 @@ fun EventDetailScreen(
     }
 
     // v1.0 installs only hold READ_CALENDAR; the first write asks for the
-    // upgrade in place. Granting continues straight into the tapped action.
-    var pendingEdit by remember { mutableStateOf(false) }
+    // upgrade in place. Granting continues straight into the tapped action —
+    // edit, delete, or duplicate — held here until the result comes back.
+    var pendingWrite by remember { mutableStateOf<(() -> Unit)?>(null) }
     val writePermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        if (granted) {
-            if (pendingEdit) onEdit() else showDeleteDialog = true
-        }
-        pendingEdit = false
+        if (granted) pendingWrite?.invoke()
+        pendingWrite = null
     }
     val hasWritePermission = {
         ContextCompat.checkSelfPermission(
@@ -176,21 +181,20 @@ fun EventDetailScreen(
             Manifest.permission.WRITE_CALENDAR,
         ) == PackageManager.PERMISSION_GRANTED
     }
-    val onDeleteClick = {
+    val requireWrite: (() -> Unit) -> Unit = { action ->
         if (hasWritePermission()) {
-            showDeleteDialog = true
+            action()
         } else {
-            pendingEdit = false
+            pendingWrite = action
             writePermissionLauncher.launch(Manifest.permission.WRITE_CALENDAR)
         }
     }
-    val onEditClick = {
-        if (hasWritePermission()) {
-            onEdit()
-        } else {
-            pendingEdit = true
-            writePermissionLauncher.launch(Manifest.permission.WRITE_CALENDAR)
-        }
+    val onDeleteClick = { requireWrite { showDeleteDialog = true } }
+    val onEditClick = { requireWrite(onEdit) }
+    // Duplicate reads the loaded detail into a create form and hands it up; the
+    // create still needs WRITE_CALENDAR even when the source is read-only.
+    val onDuplicateClick = {
+        requireWrite { viewModel.duplicateForm()?.let(onDuplicate) }
     }
 
     val deleteFailedMessage = stringResource(R.string.event_delete_failed)
@@ -229,12 +233,22 @@ fun EventDetailScreen(
                 },
                 actions = {
                     val s = state
-                    // Share works for any loaded event — it only reads the event.
+                    // Share and duplicate work for any loaded event — both only
+                    // read it; the duplicate is created into a writable calendar.
                     if (s is EventDetailUiState.Success) {
                         IconButton(onClick = onShareClick) {
                             Icon(
                                 imageVector = Icons.Default.Share,
                                 contentDescription = stringResource(R.string.event_detail_share),
+                            )
+                        }
+                        IconButton(
+                            onClick = onDuplicateClick,
+                            enabled = deleteState != DeleteUiState.Deleting,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentCopy,
+                                contentDescription = stringResource(R.string.event_detail_duplicate),
                             )
                         }
                     }

@@ -8,10 +8,12 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.calendar.NoSuchEventException
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.ics.IcsExporter
+import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.ics.IcsWriter
 import de.jeanlucmakiola.calendula.domain.ics.toShareIcsEvent
+import de.jeanlucmakiola.calendula.domain.toEditForm
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlin.time.Clock
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Instant
 import javax.inject.Inject
@@ -136,6 +139,31 @@ class EventDetailViewModel @Inject constructor(
                 icsExporter.stageShareFile(shareFileName(detail.instance.title), ics)
             }
         }.getOrNull()
+    }
+
+    /**
+     * Build a create form seeded from the open event so the user can save a
+     * copy as a new, independent event (#52). Returns null when nothing is
+     * loaded.
+     *
+     * The recurrence is dropped — a duplicate is a single event; anyone who
+     * wants a series can re-add one in the edit form that opens. The source
+     * calendar is kept only when it's writable, otherwise the id is cleared so
+     * the create resolves to the last-used/first-writable calendar — which lets
+     * a read-only event (a WebCal subscription, a birthday) be copied into an
+     * editable calendar. The occurrence's own times carry over unchanged.
+     */
+    fun duplicateForm(): EventForm? {
+        val loaded = state.value as? EventDetailUiState.Success ?: return null
+        val detail = loaded.detail
+        return detail.toEditForm(
+            beginMillis = detail.instance.start.toEpochMilliseconds(),
+            endMillis = detail.instance.end.toEpochMilliseconds(),
+            zone = TimeZone.currentSystemDefault(),
+        ).copy(
+            rrule = null,
+            calendarId = detail.instance.calendarId.takeIf { loaded.canModify },
+        )
     }
 
     private suspend fun loadDetail(target: Target): EventDetailUiState = try {

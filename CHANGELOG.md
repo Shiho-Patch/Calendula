@@ -35,6 +35,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   under today's header a small "No more events today" card appears — so the first
   events you see are clearly today's rather than a future day's. Turn it off to
   keep the agenda purely upcoming. Thanks to @ptab for the suggestion ([#35]).
+- Duplicate an event. The event details now carry a **Duplicate** action that
+  opens the editor pre-filled with a copy of the event as a new, unsaved one, so
+  a one-off like a shift or an appointment can be recreated by just changing the
+  day and time instead of re-typing every field. The copy keeps the original's
+  time, and its title, location, notes, colour, guests and reminders come along;
+  it's saved as its own single event (any repeat is left off — add one in the
+  editor if you want it). Duplicate works from read-only calendars too, dropping
+  the copy into a writable one. Thanks to @internet-rando for the suggestion
+  ([#52]).
 
 ### Fixed
 - Reminders for events on another day no longer read as if they were today. A
@@ -957,3 +966,4 @@ automatically, with zero telemetry and no internet permission.
 [#47]: https://codeberg.org/jlmakiola/calendula/issues/47
 [#48]: https://codeberg.org/jlmakiola/calendula/issues/48
 [#49]: https://codeberg.org/jlmakiola/calendula/issues/49
+[#52]: https://codeberg.org/jlmakiola/calendula/issues/52
