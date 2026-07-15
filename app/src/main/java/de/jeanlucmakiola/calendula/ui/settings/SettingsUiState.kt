@@ -24,6 +24,8 @@ data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val dynamicColor: Boolean = true,
     val dynamicColorAvailable: Boolean = true,
+    /** Whether raw provider colours are softened to theme-fitting pastels (#36). */
+    val softenColors: Boolean = true,
     val weekStart: WeekStartPref = WeekStartPref.Auto,
     /** Clock convention for time labels (v2.11). AUTO follows the system setting. */
     val timeFormat: TimeFormatPref = TimeFormatPref.AUTO,

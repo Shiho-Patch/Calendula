@@ -95,11 +95,12 @@ import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.Reminder
 import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
+import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.floret.components.OptionCard
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
-import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.calendula.ui.common.recurrenceText
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import kotlinx.coroutines.launch
@@ -381,7 +382,7 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
     val instance = detail.instance
     val dark = isSystemInDarkTheme()
     val locale = currentDetailLocale()
-    val accent = pastelize(instance.color, dark)
+    val accent = eventFill(instance.color, dark, LocalSoftenColors.current)
 
     Column(
         modifier = modifier

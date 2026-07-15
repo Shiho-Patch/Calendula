@@ -517,7 +517,7 @@ private fun AppearanceScreen(
             } else {
                 stringResource(R.string.settings_dynamic_color_unavailable)
             },
-            position = Position.Bottom,
+            position = Position.Middle,
             trailing = {
                 Switch(
                     checked = state.dynamicColor,
@@ -530,6 +530,18 @@ private fun AppearanceScreen(
             } else {
                 null
             },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_soften_colors),
+            summary = stringResource(R.string.settings_soften_colors_summary),
+            position = Position.Bottom,
+            trailing = {
+                Switch(
+                    checked = state.softenColors,
+                    onCheckedChange = viewModel::setSoftenColors,
+                )
+            },
+            onClick = { viewModel.setSoftenColors(!state.softenColors) },
         )
 
         Spacer(Modifier.height(16.dp))

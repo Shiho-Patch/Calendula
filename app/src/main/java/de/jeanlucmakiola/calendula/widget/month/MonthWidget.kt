@@ -3,7 +3,6 @@ package de.jeanlucmakiola.calendula.widget.month
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -50,14 +49,17 @@ import de.jeanlucmakiola.calendula.MainActivity
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
-import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.calendula.ui.month.MonthWeek
 import de.jeanlucmakiola.calendula.ui.month.layoutMonthWeeks
+import de.jeanlucmakiola.calendula.ui.common.eventFill
+import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.widget.CalendulaGlanceTheme
 import de.jeanlucmakiola.calendula.widget.MonthWidgetSource
 import de.jeanlucmakiola.calendula.widget.loadMonthWidgetSource
 import de.jeanlucmakiola.calendula.widget.systemZone
 import de.jeanlucmakiola.calendula.widget.today
+import de.jeanlucmakiola.calendula.widget.widgetEntryPoint
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.unit.Dp
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -75,9 +77,6 @@ private const val MAX_LANES = 3
 private val LANE_HEIGHT = 14.dp
 private val DAY_NUMBER_HEIGHT = 18.dp
 private val GRID_HPADDING = 8.dp
-
-/** Dark ink that reads on the pastelized event fills, like the in-app MonthBar. */
-private val EventInk = ColorProvider(Color(0xDE000000))
 
 private fun currentMonthIndex(zone: TimeZone): Int {
     val t = today(zone)
@@ -107,9 +106,12 @@ class MonthWidget : GlanceAppWidget() {
         val source = context.loadMonthWidgetSource()
         val dark = (context.resources.configuration.uiMode and
             Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        // Read fresh (not through the cached source) so toggling the softener
+        // redraws with the new choice; it's one cheap DataStore read.
+        val soften = context.widgetEntryPoint().settingsPrefs().softenCalendarColors.first()
         provideContent {
             CalendulaGlanceTheme {
-                MonthWidgetBody(source = source, dark = dark)
+                MonthWidgetBody(source = source, dark = dark, soften = soften)
             }
         }
     }
@@ -140,7 +142,7 @@ class ResetMonthAction : ActionCallback {
 }
 
 @Composable
-private fun MonthWidgetBody(source: MonthWidgetSource, dark: Boolean) {
+private fun MonthWidgetBody(source: MonthWidgetSource, dark: Boolean, soften: Boolean) {
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -169,6 +171,7 @@ private fun MonthWidgetBody(source: MonthWidgetSource, dark: Boolean) {
                         currentMonth = ym.month,
                         today = source.today,
                         dark = dark,
+                        soften = soften,
                         colW = colW,
                         modifier = GlanceModifier.defaultWeight(),
                     )
@@ -278,6 +281,7 @@ private fun WeekRow(
     currentMonth: Month,
     today: LocalDate,
     dark: Boolean,
+    soften: Boolean,
     colW: Dp,
     modifier: GlanceModifier,
 ) {
@@ -297,7 +301,7 @@ private fun WeekRow(
         // One lane row per event row. A multi-day span is a single Box spanning
         // its columns (colW * n) so it's connected with no seam and rounded ends.
         repeat(MAX_LANES) { lane ->
-            LaneRow(week = week, lane = lane, dark = dark, colW = colW)
+            LaneRow(week = week, lane = lane, dark = dark, soften = soften, colW = colW)
             Spacer(GlanceModifier.height(1.dp))
         }
         OverflowRow(week = week, colW = colW)
@@ -346,7 +350,7 @@ private fun DayNumber(date: LocalDate, isToday: Boolean, inMonth: Boolean, colW:
 }
 
 @Composable
-private fun LaneRow(week: MonthWeek, lane: Int, dark: Boolean, colW: Dp) {
+private fun LaneRow(week: MonthWeek, lane: Int, dark: Boolean, soften: Boolean, colW: Dp) {
     val context = LocalContext.current
     Row(modifier = GlanceModifier.fillMaxWidth()) {
         var col = 0
@@ -354,12 +358,12 @@ private fun LaneRow(week: MonthWeek, lane: Int, dark: Boolean, colW: Dp) {
             val span = week.spans.firstOrNull { it.lane == lane && col in it.startCol..it.endCol }
             if (span != null) {
                 val cols = span.endCol - col + 1
-                SpanBar(event = span.event, dark = dark, width = colW * cols)
+                SpanBar(event = span.event, dark = dark, soften = soften, width = colW * cols)
                 col = span.endCol + 1
             } else {
                 val timed = timedEventAt(week, lane, col, week.days[col])
                 if (timed != null) {
-                    SpanBar(event = timed, dark = dark, width = colW)
+                    SpanBar(event = timed, dark = dark, soften = soften, width = colW)
                 } else {
                     // Empty lane cell: a tap opens that day, so blank space in a
                     // day column is a day-open target just like the number is.
@@ -378,8 +382,9 @@ private fun LaneRow(week: MonthWeek, lane: Int, dark: Boolean, colW: Dp) {
 
 /** A single connected, rounded event bar [width] wide with its clipped title. */
 @Composable
-private fun SpanBar(event: EventInstance, dark: Boolean, width: Dp) {
+private fun SpanBar(event: EventInstance, dark: Boolean, soften: Boolean, width: Dp) {
     val context = LocalContext.current
+    val fill = eventFill(event.color, dark, soften)
     Box(
         modifier = GlanceModifier
             .width(width)
@@ -402,13 +407,13 @@ private fun SpanBar(event: EventInstance, dark: Boolean, width: Dp) {
             modifier = GlanceModifier
                 .fillMaxSize()
                 .cornerRadius(4.dp)
-                .background(pastelize(event.color, dark)),
+                .background(fill),
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(
                 text = event.title.ifBlank { context.getString(R.string.event_untitled) },
                 maxLines = 1,
-                style = TextStyle(color = EventInk, fontSize = 9.sp),
+                style = TextStyle(color = ColorProvider(eventInk(fill)), fontSize = 9.sp),
                 modifier = GlanceModifier.padding(horizontal = 3.dp),
             )
         }

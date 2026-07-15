@@ -115,6 +115,21 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * Whether raw provider colours are softened toward theme-fitting pastels
+     * before display (issue #36). Defaults to ON — the historical look, which
+     * caps harsh sync colours and pins brightness so entries read on both
+     * themes. Turning it off paints the calendar/event colour exactly as the
+     * sync source (DAVx5/CalDAV) publishes it.
+     */
+    val softenCalendarColors: Flow<Boolean> = store.data.map { prefs ->
+        prefs[SOFTEN_COLORS_KEY] ?: true
+    }
+
+    suspend fun setSoftenCalendarColors(enabled: Boolean) {
+        store.edit { it[SOFTEN_COLORS_KEY] = enabled }
+    }
+
+    /**
      * Custom-font tokens per Material typeface role (issue #19). Stored as opaque
      * strings — "system", "custom", or a bundled font's token — resolved to a
      * FontFamily at the theme layer; an unknown token degrades to the default.
@@ -679,6 +694,7 @@ class SettingsPrefs @Inject constructor(
     companion object {
         internal val THEME_MODE_KEY = stringPreferencesKey("theme_mode")
         internal val DYNAMIC_COLOR_KEY = booleanPreferencesKey("dynamic_color")
+        internal val SOFTEN_COLORS_KEY = booleanPreferencesKey("soften_calendar_colors")
         internal val BRAND_FONT_KEY = stringPreferencesKey("brand_font")
         internal val PLAIN_FONT_KEY = stringPreferencesKey("plain_font")
         internal val BRAND_FONT_STAMP_KEY = intPreferencesKey("brand_font_stamp")

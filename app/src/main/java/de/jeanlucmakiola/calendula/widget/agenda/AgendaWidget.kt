@@ -56,7 +56,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
 import de.jeanlucmakiola.calendula.ui.common.localizedDateFormatter
-import de.jeanlucmakiola.floret.components.pastelize
+import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.widget.AgendaWidgetData
 import de.jeanlucmakiola.calendula.widget.CalendulaGlanceTheme
 import de.jeanlucmakiola.calendula.widget.loadAgendaWidgetData
@@ -197,6 +197,7 @@ private fun AgendaWidgetBody(data: AgendaWidgetData, dark: Boolean) {
                                 is AgendaRow.Event -> EventRow(
                                     event = row.event,
                                     dark = dark,
+                                    soften = data.soften,
                                     is24Hour = data.is24Hour,
                                     dimmed = pastDisplay == PastEventDisplay.DIM &&
                                         row.event.hasEnded(data.now),
@@ -309,12 +310,18 @@ private fun PlaceholderRow(date: LocalDate) {
 }
 
 @Composable
-private fun EventRow(event: EventInstance, dark: Boolean, is24Hour: Boolean, dimmed: Boolean) {
+private fun EventRow(
+    event: EventInstance,
+    dark: Boolean,
+    soften: Boolean,
+    is24Hour: Boolean,
+    dimmed: Boolean,
+) {
     val context = androidx.glance.LocalContext.current
     val title = event.title.ifBlank { context.getString(R.string.event_untitled) }
     // Glance has no generic alpha modifier, so dim by fading the colour stripe and
     // dropping both text lines to the lower-emphasis on-surface-variant tone.
-    val stripeColor = pastelize(event.color, dark).let {
+    val stripeColor = eventFill(event.color, dark, soften).let {
         if (dimmed) it.copy(alpha = EventDimAlpha) else it
     }
     val titleColor = if (dimmed) GlanceTheme.colors.onSurfaceVariant else GlanceTheme.colors.onSurface

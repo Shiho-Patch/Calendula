@@ -55,9 +55,10 @@ import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
-import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.floret.components.positionOf
 import java.time.Instant as JavaInstant
 import java.time.ZoneId
@@ -192,6 +193,7 @@ private fun SearchResultRow(
     onClick: () -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
+    val soften = LocalSoftenColors.current
     GroupedRow(
         modifier = modifier,
         title = event.title,
@@ -203,7 +205,7 @@ private fun SearchResultRow(
                 modifier = Modifier
                     .size(width = 6.dp, height = 36.dp)
                     .clip(RoundedCornerShape(3.dp))
-                    .background(pastelize(event.color, dark)),
+                    .background(eventFill(event.color, dark, soften)),
             )
         },
         onClick = onClick,

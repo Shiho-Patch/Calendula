@@ -123,14 +123,17 @@ class SettingsViewModel @Inject constructor(
                     prefs.showHourLines,
                     prefs.showWeekNumbers,
                     prefs.agendaShowToday,
-                    ::Triple,
-                ),
+                    prefs.softenCalendarColors,
+                ) { hourLines, weekNumbers, showToday, soften ->
+                    DisplayToggles(hourLines, weekNumbers, showToday, soften)
+                },
             ) { view, screenRange, widgetRange, timeFormat, toggles ->
                 ViewSettings(
                     view, screenRange, widgetRange, timeFormat,
-                    showHourLines = toggles.first,
-                    showWeekNumbers = toggles.second,
-                    agendaShowToday = toggles.third,
+                    showHourLines = toggles.showHourLines,
+                    showWeekNumbers = toggles.showWeekNumbers,
+                    agendaShowToday = toggles.agendaShowToday,
+                    softenColors = toggles.softenColors,
                 )
             },
             combine(
@@ -155,6 +158,7 @@ class SettingsViewModel @Inject constructor(
                 showHourLines = views.showHourLines,
                 showWeekNumbers = views.showWeekNumbers,
                 agendaShowToday = views.agendaShowToday,
+                softenColors = views.softenColors,
                 agendaShowRangeBar = misc.showRangeBar,
                 autofocusEventTitle = misc.autofocusEventTitle,
                 pastEventDisplay = misc.pastEventDisplay,
@@ -229,6 +233,14 @@ class SettingsViewModel @Inject constructor(
         val showHourLines: Boolean,
         val showWeekNumbers: Boolean,
         val agendaShowToday: Boolean,
+        val softenColors: Boolean,
+    )
+
+    private data class DisplayToggles(
+        val showHourLines: Boolean,
+        val showWeekNumbers: Boolean,
+        val agendaShowToday: Boolean,
+        val softenColors: Boolean,
     )
 
     private data class MiscSettings(
@@ -339,6 +351,19 @@ class SettingsViewModel @Inject constructor(
 
     fun setDynamicColor(enabled: Boolean) {
         viewModelScope.launch { prefs.setDynamicColor(enabled) }
+    }
+
+    fun setSoftenColors(enabled: Boolean) {
+        viewModelScope.launch {
+            prefs.setSoftenCalendarColors(enabled)
+            // Both widgets paint event colours through the same softener, so a
+            // change has to redraw them too (they read the flag in their data
+            // preamble, like is24Hour).
+            widgetRefreshMutex.withLock {
+                AgendaWidget().updateAll(appContext)
+                MonthWidget().updateAll(appContext)
+            }
+        }
     }
 
     fun setFont(role: FontRole, token: String) {

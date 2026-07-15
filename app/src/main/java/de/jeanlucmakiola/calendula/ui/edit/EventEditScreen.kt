@@ -126,6 +126,8 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarPickerGroups
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
+import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.floret.components.DialogAmountField
 import de.jeanlucmakiola.floret.components.DialogUnitDropdown
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldIcon
@@ -146,7 +148,6 @@ import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.reminderUnitLabel
-import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.calendula.ui.common.recurrenceText
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -541,7 +542,8 @@ private fun EventEditContent(
     val selectedCalendar = state.calendars.firstOrNull { it.id == form.calendarId }
     // The accent ties the form to the detail screen's design language: the
     // bar under the title takes the target calendar's colour.
-    val accent = selectedCalendar?.let { pastelize(it.color, dark) }
+    val soften = LocalSoftenColors.current
+    val accent = selectedCalendar?.let { eventFill(it.color, dark, soften) }
         ?: MaterialTheme.colorScheme.primary
     val gap = 12.dp
 
@@ -893,7 +895,7 @@ private fun EventEditContent(
                 icon = Icons.Default.Palette,
                 iconContentDescription = stringResource(R.string.event_edit_color),
                 iconTint = if (colorSupported && swatch != null) {
-                    pastelize(swatch, dark)
+                    eventFill(swatch, dark, soften)
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },

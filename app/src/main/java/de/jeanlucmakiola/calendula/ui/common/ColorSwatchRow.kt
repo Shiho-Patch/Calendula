@@ -18,15 +18,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import de.jeanlucmakiola.floret.components.pastelize
 
 /**
  * A wrapping row of round colour swatches; the one matching [selected] is
  * ringed and checked. Shared by the calendar editor and the event-colour
  * picker so both pick a colour the same way. Swatches render through
- * [pastelize] — the softened colour the app actually paints, not the raw hue.
+ * [eventFill] — the colour the app actually paints (softened, or raw when the
+ * softener is off, issue #36), not necessarily the stored hue.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -37,16 +36,18 @@ fun ColorSwatchRow(
     dark: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val soften = LocalSoftenColors.current
     FlowRow(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         colors.forEach { argb ->
             val isSelected = argb == selected
+            val fill = eventFill(argb, dark, soften)
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .padding(vertical = 4.dp)
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(pastelize(argb, dark))
+                    .background(fill)
                     .then(
                         if (isSelected) {
                             Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
@@ -60,7 +61,7 @@ fun ColorSwatchRow(
                     Icon(
                         Icons.Default.Check,
                         contentDescription = null,
-                        tint = Color.Black.copy(alpha = 0.7f),
+                        tint = eventInk(fill, alpha = 0.7f),
                         modifier = Modifier.size(20.dp),
                     )
                 }

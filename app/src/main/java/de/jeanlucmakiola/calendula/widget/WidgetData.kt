@@ -60,6 +60,8 @@ sealed interface AgendaWidgetData {
         val days: List<AgendaDay>,
         /** Resolved clock convention for event time labels (the time-format pref). */
         val is24Hour: Boolean,
+        /** Whether event colours are softened to pastels, or shown raw (#36). */
+        val soften: Boolean,
         /** First day of the week, for the calendar-aligned "this week" range. */
         val weekStart: DayOfWeek,
         /** Saved range pref — the fallback when an instance has no Glance state yet. */
@@ -132,10 +134,12 @@ internal suspend fun Context.loadAgendaWidgetData(): AgendaWidgetData {
     val instances = ep.calendarRepository().instances(window).first()
     val is24Hour = prefs.timeFormat.first()
         .is24Hour(android.text.format.DateFormat.is24HourFormat(this))
+    val soften = prefs.softenCalendarColors.first()
     return AgendaWidgetData.Ready(
         today = anchor,
         days = groupAgendaDays(anchor, instances, zone),
         is24Hour = is24Hour,
+        soften = soften,
         weekStart = weekStart,
         savedRange = savedRange,
         savedPastDisplay = savedPastDisplay,

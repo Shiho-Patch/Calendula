@@ -59,6 +59,8 @@ import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.hasEnded
 import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
+import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.floret.identity.animateItemMotion
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
@@ -72,7 +74,6 @@ import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.next
-import de.jeanlucmakiola.floret.components.pastelize
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.currentLocale
@@ -454,6 +455,7 @@ private fun AgendaEventRow(
     onClick: () -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
+    val soften = LocalSoftenColors.current
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     GroupedRow(
         modifier = if (dimmed) modifier.alpha(EventDimAlpha) else modifier,
@@ -466,7 +468,7 @@ private fun AgendaEventRow(
                 modifier = Modifier
                     .size(width = 6.dp, height = 36.dp)
                     .clip(RoundedCornerShape(3.dp))
-                    .background(pastelize(event.color, dark)),
+                    .background(eventFill(event.color, dark, soften)),
             )
         },
         onClick = onClick,

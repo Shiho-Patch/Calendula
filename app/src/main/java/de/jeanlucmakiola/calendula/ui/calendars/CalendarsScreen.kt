@@ -93,6 +93,8 @@ import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.LeadingAvatar
 import de.jeanlucmakiola.calendula.ui.common.SourceLogo
 import de.jeanlucmakiola.calendula.ui.common.curatedSourcePackage
@@ -108,7 +110,6 @@ import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.Position
-import de.jeanlucmakiola.floret.components.pastelize
 import java.time.LocalDate
 
 /** Sentinel [editorId] meaning "the editor is composing a new calendar". */
@@ -565,6 +566,7 @@ private fun CalendarEditor(
     var description by rememberSaveable(sessionKey) { mutableStateOf(initialDescription) }
     var confirmDelete by remember { mutableStateOf(false) }
     val dark = isSystemInDarkTheme()
+    val soften = LocalSoftenColors.current
 
     Scaffold(
         modifier = Modifier
@@ -624,7 +626,7 @@ private fun CalendarEditor(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            EditorCard(icon = Icons.Default.CalendarMonth, iconTint = pastelize(color, dark)) {
+            EditorCard(icon = Icons.Default.CalendarMonth, iconTint = eventFill(color, dark, soften)) {
                 InlineTextField(
                     value = name,
                     onValueChange = { name = it },

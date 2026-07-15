@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Show raw calendar colours. Calendula normally softens each calendar and event
+  colour toward a theme-fitting pastel so harsh sync colours read well on both
+  light and dark; a new **Soften calendar colours** setting (Settings → Design,
+  on by default) lets you turn that off and paint the exact colours your calendar
+  source publishes — matching DAVx5/CalDAV and other calendar apps. Thanks to
+  @leonp5 for the report ([#36]).
+- Readable titles on dark event colours. An event bar's title now shows in white
+  on a dark colour and near-black on a light one, chosen automatically from the
+  colour's brightness, so a deep blue or purple event is legible at a glance in
+  the busy Week and Month views instead of dark-on-dark. This applies whether or
+  not colours are softened. Thanks to @ptab for the suggestion ([#21]).
 - A custom snooze duration. The **Snooze duration** setting (Settings →
   Notifications) gains a **Custom…** option next to the minute presets: pick any
   amount and switch between minutes and hours, so a snoozed reminder comes back
@@ -971,10 +982,12 @@ automatically, with zero telemetry and no internet permission.
 [#25]: https://codeberg.org/jlmakiola/calendula/issues/25
 [#27]: https://codeberg.org/jlmakiola/calendula/issues/27
 [#29]: https://codeberg.org/jlmakiola/calendula/issues/29
+[#21]: https://codeberg.org/jlmakiola/calendula/issues/21
 [#30]: https://codeberg.org/jlmakiola/calendula/issues/30
 [#32]: https://codeberg.org/jlmakiola/calendula/issues/32
 [#33]: https://codeberg.org/jlmakiola/calendula/issues/33
 [#34]: https://codeberg.org/jlmakiola/calendula/issues/34
+[#36]: https://codeberg.org/jlmakiola/calendula/issues/36
 [#37]: https://codeberg.org/jlmakiola/calendula/issues/37
 [#39]: https://codeberg.org/jlmakiola/calendula/issues/39
 [#35]: https://codeberg.org/jlmakiola/calendula/issues/35
