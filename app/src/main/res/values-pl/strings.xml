@@ -391,7 +391,7 @@
     <string name="settings_about_version">Wersja %1$s</string>
     <string name="settings_about_logo_desc">Ikona aplikacji Calendula</string>
     <string name="settings_report_problem">Zgłoś problem</string>
-    <string name="settings_report_problem_hint">Wyślij raport o błędzie lub otwórz system zgłoszeń</string>
+    <string name="settings_report_problem_hint">Wyślij raport o awarii lub otwórz system zgłoszeń</string>
     <string name="calendars_title">Kalendarze</string>
     <string name="calendars_local_header">Twoje kalendarze</string>
     <string name="calendars_local_empty">Brak lokalnych kalendarzy. Utwórz kalendarz, aby zapisywać wydarzenia tylko na tym urządzeniu.</string>
@@ -497,4 +497,22 @@
     <string name="crash_dialog_message">Aplikacja %1$s została nieoczekiwanie zamknięta przy ostatnim uruchomieniu. Możesz pomóc nam to naprawić, wysyłając zgłoszenie o błędzie. Pozostanie ono na Twoim urządzeniu, dopóki nie zdecydujesz się go udostępnić, i nie zawiera żadnych danych osobowych ani treści z kalendarza — jedynie poniższe szczegóły techniczne.</string>
     <string name="crash_dialog_report">Zgłoś</string>
     <string name="crash_dialog_dismiss">Nie teraz</string>
+    <string name="crash_report_issue_title">Raport o awarii</string>
+    <string name="crash_report_clip_label">Raport o awarii %1$s</string>
+    <string name="crash_report_copied">Raport skopiowany do schowka</string>
+    <string name="crash_report_open_failed">Nie udało się otworzyć systemu zgłoszeń. Raport znajduje się w Twoim schowku.</string>
+    <string name="crash_report_body_template">Dziękujemy za zgłoszenie awarii w aplikacji %1$s. Prosimy o dodanie wszelkich zapamiętanych szczegółów na temat wykonywanych czynności, a następnie przesłanie zgłoszenia.\n\n### Co się wydarzyło\n\n\n### Raport o awarii\n%2$s\n</string>
+    <string name="crash_report_body_paste">_(Raport był zbyt długi dla tego linku — wklej go tutaj ze schowka)._</string>
+    <string name="special_dates_calendar_custom">Szczególne daty</string>
+    <string name="special_dates_default_title_birthday">Urodziny {name} ({year})</string>
+    <string name="special_dates_default_title_anniversary">Rocznica {name} ({year})</string>
+    <string name="special_dates_default_title_custom">{name}</string>
+    <string name="event_detail_duplicate">Duplikuj</string>
+    <string name="reminder_day_tomorrow">Jutro</string>
+    <string name="reminder_day_yesterday">Wczoraj</string>
+    <string name="agenda_no_more_today">Brak zaplanowanych wydarzeń</string>
+    <string name="settings_soften_colors">Zredukuj intensywność kolorów kalendarza</string>
+    <string name="settings_soften_colors_summary">Dopasuj intensywność kolorów kalendarza i wydarzeń do motywu. Wyłącz tę opcję, aby wyświetlać oryginalne kolory ze źródła kalendarza.</string>
+    <string name="settings_agenda_show_today">Zawsze pokazuj dzisiejszy dzień</string>
+    <string name="settings_agenda_show_today_hint">Zachowaj dzisiejszy dzień na górze agendy i widżetu, nawet gdy nie ma już na dziś żadnych zadań.</string>
 </resources>
