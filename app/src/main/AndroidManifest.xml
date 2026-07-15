@@ -123,6 +123,22 @@
                 <data android:mimeType="vnd.android.cursor.dir/event" />
             </intent-filter>
 
+            <!-- Open an existing event another app/widget points at (e.g. tapping
+                 an event in the Todo Agenda widget): ACTION_VIEW on
+                 content://com.android.calendar/events/<id>, the way AOSP fires it.
+                 Matched by the provider's item MIME type, not the path — a
+                 content: VIEW intent carries the resolved type
+                 (vnd.android.cursor.item/event) and a path-only filter wouldn't
+                 match it. The occurrence's times ride as EXTRA_EVENT_BEGIN_TIME /
+                 EXTRA_EVENT_END_TIME when the launcher supplies them
+                 (MainActivity.viewEventKeyOrNull, issue #48). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="vnd.android.cursor.item/event" />
+            </intent-filter>
+
             <!-- Launcher long-press shortcuts (e.g. "New event"). -->
             <meta-data
                 android:name="android.app.shortcuts"

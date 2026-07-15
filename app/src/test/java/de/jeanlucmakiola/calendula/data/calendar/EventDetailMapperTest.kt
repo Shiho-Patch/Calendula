@@ -32,6 +32,7 @@ class EventDetailMapperTest {
         accessLevel: Any? = null,
         timezone: String? = null,
         selfStatus: Any? = null,
+        duration: String? = null,
     ): MapColumnReader = MapColumnReader(
         EventDetailProjection.IDX_EVENT_ID to eventId,
         EventDetailProjection.IDX_TITLE to title,
@@ -51,6 +52,7 @@ class EventDetailMapperTest {
         EventDetailProjection.IDX_EVENT_TIMEZONE to timezone,
         EventDetailProjection.IDX_SELF_ATTENDEE_STATUS to selfStatus,
         EventDetailProjection.IDX_EVENT_COLOR_KEY to eventColorKey,
+        EventDetailProjection.IDX_DURATION to duration,
     )
 
     private fun attendeeReader(
@@ -134,12 +136,32 @@ class EventDetailMapperTest {
     fun `pre-1970 negative dtstart is kept, not dropped (issue #34)`() {
         // A yearly birthday/anniversary anchored before the epoch has a
         // legitimately negative UTC epoch-millis DTSTART; recurring rows carry
-        // no DTEND (they use DURATION), so it stays end == begin.
+        // no DTEND (they use DURATION), so the length comes from DURATION.
         val begin = -157_766_400_000L // 1965-01-01T00:00:00Z
-        val detail = detailReader(dtstart = begin, dtend = null).toDetail()
+        val detail = detailReader(dtstart = begin, dtend = null, duration = "P1D").toDetail()
         assertThat(detail).isNotNull()
         assertThat(detail!!.instance.start.toEpochMilliseconds()).isEqualTo(begin)
-        assertThat(detail.instance.end.toEpochMilliseconds()).isEqualTo(begin)
+        assertThat(detail.instance.end.toEpochMilliseconds()).isEqualTo(begin + 86_400_000L)
+    }
+
+    @Test
+    fun `absent dtend takes its length from DURATION (issue #48)`() {
+        // A recurring series row has no DTEND. Opened without a named
+        // occurrence — a bare content://…/events/<id> VIEW intent — the row's
+        // own times are what render, so DURATION has to supply the length or
+        // the event shows as zero-length (10:00–10:00).
+        val begin = 1_000_000_000L
+        val detail = detailReader(dtstart = begin, dtend = null, duration = "PT1H").toDetail()
+        assertThat(detail).isNotNull()
+        assertThat(detail!!.instance.end.toEpochMilliseconds()).isEqualTo(begin + 3_600_000L)
+    }
+
+    @Test
+    fun `absent dtend and absent DURATION stays zero-length`() {
+        val begin = 1_000_000_000L
+        val detail = detailReader(dtstart = begin, dtend = null, duration = null).toDetail()
+        assertThat(detail).isNotNull()
+        assertThat(detail!!.instance.end.toEpochMilliseconds()).isEqualTo(begin)
     }
 
     @Test

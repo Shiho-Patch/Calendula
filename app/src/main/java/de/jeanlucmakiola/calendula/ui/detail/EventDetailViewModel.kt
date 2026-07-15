@@ -141,13 +141,20 @@ class EventDetailViewModel @Inject constructor(
     private suspend fun loadDetail(target: Target): EventDetailUiState = try {
         val detail = repository.eventDetail(target.eventId)
         // The Events row holds the series start; replace it with this
-        // occurrence's time so recurring events render correctly.
-        val corrected = detail.copy(
-            instance = detail.instance.copy(
-                start = Instant.fromEpochMilliseconds(target.beginMillis),
-                end = Instant.fromEpochMilliseconds(target.endMillis),
-            ),
-        )
+        // occurrence's time so recurring events render correctly. An external
+        // "open event" that names no occurrence ([NO_OCCURRENCE_TIME] — e.g. a
+        // bare content://.../events/<id> VIEW intent, issue #48) keeps the row's
+        // own DTSTART/DTEND instead of overriding it to the epoch.
+        val corrected = if (target.beginMillis == NO_OCCURRENCE_TIME) {
+            detail
+        } else {
+            detail.copy(
+                instance = detail.instance.copy(
+                    start = Instant.fromEpochMilliseconds(target.beginMillis),
+                    end = Instant.fromEpochMilliseconds(target.endMillis),
+                ),
+            )
+        }
         val calendar = repository.calendars().first()
             .firstOrNull { it.id == corrected.instance.calendarId }
         EventDetailUiState.Success(
@@ -168,6 +175,16 @@ class EventDetailViewModel @Inject constructor(
 
     /** A tapped occurrence: the series [eventId] plus this occurrence's own times. */
     private data class Target(val eventId: Long, val beginMillis: Long, val endMillis: Long)
+
+    companion object {
+        /**
+         * Sentinel begin/end for an "open this event" that names no occurrence —
+         * a bare `content://com.android.calendar/events/<id>` VIEW intent with no
+         * `EXTRA_EVENT_BEGIN_TIME` (issue #48). [loadDetail] then keeps the event
+         * row's own DTSTART/DTEND instead of overriding it to the epoch.
+         */
+        const val NO_OCCURRENCE_TIME: Long = Long.MIN_VALUE
+    }
 }
 
 /** A filesystem-safe `.ics` file name from an event title (or a fallback). */

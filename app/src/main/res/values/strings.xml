@@ -117,6 +117,16 @@
     <string name="event_edit_gone_title">Event deleted</string>
     <string name="event_edit_gone_body">This event was deleted in the meantime, for example on another device. Your changes can no longer be saved.</string>
 
+    <!-- Event form — apply default reminder to an imported .ics event (#49) -->
+    <string name="import_reminder_prompt_title">Apply your default reminder?</string>
+    <string name="import_reminder_prompt_body_none">This event was imported without any reminder.</string>
+    <plurals name="import_reminder_prompt_body_existing">
+        <item quantity="one">This event was imported with %1$d reminder.</item>
+        <item quantity="other">This event was imported with %1$d reminders.</item>
+    </plurals>
+    <string name="import_reminder_prompt_apply">Apply default</string>
+    <string name="import_reminder_prompt_keep">Keep as-is</string>
+
     <!-- Event form — recurrence picker (v1.3) -->
     <string name="event_edit_recurrence_none">Does not repeat</string>
     <string name="event_edit_recurrence_custom">Custom</string>

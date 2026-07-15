@@ -51,6 +51,36 @@ import kotlin.time.Instant
 import javax.inject.Inject
 
 /**
+ * Where a prefilled [EventEditViewModel.openImported] form came from — the two
+ * sources want different reminder handling (#49).
+ */
+enum class ImportSource {
+    /**
+     * An external `ACTION_INSERT` intent (another app/widget, e.g. Google Maps).
+     * It carries no reminders of its own, so the settings default is applied
+     * automatically, exactly like an in-app new event.
+     */
+    Insert,
+
+    /**
+     * A parsed single-event `.ics` file. Its own reminders are respected; the
+     * settings default is offered through [EventEditViewModel.importReminderPrompt]
+     * rather than silently applied or suppressed.
+     */
+    File,
+}
+
+/**
+ * A pending offer to swap an imported `.ics` event's reminders for the settings
+ * default (#49). [currentReminderCount] is what the file carried (0 or more);
+ * [defaultReminders] is what accepting would set.
+ */
+data class ImportReminderPrompt(
+    val currentReminderCount: Int,
+    val defaultReminders: List<Int>,
+)
+
+/**
  * Holds the event form being composed. The form's calendar id resolves to
  * (user pick > last used > first writable); the resolved value is what the UI
  * shows and what gets saved.
@@ -78,9 +108,15 @@ class EventEditViewModel @Inject constructor(
     // freezes the auto-applied default: switching calendars no longer overwrites
     // their choice. Reset with the form.
     private val _remindersTouched = MutableStateFlow(false)
+    // A one-time offer, raised when a .ics import opens, to replace the file's
+    // reminders with the settings default (#49). Null while there's nothing to ask.
+    private val _importReminderPrompt = MutableStateFlow<ImportReminderPrompt?>(null)
 
     /** True when the event to edit couldn't be loaded; the screen closes itself. */
     val loadFailed: StateFlow<Boolean> = _loadFailed.asStateFlow()
+
+    /** Pending "apply your default reminder?" offer for a `.ics` import; null when none. */
+    val importReminderPrompt: StateFlow<ImportReminderPrompt?> = _importReminderPrompt.asStateFlow()
 
     /**
      * The event being edited plus everything the form saw at load time.
@@ -112,7 +148,17 @@ class EventEditViewModel @Inject constructor(
         val allDay: List<Int>,
         val timedOverrides: Map<Long, List<Int>>,
         val allDayOverrides: Map<Long, List<Int>>,
-    )
+    ) {
+        /** The default reminders for an event on [calendarId] of the given kind. */
+        fun resolveFor(calendarId: Long?, isAllDay: Boolean): List<Int> = resolveDefaultReminder(
+            timedGlobal = timed,
+            allDayGlobal = allDay,
+            timedOverrides = timedOverrides,
+            allDayOverrides = allDayOverrides,
+            calendarId = calendarId,
+            isAllDay = isAllDay,
+        )
+    }
 
     private data class ExternalInputs(
         val writable: List<CalendarSource>,
@@ -241,18 +287,39 @@ class EventEditViewModel @Inject constructor(
     }
 
     /**
-     * Seed a fresh event from a parsed `.ics` file (the single-event "open into
-     * the create form" path). [form] already carries the file's fields; its
-     * [EventForm.calendarId] is null so the calendar still resolves to the
-     * last-used/first-writable one, and reminders are frozen as touched so the
-     * settings default never overwrites what the file specified. No-op when a
-     * form is already open, so the prefill survives configuration changes.
+     * Seed a fresh event from a prefilled [form] — a parsed single-event `.ics`
+     * file ([ImportSource.File]) or an external `ACTION_INSERT` intent (another
+     * app/widget creating an event, e.g. Google Maps' "add to calendar";
+     * [ImportSource.Insert]; #30, #49). [EventForm.calendarId] is null so the
+     * calendar still resolves to the last-used/first-writable one.
+     *
+     * Reminders are handled per [source], because the two paths mean different
+     * things by "no reminders":
+     * - [ImportSource.Insert] carries no reminder semantics, so the settings
+     *   default is applied automatically like an in-app new event (a form that
+     *   somehow did carry reminders keeps them, frozen).
+     * - [ImportSource.File] owns its reminders, so they're frozen as-is; if a
+     *   settings default is configured and differs, [importReminderPrompt] offers
+     *   to swap it in rather than silently deciding for the user.
+     *
+     * No-op when a form is already open, so the prefill survives configuration
+     * changes.
      */
-    fun openImported(form: EventForm) {
+    fun openImported(form: EventForm, source: ImportSource) {
         if (_form.value != null || _editTarget.value != null) return
-        _remindersTouched.value = true
         _revealed.value = form.populatedFields()
         _form.value = form
+        when (source) {
+            ImportSource.Insert ->
+                if (form.reminders.isNotEmpty()) _remindersTouched.value = true
+                else applyDefaultReminder()
+
+            ImportSource.File -> {
+                // Respect the file's own reminders; never silently overwrite them.
+                _remindersTouched.value = true
+                maybePromptImportedReminderDefault(form)
+            }
+        }
     }
 
     /**
@@ -266,26 +333,12 @@ class EventEditViewModel @Inject constructor(
     private fun applyDefaultReminder(calendarId: Long? = null) {
         if (_editTarget.value != null || _remindersTouched.value) return
         viewModelScope.launch {
-            val defaults = combine(
-                settingsPrefs.defaultReminderMinutes,
-                settingsPrefs.defaultAllDayReminderMinutes,
-                settingsPrefs.perCalendarReminderOverride,
-                settingsPrefs.perCalendarAllDayReminderOverride,
-            ) { timed, allDay, timedOv, allDayOv ->
-                ReminderDefaults(timed, allDay, timedOv, allDayOv)
-            }.first()
+            val defaults = reminderDefaults()
             val targetId = calendarId ?: resolvedCalendarId.first()
             // Re-check after suspending: bail if the form closed or the user edited.
             val form = _form.value ?: return@launch
             if (_editTarget.value != null || _remindersTouched.value) return@launch
-            val reminders = resolveDefaultReminder(
-                timedGlobal = defaults.timed,
-                allDayGlobal = defaults.allDay,
-                timedOverrides = defaults.timedOverrides,
-                allDayOverrides = defaults.allDayOverrides,
-                calendarId = targetId,
-                isAllDay = form.isAllDay,
-            )
+            val reminders = defaults.resolveFor(targetId, form.isAllDay)
             _form.value = form.copy(reminders = reminders)
             // Surface the section so an auto-applied default is visible and
             // removable, even when Reminders isn't a default-shown field.
@@ -293,6 +346,52 @@ class EventEditViewModel @Inject constructor(
                 _revealed.value = _revealed.value + EventFormField.Reminders
             }
         }
+    }
+
+    /** Snapshot the four settings-default reminder flows into one value. */
+    private suspend fun reminderDefaults(): ReminderDefaults = combine(
+        settingsPrefs.defaultReminderMinutes,
+        settingsPrefs.defaultAllDayReminderMinutes,
+        settingsPrefs.perCalendarReminderOverride,
+        settingsPrefs.perCalendarAllDayReminderOverride,
+    ) { timed, allDay, timedOv, allDayOv ->
+        ReminderDefaults(timed, allDay, timedOv, allDayOv)
+    }.first()
+
+    /**
+     * A `.ics` import respects the file's reminders, but an event opened from a
+     * file often has none while the user still expects their configured default.
+     * Rather than silently deciding, raise a one-time offer to swap in the
+     * settings default — but only when there's a real choice: a default is
+     * configured and it isn't already exactly what the file carried.
+     */
+    private fun maybePromptImportedReminderDefault(form: EventForm) {
+        viewModelScope.launch {
+            val targetId = resolvedCalendarId.first()
+            val default = reminderDefaults().resolveFor(targetId, form.isAllDay)
+            // Bail if the form closed or became an edit while we resolved.
+            val current = _form.value ?: return@launch
+            if (_editTarget.value != null) return@launch
+            if (default.isEmpty() || default == current.reminders) return@launch
+            _importReminderPrompt.value = ImportReminderPrompt(
+                currentReminderCount = current.reminders.size,
+                defaultReminders = default,
+            )
+        }
+    }
+
+    /** Accept the import prompt: replace the file's reminders with the default. */
+    fun applyImportedReminderDefault() {
+        val prompt = _importReminderPrompt.value ?: return
+        _importReminderPrompt.value = null
+        // Already frozen as touched by openImported; this just swaps the values.
+        update { it.copy(reminders = prompt.defaultReminders) }
+        _revealed.value = _revealed.value + EventFormField.Reminders
+    }
+
+    /** Decline the import prompt: keep the file's own reminders untouched. */
+    fun dismissImportedReminderPrompt() {
+        _importReminderPrompt.value = null
     }
 
     /**
@@ -329,6 +428,7 @@ class EventEditViewModel @Inject constructor(
         _editTarget.value = null
         _loadFailed.value = false
         _remindersTouched.value = false
+        _importReminderPrompt.value = null
     }
 
     /** Unfold one optional field, picked in the "more fields" dialog. */
