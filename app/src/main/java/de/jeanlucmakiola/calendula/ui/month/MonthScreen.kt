@@ -380,7 +380,10 @@ private fun MonthGrid(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 4.dp, vertical = 4.dp),
+            // Match the weekday header's 8dp inset so day cells sit under their
+            // labels, and so the week-number gutter's centre lines up with the
+            // top bar's hamburger (4dp bar inset + 24dp half icon button).
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         state.weeks.forEach { week ->

@@ -114,6 +114,10 @@ import kotlin.math.roundToInt
 
 private val HOUR_HEIGHT = 56.dp
 private val GUTTER_WIDTH = 48.dp
+/** Start inset for the gutter's content (week badge + hour labels) so it centres
+ *  on the top bar's hamburger: with a 48dp gutter, 8dp lands the centre at 28dp
+ *  (the app bar's 4dp inset + 24dp half icon button). */
+private val GUTTER_CONTENT_START_INSET = 8.dp
 private val MIN_EVENT_HEIGHT = 24.dp
 private val ALL_DAY_ROW_HEIGHT = 24.dp
 private val ALL_DAY_VERTICAL_PADDING = 6.dp
@@ -448,9 +452,10 @@ private fun WeekDayHeader(
             .padding(top = 4.dp, bottom = 8.dp),
     ) {
         // Mirror the day-column layout (empty weekday line + spacer) so the
-        // badge lines up vertically with the date numbers.
+        // badge lines up vertically with the date numbers. The start inset centres
+        // the badge on the top bar's hamburger (see GUTTER_CONTENT_START_INSET).
         Column(
-            modifier = Modifier.width(GUTTER_WIDTH),
+            modifier = Modifier.width(GUTTER_WIDTH).padding(start = GUTTER_CONTENT_START_INSET),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(text = " ", style = MaterialTheme.typography.labelSmall)
@@ -621,10 +626,12 @@ private fun Timeline(
         // soft corners are permanent at any scroll position (not just at the
         // day's start/end).
         Row(modifier = Modifier.fillMaxSize()) {
-            // Hour gutter (scrolls in sync with the day columns)
+            // Hour gutter (scrolls in sync with the day columns). Same start inset
+            // as the header badge so the labels sit under it and on the hamburger.
             Column(
                 modifier = Modifier
                     .width(GUTTER_WIDTH)
+                    .padding(start = GUTTER_CONTENT_START_INSET)
                     .fillMaxHeight()
                     .verticalScroll(scrollState),
             ) {
