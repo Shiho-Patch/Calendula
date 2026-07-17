@@ -99,6 +99,15 @@
     <string name="event_edit_availability">Availability</string>
     <string name="event_edit_visibility">Visibility</string>
 
+    <!-- Event form — time zone -->
+    <string name="event_edit_timezone_device">Device time zone</string>
+    <string name="event_edit_timezone_device_summary">Follows wherever you are</string>
+    <string name="event_edit_timezone_search">Search time zones</string>
+    <string name="event_edit_timezone_recent">Recent</string>
+    <string name="event_edit_timezone_all">All time zones</string>
+    <string name="event_edit_timezone_none">No time zone matches “%1$s”</string>
+    <string name="event_edit_timezone_clear">Use device zone</string>
+
     <!-- Event form — per-event color -->
     <string name="event_edit_color">Color</string>
     <string name="event_edit_color_default">Calendar color</string>

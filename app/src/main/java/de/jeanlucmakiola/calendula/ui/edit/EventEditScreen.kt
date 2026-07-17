@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Tune
@@ -111,6 +112,8 @@ import de.jeanlucmakiola.calendula.domain.EventAttendee
 import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.formatGmtOffset
+import de.jeanlucmakiola.calendula.domain.timeZoneOptionOf
 import de.jeanlucmakiola.calendula.domain.EventFormProblem
 import de.jeanlucmakiola.calendula.domain.RecurrenceEnd
 import de.jeanlucmakiola.calendula.domain.RecurrenceFreq
@@ -126,6 +129,7 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarPickerGroups
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
+import de.jeanlucmakiola.calendula.ui.common.TimeZonePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.floret.components.DialogAmountField
@@ -160,6 +164,7 @@ import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toKotlinDayOfWeek
 import kotlinx.datetime.toJavaLocalTime
 import kotlinx.datetime.toLocalDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.format.TextStyle as JavaTextStyle
@@ -506,6 +511,7 @@ private fun EventEditContent(
     var showRecurrencePicker by rememberSaveable { mutableStateOf(false) }
     var showVisibilityPicker by rememberSaveable { mutableStateOf(false) }
     var showColorPicker by rememberSaveable { mutableStateOf(false) }
+    var showTimezonePicker by rememberSaveable { mutableStateOf(false) }
     var showFieldPicker by rememberSaveable { mutableStateOf(false) }
 
     // Pick a guest from contacts: a one-shot system picker returning the chosen
@@ -706,6 +712,43 @@ private fun EventEditContent(
 
         // Optional sections: which ones render by default is a setting; the
         // rest unfold behind the "more fields" button below.
+        OptionalFormSection(visible = EventFormField.Timezone in state.visibleFields) {
+            Spacer(Modifier.height(gap))
+            EditCard(
+                icon = Icons.Default.Public,
+                iconContentDescription = null,
+                onClick = { showTimezonePicker = true },
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    val pinned = remember(form.timezone, locale) {
+                        form.timezone?.let { timeZoneOptionOf(it, locale) }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = pinned?.city
+                                ?: stringResource(R.string.event_edit_timezone_device),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = pinned
+                                ?.let { "${it.displayName} · ${formatGmtOffset(it.offsetMinutes)}" }
+                                ?: stringResource(R.string.event_edit_timezone_device_summary),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
         OptionalFormSection(visible = EventFormField.Location in state.visibleFields) {
             Spacer(Modifier.height(gap))
             EditCard(
@@ -1078,6 +1121,16 @@ private fun EventEditContent(
                 showVisibilityPicker = false
             },
             onDismiss = { showVisibilityPicker = false },
+        )
+    }
+
+    if (showTimezonePicker) {
+        TimeZonePickerDialog(
+            selected = form.timezone,
+            deviceZoneId = ZoneId.systemDefault().id,
+            recents = state.recentTimeZones,
+            onSelect = viewModel::setTimezone,
+            onDismiss = { showTimezonePicker = false },
         )
     }
 
