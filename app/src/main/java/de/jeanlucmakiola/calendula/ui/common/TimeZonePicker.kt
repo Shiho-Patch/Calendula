@@ -2,17 +2,21 @@ package de.jeanlucmakiola.calendula.ui.common
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,8 +24,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
@@ -31,6 +39,7 @@ import de.jeanlucmakiola.calendula.domain.formatGmtOffset
 import de.jeanlucmakiola.calendula.domain.timeZoneOptions
 import de.jeanlucmakiola.floret.components.FullScreenPicker
 import de.jeanlucmakiola.floret.components.GroupedRow
+import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.floret.locale.currentLocale
@@ -75,15 +84,10 @@ fun TimeZonePickerDialog(
         onDismiss = onDismiss,
         scrollable = false,
     ) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
-            singleLine = true,
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            placeholder = { Text(stringResource(R.string.event_edit_timezone_search)) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+        SearchField(
+            query = query,
+            onQueryChange = { query = it },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
         LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)) {
             if (!searching) {
@@ -150,6 +154,59 @@ fun TimeZonePickerDialog(
                     selected = zone.id == selected,
                     onClick = { choose(zone.id) },
                 )
+            }
+        }
+    }
+}
+
+/**
+ * The query box: the family's borderless [InlineTextField] over a tonal surface,
+ * so it reads like the rest of the app's inputs rather than a boxed Material
+ * field. The clear button rides inside the surface (unlike the search screen,
+ * which has a top bar to put it in) because the picker's bar is the title.
+ */
+@Composable
+private fun SearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val keyboard = LocalSoftwareKeyboardController.current
+    // surfaceContainerHighest — the picker sits on surfaceContainerHigh, so
+    // anything lower vanishes into it.
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        shape = RoundedCornerShape(28.dp),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            InlineTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                placeholder = stringResource(R.string.event_edit_timezone_search),
+                capitalization = KeyboardCapitalization.None,
+                imeAction = ImeAction.Search,
+                onImeAction = { keyboard?.hide() },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp, vertical = 14.dp),
+            )
+            if (query.isNotEmpty()) {
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = stringResource(R.string.search_clear),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

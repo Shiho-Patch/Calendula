@@ -4,6 +4,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
 
@@ -218,6 +219,23 @@ fun EventDetail.toEditSnapshot(beginMillis: Long, endMillis: Long, zone: TimeZon
         rowStart = instance.start,
         rowEnd = instance.end,
     )
+
+/**
+ * The form's times as they land in [target] — what a pinned event's wall-clock
+ * actually means where the user is standing. Null when there's nothing to
+ * disambiguate: an unpinned event (already in [target]), one pinned to [target]
+ * itself, an all-day event (no zone), or an unparseable pinned zone.
+ *
+ * The form edits a pinned event in its own zone, so this is what lets the UI
+ * show the other side of the pair rather than making the user do the arithmetic.
+ */
+fun EventForm.timesIn(target: TimeZone): Pair<LocalDateTime, LocalDateTime>? {
+    if (isAllDay) return null
+    val pinned = timezone?.let { runCatching { TimeZone.of(it) }.getOrNull() } ?: return null
+    if (pinned.id == target.id) return null
+    return start.toInstant(pinned).toLocalDateTime(target) to
+        end.toInstant(pinned).toLocalDateTime(target)
+}
 
 /**
  * The optional sections that hold a value in [form] — when editing, these

@@ -453,14 +453,41 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
         }
 
         // Time zone — only when the event is timed and pinned to a zone other
-        // than the device's, so cross-zone events read unambiguously.
+        // than the device's, so cross-zone events read unambiguously. The card
+        // above already answers "when is this for me"; this one answers "when
+        // was it set", which the zone's name alone never did — an 8 AM New York
+        // call showing as 2 PM here should still say 8 AM somewhere.
         foreignTimeZoneLabel(detail.eventTimezone, instance.isAllDay, locale)?.let { tzLabel ->
             Spacer(Modifier.height(gap))
             DetailCard(
                 icon = Icons.Default.Public,
                 iconContentDescription = stringResource(R.string.event_detail_timezone),
             ) {
-                Text(text = tzLabel, style = MaterialTheme.typography.titleMedium)
+                val originalZone = detail.eventTimezone?.let { tz ->
+                    runCatching { TimeZone.of(tz) }.getOrNull()
+                }
+                if (originalZone != null) {
+                    // formatWhen puts the time range in the secondary half only
+                    // for a same-day event; one spanning midnight — which a
+                    // cross-zone event easily does — carries the whole span in
+                    // the primary instead, so fall back to it rather than
+                    // dropping the original time entirely.
+                    val (primary, secondary) = formatWhen(instance, originalZone, locale)
+                    Text(
+                        text = stringResource(
+                            R.string.event_detail_timezone_original,
+                            secondary ?: primary,
+                            originalZone.id.substringAfterLast('/').replace('_', ' '),
+                        ),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(Modifier.height(2.dp))
+                }
+                Text(
+                    text = tzLabel,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 

@@ -114,6 +114,7 @@ import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.formatGmtOffset
 import de.jeanlucmakiola.calendula.domain.timeZoneOptionOf
+import de.jeanlucmakiola.calendula.domain.timesIn
 import de.jeanlucmakiola.calendula.domain.EventFormProblem
 import de.jeanlucmakiola.calendula.domain.RecurrenceEnd
 import de.jeanlucmakiola.calendula.domain.RecurrenceFreq
@@ -674,6 +675,22 @@ private fun EventEditContent(
                     text = stringResource(R.string.event_edit_error_end_before_start),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
+                )
+            }
+            // The rows above edit a pinned event in *its own* zone, which is the
+            // time it was set at — but that says nothing about when it lands for
+            // whoever is reading it. Spell the local equivalent out rather than
+            // leaving the user to do the offset arithmetic. Absent (null) unless
+            // the event is pinned somewhere other than here.
+            form.timesIn(TimeZone.currentSystemDefault())?.let { (localStart, localEnd) ->
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = stringResource(
+                        R.string.event_edit_timezone_local_time,
+                        formatTimeRange(localStart, localEnd, locale),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -1984,6 +2001,21 @@ private fun EditCard(
             modifier = Modifier.fillMaxWidth(),
         ) { inner() }
     }
+}
+
+/**
+ * "2:00 PM – 3:00 PM", honouring the user's 12/24-hour setting. Collapses to one
+ * time when both land on the same minute (an instant event shouldn't read as a
+ * range against itself). Dates are deliberately absent — the rows above carry
+ * them.
+ */
+@Composable
+private fun formatTimeRange(start: LocalDateTime, end: LocalDateTime, locale: Locale): String {
+    val use24Hour = LocalUse24HourFormat.current
+    val timeFormat = remember(locale, use24Hour) { timeOfDayFormatter(use24Hour, locale) }
+    val from = timeFormat.format(start.time.toJavaLocalTime())
+    val to = timeFormat.format(end.time.toJavaLocalTime())
+    return if (from == to) from else "$from – $to"
 }
 
 /**
