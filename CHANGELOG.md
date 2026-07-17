@@ -7,14 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.16.0] — 2026-07-17
+
 ### Changed
-- Dates in the Month, Week and Day title bars now follow your language's own
-  conventions. They were laid out in a fixed German-style order with a trailing
-  dot on the day number — "Fri, 17. Jul 2026" — in every language, including
-  ones that write the month first; the Agenda view already read correctly, so the
-  two disagreed about the same date. All four views now share one formatter and
-  render "Fri, Jul 17, 2026" in English, "17. Juli 2026" in German, and so on
-  ([#60]).
+- Dates in the Month, Week and Day title bars now follow your language and
+  region instead of one hardcoded layout. Every date was rendered in a fixed
+  German-style order with a trailing dot on the day number, whatever your
+  settings: US English showed "Fri, 17. Jul 2026" where it should read
+  "Fri, Jul 17". The Agenda view already formatted correctly, so the two
+  disagreed about the same date. All four views now share one formatter, and the
+  day/month order, the separators and the ordinal all come from your locale —
+  so English-in-Germany reads "Fri, 17 Jul" and English-in-the-US "Fri, Jul 17",
+  each correct for where you are ([#60]).
 - The title bar drops the year while you're in the current one — "July" rather
   than "July 2026". The year reappears the moment you page out of the current
   year, which is when it tells you something you didn't already know.
