@@ -68,6 +68,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
@@ -83,7 +84,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
-import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.formatHourLabel
@@ -93,7 +94,9 @@ import de.jeanlucmakiola.calendula.ui.week.TimedBlock
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
-import java.time.format.TextStyle as JavaTextStyle
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -157,6 +160,13 @@ fun DayScreen(
         else -> true
     }
 
+    // Drives whether the title carries the year. Falls back to the clock only
+    // while the first load is in flight, when there is no state to read today from.
+    val currentYear = when (val s = state) {
+        is DayUiState.Success -> s.today.year
+        else -> Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.year
+    }
+
     // Slide direction for the day transition: +1 = next, -1 = prev, 0 = jump.
     var slideDir by remember { mutableIntStateOf(0) }
     val goNext = { slideDir = 1; viewModel.goToNext() }
@@ -205,6 +215,7 @@ fun DayScreen(
             topBar = {
                 DayTopBar(
                     date = date,
+                    currentYear = currentYear,
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
                     onOpenDrawer = { scope.launch { drawerState.open() } },
@@ -360,16 +371,18 @@ private fun DaySuccess(
 @Composable
 private fun DayTopBar(
     date: LocalDate,
+    currentYear: Int,
     selectedView: CalendarView,
     onCycleView: () -> Unit,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
     scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
+    val locale = currentLocale()
     TopAppBar(
         title = {
             Text(
-                text = formatDayTitle(date),
+                text = formatDayTitle(date, locale, currentYear),
                 style = MaterialTheme.typography.titleLarge,
             )
         },
@@ -669,10 +682,10 @@ private fun DayLoading() {
 private fun minToHm(min: Int, is24Hour: Boolean, locale: Locale): String =
     formatMinuteOfDay(min, is24Hour, locale)
 
-private fun formatDayTitle(date: LocalDate): String {
-    val locale = Locale.getDefault()
-    val java = java.time.LocalDate.of(date.year, date.month.ordinal + 1, date.day)
-    val weekday = java.dayOfWeek.getDisplayName(JavaTextStyle.SHORT, locale)
-    val monthName = java.month.getDisplayName(JavaTextStyle.SHORT, locale)
-    return "$weekday, ${date.day}. $monthName ${date.year}"
-}
+private fun formatDayTitle(date: LocalDate, locale: Locale, currentYear: Int): String =
+    formatCalendarTitle(
+        date = java.time.LocalDate.of(date.year, date.month.ordinal + 1, date.day),
+        locale = locale,
+        currentYear = currentYear,
+        skeleton = "EEEdMMM",
+    )

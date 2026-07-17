@@ -77,6 +77,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.hasEnded
+import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
@@ -93,7 +94,7 @@ import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
-import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.formatHourLabel
@@ -180,6 +181,13 @@ fun WeekScreen(
         else -> true
     }
 
+    // Drives whether the title carries the year. Falls back to the clock only
+    // while the first load is in flight, when there is no state to read today from.
+    val currentYear = when (val s = state) {
+        is WeekUiState.Success -> s.today.year
+        else -> Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.year
+    }
+
     // Slide direction for the week transition: +1 = next, -1 = prev, 0 = jump.
     var slideDir by remember { mutableIntStateOf(0) }
     val goNext = { slideDir = 1; viewModel.goToNext() }
@@ -228,6 +236,7 @@ fun WeekScreen(
             topBar = {
                 WeekTopBar(
                     weekStart = weekStart,
+                    currentYear = currentYear,
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
                     onOpenDrawer = { scope.launch { drawerState.open() } },
@@ -395,16 +404,18 @@ private fun WeekSuccess(
 @Composable
 private fun WeekTopBar(
     weekStart: LocalDate,
+    currentYear: Int,
     selectedView: CalendarView,
     onCycleView: () -> Unit,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
     scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
+    val locale = currentLocale()
     TopAppBar(
         title = {
             Text(
-                text = formatWeekRange(weekStart),
+                text = formatWeekTitle(weekStart, locale, currentYear),
                 style = MaterialTheme.typography.titleLarge,
             )
         },
@@ -854,18 +865,21 @@ private fun WeekLoading() {
 private fun minToHm(min: Int, is24Hour: Boolean, locale: java.util.Locale): String =
     formatMinuteOfDay(min, is24Hour, locale)
 
-private fun formatWeekRange(weekStart: LocalDate): String {
-    val locale = Locale.getDefault()
-    val end = weekStart.plus(6, kotlinx.datetime.DateTimeUnit.DAY)
-    val monthName = { d: LocalDate ->
-        java.time.Month.of(d.month.ordinal + 1).getDisplayName(JavaTextStyle.SHORT, locale)
-    }
-    return if (weekStart.month == end.month && weekStart.year == end.year) {
-        "${weekStart.day}.–${end.day}. ${monthName(weekStart)} ${weekStart.year}"
-    } else if (weekStart.year == end.year) {
-        "${weekStart.day}. ${monthName(weekStart)} – ${end.day}. ${monthName(end)} ${end.year}"
-    } else {
-        "${weekStart.day}. ${monthName(weekStart)} ${weekStart.year} – " +
-            "${end.day}. ${monthName(end)} ${end.year}"
-    }
-}
+/**
+ * The week's title: just the month [weekStart] falls in.
+ *
+ * The day numbers are already in the column headers directly below, so spelling
+ * out "13.–19. Jul" restates them in the widest string in the bar. Naming the
+ * month of [weekStart] means a week straddling a boundary keeps the outgoing
+ * month until it is fully gone — a week is seven contiguous days, so the earlier
+ * month has a day in it exactly while [weekStart] is still inside it. That also
+ * makes the title depend on nothing but [weekStart], so it cannot drift with the
+ * direction you paged in from.
+ */
+private fun formatWeekTitle(weekStart: LocalDate, locale: Locale, currentYear: Int): String =
+    formatCalendarTitle(
+        date = java.time.LocalDate.of(weekStart.year, weekStart.month.ordinal + 1, 1),
+        locale = locale,
+        currentYear = currentYear,
+        skeleton = "LLLL",
+    )

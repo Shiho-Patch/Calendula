@@ -49,6 +49,7 @@ import de.jeanlucmakiola.calendula.MainActivity
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.month.MonthWeek
 import de.jeanlucmakiola.calendula.ui.month.layoutMonthWeeks
 import de.jeanlucmakiola.calendula.ui.common.eventFill
@@ -162,7 +163,7 @@ private fun MonthWidgetBody(source: MonthWidgetSource, dark: Boolean, soften: Bo
                 val colW = (LocalSize.current.width - GRID_HPADDING * 2) / 7
                 val weeks = layoutMonthWeeks(ym, source.weekStart, source.instances, zone)
 
-                MonthHeader(label = monthLabel(ym))
+                MonthHeader(label = monthLabel(ym, source.today.year))
                 Spacer(GlanceModifier.height(2.dp))
                 WeekdayHeader(weekStart = source.weekStart, colW = colW)
                 weeks.forEach { week ->
@@ -480,9 +481,13 @@ private fun PermissionMessage() {
     }
 }
 
-private fun monthLabel(month: YearMonth): String {
-    val locale = Locale.getDefault()
-    val name = java.time.Month.of(month.month.ordinal + 1)
-        .getDisplayName(JavaTextStyle.FULL, locale)
-    return "$name ${month.year}"
-}
+// Locale.getDefault() rather than currentLocale(): Glance has no
+// LocalConfiguration, and the widget is re-rendered on a configuration change
+// anyway (same convention as AgendaWidget).
+private fun monthLabel(month: YearMonth, currentYear: Int): String =
+    formatCalendarTitle(
+        date = java.time.LocalDate.of(month.year, month.month.ordinal + 1, 1),
+        locale = Locale.getDefault(),
+        currentYear = currentYear,
+        skeleton = "LLLL",
+    )
