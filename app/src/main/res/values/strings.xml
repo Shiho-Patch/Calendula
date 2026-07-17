@@ -111,9 +111,6 @@
          the same event expressed where the user actually is. %1$s is a time
          range, e.g. "2:00 PM – 3:00 PM". -->
     <string name="event_edit_timezone_local_time">%1$s your time</string>
-    <!-- The event's own zone times on the detail screen. %1$s is a time range,
-         %2$s the zone's city, e.g. "8:00 AM – 9:00 AM in New York". -->
-    <string name="event_detail_timezone_original">%1$s in %2$s</string>
 
     <!-- Event form — per-event color -->
     <string name="event_edit_color">Color</string>
