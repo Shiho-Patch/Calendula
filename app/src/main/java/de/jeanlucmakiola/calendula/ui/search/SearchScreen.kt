@@ -54,7 +54,7 @@ import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.Position
-import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat

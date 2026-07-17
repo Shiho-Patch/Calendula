@@ -143,7 +143,7 @@ import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
 import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
 import de.jeanlucmakiola.floret.reminders.ReminderUnit
-import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel

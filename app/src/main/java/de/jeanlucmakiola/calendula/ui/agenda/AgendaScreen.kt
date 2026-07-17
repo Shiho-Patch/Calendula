@@ -68,7 +68,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
-import de.jeanlucmakiola.calendula.ui.common.localizedDateFormatter
+import de.jeanlucmakiola.floret.locale.localizedDateFormatter
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.Position
@@ -76,7 +76,7 @@ import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
-import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
 import kotlinx.coroutines.launch

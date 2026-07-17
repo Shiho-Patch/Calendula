@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Dates in the Month, Week and Day title bars now follow your language's own
+  conventions. They were laid out in a fixed German-style order with a trailing
+  dot on the day number — "Fri, 17. Jul 2026" — in every language, including
+  ones that write the month first; the Agenda view already read correctly, so the
+  two disagreed about the same date. All four views now share one formatter and
+  render "Fri, Jul 17, 2026" in English, "17. Juli 2026" in German, and so on
+  ([#60]).
+- The title bar drops the year while you're in the current one — "July" rather
+  than "July 2026". The year reappears the moment you page out of the current
+  year, which is when it tells you something you didn't already know.
+- The Week view's title now names the month instead of spelling out the day range.
+  "24. Jun – 31. Jun" restated the day numbers already printed in the column
+  headers right below it, in the widest string in the bar. A week that straddles
+  two months keeps the outgoing month until it is fully gone ([#60]).
+
 ## [2.15.0] — 2026-07-15
 
 ### Added
@@ -997,3 +1015,4 @@ automatically, with zero telemetry and no internet permission.
 [#48]: https://codeberg.org/jlmakiola/calendula/issues/48
 [#49]: https://codeberg.org/jlmakiola/calendula/issues/49
 [#52]: https://codeberg.org/jlmakiola/calendula/issues/52
+[#60]: https://codeberg.org/jlmakiola/calendula/issues/60

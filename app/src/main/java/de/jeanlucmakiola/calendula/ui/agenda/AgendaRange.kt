@@ -1,6 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.agenda
 
-import de.jeanlucmakiola.calendula.ui.common.localizedDateFormatter
+import de.jeanlucmakiola.floret.locale.localizedDateFormatter
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import java.time.YearMonth

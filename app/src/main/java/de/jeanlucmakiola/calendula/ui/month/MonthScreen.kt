@@ -64,6 +64,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.hasEnded
+import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
@@ -79,7 +80,7 @@ import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
-import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.floret.time.isoWeekNumber
@@ -128,6 +129,13 @@ fun MonthScreen(
     val isOnCurrentMonth = when (val s = state) {
         is MonthUiState.Success -> s.month == YearMonth(s.today.year, s.today.month)
         else -> true
+    }
+
+    // Drives whether the title carries the year. Falls back to the clock only
+    // while the first load is in flight, when there is no state to read today from.
+    val currentYear = when (val s = state) {
+        is MonthUiState.Success -> s.today.year
+        else -> Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.year
     }
 
     // Slide direction for the grid transition: +1 = next, -1 = prev, 0 = jump (no slide).
@@ -186,6 +194,7 @@ fun MonthScreen(
             topBar = {
                 MonthTopBar(
                     month = month,
+                    currentYear = currentYear,
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
                     onOpenDrawer = { scope.launch { drawerState.open() } },
@@ -294,16 +303,18 @@ private fun MonthContent(
 @Composable
 private fun MonthTopBar(
     month: YearMonth,
+    currentYear: Int,
     selectedView: CalendarView,
     onCycleView: () -> Unit,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
     scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
+    val locale = currentLocale()
     TopAppBar(
         title = {
             Text(
-                text = formatMonthYear(month),
+                text = formatMonthTitle(month, locale, currentYear),
                 style = MaterialTheme.typography.titleLarge,
             )
         },
@@ -732,9 +743,10 @@ private fun MonthGridLoading() {
     }
 }
 
-private fun formatMonthYear(ym: YearMonth): String {
-    val locale = Locale.getDefault()
-    val name = java.time.Month.of(ym.month.ordinal + 1)
-        .getDisplayName(JavaTextStyle.FULL, locale)
-    return "$name ${ym.year}"
-}
+private fun formatMonthTitle(ym: YearMonth, locale: Locale, currentYear: Int): String =
+    formatCalendarTitle(
+        date = java.time.LocalDate.of(ym.year, ym.month.ordinal + 1, 1),
+        locale = locale,
+        currentYear = currentYear,
+        skeleton = "LLLL",
+    )

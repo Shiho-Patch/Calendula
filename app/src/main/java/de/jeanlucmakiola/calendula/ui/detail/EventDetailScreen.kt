@@ -98,7 +98,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.floret.components.OptionCard
-import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.calendula.ui.common.recurrenceText
