@@ -263,4 +263,20 @@
     <string name="settings_week_start_auto">Automatique</string>
     <string name="settings_week_numbers">Numéros de semaine</string>
     <string name="settings_week_numbers_summary">Afficher les numéros de semaine dans la vue par mois</string>
+    <string name="event_attendee_optional">Optionnel</string>
+    <string name="agenda_today_action">Aujourd\'hui</string>
+    <string name="agenda_header_today">Aujourd\'hui</string>
+    <string name="search_back">Retour</string>
+    <string name="widget_prev_month">Mois précédent</string>
+    <string name="widget_today">Aujourd\'hui</string>
+    <string name="settings_title">Paramètres</string>
+    <string name="settings_back">Retour</string>
+    <string name="agenda_range_day">Aujourd\'hui</string>
+    <string name="agenda_range_this_week">Cette semaine</string>
+    <string name="back">Retour</string>
+    <string name="settings_special_dates_reminders">Rappels</string>
+    <string name="settings_special_dates_grant">Autoriser l\'accès</string>
+    <string name="dialog_save">Sauvegarder</string>
+    <string name="calendars_color_label">Couleur</string>
+    <string name="import_close">Fermer</string>
 </resources>
