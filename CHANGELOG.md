@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.16.0] — 2026-07-17
 
+### Added
+- Give an event its own time zone. A new **Time zone** field (under "more
+  fields" in the event form) pins an event to a specific zone, so a call set for
+  8:00 AM in New York stays 8:00 AM in New York wherever you open it — and keeps
+  tracking that zone across daylight-saving changes instead of drifting an hour.
+  The form edits the event in its own zone and shows the local equivalent under
+  the times ("2:00 PM – 3:00 PM your time"); the event's details keep your local
+  time first and note the original beneath it, so both are always clear. Pick a
+  zone from a full-screen picker with your device zone and recent choices on top,
+  searching by city ("new york"), IANA id ("europe/berlin"), or abbreviation
+  ("CEST") to gather every matching zone at once. All-day events stay
+  date-anchored and carry no zone, as before ([#31]).
+
 ### Changed
 - Dates in the Month, Week and Day title bars now follow your language and
   region instead of one hardcoded layout. Every date was rendered in a fixed
@@ -1006,6 +1019,7 @@ automatically, with zero telemetry and no internet permission.
 [#29]: https://codeberg.org/jlmakiola/calendula/issues/29
 [#21]: https://codeberg.org/jlmakiola/calendula/issues/21
 [#30]: https://codeberg.org/jlmakiola/calendula/issues/30
+[#31]: https://codeberg.org/jlmakiola/calendula/issues/31
 [#32]: https://codeberg.org/jlmakiola/calendula/issues/32
 [#33]: https://codeberg.org/jlmakiola/calendula/issues/33
 [#34]: https://codeberg.org/jlmakiola/calendula/issues/34

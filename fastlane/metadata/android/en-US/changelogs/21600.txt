@@ -1,3 +1,13 @@
+### Added
+- Give an event its own time zone. A new Time zone field (under "more fields" in
+  the event form) pins an event to a specific zone, so a call set for 8:00 AM in
+  New York stays 8:00 AM in New York wherever you open it, and keeps tracking
+  that zone across daylight-saving changes. The form shows the local equivalent
+  under the times, and the event's details keep your local time first with the
+  original noted beneath. Pick a zone from a searchable full-screen picker — by
+  city, IANA id, or abbreviation like "CEST". All-day events stay date-anchored
+  and carry no zone ([#31]).
+
 ### Changed
 - Dates in the Month, Week and Day title bars now follow your language and
   region instead of one hardcoded layout. Every date was rendered in a fixed
