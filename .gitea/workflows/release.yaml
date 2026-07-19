@@ -360,18 +360,18 @@ jobs:
       # a SHA-256 checksum. The APK is identical to the F-Droid one (same app
       # key), so this adds no trust surface. Best-effort: a Codeberg outage
       # (it 504s under load) must never fail an already-published F-Droid
-      # release. Needs the CODEBERG_TOKEN secret; skips cleanly if unset.
+      # release. Needs the CODEBERG_RELEASE_TOKEN secret; skips cleanly if unset.
       - name: Publish release to Codeberg
         if: env.IS_RELEASE == 'true'
         continue-on-error: true
         env:
-          TOKEN: ${{ secrets.CODEBERG_TOKEN }}
+          TOKEN: ${{ secrets.CODEBERG_RELEASE_TOKEN }}
           API: https://codeberg.org/api/v1/repos/jlmakiola/calendula
           SHA: ${{ github.sha }}
         run: |
           set -e
           if [ -z "${TOKEN:-}" ]; then
-            echo "CODEBERG_TOKEN not set — skipping Codeberg publish."
+            echo "CODEBERG_RELEASE_TOKEN not set — skipping Codeberg publish."
             exit 0
           fi
           TAG="v$VERSION"

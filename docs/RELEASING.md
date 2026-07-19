@@ -96,9 +96,9 @@ aren't git objects and don't sync, so the pipeline creates the release over the
 Codeberg API and attaches `calendula_v<version>.apk` + its `.sha256`. It's the
 same APK the F-Droid repo serves (same **app key**), so it adds no trust
 surface. The step is best-effort: a Codeberg outage never fails an
-already-published F-Droid release, and it skips cleanly if `CODEBERG_TOKEN` is
+already-published F-Droid release, and it skips cleanly if `CODEBERG_RELEASE_TOKEN` is
 unset. One-time setup: the repo's **Releases** unit must be enabled and a
-`CODEBERG_TOKEN` secret (Codeberg access token, `write:repository` scope) added
+`CODEBERG_RELEASE_TOKEN` secret (Codeberg access token, `write:repository` scope) added
 to Gitea Actions.
 
 ### Manual re-sign / recovery
@@ -118,7 +118,7 @@ for key rotation or repo recovery without publishing a new app version.
 | `FDROID_CONFIG_BASE64` | F-Droid `config.yml` (base64) — repo metadata + keystore passwords. |
 | `HETZNER_HOST`, `HETZNER_USER`, `HETZNER_PASS` | Upload target for the F-Droid repo. |
 | `GITHUB_TOKEN` | Provided by Gitea Actions; used to create the release + attach assets. |
-| `CODEBERG_TOKEN` | Codeberg access token (`write:repository` scope) — creates the mirrored Codeberg release + uploads the APK/checksum. Best-effort; if unset the Codeberg step skips. |
+| `CODEBERG_RELEASE_TOKEN` | Codeberg access token (`write:repository` scope) — creates the mirrored Codeberg release + uploads the APK/checksum. Best-effort; if unset the Codeberg step skips. |
 
 The two keys are independent: the **app key** signs APKs; the **repo key**
 signs the index (its fingerprint is what users pin). Neither key nor the
