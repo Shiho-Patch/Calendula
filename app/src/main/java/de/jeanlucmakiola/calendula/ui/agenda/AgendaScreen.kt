@@ -562,11 +562,10 @@ private fun agendaDayLabel(date: LocalDate, today: LocalDate): String {
 /**
  * Time line under the title: "09:00 – 10:00 · Location", "All day", etc.
  *
- * A multi-day event shows only the part relevant to [day], with a "→" marking
- * that it carries past this day's boundary: its first day shows the start
- * ("14:00 →"), its last day the end ("→ 10:00"), and any whole day in between
- * reads as an all-day span arriving from and continuing into its neighbours
- * ("→ All day →").
+ * A multi-day event shows only the part relevant to [day], spelled out so each
+ * day reads on its own: its first day names the start ("Starts 14:00"), its last
+ * day the end ("Ends 10:00"), and any whole day in between reads as "All day".
+ * An all-day multi-day event is simply "All day" on every day it covers.
  */
 @Composable
 private fun agendaTimeSummary(event: EventInstance, day: LocalDate): String {
@@ -575,18 +574,13 @@ private fun agendaTimeSummary(event: EventInstance, day: LocalDate): String {
     val locale = currentLocale()
 
     val time = if (event.spansMultipleDays(zone)) {
-        val continuesBefore = day > event.spanFirstDay(zone)
-        val continuesAfter = day < event.spanLastDay(zone)
-        val core = when {
+        val isFirstDay = day <= event.spanFirstDay(zone)
+        val isLastDay = day >= event.spanLastDay(zone)
+        when {
             event.isAllDay -> allDayLabel
-            !continuesBefore -> formatTime(event.start, is24Hour, locale) // the first day
-            !continuesAfter -> formatTime(event.end, is24Hour, locale)    // the last day
-            else -> allDayLabel                                           // a full middle day
-        }
-        buildString {
-            if (continuesBefore) append("→ ")
-            append(core)
-            if (continuesAfter) append(" →")
+            isFirstDay -> stringResource(R.string.agenda_span_starts, formatTime(event.start, is24Hour, locale))
+            isLastDay -> stringResource(R.string.agenda_span_ends, formatTime(event.end, is24Hour, locale))
+            else -> allDayLabel // a full middle day
         }
     } else if (event.isAllDay) {
         allDayLabel
