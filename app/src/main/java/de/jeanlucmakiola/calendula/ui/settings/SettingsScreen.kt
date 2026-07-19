@@ -93,6 +93,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.appname.LauncherName
 import de.jeanlucmakiola.calendula.data.contacts.hasContactsPermission
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.floret.reminders.ReminderOverride
@@ -489,6 +490,7 @@ private fun AppearanceScreen(
     var showPlainFont by remember { mutableStateOf(false) }
 
     val fonts by viewModel.fontState.collectAsStateWithLifecycle()
+    val launcherName by viewModel.launcherName.collectAsStateWithLifecycle()
     // A picked file that didn't parse as a font: tell the user and keep the old choice.
     val context = LocalContext.current
     val importFailedMessage = stringResource(R.string.settings_font_import_failed)
@@ -678,6 +680,36 @@ private fun AppearanceScreen(
                 )
             },
             onClick = { viewModel.setAgendaShowRangeBar(!state.agendaShowRangeBar) },
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // App name — flips the launcher label between "Calendula" and "Calendar"
+        // (issue #44). Own group: it's a launcher/system concern, not calendar
+        // formatting.
+        GroupedRow(
+            title = stringResource(R.string.settings_app_name),
+            summary = stringResource(R.string.settings_app_name_summary),
+            position = Position.Alone,
+            trailing = {
+                Switch(
+                    checked = launcherName == LauncherName.CALENDAR,
+                    onCheckedChange = {
+                        viewModel.setLauncherName(
+                            if (it) LauncherName.CALENDAR else LauncherName.CALENDULA,
+                        )
+                    },
+                )
+            },
+            onClick = {
+                viewModel.setLauncherName(
+                    if (launcherName == LauncherName.CALENDAR) {
+                        LauncherName.CALENDULA
+                    } else {
+                        LauncherName.CALENDAR
+                    },
+                )
+            },
         )
     }
 

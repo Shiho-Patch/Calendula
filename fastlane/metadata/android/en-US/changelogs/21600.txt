@@ -11,6 +11,11 @@
   setting (Settings → Appearance, off by default) swaps the floating corner
   button for a permanent today icon in the top bar — always there, matching the
   familiar calendar-app pattern. Leave it off to keep the floating button ([#60]).
+- Show the app as "Calendar" in your launcher. A new App name setting
+  (Settings → Appearance) switches the launcher label from "Calendula" to the
+  generic "Calendar" for anyone who prefers it — handy on launchers that can't
+  rename apps themselves. Only the launcher name changes; your home-screen icon
+  may move to a new spot after switching ([#44]).
 
 ### Changed
 - Dates in the Month, Week and Day title bars now follow your language and

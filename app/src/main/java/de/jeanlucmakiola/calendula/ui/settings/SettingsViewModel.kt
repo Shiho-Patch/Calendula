@@ -10,6 +10,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import de.jeanlucmakiola.calendula.data.appname.LauncherName
+import de.jeanlucmakiola.calendula.data.appname.LauncherNameManager
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesCalendarSpec
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
@@ -43,7 +45,9 @@ import de.jeanlucmakiola.calendula.widget.month.MonthWidget
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -62,6 +66,7 @@ class SettingsViewModel @Inject constructor(
     repository: CalendarRepository,
     private val specialDatesEngine: SpecialDatesSyncEngine,
     specialDatesSpec: SpecialDatesCalendarSpec,
+    private val launcherNameManager: LauncherNameManager,
     @IoDispatcher private val io: CoroutineDispatcher,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
@@ -201,6 +206,16 @@ class SettingsViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = AppFontSettings(),
     )
+
+    /**
+     * The launcher-label choice (issue #44). Backed by the manifest aliases'
+     * component-enabled state rather than a stored preference, so it's read
+     * imperatively via [LauncherNameManager] and held here in its own flow — the
+     * main settings combine is already at its arity limit and this isn't a
+     * DataStore flow anyway.
+     */
+    private val _launcherName = MutableStateFlow(launcherNameManager.current())
+    val launcherName: StateFlow<LauncherName> = _launcherName.asStateFlow()
 
     // Emitted when a picked font file couldn't be read as a font; the screen
     // surfaces it and the previous selection stays put.
@@ -467,6 +482,13 @@ class SettingsViewModel @Inject constructor(
 
     fun setTodayButtonInToolbar(enabled: Boolean) {
         viewModelScope.launch { prefs.setTodayButtonInToolbar(enabled) }
+    }
+
+    /** Switch the launcher label between "Calendula" and "Calendar" (issue #44). */
+    fun setLauncherName(name: LauncherName) {
+        launcherNameManager.set(name)
+        // Re-read so the UI reflects the actual component state, not an assumption.
+        _launcherName.value = launcherNameManager.current()
     }
 
     fun setPastEventDisplay(mode: PastEventDisplay) {
