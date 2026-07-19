@@ -94,10 +94,16 @@ fun groupAgendaDays(
     val byDay = sortedMapOf<LocalDate, MutableList<EventInstance>>()
     for (instance in instances) {
         val firstDay = instance.spanFirstDay(zone).coerceAtLeast(anchor)
-        // Never below firstDay: an instance the query returned always surfaces on
-        // at least its first visible day, even if its end resolves earlier (e.g. a
-        // zero-length or boundary instant) — otherwise the loop would drop it.
-        val lastDay = instance.spanLastDay(zone).coerceAtMost(windowEnd).coerceAtLeast(firstDay)
+        val lastDay = instance.spanLastDay(zone).coerceAtMost(windowEnd)
+        // Skip instances that don't actually occupy any day in [[anchor], [windowEnd]].
+        // The provider returns an event whenever its instant span overlaps the query
+        // window, but all-day events live at UTC midnights with an exclusive end: east
+        // of UTC that end dips just past local midnight, so *yesterday's* all-day event
+        // overlaps today's window start and comes back even though its true last day
+        // (resolved in UTC) is before the anchor. Clamping it up to the anchor would
+        // surface it under "today" (issue #65); drop it instead. The symmetric case —
+        // a next-day all-day event overlapping the window's last instant — drops too.
+        if (lastDay < firstDay) continue
         var day = firstDay
         while (day <= lastDay) {
             byDay.getOrPut(day) { mutableListOf() }.add(instance)
