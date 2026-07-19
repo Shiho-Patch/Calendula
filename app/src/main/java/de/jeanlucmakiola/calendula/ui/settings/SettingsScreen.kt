@@ -488,6 +488,7 @@ private fun AppearanceScreen(
     var showPastEvents by remember { mutableStateOf(false) }
     var showBrandFont by remember { mutableStateOf(false) }
     var showPlainFont by remember { mutableStateOf(false) }
+    var showAppName by remember { mutableStateOf(false) }
 
     val fonts by viewModel.fontState.collectAsStateWithLifecycle()
     val launcherName by viewModel.launcherName.collectAsStateWithLifecycle()
@@ -684,35 +685,31 @@ private fun AppearanceScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // App name — flips the launcher label between "Calendula" and "Calendar"
+        // App name — chooses the launcher label between "Calendula" and "Calendar"
         // (issue #44). Own group: it's a launcher/system concern, not calendar
-        // formatting.
+        // formatting. A sub-page chooser (not a switch), matching the app's other
+        // "choose one" settings and leaving room for more names later.
         GroupedRow(
             title = stringResource(R.string.settings_app_name),
-            summary = stringResource(R.string.settings_app_name_summary),
+            summary = launcherNameLabel(launcherName),
             position = Position.Alone,
-            trailing = {
-                Switch(
-                    checked = launcherName == LauncherName.CALENDAR,
-                    onCheckedChange = {
-                        viewModel.setLauncherName(
-                            if (it) LauncherName.CALENDAR else LauncherName.CALENDULA,
-                        )
-                    },
-                )
-            },
-            onClick = {
-                viewModel.setLauncherName(
-                    if (launcherName == LauncherName.CALENDAR) {
-                        LauncherName.CALENDULA
-                    } else {
-                        LauncherName.CALENDAR
-                    },
-                )
-            },
+            onClick = { showAppName = true },
         )
     }
 
+    if (showAppName) {
+        OptionPicker(
+            title = stringResource(R.string.settings_app_name),
+            predictiveBack = true,
+            options = LauncherName.entries,
+            selected = launcherName,
+            label = { launcherNameLabel(it) },
+            onSelect = viewModel::setLauncherName,
+            onDismiss = { showAppName = false },
+            // Explain what changes (and the icon-may-move caveat) above the choices.
+            header = { SettingsHint(stringResource(R.string.settings_app_name_summary)) },
+        )
+    }
     if (showTheme) {
         OptionPicker(
             title = stringResource(R.string.settings_theme),
@@ -1735,6 +1732,15 @@ private fun openUrl(context: Context, url: String) {
     val intent = Intent(Intent.ACTION_VIEW, url.toUri())
     runCatching { context.startActivity(intent) }
 }
+
+/** The display name for a launcher-label choice (issue #44). */
+@Composable
+private fun launcherNameLabel(name: LauncherName): String = stringResource(
+    when (name) {
+        LauncherName.CALENDULA -> R.string.app_name
+        LauncherName.CALENDAR -> R.string.app_name_calendar_alias
+    },
+)
 
 @Composable
 private fun themeLabel(mode: ThemeMode): String = stringResource(
