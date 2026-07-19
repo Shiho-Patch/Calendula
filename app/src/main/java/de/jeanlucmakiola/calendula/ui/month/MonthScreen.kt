@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -68,6 +67,7 @@ import de.jeanlucmakiola.calendula.domain.hasEnded
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
+import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
@@ -333,14 +333,7 @@ private fun MonthTopBar(
             }
         },
         actions = {
-            if (showTodayButton) {
-                IconButton(onClick = onToday) {
-                    Icon(
-                        imageVector = Icons.Default.Today,
-                        contentDescription = stringResource(R.string.today_jump_action),
-                    )
-                }
-            }
+            TodayAction(show = showTodayButton, onToday = onToday)
             IconButton(onClick = onOpenSearch) {
                 Icon(
                     imageVector = Icons.Default.Search,

@@ -22,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.DrawerValue
@@ -66,6 +65,7 @@ import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.floret.identity.animateItemMotion
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
+import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
@@ -528,14 +528,7 @@ private fun AgendaTopBar(
             }
         },
         actions = {
-            if (showTodayButton) {
-                IconButton(onClick = onToday) {
-                    Icon(
-                        imageVector = Icons.Default.Today,
-                        contentDescription = stringResource(R.string.today_jump_action),
-                    )
-                }
-            }
+            TodayAction(show = showTodayButton, onToday = onToday)
             IconButton(onClick = onOpenSearch) {
                 Icon(
                     imageVector = Icons.Default.Search,
