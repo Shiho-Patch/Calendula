@@ -106,6 +106,19 @@ class TimeZoneCatalogTest {
     }
 
     @Test
+    fun `query matches the abbreviation, case-insensitively`() {
+        // "cest" isn't a city, id, or substring of "Central European Summer
+        // Time", so the only way these match is via the abbreviation.
+        val hits = filter("cest")
+        assertThat(hits).isNotEmpty()
+        assertThat(hits.map { it.id }).contains("Europe/Berlin")
+        // Every hit genuinely carries that abbreviation — nothing bled in.
+        assertThat(hits.all { it.shortName.equals("CEST", ignoreCase = true) }).isTrue()
+        // Case doesn't matter.
+        assertThat(filter("CEST").map { it.id }).isEqualTo(hits.map { it.id })
+    }
+
+    @Test
     fun `a city starting with the query outranks one merely containing it`() {
         val ids = filter("york").map { it.id }
         // "New York" contains "york"; nothing starts with it, so it should still

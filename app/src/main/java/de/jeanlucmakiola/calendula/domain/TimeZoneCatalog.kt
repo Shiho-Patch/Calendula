@@ -144,7 +144,10 @@ fun zoneDescriptor(option: TimeZoneOption): String {
  * Ranking puts a city that *starts with* the query above one that merely
  * contains it — typing "col" should reach Colombo before Turks_and_Caicos —
  * and the id is matched ahead of the localized name so a user who knows the
- * IANA id gets it first.
+ * IANA id gets it first. An exact abbreviation hit ("CEST") ranks just under a
+ * city prefix, so typing an abbreviation surfaces every zone that shows it
+ * (all the CEST zones together); the abbreviation is the one resolved for the
+ * display region, i.e. what the row actually shows.
  */
 fun filterTimeZones(options: List<TimeZoneOption>, query: String): List<TimeZoneOption> {
     val needle = query.normalizeForSearch()
@@ -154,12 +157,15 @@ fun filterTimeZones(options: List<TimeZoneOption>, query: String): List<TimeZone
             val city = option.city.normalizeForSearch()
             val id = option.id.normalizeForSearch()
             val name = option.displayName.normalizeForSearch()
+            val abbrev = option.shortName.normalizeForSearch()
             val rank = when {
                 city.startsWith(needle) -> 0
-                name.startsWith(needle) -> 1
-                city.contains(needle) -> 2
-                id.contains(needle) -> 3
-                name.contains(needle) -> 4
+                abbrev == needle -> 1
+                name.startsWith(needle) -> 2
+                abbrev.startsWith(needle) -> 3
+                city.contains(needle) -> 4
+                id.contains(needle) -> 5
+                name.contains(needle) -> 6
                 else -> return@mapNotNull null
             }
             rank to option
