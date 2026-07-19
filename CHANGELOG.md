@@ -46,6 +46,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   headers right below it, in the widest string in the bar. A week that straddles
   two months keeps the outgoing month until it is fully gone ([#60]).
 
+### Fixed
+- An all-day event no longer shows up again the day after it happened. In time
+  zones east of UTC, an all-day event — a birthday, say — set for one day also
+  appeared under the *next* day's heading in the Agenda (and the agenda widget),
+  because all-day events are anchored to UTC midnight and the following day's
+  window reached back across that boundary and pulled the event forward onto
+  "today". Each all-day event now lists only on the day it actually falls on
+  ([#65]).
+
 ## [2.15.0] — 2026-07-15
 
 ### Added
@@ -1040,3 +1049,4 @@ automatically, with zero telemetry and no internet permission.
 [#49]: https://codeberg.org/jlmakiola/calendula/issues/49
 [#52]: https://codeberg.org/jlmakiola/calendula/issues/52
 [#60]: https://codeberg.org/jlmakiola/calendula/issues/60
+[#65]: https://codeberg.org/jlmakiola/calendula/issues/65

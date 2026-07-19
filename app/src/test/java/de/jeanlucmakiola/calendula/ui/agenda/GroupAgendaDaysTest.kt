@@ -139,6 +139,31 @@ class GroupAgendaDaysTest {
     }
 
     @Test
+    fun `yesterday's all-day event does not surface under the anchor day in an eastern zone`() {
+        // The agenda window starts at the anchor's local midnight, which in Berlin is
+        // 22:00 UTC the day before — so an all-day event that ended yesterday (whose
+        // exclusive UTC-midnight end sits at that instant) is still returned by the
+        // provider. It must not be clamped onto the anchor's "today" section (#65).
+        val jul19 = LocalDate(2026, 7, 19)
+        val e = event(1, "birthday", utcMidnight(2026, 7, 18), utcMidnight(2026, 7, 19), isAllDay = true)
+
+        val result = groupAgendaDays(jul19, LocalDate(2026, 8, 18), listOf(e), berlin)
+
+        assertThat(result).isEmpty()
+    }
+
+    @Test
+    fun `an all-day event that falls entirely past the window end is dropped`() {
+        // The same guard, at the far edge: an instance whose true days are all beyond
+        // windowEnd occupies no visible day and must not be clamped onto the last one.
+        val e = event(1, "birthday", utcMidnight(2026, 7, 3), utcMidnight(2026, 7, 4), isAllDay = true)
+
+        val result = groupAgendaDays(anchor, LocalDate(2026, 7, 2), listOf(e), berlin)
+
+        assertThat(result).isEmpty()
+    }
+
+    @Test
     fun `within a day all-day events sort before timed ones`() {
         val allDay = event(1, "birthday", at(2026, 7, 1), at(2026, 7, 2), isAllDay = true)
         val timed = event(2, "call", at(2026, 7, 1, 9, 0), at(2026, 7, 1, 10, 0))
