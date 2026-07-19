@@ -23,6 +23,8 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -75,6 +77,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
@@ -698,19 +701,41 @@ private fun AppearanceScreen(
     }
 
     if (showAppName) {
-        OptionPicker(
+        FullScreenPicker(
             title = stringResource(R.string.settings_app_name),
-            predictiveBack = true,
-            options = LauncherName.entries,
-            selected = launcherName,
-            label = { launcherNameLabel(it) },
-            onSelect = viewModel::setLauncherName,
             onDismiss = { showAppName = false },
-            // A launcher-mark hero shows how the name reads under the icon, with
-            // the explanatory + icon-may-move hint, then breathing room above the
-            // choices.
-            header = { AppNamePreviewHero(launcherName) },
-        )
+            predictiveBack = true,
+        ) {
+            // Show both names as launcher-mark previews so the user sees what
+            // they'd switch to, not just the current state. Tapping applies
+            // immediately and highlights — the picker stays open so the change is
+            // visible; back exits.
+            Text(
+                text = stringResource(R.string.settings_app_name_summary),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+            )
+            Spacer(Modifier.height(24.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                LauncherName.entries.forEach { option ->
+                    AppNameOptionCard(
+                        name = option,
+                        selected = launcherName == option,
+                        onClick = { viewModel.setLauncherName(option) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
     }
     if (showTheme) {
         OptionPicker(
@@ -1745,60 +1770,85 @@ private fun launcherNameLabel(name: LauncherName): String = stringResource(
 )
 
 /**
- * Header for the App name picker (issue #44): the app's launcher mark over the
- * current name — a small preview of how the home screen reads — with the
- * explanatory hint below, then space before the choices. The icon never changes
- * (only the label does), so the mark is constant across the options.
+ * One selectable launcher-name preview in the App name picker (issue #44): the
+ * app's launcher mark over the name, framed as a card. The active one carries a
+ * primary border, a tinted container and a check; tapping selects it. The mark
+ * is the same for both — only the label changes — so the card previews exactly
+ * what the home screen will read.
  */
 @Composable
-private fun AppNamePreviewHero(name: LauncherName) {
+private fun AppNameOptionCard(
+    name: LauncherName,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(24.dp)
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    }
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+        modifier = modifier
+            .clip(shape)
+            .background(containerColor)
+            .border(width = if (selected) 2.dp else 1.dp, color = borderColor, shape = shape)
+            .clickable(onClick = onClick)
+            .padding(vertical = 20.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Surface(
-            shape = RoundedCornerShape(28.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier.fillMaxWidth(),
+        // The adaptive launcher mark, reconstructed as a squircle (as in the
+        // onboarding BrandHero) so it renders identically everywhere.
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(colorResource(R.color.ic_launcher_background)),
         ) {
-            Column(
-                modifier = Modifier.padding(vertical = 28.dp, horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                // The adaptive launcher mark, reconstructed as a squircle (as in
-                // the onboarding BrandHero) so it renders identically everywhere.
-                Box(
-                    modifier = Modifier
-                        .size(88.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(colorResource(R.color.ic_launcher_background)),
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_launcher_foreground),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = launcherNameLabel(name),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
+            Image(
+                painter = painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Text(
+            text = launcherNameLabel(name),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
+        // Selection indicator: a filled check when active, an empty ring otherwise.
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                .then(
+                    if (selected) {
+                        Modifier
+                    } else {
+                        Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.settings_app_name_summary),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 8.dp),
-        )
-        Spacer(Modifier.height(24.dp))
     }
 }
 
