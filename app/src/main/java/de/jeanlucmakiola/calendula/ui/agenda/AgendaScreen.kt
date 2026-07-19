@@ -367,7 +367,10 @@ private fun AgendaList(
             } else {
                 itemsIndexed(
                     items = day.events,
-                    key = { _, event -> event.instanceId },
+                    // Scope the key by day: a multi-day event appears under every
+                    // day it spans, so its instanceId alone is not unique across
+                    // the list (LazyColumn requires unique keys).
+                    key = { _, event -> "${day.date}-${event.instanceId}" },
                 ) { index, event ->
                     AgendaEventRow(
                         event = event,
