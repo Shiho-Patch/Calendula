@@ -3,8 +3,6 @@ package de.jeanlucmakiola.calendula.domain
 import java.text.Normalizer
 import java.time.Instant
 import java.time.ZoneId
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -35,16 +33,24 @@ data class TimeZoneOption(
     val region: String get() = id.substringBeforeLast('/', missingDelimiterValue = "")
 }
 
-private fun optionFor(zone: ZoneId, locale: Locale, at: Instant) = TimeZoneOption(
-    id = zone.id,
-    displayName = zone.getDisplayName(TextStyle.FULL, locale),
-    // "zzz" resolves the DST-correct abbreviation at [at] (CET vs CEST); zones
-    // with no named abbreviation fall back to a "GMT+05:30" form, which is
-    // exactly what we'd want to show them as anyway.
-    shortName = ZonedDateTime.ofInstant(at, zone)
-        .format(DateTimeFormatter.ofPattern("zzz", locale)),
-    offsetMinutes = zone.rules.getOffset(at).totalSeconds / 60,
-)
+private fun optionFor(zone: ZoneId, locale: Locale, at: Instant): TimeZoneOption {
+    val offsetSeconds = zone.rules.getOffset(at).totalSeconds
+    return TimeZoneOption(
+        id = zone.id,
+        displayName = zone.getDisplayName(TextStyle.FULL, locale),
+        // The abbreviation ("EDT"/"CEST", DST-correct at [at]). Resolved through
+        // java.util.TimeZone, NOT java.time's "zzz" formatter: on Android the
+        // latter has no short specific-zone names and silently degrades every
+        // zone to a "GMT-4" form (it agrees with java.util only on desktop), so
+        // "zzz" cost us the real abbreviation on the one platform that ships.
+        // java.util is ICU-backed and returns the abbreviation on both. Zones
+        // with genuinely no named abbreviation still fall back to a GMT form,
+        // which is what we'd show anyway.
+        shortName = java.util.TimeZone.getTimeZone(zone.id)
+            .getDisplayName(zone.rules.isDaylightSavings(at), java.util.TimeZone.SHORT, locale),
+        offsetMinutes = offsetSeconds / 60,
+    )
+}
 
 /**
  * Every zone the JVM knows, resolved at [at]. This is ~600 entries, so build it
