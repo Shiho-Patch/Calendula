@@ -569,23 +569,17 @@ private fun agendaDayLabel(date: LocalDate, today: LocalDate): String {
  */
 @Composable
 private fun agendaTimeSummary(event: EventInstance, day: LocalDate): String {
-    val allDayLabel = stringResource(R.string.event_detail_all_day)
     val is24Hour = LocalUse24HourFormat.current
     val locale = currentLocale()
 
-    val time = if (event.spansMultipleDays(zone)) {
-        val isFirstDay = day <= event.spanFirstDay(zone)
-        val isLastDay = day >= event.spanLastDay(zone)
-        when {
-            event.isAllDay -> allDayLabel
-            isFirstDay -> stringResource(R.string.agenda_span_starts, formatTime(event.start, is24Hour, locale))
-            isLastDay -> stringResource(R.string.agenda_span_ends, formatTime(event.end, is24Hour, locale))
-            else -> allDayLabel // a full middle day
-        }
-    } else if (event.isAllDay) {
-        allDayLabel
-    } else {
-        "${formatTime(event.start, is24Hour, locale)} – ${formatTime(event.end, is24Hour, locale)}"
+    val time = when (val label = agendaTimeLabel(event, day, zone)) {
+        AgendaTimeLabel.AllDay -> stringResource(R.string.event_detail_all_day)
+        is AgendaTimeLabel.Starts ->
+            stringResource(R.string.agenda_span_starts, formatTime(label.start, is24Hour, locale))
+        is AgendaTimeLabel.Ends ->
+            stringResource(R.string.agenda_span_ends, formatTime(label.end, is24Hour, locale))
+        is AgendaTimeLabel.Range ->
+            "${formatTime(label.start, is24Hour, locale)} – ${formatTime(label.end, is24Hour, locale)}"
     }
 
     val location = event.location?.takeIf { it.isNotBlank() }

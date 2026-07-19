@@ -49,6 +49,8 @@ import de.jeanlucmakiola.calendula.data.prefs.parsePastEventDisplay
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.hasEnded
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaTimeLabel
+import de.jeanlucmakiola.calendula.ui.agenda.agendaTimeLabel
 import de.jeanlucmakiola.calendula.ui.agenda.anchorTodayIfMissing
 import de.jeanlucmakiola.calendula.ui.agenda.dayCount
 import de.jeanlucmakiola.calendula.ui.agenda.parseAgendaRange
@@ -127,7 +129,7 @@ class RefreshAgendaAction : ActionCallback {
 /** Flat row model so the [LazyColumn] can mix day headers and events. */
 private sealed interface AgendaRow {
     data class Header(val date: LocalDate, val today: LocalDate) : AgendaRow
-    data class Event(val event: EventInstance) : AgendaRow
+    data class Event(val date: LocalDate, val event: EventInstance) : AgendaRow
     /** "Nothing left today" line under an anchored, event-less today (#35). */
     data class Placeholder(val date: LocalDate) : AgendaRow
 }
@@ -185,7 +187,7 @@ private fun AgendaWidgetBody(data: AgendaWidgetData, dark: Boolean) {
                             if (day.events.isEmpty()) {
                                 add(AgendaRow.Placeholder(day.date))
                             } else {
-                                day.events.forEach { add(AgendaRow.Event(it)) }
+                                day.events.forEach { add(AgendaRow.Event(day.date, it)) }
                             }
                         }
                     }
@@ -196,6 +198,7 @@ private fun AgendaWidgetBody(data: AgendaWidgetData, dark: Boolean) {
                                 is AgendaRow.Placeholder -> PlaceholderRow(row.date)
                                 is AgendaRow.Event -> EventRow(
                                     event = row.event,
+                                    day = row.date,
                                     dark = dark,
                                     soften = data.soften,
                                     is24Hour = data.is24Hour,
@@ -312,6 +315,7 @@ private fun PlaceholderRow(date: LocalDate) {
 @Composable
 private fun EventRow(
     event: EventInstance,
+    day: LocalDate,
     dark: Boolean,
     soften: Boolean,
     is24Hour: Boolean,
@@ -357,7 +361,7 @@ private fun EventRow(
                 style = TextStyle(color = titleColor, fontSize = 14.sp),
             )
             Text(
-                text = eventTimeSummary(context, event, is24Hour),
+                text = eventTimeSummary(context, event, day, is24Hour),
                 maxLines = 1,
                 style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 12.sp),
             )
@@ -396,11 +400,20 @@ private fun agendaDayLabel(context: Context, date: LocalDate, today: LocalDate):
     return if (relative != null) "$relative · $formatted" else formatted
 }
 
-private fun eventTimeSummary(context: Context, event: EventInstance, is24Hour: Boolean): String {
-    val time = if (event.isAllDay) {
-        context.getString(R.string.event_detail_all_day)
-    } else {
-        "${formatTime(event.start, is24Hour)} – ${formatTime(event.end, is24Hour)}"
+private fun eventTimeSummary(
+    context: Context,
+    event: EventInstance,
+    day: LocalDate,
+    is24Hour: Boolean,
+): String {
+    val time = when (val label = agendaTimeLabel(event, day, zone())) {
+        AgendaTimeLabel.AllDay -> context.getString(R.string.event_detail_all_day)
+        is AgendaTimeLabel.Starts ->
+            context.getString(R.string.agenda_span_starts, formatTime(label.start, is24Hour))
+        is AgendaTimeLabel.Ends ->
+            context.getString(R.string.agenda_span_ends, formatTime(label.end, is24Hour))
+        is AgendaTimeLabel.Range ->
+            "${formatTime(label.start, is24Hour)} – ${formatTime(label.end, is24Hour)}"
     }
     val location = event.location?.takeIf { it.isNotBlank() }
     return if (location != null) "$time · $location" else time

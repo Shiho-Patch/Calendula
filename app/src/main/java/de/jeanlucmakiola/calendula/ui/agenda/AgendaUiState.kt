@@ -8,6 +8,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Instant
 
 /**
  * The zone the event's calendar dates live in. Timed events are resolved in the
@@ -36,6 +37,36 @@ fun EventInstance.spanLastDay(zone: TimeZone): LocalDate {
 fun EventInstance.spansMultipleDays(zone: TimeZone): Boolean =
     spanFirstDay(zone) != spanLastDay(zone)
 
+/**
+ * What an agenda row's time line should convey for an event on a given day —
+ * the part of a multi-day span that [day] falls in. Pure and shared so the
+ * agenda screen and the agenda widget label multi-day events identically; each
+ * surface only formats the instants into its own locale/24h string.
+ */
+sealed interface AgendaTimeLabel {
+    /** An all-day event, or a whole in-between day of a multi-day span. */
+    data object AllDay : AgendaTimeLabel
+    /** The first day of a multi-day timed event: when it begins. */
+    data class Starts(val start: Instant) : AgendaTimeLabel
+    /** The last day of a multi-day timed event: when it ends. */
+    data class Ends(val end: Instant) : AgendaTimeLabel
+    /** A single-day timed event: its start–end range. */
+    data class Range(val start: Instant, val end: Instant) : AgendaTimeLabel
+}
+
+/** The [AgendaTimeLabel] for [event] as it appears on [day], resolved in [zone]. */
+fun agendaTimeLabel(event: EventInstance, day: LocalDate, zone: TimeZone): AgendaTimeLabel {
+    if (event.isAllDay) return AgendaTimeLabel.AllDay
+    val firstDay = event.spanFirstDay(zone)
+    val lastDay = event.spanLastDay(zone)
+    return when {
+        firstDay == lastDay -> AgendaTimeLabel.Range(event.start, event.end)
+        day <= firstDay -> AgendaTimeLabel.Starts(event.start)
+        day >= lastDay -> AgendaTimeLabel.Ends(event.end)
+        else -> AgendaTimeLabel.AllDay // a full in-between day
+    }
+}
+
 /** One calendar day with at least one event, for the agenda list. */
 data class AgendaDay(
     val date: LocalDate,
@@ -63,7 +94,10 @@ fun groupAgendaDays(
     val byDay = sortedMapOf<LocalDate, MutableList<EventInstance>>()
     for (instance in instances) {
         val firstDay = instance.spanFirstDay(zone).coerceAtLeast(anchor)
-        val lastDay = instance.spanLastDay(zone).coerceAtMost(windowEnd)
+        // Never below firstDay: an instance the query returned always surfaces on
+        // at least its first visible day, even if its end resolves earlier (e.g. a
+        // zero-length or boundary instant) — otherwise the loop would drop it.
+        val lastDay = instance.spanLastDay(zone).coerceAtMost(windowEnd).coerceAtLeast(firstDay)
         var day = firstDay
         while (day <= lastDay) {
             byDay.getOrPut(day) { mutableListOf() }.add(instance)
