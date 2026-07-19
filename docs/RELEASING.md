@@ -82,9 +82,24 @@ release work when a merge actually cuts a release:
   merged commit, build & sign the release APK with the **app key**, copy it into
   the F-Droid repo, generate the per-version changelog, re-sign the index with
   the **repo key**, upload `repo/` + `metadata/`, then create the `vX.Y.Z` tag +
-  Gitea release (CHANGELOG section as notes) and attach the R8 `mapping.txt`
-  (best-effort). Ordinary merges with no version bump fall through `detect` and
-  do nothing.
+  Gitea release (CHANGELOG section as notes), attach the R8 `mapping.txt`, and
+  mirror the release to **Codeberg** with the signed APK + a SHA-256 checksum
+  (both best-effort). Ordinary merges with no version bump fall through `detect`
+  and do nothing.
+
+### Codeberg direct-download channel
+
+Alongside F-Droid, each release is mirrored to the Codeberg repo
+(`jlmakiola/calendula`) as a plain download for users who don't want F-Droid.
+Gitea already **push-mirrors** branches and tags to Codeberg, but releases
+aren't git objects and don't sync, so the pipeline creates the release over the
+Codeberg API and attaches `calendula_v<version>.apk` + its `.sha256`. It's the
+same APK the F-Droid repo serves (same **app key**), so it adds no trust
+surface. The step is best-effort: a Codeberg outage never fails an
+already-published F-Droid release, and it skips cleanly if `CODEBERG_RELEASE_TOKEN` is
+unset. One-time setup: the repo's **Releases** unit must be enabled and a
+`CODEBERG_RELEASE_TOKEN` secret (Codeberg access token, `write:repository` scope) added
+to Gitea Actions.
 
 ### Manual re-sign / recovery
 
@@ -103,6 +118,7 @@ for key rotation or repo recovery without publishing a new app version.
 | `FDROID_CONFIG_BASE64` | F-Droid `config.yml` (base64) — repo metadata + keystore passwords. |
 | `HETZNER_HOST`, `HETZNER_USER`, `HETZNER_PASS` | Upload target for the F-Droid repo. |
 | `GITHUB_TOKEN` | Provided by Gitea Actions; used to create the release + attach assets. |
+| `CODEBERG_RELEASE_TOKEN` | Codeberg access token (`write:repository` scope) — creates the mirrored Codeberg release + uploads the APK/checksum. Best-effort; if unset the Codeberg step skips. |
 
 The two keys are independent: the **app key** signs APKs; the **repo key**
 signs the index (its fingerprint is what users pin). Neither key nor the

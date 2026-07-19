@@ -1,11 +1,13 @@
-name: Release — F-Droid repo + Gitea release
+name: Release — F-Droid repo + Gitea/Codeberg release
 
 # A release is cut by merging a release branch into main with a bumped
 # versionName (see docs/RELEASING.md). This workflow reads that versionName and,
 # if no matching tag exists yet, runs tests, builds + signs the APK, publishes
-# it to the F-Droid repo, and only then creates the vX.Y.Z tag + Gitea release
-# itself — the tag is an output of the pipeline, not its trigger. Ordinary
-# merges (no version bump) fall through `detect` and do nothing.
+# it to the F-Droid repo, creates the vX.Y.Z tag + Gitea release, and mirrors
+# that release to Codeberg with the signed APK + a SHA-256 checksum as a
+# direct-download channel — the tag is an output of the pipeline, not its
+# trigger. Ordinary merges (no version bump) fall through `detect` and do
+# nothing.
 #
 # A manual workflow_dispatch (from a branch) runs the re-sign-only recovery
 # path: it re-signs the existing F-Droid index with the repo key and re-uploads,
@@ -350,3 +352,79 @@ jobs:
           curl -s -X POST -H "Authorization: token $TOKEN" \
             -F "attachment=@/tmp/$ASSET" \
             "$API/releases/$ID/assets?name=$ASSET" -o /dev/null -w "asset upload HTTP %{http_code}\n"
+
+      # Mirror the release to the Codeberg mirror as a direct-download channel
+      # for users who don't want F-Droid. Gitea already push-mirrors branches +
+      # tags to Codeberg, but releases aren't git objects so they don't sync —
+      # we create the release there over the API and attach the signed APK plus
+      # a SHA-256 checksum. The APK is identical to the F-Droid one (same app
+      # key), so this adds no trust surface. Best-effort: a Codeberg outage
+      # (it 504s under load) must never fail an already-published F-Droid
+      # release. Needs the CODEBERG_RELEASE_TOKEN secret; skips cleanly if unset.
+      - name: Publish release to Codeberg
+        if: env.IS_RELEASE == 'true'
+        continue-on-error: true
+        env:
+          TOKEN: ${{ secrets.CODEBERG_RELEASE_TOKEN }}
+          API: https://codeberg.org/api/v1/repos/jlmakiola/calendula
+          SHA: ${{ github.sha }}
+        run: |
+          set -e
+          if [ -z "${TOKEN:-}" ]; then
+            echo "CODEBERG_RELEASE_TOKEN not set — skipping Codeberg publish."
+            exit 0
+          fi
+          TAG="v$VERSION"
+          APK="app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$APK" ]; then echo "No release APK found — skipping." >&2; exit 1; fi
+          ASSET_APK="calendula_v${VERSION}.apk"
+          ASSET_SUM="${ASSET_APK}.sha256"
+          cp "$APK" "/tmp/$ASSET_APK"
+          ( cd /tmp && sha256sum "$ASSET_APK" > "$ASSET_SUM" )
+
+          # Release notes: reuse the section extracted for the Gitea release,
+          # fall back to the CHANGELOG entry if that step's file is gone.
+          if [ ! -s release-notes.md ]; then
+            awk -v ver="$VERSION" '
+              $0 ~ "^## \\[" ver "\\]" { flag = 1; next }
+              /^## \[/ { flag = 0 }
+              flag' CHANGELOG.md > release-notes.md
+            sed -i -e '/./,$!d' release-notes.md
+          fi
+          [ -s release-notes.md ] || echo "_See CHANGELOG.md for ${VERSION}._" > release-notes.md
+          python3 - "$TAG" "$SHA" <<'PY' > cb-payload.json
+          import json, sys
+          print(json.dumps({
+              "tag_name": sys.argv[1],
+              "target_commitish": sys.argv[2],
+              "name": sys.argv[1],
+              "body": open("release-notes.md").read(),
+              "draft": False,
+              "prerelease": False,
+          }))
+          PY
+          # Upsert (re-run safe). POST also creates the tag at target_commitish
+          # if the push mirror hasn't synced it yet.
+          ID=$(curl -s -H "Authorization: token $TOKEN" "$API/releases/tags/$TAG" | jq -r '.id // empty')
+          if [ -n "$ID" ]; then
+            curl -s -o /dev/null -w "release PATCH HTTP %{http_code}\n" -X PATCH \
+              -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
+              -d @cb-payload.json "$API/releases/$ID"
+          else
+            curl -s -o cb-response.json -w "release POST HTTP %{http_code}\n" -X POST \
+              -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
+              -d @cb-payload.json "$API/releases"
+            ID=$(jq -r '.id // empty' cb-response.json 2>/dev/null || true)
+          fi
+          if [ -z "$ID" ]; then echo "Could not resolve Codeberg release id." >&2; exit 1; fi
+
+          # Attach APK + checksum, replacing any prior asset of the same name.
+          for A in "$ASSET_APK" "$ASSET_SUM"; do
+            OLD=$(curl -s -H "Authorization: token $TOKEN" "$API/releases/$ID/assets" \
+              | jq -r --arg n "$A" '.[] | select(.name==$n) | .id')
+            [ -n "$OLD" ] && curl -s -X DELETE -H "Authorization: token $TOKEN" "$API/releases/$ID/assets/$OLD" >/dev/null || true
+            curl -s -X POST -H "Authorization: token $TOKEN" \
+              -F "attachment=@/tmp/$A" \
+              "$API/releases/$ID/assets?name=$A" -o /dev/null -w "asset $A HTTP %{http_code}\n"
+          done
+          echo "Published $TAG to Codeberg."
