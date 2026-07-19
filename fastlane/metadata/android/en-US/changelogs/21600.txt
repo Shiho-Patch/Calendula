@@ -7,6 +7,10 @@
   original noted beneath. Pick a zone from a searchable full-screen picker — by
   city, IANA id, or abbreviation like "CEST". All-day events stay date-anchored
   and carry no zone ([#31]).
+- Put the "jump to today" button in the toolbar. A new Today button in toolbar
+  setting (Settings → Appearance, off by default) swaps the floating corner
+  button for a permanent today icon in the top bar — always there, matching the
+  familiar calendar-app pattern. Leave it off to keep the floating button ([#60]).
 
 ### Changed
 - Dates in the Month, Week and Day title bars now follow your language and
