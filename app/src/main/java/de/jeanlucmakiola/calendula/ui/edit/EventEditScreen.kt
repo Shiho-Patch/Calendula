@@ -112,7 +112,7 @@ import de.jeanlucmakiola.calendula.domain.EventAttendee
 import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
-import de.jeanlucmakiola.calendula.domain.formatGmtOffset
+import de.jeanlucmakiola.calendula.domain.zoneDescriptor
 import de.jeanlucmakiola.calendula.domain.timeZoneOptionOf
 import de.jeanlucmakiola.calendula.domain.timesIn
 import de.jeanlucmakiola.calendula.domain.EventFormProblem
@@ -745,13 +745,12 @@ private fun EventEditContent(
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = pinned?.city
+                            text = pinned?.label
                                 ?: stringResource(R.string.event_edit_timezone_device),
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
-                            text = pinned
-                                ?.let { "${it.displayName} · ${formatGmtOffset(it.offsetMinutes)}" }
+                            text = pinned?.let { zoneDescriptor(it) }
                                 ?: stringResource(R.string.event_edit_timezone_device_summary),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,

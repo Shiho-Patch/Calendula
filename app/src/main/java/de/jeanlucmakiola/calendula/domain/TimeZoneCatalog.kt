@@ -3,20 +3,31 @@ package de.jeanlucmakiola.calendula.domain
 import java.text.Normalizer
 import java.time.Instant
 import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 
 /**
- * One selectable zone, resolved for display: [id] is the IANA id we store in
- * `EVENT_TIMEZONE`, [displayName] its localized name, and [offsetMinutes] its
- * offset *at a given instant* — zones shift with DST, so an offset is only
- * meaningful next to the moment it was resolved for.
+ * One selectable zone, resolved for display at a given instant. [id] is the IANA
+ * id we store in `EVENT_TIMEZONE` and show as the primary label (via [label]);
+ * [shortName] its abbreviation ("CET", "WET", "UTC", or a "GMT+05:30" fallback);
+ * [offsetMinutes] its offset. Both the abbreviation and the offset shift with
+ * DST, so they're only meaningful next to the moment they were resolved for.
+ *
+ * [displayName] is the long localized name ("Central European Time"). It's kept
+ * for search only — matching on it lets someone type "pacific" — and is *not*
+ * displayed: spelled out next to the id it made the field too wide to fit.
  */
 data class TimeZoneOption(
     val id: String,
     val displayName: String,
+    val shortName: String,
     val offsetMinutes: Int,
 ) {
+    /** The id as the primary label, underscores undone ("America/New York"). */
+    val label: String get() = id.replace('_', ' ')
+
     /** The trailing segment of the id ("Europe/Berlin" -> "Berlin"), underscores undone. */
     val city: String get() = id.substringAfterLast('/').replace('_', ' ')
 
@@ -24,10 +35,20 @@ data class TimeZoneOption(
     val region: String get() = id.substringBeforeLast('/', missingDelimiterValue = "")
 }
 
+private fun optionFor(zone: ZoneId, locale: Locale, at: Instant) = TimeZoneOption(
+    id = zone.id,
+    displayName = zone.getDisplayName(TextStyle.FULL, locale),
+    // "zzz" resolves the DST-correct abbreviation at [at] (CET vs CEST); zones
+    // with no named abbreviation fall back to a "GMT+05:30" form, which is
+    // exactly what we'd want to show them as anyway.
+    shortName = ZonedDateTime.ofInstant(at, zone)
+        .format(DateTimeFormatter.ofPattern("zzz", locale)),
+    offsetMinutes = zone.rules.getOffset(at).totalSeconds / 60,
+)
+
 /**
- * Every zone the JVM knows, localized and resolved at [at]. This is ~600
- * entries, so build it once and filter the result rather than rebuilding per
- * keystroke.
+ * Every zone the JVM knows, resolved at [at]. This is ~600 entries, so build it
+ * once and filter the result rather than rebuilding per keystroke.
  *
  * Bare three-letter ids ("EST", "CST6CDT") and the legacy SystemV tree are
  * dropped: they're aliases the tz database keeps for compatibility, they'd
@@ -40,14 +61,7 @@ fun timeZoneOptions(
 ): List<TimeZoneOption> = ZoneId.getAvailableZoneIds()
     .asSequence()
     .filter { it.contains('/') && !it.startsWith("SystemV/") }
-    .map { id ->
-        val zone = ZoneId.of(id)
-        TimeZoneOption(
-            id = id,
-            displayName = zone.getDisplayName(TextStyle.FULL, locale),
-            offsetMinutes = zone.rules.getOffset(at).totalSeconds / 60,
-        )
-    }
+    .map { optionFor(ZoneId.of(it), locale, at) }
     .sortedWith(compareBy({ it.region }, { it.city }))
     .toList()
 
@@ -62,11 +76,18 @@ fun timeZoneOptionOf(
     at: Instant = Instant.now(),
 ): TimeZoneOption? {
     val zone = runCatching { ZoneId.of(id) }.getOrNull() ?: return null
-    return TimeZoneOption(
-        id = id,
-        displayName = zone.getDisplayName(TextStyle.FULL, locale),
-        offsetMinutes = zone.rules.getOffset(at).totalSeconds / 60,
-    )
+    return optionFor(zone, locale, at)
+}
+
+/**
+ * The short descriptor shown beneath the id, e.g. "CET · GMT+01:00". When the
+ * abbreviation is itself offset-shaped ("UTC", "GMT+05:30") the offset would
+ * only repeat it, so the abbreviation stands alone.
+ */
+fun zoneDescriptor(option: TimeZoneOption): String {
+    val abbrev = option.shortName
+    val offsetShaped = abbrev == "UTC" || abbrev.startsWith("GMT")
+    return if (offsetShaped) abbrev else "$abbrev · ${formatGmtOffset(option.offsetMinutes)}"
 }
 
 /**

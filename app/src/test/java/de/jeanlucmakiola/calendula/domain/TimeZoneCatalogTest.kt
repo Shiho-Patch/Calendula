@@ -31,6 +31,45 @@ class TimeZoneCatalogTest {
     }
 
     @Test
+    fun `label is the id with underscores undone`() {
+        assertThat(zones.first { it.id == "America/New_York" }.label)
+            .isEqualTo("America/New York")
+        assertThat(zones.first { it.id == "Europe/Berlin" }.label).isEqualTo("Europe/Berlin")
+    }
+
+    @Test
+    fun `resolved abbreviation is compact, not the long name`() {
+        // Whatever CLDR gives ("CET"/"CEST" or a "GMT+.." fallback), it must be
+        // short and space-free — that's the whole point of showing it instead of
+        // "Central European Time".
+        val berlin = zones.first { it.id == "Europe/Berlin" }
+        assertThat(berlin.shortName).doesNotContain(" ")
+        assertThat(berlin.shortName.length).isLessThan(berlin.displayName.length)
+    }
+
+    @Test
+    fun `descriptor pairs a named abbreviation with the offset`() {
+        val option = TimeZoneOption(
+            id = "Europe/Berlin",
+            displayName = "Central European Time",
+            shortName = "CET",
+            offsetMinutes = 60,
+        )
+        assertThat(zoneDescriptor(option)).isEqualTo("CET · GMT+01:00")
+    }
+
+    @Test
+    fun `descriptor drops the offset when the abbreviation already is one`() {
+        // Repeating the offset after an offset-shaped abbreviation would just say
+        // the same thing twice.
+        fun descriptorFor(shortName: String, offset: Int) = zoneDescriptor(
+            TimeZoneOption(id = "X/Y", displayName = "", shortName = shortName, offsetMinutes = offset),
+        )
+        assertThat(descriptorFor("UTC", 0)).isEqualTo("UTC")
+        assertThat(descriptorFor("GMT+05:30", 330)).isEqualTo("GMT+05:30")
+    }
+
+    @Test
     fun `offset is resolved at the given instant, not the current one`() {
         val berlin = zones.first { it.id == "Europe/Berlin" }
         // CEST in June, so +02:00 — a fixed +01:00 would mean we ignored DST.

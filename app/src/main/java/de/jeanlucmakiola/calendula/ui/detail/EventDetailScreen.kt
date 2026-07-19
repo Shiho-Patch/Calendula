@@ -93,6 +93,9 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.EventStatus
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.Reminder
+import de.jeanlucmakiola.calendula.domain.TimeZoneOption
+import de.jeanlucmakiola.calendula.domain.timeZoneOptionOf
+import de.jeanlucmakiola.calendula.domain.zoneDescriptor
 import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
@@ -108,7 +111,6 @@ import kotlinx.datetime.TimeZone
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -460,32 +462,37 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
         // Same hierarchy as the When card above — the label carries the card,
         // the time sits small beneath it. The local time is the one the reader
         // acts on, so the original must stay quieter than it, not compete.
-        foreignTimeZoneLabel(detail.eventTimezone, instance.isAllDay, locale)?.let { tzLabel ->
+        val foreignZone = remember(detail.eventTimezone, instance.isAllDay, locale) {
+            foreignTimeZone(detail.eventTimezone, instance.isAllDay, locale)
+        }
+        foreignZone?.let { zoneOption ->
             Spacer(Modifier.height(gap))
             DetailCard(
                 icon = Icons.Default.Public,
                 iconContentDescription = stringResource(R.string.event_detail_timezone),
             ) {
-                Text(text = tzLabel, style = MaterialTheme.typography.titleMedium)
-                val originalZone = detail.eventTimezone?.let { tz ->
-                    runCatching { TimeZone.of(tz) }.getOrNull()
-                }
-                if (originalZone != null) {
-                    // formatWhen puts the time range in the secondary half only
-                    // for a same-day event; one spanning midnight — which a
-                    // cross-zone event easily does — carries the whole span in
-                    // the primary instead, so fall back to it rather than
-                    // dropping the original time entirely.
-                    val (primary, secondary) = formatWhen(instance, originalZone, locale)
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        // The label above already names the zone, so the range
-                        // needs no "in New York" tail to be unambiguous here.
-                        text = secondary ?: primary,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                // The id is the primary label ("Europe/Berlin"); the long
+                // localized name spelled next to it made the field too wide.
+                Text(text = zoneOption.label, style = MaterialTheme.typography.titleMedium)
+                // Beneath, small: the abbreviation plus the event's own-zone time,
+                // e.g. "CET · 8:00 AM – 9:00 AM". formatWhen puts the range in the
+                // secondary half only for a same-day event; one spanning midnight
+                // — which a cross-zone event easily does — carries the whole span
+                // in the primary instead, so fall back to it. If the zone can't be
+                // read back at all, drop to just the abbreviation + offset.
+                val originalTime = runCatching { TimeZone.of(zoneOption.id) }.getOrNull()
+                    ?.let { formatWhen(instance, it, locale) }
+                    ?.let { (primary, secondary) -> secondary ?: primary }
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = if (originalTime != null) {
+                        "${zoneOption.shortName} · $originalTime"
+                    } else {
+                        zoneDescriptor(zoneOption)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 
@@ -777,21 +784,15 @@ private fun attendeeRoleLabel(attendee: Attendee): Int? = when {
 private fun reminderLeadText(reminder: Reminder): String = reminderLeadTimeLabel(reminder.minutes)
 
 /**
- * A localized label for [tz] (e.g. "Central European Time (Europe/Berlin)"),
- * but only when the event is timed and pinned to a zone different from the
- * device's. Returns null when there's nothing worth showing.
+ * [tz] resolved as a [TimeZoneOption], but only when the event is timed and
+ * pinned to a zone different from the device's — the cases where showing it
+ * removes ambiguity. Null otherwise (all-day, device-zone, blank, or an id the
+ * tz database doesn't know).
  */
-private fun foreignTimeZoneLabel(tz: String?, isAllDay: Boolean, locale: Locale): String? {
+private fun foreignTimeZone(tz: String?, isAllDay: Boolean, locale: Locale): TimeZoneOption? {
     if (isAllDay || tz.isNullOrBlank()) return null
-    val deviceZone = ZoneId.systemDefault().id
-    if (tz == deviceZone) return null
-    return try {
-        val zone = ZoneId.of(tz)
-        val name = zone.getDisplayName(JavaTextStyle.FULL, locale)
-        if (name == tz) tz else "$name ($tz)"
-    } catch (e: Exception) {
-        tz
-    }
+    if (tz == ZoneId.systemDefault().id) return null
+    return timeZoneOptionOf(tz, locale)
 }
 
 /** Wrap http(s) URLs in [text] as tappable links tinted [linkColor]. */

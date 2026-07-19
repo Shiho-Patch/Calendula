@@ -35,8 +35,8 @@ import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.TimeZoneOption
 import de.jeanlucmakiola.calendula.domain.filterTimeZones
-import de.jeanlucmakiola.calendula.domain.formatGmtOffset
 import de.jeanlucmakiola.calendula.domain.timeZoneOptions
+import de.jeanlucmakiola.calendula.domain.zoneDescriptor
 import de.jeanlucmakiola.floret.components.FullScreenPicker
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
@@ -240,8 +240,8 @@ private fun ZoneRow(
     onClick: () -> Unit,
 ) {
     GroupedRow(
-        title = zone.city,
-        summary = "${zone.displayName} · ${formatGmtOffset(zone.offsetMinutes)}",
+        title = zone.label,
+        summary = zoneDescriptor(zone),
         position = position,
         selected = selected,
         trailing = if (selected) {
@@ -253,8 +253,8 @@ private fun ZoneRow(
     )
 }
 
-/** "Central European Time · GMT+02:00" for [zoneId], or the bare id if unknown. */
+/** "CET · GMT+01:00" for [zoneId], or the bare id if the catalogue lacks it. */
 private fun zoneSummary(zoneId: String, allZones: List<TimeZoneOption>): String =
     allZones.firstOrNull { it.id == zoneId }
-        ?.let { "${it.displayName} · ${formatGmtOffset(it.offsetMinutes)}" }
+        ?.let { zoneDescriptor(it) }
         ?: zoneId
