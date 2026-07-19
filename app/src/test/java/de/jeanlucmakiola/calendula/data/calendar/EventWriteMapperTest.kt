@@ -19,7 +19,14 @@ class EventWriteMapperTest {
         isAllDay: Boolean = false,
         start: LocalDateTime = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(10, 0)),
         end: LocalDateTime = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(11, 30)),
-    ): EventForm = EventForm(calendarId = 1L, isAllDay = isAllDay, start = start, end = end)
+        timezone: String? = null,
+    ): EventForm = EventForm(
+        calendarId = 1L,
+        isAllDay = isAllDay,
+        start = start,
+        end = end,
+        timezone = timezone,
+    )
 
     @Test
     fun `timed event resolves wall clock in the given zone`() {
@@ -28,6 +35,26 @@ class EventWriteMapperTest {
         assertThat(times.dtStartMillis).isEqualTo(1_781_164_800_000L)
         assertThat(times.dtEndMillis - times.dtStartMillis).isEqualTo(90L * 60L * 1000L)
         assertThat(times.timezone).isEqualTo("Europe/Berlin")
+    }
+
+    @Test
+    fun `pinned zone wins over the device zone`() {
+        val times = form(timezone = "America/New_York").toWriteTimes(berlin)
+        // 10:00 in New York (EDT, UTC-4) == 14:00Z, not 08:00Z as Berlin would give.
+        assertThat(times.timezone).isEqualTo("America/New_York")
+        assertThat(times.dtStartMillis).isEqualTo(1_781_186_400_000L)
+    }
+
+    @Test
+    fun `an unparseable pinned zone falls back to the device zone`() {
+        val times = form(timezone = "Mars/Olympus_Mons").toWriteTimes(berlin)
+        assertThat(times.timezone).isEqualTo("Europe/Berlin")
+    }
+
+    @Test
+    fun `all-day ignores a pinned zone and stays UTC`() {
+        val times = form(isAllDay = true, timezone = "America/New_York").toWriteTimes(berlin)
+        assertThat(times.timezone).isEqualTo("UTC")
     }
 
     @Test
@@ -103,6 +130,42 @@ class EventWriteMapperTest {
     fun `pristine form produces no values`() {
         val original = form()
         assertThat(update(original, original.copy())).isEmpty()
+    }
+
+    @Test
+    fun `editing the time of a pinned event keeps its zone`() {
+        // The regression this guards: the update used to stamp the device zone
+        // over the event's own, silently un-anchoring a foreign-zone event so it
+        // stopped tracking that zone across DST.
+        val original = form(timezone = "America/New_York")
+        val values = update(original, original.copy(title = "Standup", start = original.start))
+        assertThat(values).doesNotContainKey(CalendarContract.Events.EVENT_TIMEZONE)
+
+        val moved = original.copy(
+            start = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(11, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(12, 30)),
+        )
+        assertThat(update(original, moved)[CalendarContract.Events.EVENT_TIMEZONE])
+            .isEqualTo("America/New_York")
+    }
+
+    @Test
+    fun `changing only the zone still moves the event`() {
+        // Same wall-clock, different zone: the instant moves, so DTSTART must be
+        // rewritten even though start/end compare equal.
+        val original = form()
+        val values = update(original, original.copy(timezone = "America/New_York"))
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("America/New_York")
+        // 10:00 Berlin (08:00Z) -> 10:00 New York (14:00Z): six hours later.
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_781_186_400_000L)
+    }
+
+    @Test
+    fun `unpinning back to the device zone rewrites the times`() {
+        val original = form(timezone = "America/New_York")
+        val values = update(original, original.copy(timezone = null))
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("Europe/Berlin")
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_781_164_800_000L)
     }
 
     @Test

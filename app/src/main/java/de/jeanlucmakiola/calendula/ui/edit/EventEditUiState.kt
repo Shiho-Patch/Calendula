@@ -27,6 +27,8 @@ data class EventEditUiState(
      * neither list.
      */
     val hiddenFields: List<EventFormField> = emptyList(),
+    /** Recently picked zones, most recent first — the zone picker's shortlist. */
+    val recentTimeZones: List<String> = emptyList(),
     /** True while editing an existing event (the calendar is then fixed). */
     val isEditing: Boolean = false,
     /**
