@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The "Upcoming" agenda widget now scales its text and rows to the size you give
+  it. Previously it was laid out once for the smallest size and simply stretched
+  when enlarged, so the text stayed small no matter how big you made the widget.
+  Now a bigger widget gets bigger, more readable type and roomier rows, while the
+  default size looks exactly as before — no new setting; it follows the size you
+  already chose ([#51]).
+
 ## [2.16.0] — 2026-07-17
 
 ### Added
@@ -1038,5 +1046,6 @@ automatically, with zero telemetry and no internet permission.
 [#47]: https://codeberg.org/jlmakiola/calendula/issues/47
 [#48]: https://codeberg.org/jlmakiola/calendula/issues/48
 [#49]: https://codeberg.org/jlmakiola/calendula/issues/49
+[#51]: https://codeberg.org/jlmakiola/calendula/issues/51
 [#52]: https://codeberg.org/jlmakiola/calendula/issues/52
 [#60]: https://codeberg.org/jlmakiola/calendula/issues/60
