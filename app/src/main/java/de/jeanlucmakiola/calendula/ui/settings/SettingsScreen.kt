@@ -572,6 +572,18 @@ private fun AppearanceScreen(
             onClick = { showDefaultView = true },
         )
         GroupedRow(
+            title = stringResource(R.string.settings_today_toolbar),
+            summary = stringResource(R.string.settings_today_toolbar_summary),
+            position = Position.Middle,
+            trailing = {
+                Switch(
+                    checked = state.todayButtonInToolbar,
+                    onCheckedChange = viewModel::setTodayButtonInToolbar,
+                )
+            },
+            onClick = { viewModel.setTodayButtonInToolbar(!state.todayButtonInToolbar) },
+        )
+        GroupedRow(
             title = stringResource(R.string.settings_week_start),
             summary = weekStartLabel(state.weekStart),
             position = Position.Middle,

@@ -88,6 +88,8 @@ fun CalendarHost(
     // sensible non-empty initial values, so they're ready before the first frame.
     val quickSwitchViews = viewModel.quickSwitchViews.collectAsStateWithLifecycle().value
     val drawerViewOrder = viewModel.drawerViewOrder.collectAsStateWithLifecycle().value
+    // Whether the jump-to-today control sits in each view's top bar or the FAB (#60).
+    val todayInToolbar = viewModel.todayButtonInToolbar.collectAsStateWithLifecycle().value
 
     var viewStack by rememberSaveable(stateSaver = viewStackSaver) {
         mutableStateOf(listOf(defaultView))
@@ -318,6 +320,7 @@ fun CalendarHost(
                     onCreateEvent = onCreateEvent,
                     quickSwitchViews = quickSwitchViews,
                     drawerViewOrder = drawerViewOrder,
+                    todayInToolbar = todayInToolbar,
                 )
                 CalendarView.Day -> DayScreen(
                     selectedView = currentView,
@@ -329,6 +332,7 @@ fun CalendarHost(
                     initialDateIso = pendingDayIso,
                     quickSwitchViews = quickSwitchViews,
                     drawerViewOrder = drawerViewOrder,
+                    todayInToolbar = todayInToolbar,
                 )
                 CalendarView.Month -> MonthScreen(
                     selectedView = currentView,
@@ -339,6 +343,7 @@ fun CalendarHost(
                     onCreateEvent = onCreateEvent,
                     quickSwitchViews = quickSwitchViews,
                     drawerViewOrder = drawerViewOrder,
+                    todayInToolbar = todayInToolbar,
                 )
                 CalendarView.Agenda -> AgendaScreen(
                     selectedView = currentView,
@@ -350,6 +355,7 @@ fun CalendarHost(
                     onCreateEvent = onCreateEvent,
                     quickSwitchViews = quickSwitchViews,
                     drawerViewOrder = drawerViewOrder,
+                    todayInToolbar = todayInToolbar,
                 )
             }
         }

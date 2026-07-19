@@ -37,6 +37,8 @@ data class SettingsUiState(
     val dimCompletedEvents: Boolean = false,
     /** Whether the Month grid shows calendar-week numbers in a left gutter (#25). */
     val showWeekNumbers: Boolean = false,
+    /** Whether the jump-to-today control sits in the top bar instead of the FAB (#60). */
+    val todayButtonInToolbar: Boolean = false,
     /** How far ahead the in-app Agenda screen shows events (v2.11). */
     val agendaScreenRange: AgendaRange = AgendaRange.Month,
     /** How far ahead the agenda widget shows events (v2.11). */

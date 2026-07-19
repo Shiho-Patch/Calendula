@@ -235,6 +235,21 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * Where the jump-to-today control lives (issue #60). Default OFF — the
+     * historical layout, where it's an extended FAB that fades in above the "+"
+     * only while the view is off today. Turning it ON moves it to a persistent
+     * icon button in each calendar view's top bar (always shown, on today or
+     * not) and drops the FAB pill.
+     */
+    val todayButtonInToolbar: Flow<Boolean> = store.data.map { prefs ->
+        prefs[TODAY_BUTTON_IN_TOOLBAR_KEY] ?: false
+    }
+
+    suspend fun setTodayButtonInToolbar(enabled: Boolean) {
+        store.edit { it[TODAY_BUTTON_IN_TOOLBAR_KEY] = enabled }
+    }
+
+    /**
      * How far ahead the in-app Agenda screen shows events (v2.11). Defaults to
      * [AgendaRange.Month] — a month of upcoming events. Independent of the
      * widget's [agendaWidgetRange].
@@ -738,6 +753,7 @@ class SettingsPrefs @Inject constructor(
         internal val PAST_EVENT_DISPLAY_KEY = stringPreferencesKey("agenda_past_event_display")
         internal val DIM_COMPLETED_EVENTS_KEY = booleanPreferencesKey("dim_completed_events")
         internal val SHOW_WEEK_NUMBERS_KEY = booleanPreferencesKey("show_week_numbers")
+        internal val TODAY_BUTTON_IN_TOOLBAR_KEY = booleanPreferencesKey("today_button_in_toolbar")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
         internal val QUICK_SWITCH_VIEWS_KEY = stringPreferencesKey("quick_switch_views")
         internal val DRAWER_VIEW_ORDER_KEY = stringPreferencesKey("drawer_view_order")

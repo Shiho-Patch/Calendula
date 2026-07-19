@@ -124,8 +124,9 @@ class SettingsViewModel @Inject constructor(
                     prefs.showWeekNumbers,
                     prefs.agendaShowToday,
                     prefs.softenCalendarColors,
-                ) { hourLines, weekNumbers, showToday, soften ->
-                    DisplayToggles(hourLines, weekNumbers, showToday, soften)
+                    prefs.todayButtonInToolbar,
+                ) { hourLines, weekNumbers, showToday, soften, todayInToolbar ->
+                    DisplayToggles(hourLines, weekNumbers, showToday, soften, todayInToolbar)
                 },
             ) { view, screenRange, widgetRange, timeFormat, toggles ->
                 ViewSettings(
@@ -134,6 +135,7 @@ class SettingsViewModel @Inject constructor(
                     showWeekNumbers = toggles.showWeekNumbers,
                     agendaShowToday = toggles.agendaShowToday,
                     softenColors = toggles.softenColors,
+                    todayButtonInToolbar = toggles.todayButtonInToolbar,
                 )
             },
             combine(
@@ -159,6 +161,7 @@ class SettingsViewModel @Inject constructor(
                 showWeekNumbers = views.showWeekNumbers,
                 agendaShowToday = views.agendaShowToday,
                 softenColors = views.softenColors,
+                todayButtonInToolbar = views.todayButtonInToolbar,
                 agendaShowRangeBar = misc.showRangeBar,
                 autofocusEventTitle = misc.autofocusEventTitle,
                 pastEventDisplay = misc.pastEventDisplay,
@@ -234,6 +237,7 @@ class SettingsViewModel @Inject constructor(
         val showWeekNumbers: Boolean,
         val agendaShowToday: Boolean,
         val softenColors: Boolean,
+        val todayButtonInToolbar: Boolean,
     )
 
     private data class DisplayToggles(
@@ -241,6 +245,7 @@ class SettingsViewModel @Inject constructor(
         val showWeekNumbers: Boolean,
         val agendaShowToday: Boolean,
         val softenColors: Boolean,
+        val todayButtonInToolbar: Boolean,
     )
 
     private data class MiscSettings(
@@ -458,6 +463,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setShowWeekNumbers(enabled: Boolean) {
         viewModelScope.launch { prefs.setShowWeekNumbers(enabled) }
+    }
+
+    fun setTodayButtonInToolbar(enabled: Boolean) {
+        viewModelScope.launch { prefs.setTodayButtonInToolbar(enabled) }
     }
 
     fun setPastEventDisplay(mode: PastEventDisplay) {

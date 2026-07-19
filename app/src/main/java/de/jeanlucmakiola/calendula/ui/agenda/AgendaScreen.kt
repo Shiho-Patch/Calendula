@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.DrawerValue
@@ -102,6 +103,7 @@ fun AgendaScreen(
     onCreateEvent: (LocalDate, Int?) -> Unit,
     quickSwitchViews: List<CalendarView> = IMPLEMENTED_VIEWS,
     drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
+    todayInToolbar: Boolean = false,
     modifier: Modifier = Modifier,
     viewModel: AgendaViewModel = hiltViewModel(),
 ) {
@@ -151,12 +153,14 @@ fun AgendaScreen(
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
+                    showTodayButton = todayInToolbar,
+                    onToday = viewModel::goToToday,
                     scrollBehavior = scrollBehavior,
                 )
             },
             floatingActionButton = {
                 CalendarFabColumn(
-                    todayVisible = !isOnToday,
+                    todayVisible = !isOnToday && !todayInToolbar,
                     todayText = stringResource(R.string.agenda_today_action),
                     onToday = viewModel::goToToday,
                     onCreate = { onCreateEvent(anchor, null) },
@@ -504,6 +508,8 @@ private fun AgendaTopBar(
     onCycleView: () -> Unit,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
+    showTodayButton: Boolean,
+    onToday: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
 ) {
     TopAppBar(
@@ -522,6 +528,14 @@ private fun AgendaTopBar(
             }
         },
         actions = {
+            if (showTodayButton) {
+                IconButton(onClick = onToday) {
+                    Icon(
+                        imageVector = Icons.Default.Today,
+                        contentDescription = stringResource(R.string.today_jump_action),
+                    )
+                }
+            }
             IconButton(onClick = onOpenSearch) {
                 Icon(
                     imageVector = Icons.Default.Search,
