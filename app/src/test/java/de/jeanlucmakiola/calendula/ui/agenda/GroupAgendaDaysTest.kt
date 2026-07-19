@@ -107,6 +107,37 @@ class GroupAgendaDaysTest {
         ).inOrder()
     }
 
+    // All-day events are stored at UTC midnights; resolving them in a device
+    // zone east of UTC would leak them onto the following day (see spanLastDay).
+    private val berlin = TimeZone.of("Europe/Berlin")
+
+    private fun utcMidnight(y: Int, mo: Int, d: Int): Instant =
+        LocalDateTime(y, mo, d, 0, 0).toInstant(TimeZone.UTC)
+
+    @Test
+    fun `a single-day all-day event does not leak onto the next day in an eastern zone`() {
+        val e = event(1, "birthday", utcMidnight(2026, 7, 2), utcMidnight(2026, 7, 3), isAllDay = true)
+
+        val result = groupAgendaDays(anchor, windowEnd, listOf(e), berlin)
+
+        assertThat(result.map { it.date }).containsExactly(LocalDate(2026, 7, 2))
+        assertThat(e.spansMultipleDays(berlin)).isFalse()
+    }
+
+    @Test
+    fun `an all-day multi-day event spans its true days in an eastern zone`() {
+        // 2–4 July inclusive: exclusive end is the UTC midnight opening 5 July.
+        val e = event(1, "holiday", utcMidnight(2026, 7, 2), utcMidnight(2026, 7, 5), isAllDay = true)
+
+        val result = groupAgendaDays(anchor, windowEnd, listOf(e), berlin)
+
+        assertThat(result.map { it.date }).containsExactly(
+            LocalDate(2026, 7, 2),
+            LocalDate(2026, 7, 3),
+            LocalDate(2026, 7, 4),
+        ).inOrder()
+    }
+
     @Test
     fun `within a day all-day events sort before timed ones`() {
         val allDay = event(1, "birthday", at(2026, 7, 1), at(2026, 7, 2), isAllDay = true)
