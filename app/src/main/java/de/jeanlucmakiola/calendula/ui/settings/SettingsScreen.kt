@@ -706,8 +706,10 @@ private fun AppearanceScreen(
             label = { launcherNameLabel(it) },
             onSelect = viewModel::setLauncherName,
             onDismiss = { showAppName = false },
-            // Explain what changes (and the icon-may-move caveat) above the choices.
-            header = { SettingsHint(stringResource(R.string.settings_app_name_summary)) },
+            // A launcher-mark hero shows how the name reads under the icon, with
+            // the explanatory + icon-may-move hint, then breathing room above the
+            // choices.
+            header = { AppNamePreviewHero(launcherName) },
         )
     }
     if (showTheme) {
@@ -1741,6 +1743,64 @@ private fun launcherNameLabel(name: LauncherName): String = stringResource(
         LauncherName.CALENDAR -> R.string.app_name_calendar_alias
     },
 )
+
+/**
+ * Header for the App name picker (issue #44): the app's launcher mark over the
+ * current name — a small preview of how the home screen reads — with the
+ * explanatory hint below, then space before the choices. The icon never changes
+ * (only the label does), so the mark is constant across the options.
+ */
+@Composable
+private fun AppNamePreviewHero(name: LauncherName) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(vertical = 28.dp, horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                // The adaptive launcher mark, reconstructed as a squircle (as in
+                // the onboarding BrandHero) so it renders identically everywhere.
+                Box(
+                    modifier = Modifier
+                        .size(88.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(colorResource(R.color.ic_launcher_background)),
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_launcher_foreground),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = launcherNameLabel(name),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            text = stringResource(R.string.settings_app_name_summary),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 8.dp),
+        )
+        Spacer(Modifier.height(24.dp))
+    }
+}
 
 @Composable
 private fun themeLabel(mode: ThemeMode): String = stringResource(
