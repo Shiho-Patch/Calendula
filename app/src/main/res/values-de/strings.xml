@@ -490,4 +490,6 @@
         <item quantity="one">%d Ereignis wird importiert</item>
         <item quantity="other">%d Ereignisse werden importiert</item>
     </plurals>
+    <string name="event_detail_duplicate">Duplikate</string>
+    <string name="reminder_day_tomorrow">Morgen</string>
 </resources>
