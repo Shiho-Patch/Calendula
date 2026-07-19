@@ -67,7 +67,7 @@ fun TimeZonePickerDialog(
     // ~600 zones, each resolving a localized name and a DST-aware offset: build
     // once per open, then filter the result per keystroke.
     val locale = currentLocale()
-    val allZones = remember(locale) { timeZoneOptions(locale) }
+    val allZones = remember(locale) { timeZoneOptions(locale, regionOf = ::icuTimeZoneRegion) }
     val matches = remember(allZones, query) { filterTimeZones(allZones, query) }
     val recentZones = remember(allZones, recents) {
         recents.mapNotNull { id -> allZones.firstOrNull { it.id == id } }

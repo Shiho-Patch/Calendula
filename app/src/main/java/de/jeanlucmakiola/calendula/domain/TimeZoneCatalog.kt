@@ -33,28 +33,63 @@ data class TimeZoneOption(
     val region: String get() = id.substringBeforeLast('/', missingDelimiterValue = "")
 }
 
-private fun optionFor(zone: ZoneId, locale: Locale, at: Instant): TimeZoneOption {
-    val offsetSeconds = zone.rules.getOffset(at).totalSeconds
-    return TimeZoneOption(
-        id = zone.id,
-        displayName = zone.getDisplayName(TextStyle.FULL, locale),
-        // The abbreviation ("EDT"/"CEST", DST-correct at [at]). Resolved through
-        // java.util.TimeZone, NOT java.time's "zzz" formatter: on Android the
-        // latter has no short specific-zone names and silently degrades every
-        // zone to a "GMT-4" form (it agrees with java.util only on desktop), so
-        // "zzz" cost us the real abbreviation on the one platform that ships.
-        // java.util is ICU-backed and returns the abbreviation on both. Zones
-        // with genuinely no named abbreviation still fall back to a GMT form,
-        // which is what we'd show anyway.
-        shortName = java.util.TimeZone.getTimeZone(zone.id)
-            .getDisplayName(zone.rules.isDaylightSavings(at), java.util.TimeZone.SHORT, locale),
-        offsetMinutes = offsetSeconds / 60,
-    )
+private fun optionFor(
+    zone: ZoneId,
+    locale: Locale,
+    at: Instant,
+    regionOf: (String) -> String?,
+): TimeZoneOption = TimeZoneOption(
+    id = zone.id,
+    displayName = zone.getDisplayName(TextStyle.FULL, locale),
+    shortName = resolveAbbreviation(zone.id, zone.rules.isDaylightSavings(at), locale, regionOf),
+    offsetMinutes = zone.rules.getOffset(at).totalSeconds / 60,
+)
+
+/**
+ * The zone abbreviation ("EDT", "CEST"), DST-correct at the resolved instant, or
+ * a "GMT+05:30" form when no name exists.
+ *
+ * Two things make this fiddlier than it looks. First, it goes through
+ * java.util.TimeZone, NOT java.time's "zzz" formatter: on Android the latter has
+ * no short specific-zone names and degrades every zone to a "GMT-4" form (it
+ * agrees with java.util only on desktop, which is why desktop can't catch it).
+ * Second, ICU only surfaces the short name *commonly used in the display
+ * locale's region* — a German-region English phone (en-DE) is shown "CEST" but
+ * not "EDT", and an en-US phone the reverse. So ask in the display *language*
+ * but the *zone's* region ("America/New_York" in en-US, "Europe/Berlin" in
+ * en-DE) via [regionOf]. That covers almost everything; where a region still
+ * yields no name (Athens in en-GR) the plain device locale sometimes does, so
+ * try that next; failing both, the caller shows the offset.
+ *
+ * [regionOf] maps an IANA id to an ISO 3166 region and is injected because it
+ * needs `android.icu`, which this pure-JVM module can't import. The default
+ * (no region) leaves only the device-locale path — which is all a JVM test has
+ * anyway, and enough there since desktop ICU isn't region-gated the same way.
+ */
+private fun resolveAbbreviation(
+    id: String,
+    dst: Boolean,
+    locale: Locale,
+    regionOf: (String) -> String?,
+): String {
+    fun shortIn(loc: Locale): String =
+        java.util.TimeZone.getTimeZone(id).getDisplayName(dst, java.util.TimeZone.SHORT, loc)
+    val regional = regionOf(id)
+        ?.takeIf { it.length == 2 }
+        ?.let { shortIn(Locale(locale.language, it)) }
+    if (regional != null && !regional.looksLikeOffset()) return regional
+    // Either no region, or the region has no name for this zone: the device
+    // locale is the next-best shot, and the offset the last resort.
+    return shortIn(locale)
 }
+
+/** True for the offset-style names ICU returns when a zone has no abbreviation. */
+private fun String.looksLikeOffset(): Boolean = this == "UTC" || startsWith("GMT")
 
 /**
  * Every zone the JVM knows, resolved at [at]. This is ~600 entries, so build it
- * once and filter the result rather than rebuilding per keystroke.
+ * once and filter the result rather than rebuilding per keystroke. [regionOf]
+ * (see [resolveAbbreviation]) supplies the zone's region for the abbreviation.
  *
  * Bare three-letter ids ("EST", "CST6CDT") and the legacy SystemV tree are
  * dropped: they're aliases the tz database keeps for compatibility, they'd
@@ -64,10 +99,11 @@ private fun optionFor(zone: ZoneId, locale: Locale, at: Instant): TimeZoneOption
 fun timeZoneOptions(
     locale: Locale = Locale.getDefault(),
     at: Instant = Instant.now(),
+    regionOf: (String) -> String? = { null },
 ): List<TimeZoneOption> = ZoneId.getAvailableZoneIds()
     .asSequence()
     .filter { it.contains('/') && !it.startsWith("SystemV/") }
-    .map { optionFor(ZoneId.of(it), locale, at) }
+    .map { optionFor(ZoneId.of(it), locale, at, regionOf) }
     .sortedWith(compareBy({ it.region }, { it.city }))
     .toList()
 
@@ -80,20 +116,24 @@ fun timeZoneOptionOf(
     id: String,
     locale: Locale = Locale.getDefault(),
     at: Instant = Instant.now(),
+    regionOf: (String) -> String? = { null },
 ): TimeZoneOption? {
     val zone = runCatching { ZoneId.of(id) }.getOrNull() ?: return null
-    return optionFor(zone, locale, at)
+    return optionFor(zone, locale, at, regionOf)
 }
 
 /**
- * The short descriptor shown beneath the id, e.g. "CET · GMT+01:00". When the
- * abbreviation is itself offset-shaped ("UTC", "GMT+05:30") the offset would
- * only repeat it, so the abbreviation stands alone.
+ * The short descriptor shown beneath the id, e.g. "CET · GMT+01:00". "UTC" reads
+ * fine alone; any other offset-shaped name is normalised to our own GMT form so
+ * the offset isn't stated twice in ICU's spelling and ours.
  */
 fun zoneDescriptor(option: TimeZoneOption): String {
     val abbrev = option.shortName
-    val offsetShaped = abbrev == "UTC" || abbrev.startsWith("GMT")
-    return if (offsetShaped) abbrev else "$abbrev · ${formatGmtOffset(option.offsetMinutes)}"
+    return when {
+        abbrev == "UTC" -> "UTC"
+        abbrev.startsWith("GMT") -> formatGmtOffset(option.offsetMinutes)
+        else -> "$abbrev · ${formatGmtOffset(option.offsetMinutes)}"
+    }
 }
 
 /**

@@ -98,6 +98,7 @@ import de.jeanlucmakiola.calendula.domain.timeZoneOptionOf
 import de.jeanlucmakiola.calendula.domain.zoneDescriptor
 import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
+import de.jeanlucmakiola.calendula.ui.common.icuTimeZoneRegion
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.floret.components.OptionCard
@@ -792,7 +793,7 @@ private fun reminderLeadText(reminder: Reminder): String = reminderLeadTimeLabel
 private fun foreignTimeZone(tz: String?, isAllDay: Boolean, locale: Locale): TimeZoneOption? {
     if (isAllDay || tz.isNullOrBlank()) return null
     if (tz == ZoneId.systemDefault().id) return null
-    return timeZoneOptionOf(tz, locale)
+    return timeZoneOptionOf(tz, locale, regionOf = ::icuTimeZoneRegion)
 }
 
 /** Wrap http(s) URLs in [text] as tappable links tinted [linkColor]. */

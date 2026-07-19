@@ -131,6 +131,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarPickerGroups
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
 import de.jeanlucmakiola.calendula.ui.common.TimeZonePickerDialog
+import de.jeanlucmakiola.calendula.ui.common.icuTimeZoneRegion
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.floret.components.DialogAmountField
@@ -741,7 +742,7 @@ private fun EventEditContent(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     val pinned = remember(form.timezone, locale) {
-                        form.timezone?.let { timeZoneOptionOf(it, locale) }
+                        form.timezone?.let { timeZoneOptionOf(it, locale, regionOf = ::icuTimeZoneRegion) }
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
