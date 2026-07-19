@@ -117,6 +117,7 @@ class EventFormTest {
         attendees: List<Attendee> = emptyList(),
         eventColor: Int? = null,
         eventColorKey: String? = null,
+        eventTimezone: String? = null,
     ): EventDetail = EventDetail(
         instance = EventInstance(
             instanceId = 1L,
@@ -138,6 +139,7 @@ class EventFormTest {
         accessLevel = accessLevel,
         eventColor = eventColor,
         eventColorKey = eventColorKey,
+        eventTimezone = eventTimezone,
     )
 
     @Test
@@ -155,6 +157,117 @@ class EventFormTest {
         assertThat(prefilled.title).isEqualTo("Stand-up")
         assertThat(prefilled.location).isEqualTo("Berlin")
         assertThat(prefilled.description).isEqualTo("Body")
+    }
+
+    @Test
+    fun `toEditForm leaves an event in the device zone unpinned`() {
+        val prefilled = detail(eventTimezone = "Europe/Berlin").toEditForm(
+            beginMillis = 1_781_164_800_000L,
+            endMillis = 1_781_164_800_000L + 3_600_000L,
+            zone = berlin,
+        )
+        // Same zone as the device: pinning it would only make the picker appear
+        // on every ordinary event.
+        assertThat(prefilled.timezone).isNull()
+        assertThat(prefilled.populatedFields()).doesNotContain(EventFormField.Timezone)
+    }
+
+    @Test
+    fun `toEditForm pins a foreign zone and shows the times in it`() {
+        val prefilled = detail(eventTimezone = "America/New_York").toEditForm(
+            beginMillis = 1_781_164_800_000L, // 08:00Z
+            endMillis = 1_781_164_800_000L + 3_600_000L,
+            zone = berlin,
+        )
+        assertThat(prefilled.timezone).isEqualTo("America/New_York")
+        // 08:00Z is 10:00 in Berlin but 04:00 in New York — the form shows the
+        // event's own wall-clock, which is what a later save re-anchors to.
+        assertThat(prefilled.start).isEqualTo(LocalDateTime(LocalDate(2026, 6, 11), LocalTime(4, 0)))
+        assertThat(prefilled.populatedFields()).contains(EventFormField.Timezone)
+    }
+
+    @Test
+    fun `toEditForm never pins a zone on an all-day event`() {
+        // All-day rows carry a nominal "UTC" that is an anchor, not a location.
+        val prefilled = detail(isAllDay = true, eventTimezone = "UTC").toEditForm(
+            beginMillis = LocalDate(2026, 6, 11).toEpochDays() * 86_400_000L,
+            endMillis = LocalDate(2026, 6, 12).toEpochDays() * 86_400_000L,
+            zone = berlin,
+        )
+        assertThat(prefilled.timezone).isNull()
+    }
+
+    @Test
+    fun `toEditForm ignores an unparseable stored zone`() {
+        val prefilled = detail(eventTimezone = "Mars/Olympus_Mons").toEditForm(
+            beginMillis = 1_781_164_800_000L,
+            endMillis = 1_781_164_800_000L + 3_600_000L,
+            zone = berlin,
+        )
+        // A malformed sync row must not be honoured, nor fail the open.
+        assertThat(prefilled.timezone).isNull()
+        assertThat(prefilled.start).isEqualTo(LocalDateTime(LocalDate(2026, 6, 11), LocalTime(10, 0)))
+    }
+
+    @Test
+    fun `timesIn converts a pinned event into the target zone`() {
+        val form = EventForm(
+            calendarId = 1L,
+            start = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(8, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(9, 0)),
+            timezone = "America/New_York",
+        )
+        val (start, end) = form.timesIn(berlin)!!
+        // 08:00 New York (EDT, UTC-4) is 14:00 Berlin (CEST, UTC+2).
+        assertThat(start).isEqualTo(LocalDateTime(LocalDate(2026, 7, 17), LocalTime(14, 0)))
+        assertThat(end).isEqualTo(LocalDateTime(LocalDate(2026, 7, 17), LocalTime(15, 0)))
+    }
+
+    @Test
+    fun `timesIn crosses the date line when the offset pushes past midnight`() {
+        val form = EventForm(
+            calendarId = 1L,
+            start = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(20, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(21, 0)),
+            timezone = "America/New_York",
+        )
+        val (start, _) = form.timesIn(berlin)!!
+        // 20:00 New York is 02:00 the NEXT day in Berlin — the date has to move
+        // with it, not just the clock.
+        assertThat(start).isEqualTo(LocalDateTime(LocalDate(2026, 7, 18), LocalTime(2, 0)))
+    }
+
+    @Test
+    fun `timesIn tracks each zone's own DST rather than a fixed offset`() {
+        // In January both are on standard time: 08:00 EST is 14:00 CET — the
+        // same six hours as July, but only because both shifted. Late March,
+        // when the US has sprung forward and Europe hasn't, the gap is five.
+        val march = EventForm(
+            calendarId = 1L,
+            start = LocalDateTime(LocalDate(2026, 3, 20), LocalTime(8, 0)),
+            end = LocalDateTime(LocalDate(2026, 3, 20), LocalTime(9, 0)),
+            timezone = "America/New_York",
+        )
+        assertThat(march.timesIn(berlin)!!.first)
+            .isEqualTo(LocalDateTime(LocalDate(2026, 3, 20), LocalTime(13, 0)))
+    }
+
+    @Test
+    fun `timesIn returns null when there is nothing to disambiguate`() {
+        val base = EventForm(
+            calendarId = 1L,
+            start = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(8, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(9, 0)),
+        )
+        // Unpinned: the form's times already are the local times.
+        assertThat(base.timesIn(berlin)).isNull()
+        // Pinned to the target itself: same thing.
+        assertThat(base.copy(timezone = "Europe/Berlin").timesIn(berlin)).isNull()
+        // All-day: date-anchored, so there's no zone conversion to show.
+        assertThat(base.copy(isAllDay = true, timezone = "America/New_York").timesIn(berlin))
+            .isNull()
+        // Unparseable: can't convert, mustn't throw.
+        assertThat(base.copy(timezone = "Mars/Olympus_Mons").timesIn(berlin)).isNull()
     }
 
     @Test

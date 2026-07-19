@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Tune
@@ -111,6 +112,9 @@ import de.jeanlucmakiola.calendula.domain.EventAttendee
 import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.zoneDescriptor
+import de.jeanlucmakiola.calendula.domain.timeZoneOptionOf
+import de.jeanlucmakiola.calendula.domain.timesIn
 import de.jeanlucmakiola.calendula.domain.EventFormProblem
 import de.jeanlucmakiola.calendula.domain.RecurrenceEnd
 import de.jeanlucmakiola.calendula.domain.RecurrenceFreq
@@ -126,6 +130,8 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarPickerGroups
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
+import de.jeanlucmakiola.calendula.ui.common.TimeZonePickerDialog
+import de.jeanlucmakiola.calendula.ui.common.icuTimeZoneRegion
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.floret.components.DialogAmountField
@@ -160,6 +166,7 @@ import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toKotlinDayOfWeek
 import kotlinx.datetime.toJavaLocalTime
 import kotlinx.datetime.toLocalDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.format.TextStyle as JavaTextStyle
@@ -506,6 +513,7 @@ private fun EventEditContent(
     var showRecurrencePicker by rememberSaveable { mutableStateOf(false) }
     var showVisibilityPicker by rememberSaveable { mutableStateOf(false) }
     var showColorPicker by rememberSaveable { mutableStateOf(false) }
+    var showTimezonePicker by rememberSaveable { mutableStateOf(false) }
     var showFieldPicker by rememberSaveable { mutableStateOf(false) }
 
     // Pick a guest from contacts: a one-shot system picker returning the chosen
@@ -670,6 +678,22 @@ private fun EventEditContent(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
+            // The rows above edit a pinned event in *its own* zone, which is the
+            // time it was set at — but that says nothing about when it lands for
+            // whoever is reading it. Spell the local equivalent out rather than
+            // leaving the user to do the offset arithmetic. Absent (null) unless
+            // the event is pinned somewhere other than here.
+            form.timesIn(TimeZone.currentSystemDefault())?.let { (localStart, localEnd) ->
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = stringResource(
+                        R.string.event_edit_timezone_local_time,
+                        formatTimeRange(localStart, localEnd, locale),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         Spacer(Modifier.height(gap))
@@ -706,6 +730,42 @@ private fun EventEditContent(
 
         // Optional sections: which ones render by default is a setting; the
         // rest unfold behind the "more fields" button below.
+        OptionalFormSection(visible = EventFormField.Timezone in state.visibleFields) {
+            Spacer(Modifier.height(gap))
+            EditCard(
+                icon = Icons.Default.Public,
+                iconContentDescription = null,
+                onClick = { showTimezonePicker = true },
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    val pinned = remember(form.timezone, locale) {
+                        form.timezone?.let { timeZoneOptionOf(it, locale, regionOf = ::icuTimeZoneRegion) }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = pinned?.label
+                                ?: stringResource(R.string.event_edit_timezone_device),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = pinned?.let { zoneDescriptor(it) }
+                                ?: stringResource(R.string.event_edit_timezone_device_summary),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
         OptionalFormSection(visible = EventFormField.Location in state.visibleFields) {
             Spacer(Modifier.height(gap))
             EditCard(
@@ -1078,6 +1138,16 @@ private fun EventEditContent(
                 showVisibilityPicker = false
             },
             onDismiss = { showVisibilityPicker = false },
+        )
+    }
+
+    if (showTimezonePicker) {
+        TimeZonePickerDialog(
+            selected = form.timezone,
+            deviceZoneId = ZoneId.systemDefault().id,
+            recents = state.recentTimeZones,
+            onSelect = viewModel::setTimezone,
+            onDismiss = { showTimezonePicker = false },
         )
     }
 
@@ -1931,6 +2001,21 @@ private fun EditCard(
             modifier = Modifier.fillMaxWidth(),
         ) { inner() }
     }
+}
+
+/**
+ * "2:00 PM – 3:00 PM", honouring the user's 12/24-hour setting. Collapses to one
+ * time when both land on the same minute (an instant event shouldn't read as a
+ * range against itself). Dates are deliberately absent — the rows above carry
+ * them.
+ */
+@Composable
+private fun formatTimeRange(start: LocalDateTime, end: LocalDateTime, locale: Locale): String {
+    val use24Hour = LocalUse24HourFormat.current
+    val timeFormat = remember(locale, use24Hour) { timeOfDayFormatter(use24Hour, locale) }
+    val from = timeFormat.format(start.time.toJavaLocalTime())
+    val to = timeFormat.format(end.time.toJavaLocalTime())
+    return if (from == to) from else "$from – $to"
 }
 
 /**

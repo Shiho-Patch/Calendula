@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.ui.graphics.vector.ImageVector
 import de.jeanlucmakiola.calendula.R
@@ -24,6 +25,7 @@ import de.jeanlucmakiola.calendula.domain.EventFormField
 fun eventFormFieldLabel(field: EventFormField): Int = when (field) {
     EventFormField.Location -> R.string.event_detail_location
     EventFormField.Description -> R.string.event_detail_description
+    EventFormField.Timezone -> R.string.event_detail_timezone
     EventFormField.Reminders -> R.string.event_detail_reminders
     EventFormField.Recurrence -> R.string.event_detail_recurrence
     EventFormField.Availability -> R.string.event_edit_availability
@@ -35,6 +37,7 @@ fun eventFormFieldLabel(field: EventFormField): Int = when (field) {
 fun eventFormFieldIcon(field: EventFormField): ImageVector = when (field) {
     EventFormField.Location -> Icons.Default.Place
     EventFormField.Description -> Icons.AutoMirrored.Filled.Notes
+    EventFormField.Timezone -> Icons.Default.Public
     EventFormField.Reminders -> Icons.Default.Notifications
     EventFormField.Recurrence -> Icons.Default.Repeat
     EventFormField.Availability -> Icons.Default.EventAvailable

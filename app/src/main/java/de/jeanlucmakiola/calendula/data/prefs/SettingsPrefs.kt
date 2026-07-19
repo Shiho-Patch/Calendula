@@ -22,6 +22,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
+import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.DayOfWeek
@@ -355,6 +356,26 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * Zones the user picked recently, most recent first — the timezone picker's
+     * default list, since scrolling ~600 zones to re-find the two you actually
+     * use is the whole problem. Stored comma-joined (IANA ids never contain a
+     * comma); unparseable ids are dropped on read, so a zone the tz database
+     * later retires can't wedge the list.
+     */
+    val recentTimeZones: Flow<List<String>> = store.data.map { prefs ->
+        parseRecentTimeZones(prefs[RECENT_TIMEZONES_KEY])
+    }
+
+    suspend fun addRecentTimeZone(zoneId: String) {
+        store.edit { prefs ->
+            val updated = (listOf(zoneId) + parseRecentTimeZones(prefs[RECENT_TIMEZONES_KEY]))
+                .distinct()
+                .take(MAX_RECENT_TIME_ZONES)
+            prefs[RECENT_TIMEZONES_KEY] = updated.joinToString(",")
+        }
+    }
+
+    /**
      * Whether opening the new-event form focuses the title field and raises the
      * keyboard straight away (issue #10). Default ON — a new event almost always
      * gets a title, so this saves a tap; users who set the time/calendar first
@@ -650,6 +671,13 @@ class SettingsPrefs @Inject constructor(
     private fun titleTemplateKey(type: SpecialDateType) =
         stringPreferencesKey("special_dates_title_${type.name}")
 
+    private fun parseRecentTimeZones(stored: String?): List<String> =
+        stored?.split(',').orEmpty()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && runCatching { ZoneId.of(it) }.isSuccess }
+            .distinct()
+            .take(MAX_RECENT_TIME_ZONES)
+
     private fun parseFormFields(stored: String?): Set<EventFormField> = when (stored) {
         null -> DEFAULT_FORM_FIELDS
         else -> stored.split(',')
@@ -736,6 +764,10 @@ class SettingsPrefs @Inject constructor(
             stringPreferencesKey("per_calendar_allday_reminder_override")
         internal val DEFAULT_FORM_FIELDS =
             setOf(EventFormField.Location, EventFormField.Description)
+        internal val RECENT_TIMEZONES_KEY = stringPreferencesKey("recent_time_zones")
+
+        /** Enough to cover the zones a user actually recurs to, without a wall of rows. */
+        internal const val MAX_RECENT_TIME_ZONES = 5
         internal val AUTO_BACKUP_ENABLED_KEY = booleanPreferencesKey("auto_backup_enabled")
         internal val AUTO_BACKUP_INTERVAL_KEY = longPreferencesKey("auto_backup_interval_minutes")
         internal val AUTO_BACKUP_FOLDER_KEY = stringPreferencesKey("auto_backup_folder_uri")

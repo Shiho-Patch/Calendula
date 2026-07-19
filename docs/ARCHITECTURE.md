@@ -99,6 +99,30 @@ on-device — see plan 03):
   UTC, so zones ahead of UTC can't leak an extra occurrence.
 - All-day events are normalised to UTC midnights with an exclusive end.
 
+### Event time zones
+
+`EventForm.timezone` is the zone its wall-clock times mean, and **null means
+"the device zone at save time"** — not "no zone". The data layer resolves it in
+`toWriteTimes` and always stamps a concrete `EVENT_TIMEZONE`, so an ordinary
+event behaves exactly as it did before the field existed.
+
+- A non-null value **pins** the event: it keeps tracking that zone's offset
+  across DST no matter where the device is. `toEditForm` only pins when the
+  stored zone differs from the device's, so the optional Time-zone field stays
+  hidden on ordinary events and reveals itself (via `populatedFields`) on
+  foreign-zone ones.
+- A pinned event is prefilled **in its own zone**, so the form shows the
+  wall-clock the event means rather than the device's rendering of it.
+- A zone change counts as a **time change** even with the wall-clock untouched
+  (same 09:00 elsewhere is a different instant), so `buildEventUpdateValues`
+  includes it in `timesChanged` and rewrites `DTSTART`.
+- **All-day events never carry a zone.** They're date-anchored — the UTC
+  midnights above are an anchor, not a location — so the field is withheld from
+  the form entirely and `toWriteTimes` forces `"UTC"` regardless.
+
+Still device-zone-relative, and knowingly so: `RRULE`'s `UNTIL` rendering and
+`AllDayReminderEncoding`'s offset (see its KDoc).
+
 ## Save conflicts
 
 No locking. `openForEdit` keeps an `EditSnapshot` — the prefilled form

@@ -20,7 +20,11 @@ internal data class EventWriteTimes(
 /**
  * All-day events live at UTC midnights with an exclusive DTEND (the
  * CalendarContract convention — a one-day event ends at the next midnight);
- * timed events resolve their wall-clock values in [zone].
+ * timed events resolve their wall-clock values in the form's own
+ * [EventForm.timezone], falling back to [zone] (the device) when it doesn't pin
+ * one. Passing the device zone is therefore still correct for an unpinned form —
+ * but it no longer overrides a pinned event's zone, which is what used to
+ * silently re-anchor a foreign-zone event to the device on any time edit.
  */
 internal fun EventForm.toWriteTimes(zone: ZoneId): EventWriteTimes = if (isAllDay) {
     EventWriteTimes(
@@ -31,10 +35,11 @@ internal fun EventForm.toWriteTimes(zone: ZoneId): EventWriteTimes = if (isAllDa
         timezone = "UTC",
     )
 } else {
+    val writeZone = timezone?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: zone
     EventWriteTimes(
-        dtStartMillis = start.toJavaLocalDateTime().atZone(zone).toInstant().toEpochMilli(),
-        dtEndMillis = end.toJavaLocalDateTime().atZone(zone).toInstant().toEpochMilli(),
-        timezone = zone.id,
+        dtStartMillis = start.toJavaLocalDateTime().atZone(writeZone).toInstant().toEpochMilli(),
+        dtEndMillis = end.toJavaLocalDateTime().atZone(writeZone).toInstant().toEpochMilli(),
+        timezone = writeZone.id,
     )
 }
 
@@ -134,10 +139,14 @@ internal fun buildEventUpdateValues(
         putAll(eventColorColumns(updated.colorKey, updated.color))
     }
 
+    // A zone change counts as a time change even when the wall-clock is
+    // untouched: the same 09:00 in another zone is a different instant, so
+    // DTSTART has to move with it.
     val timesChanged = updated.start != original.start ||
         updated.end != original.end ||
         updated.isAllDay != original.isAllDay ||
-        updated.rrule != original.rrule
+        updated.rrule != original.rrule ||
+        updated.timezone != original.timezone
     if (!timesChanged) return@buildMap
 
     val newTimes = updated.toWriteTimes(zone)
