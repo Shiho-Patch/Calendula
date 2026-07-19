@@ -270,6 +270,9 @@
     <string name="agenda_header_tomorrow">Tomorrow</string>
     <string name="agenda_empty_title">You\'re all caught up</string>
     <string name="agenda_no_more_today">No more events today</string>
+    <!-- Time line for a multi-day event, on its first / last day (%1$s is a time, e.g. "14:00"). -->
+    <string name="agenda_span_starts">Starts %1$s</string>
+    <string name="agenda_span_ends">Ends %1$s</string>
 
     <!-- Event search -->
     <string name="search_action">Search</string>

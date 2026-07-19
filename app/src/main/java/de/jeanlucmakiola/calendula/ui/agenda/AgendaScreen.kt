@@ -367,10 +367,14 @@ private fun AgendaList(
             } else {
                 itemsIndexed(
                     items = day.events,
-                    key = { _, event -> event.instanceId },
+                    // Scope the key by day: a multi-day event appears under every
+                    // day it spans, so its instanceId alone is not unique across
+                    // the list (LazyColumn requires unique keys).
+                    key = { _, event -> "${day.date}-${event.instanceId}" },
                 ) { index, event ->
                     AgendaEventRow(
                         event = event,
+                        day = day.date,
                         position = positionOf(index, day.events.size),
                         dimmed = dimPast && event.hasEnded(now),
                         modifier = animateItemMotion(),
@@ -449,6 +453,7 @@ private fun AgendaEmptyDayRow(onClick: () -> Unit) {
 @Composable
 private fun AgendaEventRow(
     event: EventInstance,
+    day: LocalDate,
     position: Position,
     dimmed: Boolean,
     modifier: Modifier = Modifier,
@@ -460,7 +465,7 @@ private fun AgendaEventRow(
     GroupedRow(
         modifier = if (dimmed) modifier.alpha(EventDimAlpha) else modifier,
         title = title,
-        summary = agendaTimeSummary(event),
+        summary = agendaTimeSummary(event, day),
         position = position,
         minHeight = 64.dp,
         leading = {
@@ -554,16 +559,29 @@ private fun agendaDayLabel(date: LocalDate, today: LocalDate): String {
     return if (relative != null) "$relative · $formatted" else formatted
 }
 
-/** Time line under the title: "09:00 – 10:00 · Location", "All day", etc. */
+/**
+ * Time line under the title: "09:00 – 10:00 · Location", "All day", etc.
+ *
+ * A multi-day event shows only the part relevant to [day], spelled out so each
+ * day reads on its own: its first day names the start ("Starts 14:00"), its last
+ * day the end ("Ends 10:00"), and any whole day in between reads as "All day".
+ * An all-day multi-day event is simply "All day" on every day it covers.
+ */
 @Composable
-private fun agendaTimeSummary(event: EventInstance): String {
-    val time = if (event.isAllDay) {
-        stringResource(R.string.event_detail_all_day)
-    } else {
-        val is24Hour = LocalUse24HourFormat.current
-        val locale = currentLocale()
-        "${formatTime(event.start, is24Hour, locale)} – ${formatTime(event.end, is24Hour, locale)}"
+private fun agendaTimeSummary(event: EventInstance, day: LocalDate): String {
+    val is24Hour = LocalUse24HourFormat.current
+    val locale = currentLocale()
+
+    val time = when (val label = agendaTimeLabel(event, day, zone)) {
+        AgendaTimeLabel.AllDay -> stringResource(R.string.event_detail_all_day)
+        is AgendaTimeLabel.Starts ->
+            stringResource(R.string.agenda_span_starts, formatTime(label.start, is24Hour, locale))
+        is AgendaTimeLabel.Ends ->
+            stringResource(R.string.agenda_span_ends, formatTime(label.end, is24Hour, locale))
+        is AgendaTimeLabel.Range ->
+            "${formatTime(label.start, is24Hour, locale)} – ${formatTime(label.end, is24Hour, locale)}"
     }
+
     val location = event.location?.takeIf { it.isNotBlank() }
     return if (location != null) "$time · $location" else time
 }

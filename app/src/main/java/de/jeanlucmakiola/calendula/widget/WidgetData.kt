@@ -131,13 +131,14 @@ internal suspend fun Context.loadAgendaWidgetData(): AgendaWidgetData {
     // the composition from Glance state, so changing the range is a plain
     // recomposition and never depends on the widget session restarting.
     val window = agendaRange(anchor, AgendaRange.MAX_CUSTOM_DAYS - 1, zone)
+    val windowEnd = anchor.plus(AgendaRange.MAX_CUSTOM_DAYS - 1, DateTimeUnit.DAY)
     val instances = ep.calendarRepository().instances(window).first()
     val is24Hour = prefs.timeFormat.first()
         .is24Hour(android.text.format.DateFormat.is24HourFormat(this))
     val soften = prefs.softenCalendarColors.first()
     return AgendaWidgetData.Ready(
         today = anchor,
-        days = groupAgendaDays(anchor, instances, zone),
+        days = groupAgendaDays(anchor, windowEnd, instances, zone),
         is24Hour = is24Hour,
         soften = soften,
         weekStart = weekStart,
