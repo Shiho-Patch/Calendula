@@ -374,6 +374,7 @@ private fun AgendaList(
                 ) { index, event ->
                     AgendaEventRow(
                         event = event,
+                        day = day.date,
                         position = positionOf(index, day.events.size),
                         dimmed = dimPast && event.hasEnded(now),
                         modifier = animateItemMotion(),
@@ -452,6 +453,7 @@ private fun AgendaEmptyDayRow(onClick: () -> Unit) {
 @Composable
 private fun AgendaEventRow(
     event: EventInstance,
+    day: LocalDate,
     position: Position,
     dimmed: Boolean,
     modifier: Modifier = Modifier,
@@ -463,7 +465,7 @@ private fun AgendaEventRow(
     GroupedRow(
         modifier = if (dimmed) modifier.alpha(EventDimAlpha) else modifier,
         title = title,
-        summary = agendaTimeSummary(event),
+        summary = agendaTimeSummary(event, day),
         position = position,
         minHeight = 64.dp,
         leading = {
@@ -557,16 +559,41 @@ private fun agendaDayLabel(date: LocalDate, today: LocalDate): String {
     return if (relative != null) "$relative · $formatted" else formatted
 }
 
-/** Time line under the title: "09:00 – 10:00 · Location", "All day", etc. */
+/**
+ * Time line under the title: "09:00 – 10:00 · Location", "All day", etc.
+ *
+ * A multi-day event shows only the part relevant to [day], with a "→" marking
+ * that it carries past this day's boundary: its first day shows the start
+ * ("14:00 →"), its last day the end ("→ 10:00"), and any whole day in between
+ * reads as an all-day span arriving from and continuing into its neighbours
+ * ("→ All day →").
+ */
 @Composable
-private fun agendaTimeSummary(event: EventInstance): String {
-    val time = if (event.isAllDay) {
-        stringResource(R.string.event_detail_all_day)
+private fun agendaTimeSummary(event: EventInstance, day: LocalDate): String {
+    val allDayLabel = stringResource(R.string.event_detail_all_day)
+    val is24Hour = LocalUse24HourFormat.current
+    val locale = currentLocale()
+
+    val time = if (event.spansMultipleDays(zone)) {
+        val continuesBefore = day > event.spanFirstDay(zone)
+        val continuesAfter = day < event.spanLastDay(zone)
+        val core = when {
+            event.isAllDay -> allDayLabel
+            !continuesBefore -> formatTime(event.start, is24Hour, locale) // the first day
+            !continuesAfter -> formatTime(event.end, is24Hour, locale)    // the last day
+            else -> allDayLabel                                           // a full middle day
+        }
+        buildString {
+            if (continuesBefore) append("→ ")
+            append(core)
+            if (continuesAfter) append(" →")
+        }
+    } else if (event.isAllDay) {
+        allDayLabel
     } else {
-        val is24Hour = LocalUse24HourFormat.current
-        val locale = currentLocale()
         "${formatTime(event.start, is24Hour, locale)} – ${formatTime(event.end, is24Hour, locale)}"
     }
+
     val location = event.location?.takeIf { it.isNotBlank() }
     return if (location != null) "$time · $location" else time
 }

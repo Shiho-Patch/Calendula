@@ -9,6 +9,24 @@ import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration.Companion.milliseconds
 
+/** The first calendar day this event occupies, in [zone]. */
+fun EventInstance.spanFirstDay(zone: TimeZone): LocalDate =
+    start.toLocalDateTime(zone).date
+
+/**
+ * The last calendar day this event actually occupies, in [zone]. An event ending
+ * exactly at midnight (all-day events end at the exclusive next-midnight) does
+ * not reach into that boundary day, so resolve the instant just before [end].
+ */
+fun EventInstance.spanLastDay(zone: TimeZone): LocalDate {
+    val lastInstant = if (end > start) end - 1.milliseconds else start
+    return lastInstant.toLocalDateTime(zone).date
+}
+
+/** Whether this event occupies more than one calendar day in [zone]. */
+fun EventInstance.spansMultipleDays(zone: TimeZone): Boolean =
+    spanFirstDay(zone) != spanLastDay(zone)
+
 /** One calendar day with at least one event, for the agenda list. */
 data class AgendaDay(
     val date: LocalDate,
@@ -35,12 +53,8 @@ fun groupAgendaDays(
 ): List<AgendaDay> {
     val byDay = sortedMapOf<LocalDate, MutableList<EventInstance>>()
     for (instance in instances) {
-        val firstDay = instance.start.toLocalDateTime(zone).date.coerceAtLeast(anchor)
-        // The last day the event actually occupies. An event ending exactly at
-        // midnight (all-day events end at the exclusive next-midnight) does not
-        // reach into that boundary day, so resolve the instant just before [end].
-        val lastInstant = if (instance.end > instance.start) instance.end - 1.milliseconds else instance.start
-        val lastDay = lastInstant.toLocalDateTime(zone).date.coerceAtMost(windowEnd)
+        val firstDay = instance.spanFirstDay(zone).coerceAtLeast(anchor)
+        val lastDay = instance.spanLastDay(zone).coerceAtMost(windowEnd)
         var day = firstDay
         while (day <= lastDay) {
             byDay.getOrPut(day) { mutableListOf() }.add(instance)
