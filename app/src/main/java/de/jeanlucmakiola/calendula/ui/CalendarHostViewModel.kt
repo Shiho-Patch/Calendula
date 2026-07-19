@@ -45,4 +45,12 @@ class CalendarHostViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = IMPLEMENTED_VIEWS,
         )
+
+    /** Whether each view's jump-to-today control lives in the top bar, not the FAB (#60). */
+    val todayButtonInToolbar: StateFlow<Boolean> = prefs.todayButtonInToolbar
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = false,
+        )
 }

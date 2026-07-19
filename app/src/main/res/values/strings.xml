@@ -274,6 +274,9 @@
     <string name="agenda_span_starts">Starts %1$s</string>
     <string name="agenda_span_ends">Ends %1$s</string>
 
+    <!-- Jump to today (toolbar icon button; see settings_today_toolbar) -->
+    <string name="today_jump_action">Go to today</string>
+
     <!-- Event search -->
     <string name="search_action">Search</string>
     <string name="search_hint">Search events</string>
@@ -324,6 +327,8 @@
     <string name="settings_week_start_auto">Automatic</string>
     <string name="settings_week_numbers">Week numbers</string>
     <string name="settings_week_numbers_summary">Show calendar-week numbers in month view</string>
+    <string name="settings_today_toolbar">Today button in toolbar</string>
+    <string name="settings_today_toolbar_summary">Show a jump-to-today button in the toolbar instead of a floating button</string>
     <string name="settings_time_format">Time format</string>
     <string name="settings_time_format_auto">Automatic</string>
     <string name="settings_time_format_12h">12-hour (2:00 PM)</string>

@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   searching by city ("new york"), IANA id ("europe/berlin"), or abbreviation
   ("CEST") to gather every matching zone at once. All-day events stay
   date-anchored and carry no zone, as before ([#31]).
+- Put the "jump to today" button in the toolbar. A new **Today button in
+  toolbar** setting (Settings → Appearance, off by default) swaps the floating
+  button that fades into the corner while you're away from today for a permanent
+  today icon in the top bar — always there, on today or not, matching the
+  familiar calendar-app pattern. Leave it off to keep the floating button as
+  before ([#60]).
 
 ### Changed
 - Dates in the Month, Week and Day title bars now follow your language and
