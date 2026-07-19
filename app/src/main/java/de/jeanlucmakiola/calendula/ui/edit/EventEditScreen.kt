@@ -1382,84 +1382,154 @@ private fun RecurrencePickerDialog(
             )
         } else {
             Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(horizontal = 24.dp),
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = stringResource(R.string.event_edit_recurrence_every),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    DialogAmountField(
-                        value = intervalText,
-                        onValueChange = { intervalText = it },
-                        placeholder = "1",
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    DialogUnitDropdown(
-                        label = stringResource(recurrenceUnitLabel(freq)),
-                        entries = RecurrenceFreq.entries.map {
-                            stringResource(recurrenceUnitLabel(it))
-                        },
-                        onPick = { freq = RecurrenceFreq.entries[it] },
-                    )
-                }
-                if (freq == RecurrenceFreq.Weekly) {
-                    WeekdayToggleRow(
-                        selected = daysMask.toDaySet(),
-                        onToggle = { day -> daysMask = daysMask xor day.toMaskBit() },
-                        locale = locale,
-                    )
-                }
+                // A live, human-readable read-out of the rule being built, so the
+                // effect of the controls below is never a guess.
                 Text(
-                    text = stringResource(R.string.event_edit_recurrence_ends),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = recurrenceText(
+                        SimpleRecurrence(
+                            freq = freq,
+                            interval = interval ?: 1,
+                            end = customEnd ?: RecurrenceEnd.Never,
+                            byDays = if (freq == RecurrenceFreq.Weekly) {
+                                daysMask.toDaySet()
+                            } else {
+                                emptySet()
+                            },
+                        ).toRRule(),
+                        locale,
+                    ),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
                 )
-            }
-            GroupedRow(
-                title = stringResource(R.string.event_edit_recurrence_end_never),
-                position = positionOf(0, 3),
-                selected = endMode == RecurrenceEndMode.Never,
-                onClick = { endMode = RecurrenceEndMode.Never },
-            )
-            GroupedRow(
-                title = stringResource(R.string.event_edit_recurrence_end_until),
-                summary = untilDate?.let {
-                    remember(it, locale) {
-                        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-                            .withLocale(locale).format(it.toJavaLocalDate())
-                    }
-                },
-                position = positionOf(1, 3),
-                selected = endMode == RecurrenceEndMode.Until,
-                onClick = {
-                    endMode = RecurrenceEndMode.Until
-                    showUntilPicker = true
-                },
-            )
-            GroupedRow(
-                title = stringResource(R.string.event_edit_recurrence_end_count),
-                position = positionOf(2, 3),
-                selected = endMode == RecurrenceEndMode.Count,
-                onClick = { endMode = RecurrenceEndMode.Count },
-            )
-            if (endMode == RecurrenceEndMode.Count) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+
+                // How often: an interval amount plus a frequency segmented row —
+                // all four units on show, no unit hidden behind a dropdown.
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = groupedShape(Position.Alone),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
                 ) {
-                    DialogAmountField(
-                        value = countText,
-                        onValueChange = { countText = it },
-                        placeholder = "10",
-                    )
-                    Spacer(Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = stringResource(R.string.event_edit_recurrence_every),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            DialogAmountField(
+                                value = intervalText,
+                                onValueChange = { intervalText = it },
+                                placeholder = "1",
+                            )
+                        }
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            RecurrenceFreq.entries.forEachIndexed { index, entry ->
+                                SegmentedButton(
+                                    selected = freq == entry,
+                                    onClick = { freq = entry },
+                                    shape = SegmentedButtonDefaults.itemShape(
+                                        index, RecurrenceFreq.entries.size,
+                                    ),
+                                    label = { Text(stringResource(recurrenceUnitLabel(entry))) },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Weekday picks — only meaningful on a weekly rule.
+                AnimatedVisibility(visible = freq == RecurrenceFreq.Weekly) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = groupedShape(Position.Alone),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                    ) {
+                        WeekdayToggleRow(
+                            selected = daysMask.toDaySet(),
+                            onToggle = { day -> daysMask = daysMask xor day.toMaskBit() },
+                            locale = locale,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                }
+
+                // Ends: a connected never / on-a-date / after-N group, the count
+                // field folding into the bottom of the run when chosen.
+                Column {
                     Text(
-                        text = stringResource(R.string.event_edit_recurrence_times),
-                        style = MaterialTheme.typography.titleMedium,
+                        text = stringResource(R.string.event_edit_recurrence_ends),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
                     )
+                    GroupedRow(
+                        title = stringResource(R.string.event_edit_recurrence_end_never),
+                        position = Position.Top,
+                        selected = endMode == RecurrenceEndMode.Never,
+                        onClick = { endMode = RecurrenceEndMode.Never },
+                    )
+                    GroupedRow(
+                        title = stringResource(R.string.event_edit_recurrence_end_until),
+                        summary = untilDate?.let {
+                            remember(it, locale) {
+                                DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+                                    .withLocale(locale).format(it.toJavaLocalDate())
+                            }
+                        },
+                        position = Position.Middle,
+                        selected = endMode == RecurrenceEndMode.Until,
+                        onClick = {
+                            endMode = RecurrenceEndMode.Until
+                            showUntilPicker = true
+                        },
+                    )
+                    GroupedRow(
+                        title = stringResource(R.string.event_edit_recurrence_end_count),
+                        position = if (endMode == RecurrenceEndMode.Count) {
+                            Position.Middle
+                        } else {
+                            Position.Bottom
+                        },
+                        selected = endMode == RecurrenceEndMode.Count,
+                        onClick = { endMode = RecurrenceEndMode.Count },
+                    )
+                    if (endMode == RecurrenceEndMode.Count) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            shape = groupedShape(Position.Bottom),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(16.dp),
+                            ) {
+                                DialogAmountField(
+                                    value = countText,
+                                    onValueChange = { countText = it },
+                                    placeholder = "10",
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    text = stringResource(R.string.event_edit_recurrence_times),
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1489,6 +1559,7 @@ private fun WeekdayToggleRow(
     selected: Set<DayOfWeek>,
     onToggle: (DayOfWeek) -> Unit,
     locale: Locale,
+    modifier: Modifier = Modifier,
 ) {
     val days = remember(locale) {
         val first = WeekFields.of(locale).firstDayOfWeek.toKotlinDayOfWeek()
@@ -1496,7 +1567,7 @@ private fun WeekdayToggleRow(
     }
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         days.forEach { day ->
             val isSelected = day in selected
