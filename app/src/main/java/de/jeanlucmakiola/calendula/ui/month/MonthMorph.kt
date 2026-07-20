@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
+import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import kotlinx.datetime.LocalDate
 
 /**
@@ -85,13 +86,29 @@ internal fun Modifier.morphElement(key: MonthMorphKey): Modifier {
  * The content keeps its own layout bounds; only where it is *painted* changes. So
  * the outline still draws at the size the collapsed cell actually is, which is
  * the whole reason it was left untagged.
+ *
+ * Lifting content out of the regular tree also lifts it out of the enter/exit
+ * layer [AnimatedContent][androidx.compose.animation.AnimatedContent] fades the
+ * outgoing page with, so it no longer fades at all — it stood at full strength
+ * for the whole transition and then blinked out at the end of it. The fade is
+ * therefore reapplied here, on the lifted content's own layer, so it travels with
+ * it. Anything sent to the overlay needs this, which is why it lives in the
+ * helper rather than at the call site.
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun Modifier.morphOverlay(zIndex: Float = 1f): Modifier {
     val morph = LocalMonthMorph.current ?: return this
-    return with(morph.shared) {
+    val fadeSpec = rememberCalendarFadeSpec()
+    val lifted = with(morph.shared) {
         this@morphOverlay.renderInSharedTransitionScopeOverlay(zIndexInOverlay = zIndex)
+    }
+    return with(morph.visibility) {
+        lifted.animateEnterExit(
+            enter = fadeIn(fadeSpec),
+            exit = fadeOut(fadeSpec),
+            label = "morph-overlay-fade",
+        )
     }
 }
 
