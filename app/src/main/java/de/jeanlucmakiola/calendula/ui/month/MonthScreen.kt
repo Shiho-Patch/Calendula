@@ -836,7 +836,6 @@ private fun SplitMonthContent(
                 // full of tappable rows, so it shouldn't also be a month gesture.
                 modifier = rememberMonthSwipeModifier(onSwipeNext, onSwipePrev),
             )
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             SplitDayPane(
                 date = selected,
                 today = state.today,
