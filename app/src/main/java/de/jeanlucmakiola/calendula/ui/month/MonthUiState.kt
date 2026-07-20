@@ -40,6 +40,34 @@ data class MonthWeek(
 )
 
 /**
+ * The events occupying each lane of [day] — column [col] of this week — in lane
+ * order, capped at [laneCap] lanes.
+ *
+ * This is the same seating [spans]/[timedByDay] get when the paged grid draws a
+ * week: bars keep the lane the row layout gave them, and the day's timed events
+ * fill whatever slots are left, top-most first. Reading it here means the split
+ * style's dots and the paged style's bars describe a day in the *same order*, so
+ * dot _i_ and lane _i_ are the same event and one can morph into the other (#53).
+ *
+ * Deriving the dots independently — by distinct colour, as they first were —
+ * left dot _i_ standing for no particular event, and quietly merged two events
+ * that shared a calendar into a single dot.
+ */
+fun MonthWeek.laneEvents(col: Int, day: LocalDate, laneCap: Int): List<EventInstance> {
+    val byLane = arrayOfNulls<EventInstance>(laneCap)
+    spans.forEach { span ->
+        if (span.lane < laneCap && col in span.startCol..span.endCol) {
+            byLane[span.lane] = span.event
+        }
+    }
+    val free = (0 until laneCap).filter { byLane[it] == null }
+    timedByDay[day].orEmpty().take(free.size).forEachIndexed { i, event ->
+        byLane[free[i]] = event
+    }
+    return byLane.filterNotNull()
+}
+
+/**
  * State for the continuous style (#38): a vertical stream of *self-contained*
  * months rather than one undifferentiated run of weeks. Each month is keyed by
  * absolute month index and carries only its own days — the boundary week keeps

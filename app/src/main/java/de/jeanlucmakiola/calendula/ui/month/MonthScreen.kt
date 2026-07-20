@@ -902,7 +902,9 @@ private fun SplitMonthContent(
  */
 private val SPLIT_ROW_HEIGHT = 46.dp
 private val SPLIT_DOT_SIZE = 5.dp
-private const val SPLIT_MAX_DOTS = 3
+// Dots are capped by MAX_EVENT_ROWS, not a constant of their own: they stand for
+// the paged grid's lanes, so the two caps have to be the same number or a dot
+// would have no bar to become (#53).
 
 /**
  * Rows the split grid always reserves — the most any month needs. A month that
@@ -945,11 +947,15 @@ internal fun SplitMonthGrid(
                             .fillMaxHeight(),
                     )
                 }
-                week.days.forEach { day ->
+                week.days.forEachIndexed { col, day ->
                     val inMonth = day.month == month.month && day.year == month.year
+                    // Seated by lane rather than gathered by colour, so each dot
+                    // is the event the expanded grid draws in that same lane.
+                    val seated = week.laneEvents(col, day, MAX_EVENT_ROWS)
                     SplitDayCell(
                         date = day,
-                        events = state.instancesByDay[day].orEmpty(),
+                        events = seated,
+                        hidden = (week.countByDay[day] ?: 0) - seated.size,
                         isToday = day == state.today,
                         // A page marks only the days its own month owns. Paging
                         // moves the selection before this month's replacement
@@ -979,7 +985,7 @@ internal fun SplitMonthGrid(
 }
 
 /**
- * One compact day: its number over up to [SPLIT_MAX_DOTS] event dots.
+ * One compact day: its number over up to [MAX_EVENT_ROWS] lane-seated event dots.
  *
  * Selection and today are deliberately different signals — a tinted, outlined
  * cell versus the filled circle the other views already use for today — so the
@@ -989,6 +995,8 @@ internal fun SplitMonthGrid(
 private fun SplitDayCell(
     date: LocalDate,
     events: List<EventInstance>,
+    /** Events on this day that didn't fit a lane, shown as a "+N" beside the dots. */
+    hidden: Int,
     isToday: Boolean,
     isSelected: Boolean,
     inMonth: Boolean,
@@ -1037,32 +1045,37 @@ private fun SplitDayCell(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(2.dp))
-            SplitDots(events = events, dark = dark)
+            SplitDots(events = events, hidden = hidden, dark = dark)
         }
     }
 }
 
-/** Up to three colour dots for a day, plus a count when more are hidden. */
+/**
+ * One dot per seated event, in lane order, plus a "+N" for those that didn't fit.
+ *
+ * Deliberately *not* de-duplicated by colour: [events] arrives lane-seated so the
+ * dots line up with the bars the expanded grid draws, and collapsing two events
+ * that share a calendar into one dot would both undercount the day and leave a
+ * bar with no dot to grow out of.
+ */
 @Composable
-private fun SplitDots(events: List<EventInstance>, dark: Boolean) {
+private fun SplitDots(events: List<EventInstance>, hidden: Int, dark: Boolean) {
     if (events.isEmpty()) return
     val soften = LocalSoftenColors.current
-    val colors = remember(events) { events.map { it.color }.distinct().take(SPLIT_MAX_DOTS) }
-    val extra = events.size - colors.size
     Row(
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        colors.forEach { argb ->
+        events.forEach { event ->
             Box(
                 modifier = Modifier
                     .size(SPLIT_DOT_SIZE)
-                    .background(eventFill(argb, dark, soften), CircleShape),
+                    .background(eventFill(event.color, dark, soften), CircleShape),
             )
         }
-        if (extra > 0) {
+        if (hidden > 0) {
             Text(
-                text = "+$extra",
+                text = "+$hidden",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
