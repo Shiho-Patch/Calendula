@@ -67,6 +67,25 @@ internal class MonthMorphScope(
 internal val LocalMonthMorph = compositionLocalOf<MonthMorphScope?> { null }
 
 /**
+ * True while the grid is mid-morph, for content that has to stop clipping to let
+ * the travelling pieces through.
+ *
+ * A mark's two homes are in *different rows*: the dot for the 20th sits a third
+ * of the way down the compact grid, its bar most of the way down the expanded
+ * one. Clipped to the row it is arriving at, a mark spends the first half of its
+ * journey outside those bounds and is simply not drawn — so it appears from
+ * nowhere, part-way through, already near its destination. Rendering in place
+ * rather than in an overlay is what subjects them to that clip, and is worth
+ * keeping; the clip is what has to yield, and only while pieces are in flight.
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+internal fun morphInFlight(): Boolean {
+    val morph = LocalMonthMorph.current ?: return false
+    return morph.shared.isTransitionActive
+}
+
+/**
  * Tag content that is *the same thing* on both sides — a background pill, a day
  * number — so it animates between its two positions and sizes.
  *

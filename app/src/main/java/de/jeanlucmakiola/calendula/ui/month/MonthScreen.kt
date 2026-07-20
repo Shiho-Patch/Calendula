@@ -1647,6 +1647,7 @@ private fun MonthWeekRow(
     val dark = isSystemInDarkTheme()
     val laneCount = (week.spans.maxOfOrNull { it.lane } ?: -1) + 1
     val shownLanes = laneCount.coerceAtMost(MAX_EVENT_ROWS)
+    val morphing = morphInFlight()
 
     Row(modifier) {
         // Optional calendar-week gutter, sized so the seven day columns below
@@ -1720,11 +1721,15 @@ private fun MonthWeekRow(
                 // Breathing room between the day number (and today's circle) and the
                 // first event row.
                 Spacer(Modifier.height(DAY_NUMBER_GAP))
+                // Clipped at rest so a bar can't spill into the row below, but not
+                // while a morph is in flight: a mark travels between two different
+                // rows, and clipping it to the one it is arriving at hides it for
+                // the whole first half of the journey. See [morphInFlight].
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .clipToBounds(),
+                        .then(if (morphing) Modifier else Modifier.clipToBounds()),
                 ) {
                     // Spanning bars on their shared lanes.
                     week.spans.filter { it.lane < shownLanes }.forEach { span ->
