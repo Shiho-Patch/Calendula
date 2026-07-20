@@ -1350,14 +1350,12 @@ private fun SplitDayCell(
         // is laid out where the collapsed cell actually is and simply fades in,
         // which is the only size it is ever true at.
         //
-        // Untagged is not enough on its own, though: the tagged pieces paint into
-        // an overlay above the whole regular tree, so the outline spent every
-        // transition hidden behind its own pill and reappeared when it ended.
-        // morphOverlay lifts it into that same overlay while keeping its bounds.
+        // It can stay plain content now that nothing renders into an overlay above
+        // the tree — see [morphElement]. It sits above its own pill by ordinary
+        // z-order and fades with the page it belongs to, in step with the rest.
         Box(
             Modifier
                 .fillMaxSize()
-                .morphOverlay(fadeSpec = outlineSpec)
                 .drawBehind {
                     val alpha = selection.value
                     if (alpha <= 0f) return@drawBehind
@@ -1425,15 +1423,14 @@ private fun SplitDots(date: LocalDate, events: List<EventInstance>, hidden: Int,
             )
         }
         if (hidden > 0) {
-            // Lifted into the overlay for the same reason the selection outline
-            // is: untagged content stays in the regular tree, which the tagged
-            // pieces paint over wholesale, so it vanished for the length of the
-            // transition and arrived a beat after everything else had settled.
+            // Tagged, not lifted: this count and the expanded grid's dot row are
+            // the same marker on the same day, so it travels with its cell like
+            // everything else rather than riding above the grid on its own layer.
             Text(
                 text = "+$hidden",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.morphOverlay(),
+                modifier = Modifier.morphBounds(MonthMorphKey.Overflow(date)),
             )
         }
     }
@@ -1806,10 +1803,7 @@ private fun MonthWeekRow(
                                 dark = dark,
                                 modifier = Modifier
                                     .offset(x = colW * col, y = EVENT_ROW_HEIGHT * MAX_EVENT_ROWS)
-                                    // Untagged, so lifted into the overlay or it
-                                    // spends the transition painted over — see the
-                                    // compact grid's "+N".
-                                    .morphOverlay()
+                                    .morphBounds(MonthMorphKey.Overflow(d))
                                     .width(colW)
                                     .padding(horizontal = 3.dp),
                             )

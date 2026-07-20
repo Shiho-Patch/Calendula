@@ -3,13 +3,11 @@ package de.jeanlucmakiola.calendula.ui.month
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
-import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import kotlinx.datetime.LocalDate
 
 /**
@@ -46,6 +44,16 @@ internal sealed interface MonthMorphKey {
      */
     data class Event(val date: LocalDate, val instanceId: Long) : MonthMorphKey
 
+    /**
+     * A day's "+N" marker. The compact grid writes it as a count beside the dots
+     * and the expanded one as a row of small dots under the bars, but they stand
+     * for the same events and appear on exactly the same days — both sides seat
+     * three and overflow the rest — so they are a matched pair, not two unrelated
+     * bits of text. Tagged, the marker travels with its day like everything else
+     * in the cell.
+     */
+    data class Overflow(val date: LocalDate) : MonthMorphKey
+
     /** The grab handle, which slides from the pane's seam to the foot of the grid. */
     data object Handle : MonthMorphKey
 }
@@ -61,6 +69,22 @@ internal val LocalMonthMorph = compositionLocalOf<MonthMorphScope?> { null }
 /**
  * Tag content that is *the same thing* on both sides — a background pill, a day
  * number — so it animates between its two positions and sizes.
+ *
+ * ### Why nothing renders in the overlay
+ *
+ * By default a travelling piece is painted into an overlay above the *entire*
+ * regular tree, so it can fly over anything in its way. That is right for a
+ * thumbnail crossing a screen, and wrong here: everything is moving inside one
+ * grid, and the overlay meant every untagged neighbour — the selection outline,
+ * the "+N" markers — spent the transition buried under pieces that had left the
+ * tree's z-order behind. Lifting each of them out in turn fixed the burying and
+ * bought a worse problem: they then floated over the grid on their own layer,
+ * out of step with it.
+ *
+ * Rendering in place puts everything back in one z-order and one clip, which is
+ * what makes the grid read as a single surface changing shape rather than a
+ * stack of pieces sliding past each other. Nothing here needs to escape its
+ * ancestors: the cells, marks and markers all travel within the grid.
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -70,47 +94,7 @@ internal fun Modifier.morphElement(key: MonthMorphKey): Modifier {
         this@morphElement.sharedElement(
             sharedContentState = rememberSharedContentState(key),
             animatedVisibilityScope = morph.visibility,
-        )
-    }
-}
-
-/**
- * Lift *untagged* content into the shared-transition overlay for the duration of
- * a transition, so the travelling pieces don't bury it.
- *
- * Tagged content is drawn in the overlay, which is painted above the whole
- * regular tree. Anything left in that tree therefore disappears behind it while a
- * transition runs, however it was layered locally — which is what hid the split
- * style's selection outline behind its own cell pill from the first frame of an
- * expand to the last.
- *
- * The content keeps its own layout bounds; only where it is *painted* changes. So
- * the outline still draws at the size the collapsed cell actually is, which is
- * the whole reason it was left untagged.
- *
- * Lifting content out of the regular tree also lifts it out of the enter/exit
- * layer [AnimatedContent][androidx.compose.animation.AnimatedContent] fades the
- * outgoing page with, so it no longer fades at all — it stood at full strength
- * for the whole transition and then blinked out at the end of it. The fade is
- * therefore reapplied here, on the lifted content's own layer, so it travels with
- * it. Anything sent to the overlay needs this, which is why it lives in the
- * helper rather than at the call site.
- */
-@OptIn(ExperimentalSharedTransitionApi::class)
-@Composable
-internal fun Modifier.morphOverlay(
-    zIndex: Float = 1f,
-    fadeSpec: FiniteAnimationSpec<Float> = rememberCalendarFadeSpec(),
-): Modifier {
-    val morph = LocalMonthMorph.current ?: return this
-    val lifted = with(morph.shared) {
-        this@morphOverlay.renderInSharedTransitionScopeOverlay(zIndexInOverlay = zIndex)
-    }
-    return with(morph.visibility) {
-        lifted.animateEnterExit(
-            enter = fadeIn(fadeSpec),
-            exit = fadeOut(fadeSpec),
-            label = "morph-overlay-fade",
+            renderInOverlayDuringTransition = false,
         )
     }
 }
@@ -136,6 +120,7 @@ internal fun Modifier.morphBounds(key: MonthMorphKey): Modifier {
             enter = fadeIn(),
             exit = fadeOut(),
             resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+            renderInOverlayDuringTransition = false,
         )
     }
 }
