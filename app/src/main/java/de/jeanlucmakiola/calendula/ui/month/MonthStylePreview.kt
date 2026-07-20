@@ -119,6 +119,18 @@ internal fun MonthStylePreview(
                         showWeekNumbers = false,
                         onOpenDay = {},
                     )
+                    MonthViewStyle.Dense -> DenseMonthGrid(
+                        state = sample.continuous,
+                        listState = rememberLazyListState(
+                            // Start a week above today's, so the preview shows a
+                            // stream running past the viewport rather than one
+                            // beginning at its top edge.
+                            initialFirstVisibleItemIndex =
+                                weekIndexOf(today, weekStart) - 1,
+                        ),
+                        showWeekNumbers = false,
+                        onOpenDay = {},
+                    )
                     MonthViewStyle.Split -> {
                         SplitMonthGrid(
                             state = sample.month,
@@ -182,15 +194,22 @@ private fun sampleMonthState(
         zone = zone,
     )
 
-    // This month and the next: enough for the preview to show a month block, the
-    // whitespace under it and the following month's header coming up.
+    // The month either side of this one: enough for Continuous to show a block,
+    // the whitespace under it and the next month's header coming up, and for
+    // Dense to have somewhere to scroll in both directions.
     val centre = monthIndexOf(ym)
-    val window = centre..(centre + 1)
+    val window = (centre - 1)..(centre + 1)
     val continuous = ContinuousMonthUiState.Success(
         today = today,
         monthsByIndex = window.associateWith { index ->
             val m = yearMonthForIndex(index)
             layoutMonthWeeks(m, weekStart, events, zone).map { clipWeekToMonth(it, m) }
+        },
+        weeksByIndex = weekWindowFor(window, weekStart).associateWith { index ->
+            val days = (0 until 7).map {
+                weekStartForIndex(index, weekStart).plus(it, DateTimeUnit.DAY)
+            }
+            layoutCalendarWeek(days, events, zone)
         },
         weekStart = weekStart,
     )

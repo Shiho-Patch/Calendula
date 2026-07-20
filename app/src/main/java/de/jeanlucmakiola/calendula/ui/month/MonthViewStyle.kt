@@ -19,20 +19,34 @@ enum class MonthViewStyle {
     Paged,
 
     /**
-     * One uninterrupted vertical stream of weeks. Each date appears exactly once,
-     * which is the point — paging repeats a boundary week at both ends (#38).
+     * Months stacked into one vertical scroll, each a self-contained block under
+     * its own sticky header: a block shows only its own days, and whitespace
+     * separates it from the next (#38).
      */
     Continuous,
+
+    /**
+     * [Continuous] with the seams taken out: one uninterrupted stream of weeks
+     * where months flow into each other. Each date appears exactly once — paging
+     * repeats a boundary week at both ends — and the 1st names its month, the
+     * only marker of where one ends.
+     */
+    Dense,
 
     /** Compact dots-only grid over a list of the selected day's events (#53). */
     Split,
 }
+
+/** Both vertically scrolling styles, which share a data window and a list state. */
+val MonthViewStyle.isScrolling: Boolean
+    get() = this == MonthViewStyle.Continuous || this == MonthViewStyle.Dense
 
 @get:StringRes
 val MonthViewStyle.labelRes: Int
     get() = when (this) {
         MonthViewStyle.Paged -> R.string.month_style_paged
         MonthViewStyle.Continuous -> R.string.month_style_continuous
+        MonthViewStyle.Dense -> R.string.month_style_dense
         MonthViewStyle.Split -> R.string.month_style_split
     }
 
@@ -41,5 +55,6 @@ val MonthViewStyle.descriptionRes: Int
     get() = when (this) {
         MonthViewStyle.Paged -> R.string.month_style_paged_summary
         MonthViewStyle.Continuous -> R.string.month_style_continuous_summary
+        MonthViewStyle.Dense -> R.string.month_style_dense_summary
         MonthViewStyle.Split -> R.string.month_style_split_summary
     }

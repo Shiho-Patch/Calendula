@@ -30,6 +30,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.YearMonth
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.atTime
+import kotlinx.datetime.daysUntil
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
@@ -165,9 +166,18 @@ class MonthViewModel @Inject constructor(
             val ym = yearMonthForIndex(index)
             layoutMonthWeeks(ym, weekStart, instances, zone).map { clipWeekToMonth(it, ym) }
         }
+        // The Dense style's rows, from the same query: every week the window's
+        // months touch, laid out whole rather than clipped to a month.
+        val weeks = weekWindowFor(window, weekStart).associateWith { index ->
+            val days = (0 until 7).map {
+                weekStartForIndex(index, weekStart).plus(it, DateTimeUnit.DAY)
+            }
+            layoutCalendarWeek(days, instances, zone)
+        }
         return ContinuousMonthUiState.Success(
             today = todayDate,
             monthsByIndex = months,
+            weeksByIndex = weeks,
             weekStart = weekStart,
         )
     }
@@ -414,6 +424,52 @@ internal fun clampMonthWindow(window: IntRange): IntRange {
 }
 
 internal fun firstOfMonth(ym: YearMonth): LocalDate = LocalDate(ym.year, ym.month, 1)
+
+/**
+ * The Dense style addresses *weeks* by absolute index instead: it has no month
+ * blocks to key by, and a row's identity has to survive the months around it
+ * scrolling past. Index 0 is the first week of 1900 under the active week-start,
+ * so — like the month space — every index is non-negative and the LazyColumn's
+ * item indices and week indices are the same number.
+ *
+ * Unlike month indices these *do* shift with the week-start preference, which is
+ * why the list state is keyed on it.
+ */
+private val WEEK_INDEX_EPOCH = LocalDate(1900, 1, 1)
+private val WEEK_INDEX_END = LocalDate(2100, 12, 31)
+
+internal fun weekIndexOf(date: LocalDate, weekStart: DayOfWeek): Int {
+    val base = WEEK_INDEX_EPOCH.startOfGridWeek(weekStart)
+    return base.daysUntil(date.startOfGridWeek(weekStart)) / 7
+}
+
+internal fun weekStartForIndex(index: Int, weekStart: DayOfWeek): LocalDate =
+    WEEK_INDEX_EPOCH.startOfGridWeek(weekStart).plus(index * 7, DateTimeUnit.DAY)
+
+/** Total weeks the Dense grid scrolls through (1900 → 2100). */
+internal fun continuousWeekCount(weekStart: DayOfWeek): Int =
+    weekIndexOf(WEEK_INDEX_END, weekStart) + 1
+
+/** Which month a Dense row belongs to, for reporting the visible range. */
+internal fun monthIndexForWeek(weekIndex: Int, weekStart: DayOfWeek): Int {
+    // The row's midweek day: a boundary week is reported as whichever month owns
+    // most of it, the same rule the title uses.
+    val midweek = weekStartForIndex(weekIndex, weekStart).plus(3, DateTimeUnit.DAY)
+    return monthIndexOf(YearMonth(midweek.year, midweek.month))
+}
+
+/**
+ * Every week index the months in [window] touch — the Dense rows one month-window
+ * load covers. Widened by a week at each end so the boundary rows either side are
+ * laid out too, rather than flickering as placeholders.
+ */
+internal fun weekWindowFor(window: IntRange, weekStart: DayOfWeek): IntRange {
+    val first = weekIndexOf(firstOfMonth(yearMonthForIndex(window.first)), weekStart) - 1
+    val lastMonthEnd = firstOfMonth(yearMonthForIndex(window.last))
+        .plus(1, DateTimeUnit.MONTH)
+        .minus(1, DateTimeUnit.DAY)
+    return first..(weekIndexOf(lastMonthEnd, weekStart) + 1)
+}
 
 /** How many week rows [ym] needs under [weekStart] — 4 (a non-leap February), 5 or 6. */
 internal fun weekRowsInMonth(ym: YearMonth, weekStart: DayOfWeek): Int {

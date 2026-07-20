@@ -46,8 +46,17 @@ data class MonthWeek(
  * its seven columns so the grid geometry never shifts, but the neighbour month's
  * dates are clipped out of it (see `clipWeekToMonth`) and render as blanks.
  *
- * [monthsByIndex] holds only the loaded window; indices outside it render as
- * placeholders until the window catches up.
+ * The same loaded window is served two ways, because the Dense style is the same
+ * scroll with the seams taken out and it would be wasteful to query the provider
+ * twice for one range:
+ *
+ *  - [monthsByIndex] — the block layout, keyed by absolute month index, each week
+ *    clipped to its own month.
+ *  - [weeksByIndex] — the flowing layout, keyed by absolute week index, boundary
+ *    weeks left carrying both months.
+ *
+ * Both hold only the loaded window; indices outside it render as placeholders
+ * until the window catches up.
  */
 sealed interface ContinuousMonthUiState {
     data object Loading : ContinuousMonthUiState
@@ -55,6 +64,7 @@ sealed interface ContinuousMonthUiState {
     data class Success(
         val today: LocalDate,
         val monthsByIndex: Map<Int, List<MonthWeek>>,
+        val weeksByIndex: Map<Int, MonthWeek>,
         val weekStart: DayOfWeek,
     ) : ContinuousMonthUiState
 }

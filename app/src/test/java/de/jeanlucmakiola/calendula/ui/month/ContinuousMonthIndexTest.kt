@@ -1,11 +1,14 @@
 package de.jeanlucmakiola.calendula.ui.month
 
 import com.google.common.truth.Truth.assertThat
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.YearMonth
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
 import org.junit.jupiter.api.Test
 
 /**
@@ -105,6 +108,56 @@ class ContinuousMonthIndexTest {
             .forEach { window ->
                 window.forEach { index -> yearMonthForIndex(index) }
             }
+    }
+
+    @Test
+    fun `the dense week window covers every week its months touch`() {
+        // One month-window load has to lay out every Dense row those months
+        // appear in, boundary weeks included, or rows would flicker as
+        // placeholders while the data for them is already in hand.
+        DayOfWeek.entries.forEach { ws ->
+            val window = monthIndexOf(jun26)..monthIndexOf(YearMonth(2026, Month.AUGUST))
+            val weeks = weekWindowFor(window, ws)
+            window.forEach { index ->
+                val ym = yearMonthForIndex(index)
+                val first = weekIndexOf(firstOfMonth(ym), ws)
+                val last = weekIndexOf(firstOfMonth(yearMonthForIndex(index + 1)).minus(1, DateTimeUnit.DAY), ws)
+                assertThat(weeks.contains(first)).isTrue()
+                assertThat(weeks.contains(last)).isTrue()
+            }
+        }
+    }
+
+    @Test
+    fun `a dense row reports the month that owns most of it`() {
+        // June 29 – July 5, 2026 (Monday-anchored): four of its days are July's,
+        // so the window follows July rather than snapping back to June.
+        val boundary = weekIndexOf(LocalDate(2026, 6, 29), DayOfWeek.MONDAY)
+        assertThat(monthIndexForWeek(boundary, DayOfWeek.MONDAY))
+            .isEqualTo(monthIndexOf(YearMonth(2026, Month.JULY)))
+        // A row wholly inside June reports June.
+        assertThat(monthIndexForWeek(weekIndexOf(LocalDate(2026, 6, 15), DayOfWeek.MONDAY), DayOfWeek.MONDAY))
+            .isEqualTo(monthIndexOf(jun26))
+    }
+
+    @Test
+    fun `every day of a dense week shares one index`() {
+        val mon = LocalDate(2026, 6, 8)
+        val indices = (0..6).map { weekIndexOf(mon.plus(it, DateTimeUnit.DAY), DayOfWeek.MONDAY) }
+        assertThat(indices.toSet()).hasSize(1)
+    }
+
+    @Test
+    fun `dense week indices round-trip and stay inside the list`() {
+        val wed = LocalDate(2026, 6, 10)
+        DayOfWeek.entries.forEach { ws ->
+            val index = weekIndexOf(wed, ws)
+            assertThat(weekStartForIndex(index, ws)).isEqualTo(wed.startOfGridWeek(ws))
+            assertThat(weekIndexOf(LocalDate(1900, 1, 1), ws)).isAtLeast(0)
+            assertThat(index).isLessThan(continuousWeekCount(ws))
+            assertThat(weekIndexOf(LocalDate(2100, 12, 31), ws))
+                .isLessThan(continuousWeekCount(ws))
+        }
     }
 
     @Test
