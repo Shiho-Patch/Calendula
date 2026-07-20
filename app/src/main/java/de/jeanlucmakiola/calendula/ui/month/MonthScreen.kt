@@ -777,15 +777,20 @@ internal fun DenseMonthGrid(
 
 /**
  * The month-changing horizontal swipe, shared by the paged and split styles.
- * Accumulates the drag and commits past a small threshold on release — the grid
+ * Accumulates the drag and commits past a threshold on release — the grid
  * doesn't follow the finger, so there is no distance to rubber-band against.
+ *
+ * The threshold matches the week and day views'. It used to be 6dp, which is
+ * inside the distance a tap wanders: brushing the grid changed the month, and a
+ * page that turns on an unintended gesture reads as the animation misfiring
+ * rather than as the gesture being over-eager.
  */
 @Composable
 private fun rememberMonthSwipeModifier(
     onSwipeNext: () -> Unit,
     onSwipePrev: () -> Unit,
 ): Modifier {
-    val threshold = with(LocalDensity.current) { 6.dp.toPx() }
+    val threshold = with(LocalDensity.current) { MONTH_SWIPE_THRESHOLD.toPx() }
     var dragAccum by remember { mutableFloatStateOf(0f) }
     return Modifier.pointerInput(Unit) {
         detectHorizontalDragGestures(
@@ -802,6 +807,9 @@ private fun rememberMonthSwipeModifier(
         )
     }
 }
+
+/** Drag distance that commits a month change, matching the week and day views. */
+private val MONTH_SWIPE_THRESHOLD = 24.dp
 
 /**
  * Split style content: the compact grid keeps the month swipe, the pane below it
