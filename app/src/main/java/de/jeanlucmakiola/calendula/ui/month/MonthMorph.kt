@@ -73,6 +73,29 @@ internal fun Modifier.morphElement(key: MonthMorphKey): Modifier {
 }
 
 /**
+ * Lift *untagged* content into the shared-transition overlay for the duration of
+ * a transition, so the travelling pieces don't bury it.
+ *
+ * Tagged content is drawn in the overlay, which is painted above the whole
+ * regular tree. Anything left in that tree therefore disappears behind it while a
+ * transition runs, however it was layered locally — which is what hid the split
+ * style's selection outline behind its own cell pill from the first frame of an
+ * expand to the last.
+ *
+ * The content keeps its own layout bounds; only where it is *painted* changes. So
+ * the outline still draws at the size the collapsed cell actually is, which is
+ * the whole reason it was left untagged.
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+internal fun Modifier.morphOverlay(zIndex: Float = 1f): Modifier {
+    val morph = LocalMonthMorph.current ?: return this
+    return with(morph.shared) {
+        this@morphOverlay.renderInSharedTransitionScopeOverlay(zIndexInOverlay = zIndex)
+    }
+}
+
+/**
  * Tag content that means the same thing but *is drawn differently* on each side —
  * a 5dp dot and a titled bar — so only the bounds are shared and the contents
  * cross-fade inside them.

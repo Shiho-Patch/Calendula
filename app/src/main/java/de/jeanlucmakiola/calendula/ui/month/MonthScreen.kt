@@ -1052,31 +1052,35 @@ private fun SplitMonthCollapsed(
     val reduceMotion = rememberReduceMotion()
 
     Column(Modifier.fillMaxSize()) {
-        AnimatedContent(
-            // The selection travels *with* the state so each page keeps its
-            // own. Read from outside, both pages would show the incoming
-            // one, and paging visibly threw the marker across the outgoing
-            // grid — onto the new month's 1st, which the old grid still
-            // shows among its trailing days — before the new page arrived.
-            targetState = state to selected,
-            modifier = swipeModifier,
-            // Keyed on the month alone, so a provider notification refreshing
-            // the month you are on — or a tap moving the selection within it
-            // — updates in place instead of sliding.
-            contentKey = { (s, _) -> s.month },
-            transitionSpec = {
-                calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion)
-            },
-            label = "split-month-transition",
-        ) { (s, sel) ->
-            SplitMonthGrid(
-                state = s,
-                selected = sel,
-                showWeekNumbers = showWeekNumbers,
-                onSelectDay = onSelectDay,
-            )
+        // Grid and handle drag as one surface — the handle is what advertises the
+        // gesture, so it has to answer to it as well as to a tap. The pane is
+        // outside: it scrolls, and is full of tappable rows.
+        Column(swipeModifier) {
+            AnimatedContent(
+                // The selection travels *with* the state so each page keeps its
+                // own. Read from outside, both pages would show the incoming
+                // one, and paging visibly threw the marker across the outgoing
+                // grid — onto the new month's 1st, which the old grid still
+                // shows among its trailing days — before the new page arrived.
+                targetState = state to selected,
+                // Keyed on the month alone, so a provider notification refreshing
+                // the month you are on — or a tap moving the selection within it
+                // — updates in place instead of sliding.
+                contentKey = { (s, _) -> s.month },
+                transitionSpec = {
+                    calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion)
+                },
+                label = "split-month-transition",
+            ) { (s, sel) ->
+                SplitMonthGrid(
+                    state = s,
+                    selected = sel,
+                    showWeekNumbers = showWeekNumbers,
+                    onSelectDay = onSelectDay,
+                )
+            }
+            SplitExpandHandle(expanded = false, onToggle = onExpand)
         }
-        SplitExpandHandle(expanded = false, onToggle = onExpand)
         SplitDayPane(
             date = selected,
             today = state.today,
@@ -1115,10 +1119,12 @@ private fun SplitMonthExpanded(
     val fadeSpec = rememberCalendarFadeSpec()
     val reduceMotion = rememberReduceMotion()
 
-    Column(Modifier.fillMaxSize()) {
+    // The whole screen drags here, handle included — there is no pane to keep out
+    // of it, and the handle is the obvious thing to reach for on the way back.
+    Column(Modifier.fillMaxSize().then(swipeModifier)) {
         AnimatedContent(
             targetState = state,
-            modifier = Modifier.weight(1f).then(swipeModifier),
+            modifier = Modifier.weight(1f),
             contentKey = { it.month },
             transitionSpec = {
                 calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion)
@@ -1340,9 +1346,15 @@ private fun SplitDayCell(
         // flashing over a grid that no longer had full-height cells. Untagged it
         // is laid out where the collapsed cell actually is and simply fades in,
         // which is the only size it is ever true at.
+        //
+        // Untagged is not enough on its own, though: the tagged pieces paint into
+        // an overlay above the whole regular tree, so the outline spent every
+        // transition hidden behind its own pill and reappeared when it ended.
+        // morphOverlay lifts it into that same overlay while keeping its bounds.
         Box(
             Modifier
                 .fillMaxSize()
+                .morphOverlay()
                 .drawBehind {
                     val alpha = selection.value
                     if (alpha <= 0f) return@drawBehind
