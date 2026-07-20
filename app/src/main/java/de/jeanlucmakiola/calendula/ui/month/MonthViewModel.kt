@@ -148,7 +148,8 @@ class MonthViewModel @Inject constructor(
      * close enough to a loaded edge to warrant a wider query.
      */
     fun onVisibleMonthsChanged(firstIndex: Int, lastIndex: Int) {
-        nextLoadWindow(_loadedMonths.value, firstIndex, lastIndex)?.let { _loadedMonths.value = it }
+        nextLoadWindow(_loadedMonths.value, firstIndex, lastIndex)
+            ?.let { _loadedMonths.value = clampMonthWindow(it) }
     }
 
     private fun buildContinuousState(
@@ -401,6 +402,16 @@ internal fun continuousMonthCount(): Int =
 internal fun itemIndexForMonth(monthIndex: Int): Int = monthIndex * 2
 
 internal fun monthIndexForItem(itemIndex: Int): Int = itemIndex / 2
+
+/**
+ * Hold a load window inside the months that actually exist. The pad
+ * [nextLoadWindow] adds can otherwise push an index past either end of the
+ * 1900–2100 span, and [yearMonthForIndex] has no month to hand back for one.
+ */
+internal fun clampMonthWindow(window: IntRange): IntRange {
+    val last = continuousMonthCount() - 1
+    return window.first.coerceIn(0, last)..window.last.coerceIn(0, last)
+}
 
 internal fun firstOfMonth(ym: YearMonth): LocalDate = LocalDate(ym.year, ym.month, 1)
 

@@ -89,6 +89,25 @@ class ContinuousMonthIndexTest {
     }
 
     @Test
+    fun `a window is clamped to the months that exist`() {
+        // The regression this guards: an empty visible-items list reported as
+        // "month 0", whose padded window ran to -4 — and yearMonthForIndex has
+        // no month for that, so the whole grid failed with "couldn't read".
+        assertThat(clampMonthWindow(-4..4)).isEqualTo(0..4)
+        val last = continuousMonthCount() - 1
+        assertThat(clampMonthWindow((last - 2)..(last + 4))).isEqualTo((last - 2)..last)
+        assertThat(clampMonthWindow(10..20)).isEqualTo(10..20)
+    }
+
+    @Test
+    fun `every index a clamped window can hold resolves to a month`() {
+        listOf(clampMonthWindow(-4..4), clampMonthWindow((continuousMonthCount() - 1)..(continuousMonthCount() + 3)))
+            .forEach { window ->
+                window.forEach { index -> yearMonthForIndex(index) }
+            }
+    }
+
+    @Test
     fun `firstOfMonth is the 1st`() {
         assertThat(firstOfMonth(jun26)).isEqualTo(LocalDate(2026, 6, 1))
     }

@@ -101,6 +101,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.floret.time.isoWeekNumber
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -176,10 +177,18 @@ fun MonthScreen(
     LaunchedEffect(listState, continuous) {
         if (!continuous) return@LaunchedEffect
         snapshotFlow {
+            // Empty before the first layout pass — and reporting a default of 0
+            // for it would claim January 1900 is on screen and drag the whole
+            // window back there.
             val visible = listState.layoutInfo.visibleItemsInfo
-            monthIndexForItem(visible.firstOrNull()?.index ?: 0) to
-                monthIndexForItem(visible.lastOrNull()?.index ?: 0)
+            if (visible.isEmpty()) {
+                null
+            } else {
+                monthIndexForItem(visible.first().index) to
+                    monthIndexForItem(visible.last().index)
+            }
         }
+            .filterNotNull()
             .distinctUntilChanged()
             .collect { (first, last) -> viewModel.onVisibleMonthsChanged(first, last) }
     }
