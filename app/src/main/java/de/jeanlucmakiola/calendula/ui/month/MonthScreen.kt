@@ -1287,7 +1287,7 @@ internal fun SplitMonthGrid(
 @Composable
 private fun SplitDayCell(
     date: LocalDate,
-    events: List<SeatedEvent>,
+    events: List<EventInstance>,
     /** Events on this day that didn't fit a lane, shown as a "+N" beside the dots. */
     hidden: Int,
     isToday: Boolean,
@@ -1398,14 +1398,14 @@ private fun SplitDayCell(
  * bar with no dot to grow out of.
  */
 @Composable
-private fun SplitDots(date: LocalDate, events: List<SeatedEvent>, hidden: Int, dark: Boolean) {
+private fun SplitDots(date: LocalDate, events: List<EventInstance>, hidden: Int, dark: Boolean) {
     if (events.isEmpty()) return
     val soften = LocalSoftenColors.current
     Row(
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        events.forEach { seated ->
+        events.forEach { event ->
             // The dot keeps its own circle and the bar its 4dp corners; they
             // cross-fade inside shared bounds, and at the dot's size the two
             // radii are a fraction of a pixel apart.
@@ -1416,23 +1416,14 @@ private fun SplitDots(date: LocalDate, events: List<SeatedEvent>, hidden: Int, d
             // only snapped to full width once the transition ended — the growth
             // never happened, it was clamped away.
             //
-            // Only tagged where a bar actually meets it. A dot on the middle of a
-            // multi-day run has nothing to travel to, and tagging it regardless
-            // gave it no bounds to start from, so it flew in from the top of the
-            // grid rather than fading where it stands.
+            // *Every* dot is tagged, including those in the middle of a multi-day
+            // run: the expanded grid gives each covered column its own anchor
+            // inside the bar, so each one has a real place to come from.
             Box(
                 modifier = Modifier
-                    .then(
-                        if (seated.anchored) {
-                            Modifier.morphBounds(
-                                MonthMorphKey.Event(date, seated.event.instanceId),
-                            )
-                        } else {
-                            Modifier
-                        },
-                    )
+                    .morphBounds(MonthMorphKey.Event(date, event.instanceId))
                     .size(SPLIT_DOT_SIZE)
-                    .background(eventFill(seated.event.color, dark, soften), CircleShape),
+                    .background(eventFill(event.color, dark, soften), CircleShape),
             )
         }
         if (hidden > 0) {
@@ -1777,6 +1768,31 @@ private fun MonthWeekRow(
                                 .height(EVENT_ROW_HEIGHT)
                                 .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
                         )
+                        // One invisible slice of the bar per further column it
+                        // covers. A multi-day event has a dot on every day but
+                        // only one bar, so those other dots had nothing to travel
+                        // to and sat still while the rest of the grid moved.
+                        //
+                        // These give each of them a real place inside the bar to
+                        // come out of and go back into, at its own column — so a
+                        // dot drops out of the bar above it rather than appearing
+                        // from nowhere, or from the top of the grid, which is what
+                        // an untagged dot and a partnerless tag respectively did.
+                        for (c in (span.startCol + 1)..span.endCol) {
+                            Box(
+                                Modifier
+                                    .offset(x = colW * c, y = EVENT_ROW_HEIGHT * span.lane)
+                                    .morphBounds(
+                                        MonthMorphKey.Event(
+                                            date = week.days[c],
+                                            instanceId = span.event.instanceId,
+                                        ),
+                                    )
+                                    .width(colW)
+                                    .height(EVENT_ROW_HEIGHT)
+                                    .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
+                            )
+                        }
                     }
                     // Single-day timed pills + overflow, per column. Pills fill the
                     // lane slots no bar occupies on THIS day (top-most first), so a

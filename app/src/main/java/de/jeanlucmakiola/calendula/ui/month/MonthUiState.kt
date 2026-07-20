@@ -40,19 +40,6 @@ data class MonthWeek(
 )
 
 /**
- * One event seated in a lane of one day, and whether *this* day is where the
- * expanded grid draws it.
- *
- * A multi-day event has a dot on every day it covers but only one bar, drawn from
- * where it starts in that week. So only the start day's dot has something to
- * become; the rest are [anchored] = false and must not be tagged for the morph at
- * all. Tagging them anyway gives Compose a shared element that enters with no
- * partner and therefore no bounds to start from, and it flies in from the layout
- * origin — the top of the grid — instead of quietly fading where it stands (#53).
- */
-data class SeatedEvent(val event: EventInstance, val anchored: Boolean)
-
-/**
  * The events occupying each lane of [day] — column [col] of this week — in lane
  * order, capped at [laneCap] lanes.
  *
@@ -66,19 +53,16 @@ data class SeatedEvent(val event: EventInstance, val anchored: Boolean)
  * left dot _i_ standing for no particular event, and quietly merged two events
  * that shared a calendar into a single dot.
  */
-fun MonthWeek.laneEvents(col: Int, day: LocalDate, laneCap: Int): List<SeatedEvent> {
-    val byLane = arrayOfNulls<SeatedEvent>(laneCap)
+fun MonthWeek.laneEvents(col: Int, day: LocalDate, laneCap: Int): List<EventInstance> {
+    val byLane = arrayOfNulls<EventInstance>(laneCap)
     spans.forEach { span ->
         if (span.lane < laneCap && col in span.startCol..span.endCol) {
-            // A bar is drawn once per row, from the column it starts in — so that
-            // is the only day of it whose dot has a counterpart to travel to.
-            byLane[span.lane] = SeatedEvent(span.event, anchored = col == span.startCol)
+            byLane[span.lane] = span.event
         }
     }
     val free = (0 until laneCap).filter { byLane[it] == null }
-    // A single-day event is drawn on its own day, so it is always anchored there.
     timedByDay[day].orEmpty().take(free.size).forEachIndexed { i, event ->
-        byLane[free[i]] = SeatedEvent(event, anchored = true)
+        byLane[free[i]] = event
     }
     return byLane.filterNotNull()
 }
