@@ -930,8 +930,10 @@ private fun SplitDayCell(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Selection is the outline's job alone. Tinting the fill as well lightened
+    // the whole cell, which read as a second state on top of the day rather than
+    // as a mark on it — and fought today's own circle when they coincided.
     val background = when {
-        isSelected -> MaterialTheme.colorScheme.primaryContainer
         inMonth -> MaterialTheme.colorScheme.surfaceContainer
         else -> MaterialTheme.colorScheme.surfaceContainerLow
     }
