@@ -40,9 +40,17 @@ data class MonthWeek(
 sealed interface MonthUiState {
     data object Loading : MonthUiState
     data class Failure(val reason: FailureReason) : MonthUiState
+
+    /**
+     * [weeks] is what the grid draws; [instancesByDay] is the same events keyed by
+     * date and *uncapped*, so the split style's day pane can list everything on a
+     * date without a second provider query — the month grid range already covers
+     * it. All-day events sort first, then by start.
+     */
     data class Success(
         val month: YearMonth,
         val today: LocalDate,
         val weeks: List<MonthWeek>,
+        val instancesByDay: Map<LocalDate, List<EventInstance>> = emptyMap(),
     ) : MonthUiState
 }

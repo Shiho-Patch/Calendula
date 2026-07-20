@@ -117,10 +117,12 @@ class MonthViewModel @Inject constructor(
         if (calendars.isEmpty()) {
             return MonthUiState.Failure(FailureReason.NoCalendarsConfigured)
         }
+        val weeks = layoutMonthWeeks(ym, weekStart, instances, zone)
         return MonthUiState.Success(
             month = ym,
             today = todayDate,
-            weeks = layoutMonthWeeks(ym, weekStart, instances, zone),
+            weeks = weeks,
+            instancesByDay = instancesByDay(weeks.flatMap { it.days }, instances, zone),
         )
     }
 }
@@ -149,30 +151,62 @@ internal fun layoutMonthWeeks(
 
     return (0 until weekCount).map { row ->
         val days = (0 until 7).map { gridStart.plus(row * 7 + it, DateTimeUnit.DAY) }
-        val weekEvents = instances.filter { ev -> days.any { ev.coversDay(it, zone) } }
-        val (bars, singles) = weekEvents.partition { ev ->
-            ev.isAllDay || days.count { ev.coversDay(it, zone) } > 1
-        }
-        val spans = layoutAllDay(bars, days, zone).map { s ->
-            MonthSpan(
-                event = s.event,
-                startCol = s.startCol,
-                endCol = s.endCol,
-                lane = s.lane,
-                continuesLeft = s.event.coversDay(days.first().minus(1, DateTimeUnit.DAY), zone),
-                continuesRight = s.event.coversDay(days.last().plus(1, DateTimeUnit.DAY), zone),
-            )
-        }
-        MonthWeek(
-            days = days,
-            spans = spans,
-            timedByDay = days.associateWith { d ->
-                singles.filter { it.coversDay(d, zone) }.sortedBy { it.start }
-            },
-            countByDay = days.associateWith { d -> weekEvents.count { it.coversDay(d, zone) } },
-        )
+        layoutCalendarWeek(days, instances, zone)
     }
 }
+
+/**
+ * Resolve one week row's events for rendering. Split out of [layoutMonthWeeks] so
+ * the continuous style — which streams weeks rather than months and so has no
+ * enclosing [YearMonth] to slice by — lays each row out identically.
+ *
+ * [days] must be the row's seven consecutive dates, in display order.
+ */
+internal fun layoutCalendarWeek(
+    days: List<LocalDate>,
+    instances: List<EventInstance>,
+    zone: TimeZone,
+): MonthWeek {
+    val weekEvents = instances.filter { ev -> days.any { ev.coversDay(it, zone) } }
+    val (bars, singles) = weekEvents.partition { ev ->
+        ev.isAllDay || days.count { ev.coversDay(it, zone) } > 1
+    }
+    val spans = layoutAllDay(bars, days, zone).map { s ->
+        MonthSpan(
+            event = s.event,
+            startCol = s.startCol,
+            endCol = s.endCol,
+            lane = s.lane,
+            continuesLeft = s.event.coversDay(days.first().minus(1, DateTimeUnit.DAY), zone),
+            continuesRight = s.event.coversDay(days.last().plus(1, DateTimeUnit.DAY), zone),
+        )
+    }
+    return MonthWeek(
+        days = days,
+        spans = spans,
+        timedByDay = days.associateWith { d ->
+            singles.filter { it.coversDay(d, zone) }.sortedBy { it.start }
+        },
+        countByDay = days.associateWith { d -> weekEvents.count { it.coversDay(d, zone) } },
+    )
+}
+
+/**
+ * Every event touching each of [days], all-day first then by start time. Unlike
+ * [MonthWeek.timedByDay] this keeps multi-day and all-day events on every date
+ * they cover and applies no display cap, so the split style's day pane can list a
+ * date in full without querying the provider again.
+ */
+internal fun instancesByDay(
+    days: List<LocalDate>,
+    instances: List<EventInstance>,
+    zone: TimeZone,
+): Map<LocalDate, List<EventInstance>> =
+    days.associateWith { day ->
+        instances
+            .filter { it.coversDay(day, zone) }
+            .sortedWith(compareByDescending<EventInstance> { it.isAllDay }.thenBy { it.start })
+    }
 
 /**
  * The on-screen grid spans 6 weeks anchored on [weekStart]. Includes the
