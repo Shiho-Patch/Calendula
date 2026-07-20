@@ -58,7 +58,7 @@ class LaneEventsTest {
         val week = rowOfJuly6(listOf(bar, meeting))
 
         // Jul 7 is column 1 of a Monday-anchored row starting Jul 6.
-        assertThat(week.laneEvents(col = 1, day = LocalDate(2026, 7, 7), laneCap = 3))
+        assertThat(week.laneEvents(col = 1, day = LocalDate(2026, 7, 7), laneCap = 3).map { it.event })
             .containsExactly(bar, meeting)
             .inOrder()
     }
@@ -69,7 +69,7 @@ class LaneEventsTest {
         val monday = timed(LocalDate(2026, 7, 6), hour = 9, id = 2L)
         val week = rowOfJuly6(listOf(bar, monday))
 
-        assertThat(week.laneEvents(col = 0, day = LocalDate(2026, 7, 6), laneCap = 3))
+        assertThat(week.laneEvents(col = 0, day = LocalDate(2026, 7, 6), laneCap = 3).map { it.event })
             .containsExactly(monday)
     }
 
@@ -80,9 +80,46 @@ class LaneEventsTest {
 
         (1..3).forEach { col ->
             val day = LocalDate(2026, 7, 6 + col)
-            assertThat(week.laneEvents(col, day, laneCap = 3)).containsExactly(bar)
+            assertThat(week.laneEvents(col, day, laneCap = 3).map { it.event }).containsExactly(bar)
         }
         assertThat(week.laneEvents(col = 4, day = LocalDate(2026, 7, 10), laneCap = 3)).isEmpty()
+    }
+
+    /**
+     * Only the day a bar is drawn from has a counterpart to morph into. Tagging
+     * the other days' dots too gave them a shared element with no partner and so
+     * no bounds to start from, and they flew in from the top of the grid.
+     */
+    @Test
+    fun `only the day a multi-day bar starts on is anchored`() {
+        val bar = allDay(LocalDate(2026, 7, 7), LocalDate(2026, 7, 9), id = 1L)
+        val week = rowOfJuly6(listOf(bar))
+
+        val anchored = (1..3).map { col ->
+            week.laneEvents(col, LocalDate(2026, 7, 6 + col), laneCap = 3).single().anchored
+        }
+        assertThat(anchored).containsExactly(true, false, false).inOrder()
+    }
+
+    /** A bar carried in from the previous week restarts at column 0 of this row. */
+    @Test
+    fun `a bar continuing into the row anchors on its first day here`() {
+        val bar = allDay(LocalDate(2026, 7, 3), LocalDate(2026, 7, 8), id = 1L)
+        val week = rowOfJuly6(listOf(bar))
+
+        assertThat(week.laneEvents(col = 0, day = LocalDate(2026, 7, 6), laneCap = 3).single().anchored)
+            .isTrue()
+        assertThat(week.laneEvents(col = 1, day = LocalDate(2026, 7, 7), laneCap = 3).single().anchored)
+            .isFalse()
+    }
+
+    @Test
+    fun `a single-day event is always anchored on its own day`() {
+        val meeting = timed(LocalDate(2026, 7, 6), hour = 9, id = 1L)
+        val week = rowOfJuly6(listOf(meeting))
+
+        assertThat(week.laneEvents(col = 0, day = LocalDate(2026, 7, 6), laneCap = 3).single().anchored)
+            .isTrue()
     }
 
     /** The bug the colour-gathered dots had: one dot for two events on one calendar. */
@@ -92,7 +129,7 @@ class LaneEventsTest {
         val second = timed(LocalDate(2026, 7, 6), hour = 14, id = 2L, color = RED)
         val week = rowOfJuly6(listOf(first, second))
 
-        assertThat(week.laneEvents(col = 0, day = LocalDate(2026, 7, 6), laneCap = 3))
+        assertThat(week.laneEvents(col = 0, day = LocalDate(2026, 7, 6), laneCap = 3).map { it.event })
             .containsExactly(first, second)
             .inOrder()
     }
@@ -104,7 +141,7 @@ class LaneEventsTest {
 
         val seated = week.laneEvents(col = 0, day = LocalDate(2026, 7, 6), laneCap = 3)
         assertThat(seated).hasSize(3)
-        assertThat(seated).containsExactlyElementsIn(events.take(3)).inOrder()
+        assertThat(seated.map { it.event }).containsExactlyElementsIn(events.take(3)).inOrder()
         assertThat(week.countByDay[LocalDate(2026, 7, 6)]!! - seated.size).isEqualTo(2)
     }
 
@@ -119,7 +156,7 @@ class LaneEventsTest {
         val seated = week.laneEvents(col = 0, day = LocalDate(2026, 7, 6), laneCap = 3)
         assertThat(seated).hasSize(3)
         assertThat(week.spans.filter { it.lane >= 3 }.map { it.event })
-            .containsNoneIn(seated)
+            .containsNoneIn(seated.map { it.event })
     }
 
     private companion object {

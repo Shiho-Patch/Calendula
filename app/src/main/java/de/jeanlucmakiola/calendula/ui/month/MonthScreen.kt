@@ -1287,7 +1287,7 @@ internal fun SplitMonthGrid(
 @Composable
 private fun SplitDayCell(
     date: LocalDate,
-    events: List<EventInstance>,
+    events: List<SeatedEvent>,
     /** Events on this day that didn't fit a lane, shown as a "+N" beside the dots. */
     hidden: Int,
     isToday: Boolean,
@@ -1398,14 +1398,14 @@ private fun SplitDayCell(
  * bar with no dot to grow out of.
  */
 @Composable
-private fun SplitDots(date: LocalDate, events: List<EventInstance>, hidden: Int, dark: Boolean) {
+private fun SplitDots(date: LocalDate, events: List<SeatedEvent>, hidden: Int, dark: Boolean) {
     if (events.isEmpty()) return
     val soften = LocalSoftenColors.current
     Row(
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        events.forEach { event ->
+        events.forEach { seated ->
             // The dot keeps its own circle and the bar its 4dp corners; they
             // cross-fade inside shared bounds, and at the dot's size the two
             // radii are a fraction of a pixel apart.
@@ -1415,11 +1415,24 @@ private fun SplitDots(date: LocalDate, events: List<EventInstance>, hidden: Int,
             // 5dp for the whole transition however far its bar had travelled, and
             // only snapped to full width once the transition ended — the growth
             // never happened, it was clamped away.
+            //
+            // Only tagged where a bar actually meets it. A dot on the middle of a
+            // multi-day run has nothing to travel to, and tagging it regardless
+            // gave it no bounds to start from, so it flew in from the top of the
+            // grid rather than fading where it stands.
             Box(
                 modifier = Modifier
-                    .morphBounds(MonthMorphKey.Event(date, event.instanceId))
+                    .then(
+                        if (seated.anchored) {
+                            Modifier.morphBounds(
+                                MonthMorphKey.Event(date, seated.event.instanceId),
+                            )
+                        } else {
+                            Modifier
+                        },
+                    )
                     .size(SPLIT_DOT_SIZE)
-                    .background(eventFill(event.color, dark, soften), CircleShape),
+                    .background(eventFill(seated.event.color, dark, soften), CircleShape),
             )
         }
         if (hidden > 0) {
