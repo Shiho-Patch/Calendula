@@ -239,6 +239,19 @@ fun MonthScreen(
             .collect { (first, last) -> viewModel.onVisibleMonthsChanged(first, last) }
     }
 
+    // Keep the paged month tracking the scrolling grid. The scrolling styles
+    // navigate by scroll position and never touch the paged month otherwise, so
+    // without this it stays wherever paged navigation last left it (today's
+    // month, on a fresh open) — and switching to a paged style, or reseeding the
+    // other scrolling style's list state, which both read off it, would snap
+    // back there rather than staying on the month you were looking at.
+    LaunchedEffect(listState, scrolling, dense, weekStart) {
+        if (!scrolling) return@LaunchedEffect
+        snapshotFlow { visibleMonth }
+            .distinctUntilChanged()
+            .collect { viewModel.syncScrollMonth(it) }
+    }
+
     val isOnCurrentMonth = titleMonth == YearMonth(today.year, today.month)
 
     // Continuous names the month on the block's own sticky header, so the bar

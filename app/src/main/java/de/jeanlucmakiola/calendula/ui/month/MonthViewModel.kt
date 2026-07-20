@@ -284,6 +284,21 @@ class MonthViewModel @Inject constructor(
         _selectedDate.value = todayDate
     }
 
+    /**
+     * Track [_month] to the month a scrolling style is showing. Those styles
+     * navigate by scroll position and never set [_month] themselves, so it would
+     * otherwise sit wherever paged navigation last left it (today's month, on a
+     * fresh open) — and a switch to a paged style, or a reseed of the other
+     * scrolling style's list, would jump there instead of holding position. The
+     * selection is realigned alongside it so that landing on the Split style
+     * shows a live day in the month on screen rather than a stale, off-month one.
+     */
+    fun syncScrollMonth(ym: YearMonth) {
+        if (_month.value == ym) return
+        _month.value = ym
+        _selectedDate.value = selectionForMonth(ym, todayDate)
+    }
+
     /** Jump to the month containing [date] (drawer jump-to-date). */
     fun goToDate(date: LocalDate) {
         _month.value = YearMonth(date.year, date.month)
