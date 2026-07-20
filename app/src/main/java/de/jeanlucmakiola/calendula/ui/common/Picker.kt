@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +25,7 @@ import de.jeanlucmakiola.floret.components.CustomAmountEditor
 import de.jeanlucmakiola.floret.components.FullScreenPicker
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.Position
+import de.jeanlucmakiola.floret.components.SelectedCheck
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.floret.identity.collapseExit
 import de.jeanlucmakiola.floret.identity.expandEnter
@@ -207,14 +207,6 @@ private fun PickerDescription(text: String) {
     )
 }
 
-@Composable
-private fun SelectedCheck() {
-    Icon(
-        imageVector = Icons.Default.Check,
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.primary,
-    )
-}
 
 /**
  * Agenda-range picker, full-screen. Two grouped lists — the calendar-aligned

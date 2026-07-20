@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
@@ -43,6 +42,7 @@ import de.jeanlucmakiola.floret.components.FullScreenPicker
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.Position
+import de.jeanlucmakiola.floret.components.SelectedCheck
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.floret.locale.currentLocale
 import kotlinx.coroutines.Dispatchers
@@ -244,14 +244,6 @@ private fun SectionHeader(text: String) {
     )
 }
 
-@Composable
-private fun SelectedCheck() {
-    Icon(
-        imageVector = Icons.Default.Check,
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.primary,
-    )
-}
 
 @Composable
 private fun ZoneRow(

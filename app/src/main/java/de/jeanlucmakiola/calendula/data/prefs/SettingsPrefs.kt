@@ -23,8 +23,12 @@ import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
 import java.time.ZoneId
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.DayOfWeek
 import java.time.temporal.WeekFields
 import java.util.Locale
@@ -81,6 +85,24 @@ fun WeekStartPref.resolveFirstDay(locale: Locale): DayOfWeek = when (this) {
     // java.time.DayOfWeek.value is ISO 1..7 (Mon..Sun) — same numbering kotlinx uses.
     WeekStartPref.Auto -> DayOfWeek(WeekFields.of(locale).firstDayOfWeek.value)
 }
+
+/**
+ * The resolved first day of the week as a hot [StateFlow] — the one shape every
+ * screen that orders or lays out weekdays should use (the month grid, the agenda
+ * "this week" range, the recurrence weekday toggles). Sharing it keeps the
+ * initial-frame value identical everywhere; hand-rolled copies had drifted onto
+ * different `initialValue`s, so two surfaces could disagree for a frame.
+ */
+fun SettingsPrefs.firstDayOfWeek(scope: CoroutineScope): StateFlow<DayOfWeek> =
+    weekStart
+        .map { it.resolveFirstDay(Locale.getDefault()) }
+        .stateIn(
+            scope = scope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            // Seed with the locale convention rather than a hardcoded weekday, so
+            // the first frame is already right for everyone still on Auto.
+            initialValue = WeekStartPref.Auto.resolveFirstDay(Locale.getDefault()),
+        )
 
 /**
  * Display settings (M4) persisted app-side: theme override, Material You

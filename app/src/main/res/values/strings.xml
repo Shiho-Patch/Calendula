@@ -152,6 +152,9 @@
     <string name="recurrence_unit_weeks">weeks</string>
     <string name="recurrence_unit_months">months</string>
     <string name="recurrence_unit_years">years</string>
+    <!-- Shown in place of the live rule read-out when an amount field holds a
+         value outside 1–999 (i.e. 0), so the greyed-out OK button has a reason. -->
+    <string name="event_edit_recurrence_incomplete">Enter a number from 1 to 999</string>
     <string name="event_edit_recurrence_ends">Ends</string>
     <string name="event_edit_recurrence_end_never">Never</string>
     <string name="event_edit_recurrence_end_until">On a date</string>
