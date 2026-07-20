@@ -1,6 +1,8 @@
 package de.jeanlucmakiola.calendula.ui.month
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
@@ -891,6 +893,7 @@ private val MONTH_EXPAND_THRESHOLD = 48.dp
  * screen to explain why. [rememberSaveable] carries it across a rotation, which
  * is as long as it should live.
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun SplitMonthContent(
     state: MonthUiState,
@@ -906,6 +909,7 @@ private fun SplitMonthContent(
     onCreateEvent: (LocalDate) -> Unit,
 ) {
     val fadeSpec = rememberCalendarFadeSpec()
+    val reduceMotion = rememberReduceMotion()
     var expanded by rememberSaveable { mutableStateOf(false) }
     // The swipe wraps the grid rather than living inside it: mid-transition
     // there are two grids, and the gesture belongs to neither. The pane is left
@@ -920,47 +924,90 @@ private fun SplitMonthContent(
     when (state) {
         MonthUiState.Loading -> MonthGridLoading()
         is MonthUiState.Failure -> CalendarFailure(reason = state.reason, onRetry = onRetry)
-        is MonthUiState.Success -> AnimatedContent(
-            targetState = expanded,
-            modifier = Modifier.fillMaxSize(),
-            // Both branches fill the same box — the grid grows into exactly the
-            // room the pane gives up — so there is no size change to contain.
-            transitionSpec = { fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec) },
-            label = "split-expand-transition",
-        ) { isExpanded ->
-            if (isExpanded) {
-                SplitMonthExpanded(
-                    state = state,
-                    selected = selected,
-                    slideDir = slideDir,
-                    showWeekNumbers = showWeekNumbers,
-                    swipeModifier = swipeModifier,
-                    // A tap in the expanded grid picks the day and drops back,
-                    // which gives the expanded month a job — a chooser you dip
-                    // into — rather than a mode you can get stranded in. The
-                    // collapse then runs with the selection already set, so the
-                    // pane arrives showing the day you picked.
-                    onPickDay = {
-                        onSelectDay(it)
-                        expanded = false
+        is MonthUiState.Success -> SharedTransitionLayout(Modifier.fillMaxSize()) {
+            AnimatedContent(
+                targetState = expanded,
+                modifier = Modifier.fillMaxSize(),
+                // Both branches fill the same box — the grid grows into exactly the
+                // room the pane gives up — so there is no size change to contain.
+                // The travel between them is the shared elements' job, not a slide.
+                transitionSpec = { fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec) },
+                label = "split-expand-transition",
+            ) { isExpanded ->
+                CompositionLocalProvider(
+                    // Null under reduced motion: nothing is tagged, nothing
+                    // travels, and the cross-fade above is the whole transition.
+                    LocalMonthMorph provides if (reduceMotion) {
+                        null
+                    } else {
+                        MonthMorphScope(this@SharedTransitionLayout, this@AnimatedContent)
                     },
-                    onCollapse = { expanded = false },
-                )
-            } else {
-                SplitMonthCollapsed(
-                    state = state,
-                    selected = selected,
-                    slideDir = slideDir,
-                    showWeekNumbers = showWeekNumbers,
-                    swipeModifier = swipeModifier,
-                    onSelectDay = onSelectDay,
-                    onOpenDay = onOpenDay,
-                    onEventClick = onEventClick,
-                    onCreateEvent = onCreateEvent,
-                    onExpand = { expanded = true },
-                )
+                ) {
+                    SplitMonthBody(
+                        expanded = isExpanded,
+                        state = state,
+                        selected = selected,
+                        slideDir = slideDir,
+                        showWeekNumbers = showWeekNumbers,
+                        swipeModifier = swipeModifier,
+                        onSelectDay = onSelectDay,
+                        onOpenDay = onOpenDay,
+                        onEventClick = onEventClick,
+                        onCreateEvent = onCreateEvent,
+                        onSetExpanded = { expanded = it },
+                    )
+                }
             }
         }
+    }
+}
+
+/** The two faces of the split style, sharing one set of morph tags. */
+@Composable
+private fun SplitMonthBody(
+    expanded: Boolean,
+    state: MonthUiState.Success,
+    selected: LocalDate,
+    slideDir: Int,
+    showWeekNumbers: Boolean,
+    swipeModifier: Modifier,
+    onSelectDay: (LocalDate) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
+    onCreateEvent: (LocalDate) -> Unit,
+    onSetExpanded: (Boolean) -> Unit,
+) {
+    if (expanded) {
+        SplitMonthExpanded(
+            state = state,
+            selected = selected,
+            slideDir = slideDir,
+            showWeekNumbers = showWeekNumbers,
+            swipeModifier = swipeModifier,
+            // A tap in the expanded grid picks the day and drops back, which
+            // gives the expanded month a job — a chooser you dip into — rather
+            // than a mode you can get stranded in. The collapse then runs with
+            // the selection already set, so the pane arrives showing the day
+            // you picked.
+            onPickDay = {
+                onSelectDay(it)
+                onSetExpanded(false)
+            },
+            onCollapse = { onSetExpanded(false) },
+        )
+    } else {
+        SplitMonthCollapsed(
+            state = state,
+            selected = selected,
+            slideDir = slideDir,
+            showWeekNumbers = showWeekNumbers,
+            swipeModifier = swipeModifier,
+            onSelectDay = onSelectDay,
+            onOpenDay = onOpenDay,
+            onEventClick = onEventClick,
+            onCreateEvent = onCreateEvent,
+            onExpand = { onSetExpanded(true) },
+        )
     }
 }
 
@@ -1093,6 +1140,9 @@ private fun SplitExpandHandle(
         Box(
             Modifier
                 .size(width = SPLIT_HANDLE_WIDTH, height = SPLIT_HANDLE_HEIGHT)
+                // Tagged too, so it slides from the pane's seam down to the foot
+                // of the grid rather than blinking out at one and in at the other.
+                .morphElement(MonthMorphKey.Handle)
                 .background(MaterialTheme.colorScheme.outlineVariant, CircleShape),
         )
     }
@@ -1234,19 +1284,28 @@ private fun SplitDayCell(
         animationSpec = if (reduceMotion) snap() else fadeSpec,
         label = "split-day-selection",
     )
+    // Background and content are separate layers, mirroring how the paged row is
+    // built — and so the pill can be tagged for the morph on its own. Tagged as
+    // one piece with its contents inside, the dots would be nested shared
+    // elements within a shared element and travel twice.
     Box(
         modifier = modifier
             .padding(horizontal = CELL_GAP, vertical = 1.dp)
-            .clip(CELL_SHAPE)
-            .background(background)
-            .border(
-                width = 1.5.dp,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = selection),
-                shape = CELL_SHAPE,
-            )
             .selectable(selected = isSelected, onClick = onClick),
         contentAlignment = Alignment.TopCenter,
     ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .morphElement(MonthMorphKey.Cell(date))
+                .clip(CELL_SHAPE)
+                .background(background)
+                .border(
+                    width = 1.5.dp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = selection),
+                    shape = CELL_SHAPE,
+                ),
+        )
         Column(
             modifier = Modifier.fillMaxSize().padding(top = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -1255,10 +1314,10 @@ private fun SplitDayCell(
                 date = date,
                 isToday = isToday,
                 inMonth = inMonth,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().morphElement(MonthMorphKey.DayNumber(date)),
             )
             Spacer(Modifier.height(2.dp))
-            SplitDots(events = events, hidden = hidden, dark = dark)
+            SplitDots(date = date, events = events, hidden = hidden, dark = dark)
         }
     }
 }
@@ -1272,7 +1331,7 @@ private fun SplitDayCell(
  * bar with no dot to grow out of.
  */
 @Composable
-private fun SplitDots(events: List<EventInstance>, hidden: Int, dark: Boolean) {
+private fun SplitDots(date: LocalDate, events: List<EventInstance>, hidden: Int, dark: Boolean) {
     if (events.isEmpty()) return
     val soften = LocalSoftenColors.current
     Row(
@@ -1280,9 +1339,13 @@ private fun SplitDots(events: List<EventInstance>, hidden: Int, dark: Boolean) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         events.forEach { event ->
+            // The dot keeps its own circle and the bar its 4dp corners; they
+            // cross-fade inside shared bounds, and at the dot's size the two
+            // radii are a fraction of a pixel apart.
             Box(
                 modifier = Modifier
                     .size(SPLIT_DOT_SIZE)
+                    .morphBounds(MonthMorphKey.Event(date, event.instanceId))
                     .background(eventFill(event.color, dark, soften), CircleShape),
             )
         }
@@ -1540,6 +1603,7 @@ private fun MonthWeekRow(
                             .weight(1f)
                             .fillMaxHeight()
                             .padding(horizontal = CELL_GAP, vertical = 1.dp)
+                            .morphElement(MonthMorphKey.Cell(d))
                             .background(
                                 color = when {
                                     inMonth(d) -> MaterialTheme.colorScheme.surfaceContainer
@@ -1586,7 +1650,9 @@ private fun MonthWeekRow(
                                 } else {
                                     null
                                 },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .morphElement(MonthMorphKey.DayNumber(d)),
                             )
                         }
                     }
@@ -1615,7 +1681,17 @@ private fun MonthWeekRow(
                                 )
                                 .width(colW * cols)
                                 .height(EVENT_ROW_HEIGHT)
-                                .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
+                                .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp)
+                                // Anchored on the day the bar starts *in this row*,
+                                // which is where its dot sat. A bar carried in from
+                                // the previous week starts at column 0, and column
+                                // 0's dot is the one that grows into it.
+                                .morphBounds(
+                                    MonthMorphKey.Event(
+                                        date = week.days[span.startCol],
+                                        instanceId = span.event.instanceId,
+                                    ),
+                                ),
                         )
                     }
                     // Single-day timed pills + overflow, per column. Pills fill the
@@ -1643,7 +1719,8 @@ private fun MonthWeekRow(
                                     )
                                     .width(colW)
                                     .height(EVENT_ROW_HEIGHT)
-                                    .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
+                                    .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp)
+                                    .morphBounds(MonthMorphKey.Event(d, ev.instanceId)),
                             )
                         }
                         val hidden = (week.countByDay[d] ?: 0) - occupied.size - pillsShown.size
