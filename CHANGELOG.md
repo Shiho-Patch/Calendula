@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Choose how the month view is laid out. A new **Month view style** setting
+  (Settings → Views) offers three ways to read a month, each shown with a
+  preview of the layout it produces:
+  - **Pages** — what you have today: one month at a time, swiped sideways.
+  - **Continuous** — scroll up and down through the weeks without a break
+    between months. Because the weeks run on unbroken, no month is cut off and
+    no day appears twice, where paging repeats a boundary week at the end of one
+    month and the start of the next. The 1st of each month names itself so you
+    always know where you are, and the title bar keeps up as you scroll ([#38]).
+  - **Split** — a compact grid showing coloured dots for the days that have
+    something on them, with the day you tap listed in full underneath. Tap the
+    date above the list to open the whole day ([#53]).
+
+  The Agenda view is untouched by this and stays available in all three styles —
+  the split layout lists a single day, while Agenda remains a rolling multi-day
+  window with its own range settings.
+
 ### Fixed
 - The "Upcoming" agenda widget now scales its text and rows to the size you give
   it. Previously it was laid out once for the smallest size and simply stretched
@@ -1057,5 +1075,7 @@ automatically, with zero telemetry and no internet permission.
 [#49]: https://codeberg.org/jlmakiola/calendula/issues/49
 [#51]: https://codeberg.org/jlmakiola/calendula/issues/51
 [#52]: https://codeberg.org/jlmakiola/calendula/issues/52
+[#38]: https://codeberg.org/jlmakiola/calendula/issues/38
+[#53]: https://codeberg.org/jlmakiola/calendula/issues/53
 [#60]: https://codeberg.org/jlmakiola/calendula/issues/60
 [#65]: https://codeberg.org/jlmakiola/calendula/issues/65
