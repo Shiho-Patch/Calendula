@@ -213,9 +213,21 @@ class SettingsViewModel @Inject constructor(
      * imperatively via [LauncherNameManager] and held here in its own flow — the
      * main settings combine is already at its arity limit and this isn't a
      * DataStore flow anyway.
+     *
+     * Seeded with the manifest default and corrected off-thread rather than read
+     * in the initializer: `getComponentEnabledSetting` is a binder round-trip to
+     * system_server, and this ViewModel is constructed on the main thread while
+     * Settings is opening. The row it feeds is well below the fold, so the
+     * one-frame correction is never visible.
      */
-    private val _launcherName = MutableStateFlow(launcherNameManager.current())
+    private val _launcherName = MutableStateFlow(LauncherName.CALENDULA)
     val launcherName: StateFlow<LauncherName> = _launcherName.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            _launcherName.value = withContext(io) { launcherNameManager.current() }
+        }
+    }
 
     // Emitted when a picked font file couldn't be read as a font; the screen
     // surfaces it and the previous selection stays put.
@@ -484,11 +496,20 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setTodayButtonInToolbar(enabled) }
     }
 
-    /** Switch the launcher label between "Calendula" and "Calendar" (issue #44). */
+    /**
+     * Switch the launcher label between "Calendula" and "Calendar" (issue #44).
+     * The card highlights immediately, then settles on whatever the component
+     * state actually reports — the two `setComponentEnabledSetting` calls are
+     * binder round-trips, so they don't belong on the main thread either.
+     */
     fun setLauncherName(name: LauncherName) {
-        launcherNameManager.set(name)
-        // Re-read so the UI reflects the actual component state, not an assumption.
-        _launcherName.value = launcherNameManager.current()
+        _launcherName.value = name
+        viewModelScope.launch {
+            _launcherName.value = withContext(io) {
+                launcherNameManager.set(name)
+                launcherNameManager.current()
+            }
+        }
     }
 
     fun setPastEventDisplay(mode: PastEventDisplay) {

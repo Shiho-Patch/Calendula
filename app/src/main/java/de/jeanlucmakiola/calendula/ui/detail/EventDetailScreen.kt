@@ -109,6 +109,7 @@ import de.jeanlucmakiola.calendula.ui.common.recurrenceText
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
+import kotlin.time.toJavaInstant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -463,8 +464,8 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
         // Same hierarchy as the When card above — the label carries the card,
         // the time sits small beneath it. The local time is the one the reader
         // acts on, so the original must stay quieter than it, not compete.
-        val foreignZone = remember(detail.eventTimezone, instance.isAllDay, locale) {
-            foreignTimeZone(detail.eventTimezone, instance.isAllDay, locale)
+        val foreignZone = remember(detail.eventTimezone, instance.isAllDay, instance.start, locale) {
+            foreignTimeZone(detail.eventTimezone, instance.isAllDay, locale, instance.start)
         }
         foreignZone?.let { zoneOption ->
             Spacer(Modifier.height(gap))
@@ -789,11 +790,26 @@ private fun reminderLeadText(reminder: Reminder): String = reminderLeadTimeLabel
  * pinned to a zone different from the device's — the cases where showing it
  * removes ambiguity. Null otherwise (all-day, device-zone, blank, or an id the
  * tz database doesn't know).
+ *
+ * Resolved *at [at]*, the event's own start, not at "now": the abbreviation and
+ * offset both move with DST, and the card prints them next to the event's time.
+ * Resolving at now would label a July event "CET · 10:00 AM" when read in
+ * January — an abbreviation that contradicts the time beside it.
  */
-private fun foreignTimeZone(tz: String?, isAllDay: Boolean, locale: Locale): TimeZoneOption? {
+private fun foreignTimeZone(
+    tz: String?,
+    isAllDay: Boolean,
+    locale: Locale,
+    at: Instant,
+): TimeZoneOption? {
     if (isAllDay || tz.isNullOrBlank()) return null
     if (tz == ZoneId.systemDefault().id) return null
-    return timeZoneOptionOf(tz, locale, regionOf = ::icuTimeZoneRegion)
+    return timeZoneOptionOf(
+        tz,
+        locale,
+        at = at.toJavaInstant(),
+        regionOf = ::icuTimeZoneRegion,
+    )
 }
 
 /** Wrap http(s) URLs in [text] as tappable links tinted [linkColor]. */

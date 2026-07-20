@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.TimeZoneOption
 import de.jeanlucmakiola.calendula.domain.filterTimeZones
+import de.jeanlucmakiola.calendula.domain.timeZoneOptionOf
 import de.jeanlucmakiola.calendula.domain.timeZoneOptions
 import de.jeanlucmakiola.calendula.domain.zoneDescriptor
 import de.jeanlucmakiola.floret.components.FullScreenPicker
@@ -43,6 +45,8 @@ import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.floret.locale.currentLocale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Full-screen zone picker: a query field over every zone the JVM knows, with the
@@ -64,13 +68,27 @@ fun TimeZonePickerDialog(
     onDismiss: () -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
-    // ~600 zones, each resolving a localized name and a DST-aware offset: build
-    // once per open, then filter the result per keystroke.
     val locale = currentLocale()
-    val allZones = remember(locale) { timeZoneOptions(locale, regionOf = ::icuTimeZoneRegion) }
+    // ~600 zones, each resolving a localized name and up to two ICU short names:
+    // far too much to run inside composition, so build it on a worker and let the
+    // list fill in a frame later. Filtering the built catalogue is cheap (its
+    // search keys are pre-normalized), so that stays here.
+    val allZones by produceState(initialValue = emptyList<TimeZoneOption>(), locale) {
+        value = withContext(Dispatchers.Default) {
+            timeZoneOptions(locale, regionOf = ::icuTimeZoneRegion)
+        }
+    }
     val matches = remember(allZones, query) { filterTimeZones(allZones, query) }
     val recentZones = remember(allZones, recents) {
         recents.mapNotNull { id -> allZones.firstOrNull { it.id == id } }
+    }
+    // Resolved on its own rather than looked up in the catalogue: it's one zone,
+    // so it costs nothing, and the device row can then render complete on the
+    // first frame instead of showing a bare id until the catalogue lands.
+    val deviceSummary = remember(deviceZoneId, locale) {
+        timeZoneOptionOf(deviceZoneId, locale, regionOf = ::icuTimeZoneRegion)
+            ?.let { zoneDescriptor(it) }
+            ?: deviceZoneId
     }
     val searching = query.isNotBlank()
 
@@ -97,7 +115,7 @@ fun TimeZonePickerDialog(
                 item(key = "device") {
                     GroupedRow(
                         title = stringResource(R.string.event_edit_timezone_device),
-                        summary = zoneSummary(deviceZoneId, allZones),
+                        summary = deviceSummary,
                         position = Position.Alone,
                         selected = selected == null,
                         leading = { Icon(Icons.Default.Public, contentDescription = null) },
@@ -130,7 +148,10 @@ fun TimeZonePickerDialog(
                 }
             }
 
-            if (searching && matches.isEmpty()) {
+            // allZones.isNotEmpty() gates this: until the catalogue lands there is
+            // simply nothing to match yet, and claiming "no time zone matches"
+            // for that frame would be wrong.
+            if (searching && matches.isEmpty() && allZones.isNotEmpty()) {
                 item(key = "empty") {
                     Text(
                         text = stringResource(R.string.event_edit_timezone_none, query),
@@ -252,9 +273,3 @@ private fun ZoneRow(
         onClick = onClick,
     )
 }
-
-/** "CET · GMT+01:00" for [zoneId], or the bare id if the catalogue lacks it. */
-private fun zoneSummary(zoneId: String, allZones: List<TimeZoneOption>): String =
-    allZones.firstOrNull { it.id == zoneId }
-        ?.let { zoneDescriptor(it) }
-        ?: zoneId

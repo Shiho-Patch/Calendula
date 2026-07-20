@@ -89,7 +89,9 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
 import java.util.Locale
 
-private val zone = TimeZone.currentSystemDefault()
+// No file-level zone constant here on purpose: it would be fixed for the process
+// lifetime and drift from the zone AgendaViewModel groups in after a device
+// time-zone change. The zone travels on AgendaUiState.Success instead.
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -332,6 +334,7 @@ private fun AgendaContent(
                 AgendaList(
                     days = days,
                     today = state.today,
+                    zone = state.zone,
                     dimPast = pastDisplay == PastEventDisplay.DIM,
                     now = now,
                     onEventClick = onEventClick,
@@ -348,6 +351,7 @@ private fun AgendaContent(
 private fun AgendaList(
     days: List<AgendaDay>,
     today: LocalDate,
+    zone: TimeZone,
     dimPast: Boolean,
     now: Instant,
     onEventClick: (EventInstance) -> Unit,
@@ -379,6 +383,7 @@ private fun AgendaList(
                     AgendaEventRow(
                         event = event,
                         day = day.date,
+                        zone = zone,
                         position = positionOf(index, day.events.size),
                         dimmed = dimPast && event.hasEnded(now),
                         modifier = animateItemMotion(),
@@ -458,6 +463,7 @@ private fun AgendaEmptyDayRow(onClick: () -> Unit) {
 private fun AgendaEventRow(
     event: EventInstance,
     day: LocalDate,
+    zone: TimeZone,
     position: Position,
     dimmed: Boolean,
     modifier: Modifier = Modifier,
@@ -469,7 +475,7 @@ private fun AgendaEventRow(
     GroupedRow(
         modifier = if (dimmed) modifier.alpha(EventDimAlpha) else modifier,
         title = title,
-        summary = agendaTimeSummary(event, day),
+        summary = agendaTimeSummary(event, day, zone),
         position = position,
         minHeight = 64.dp,
         leading = {
@@ -575,25 +581,34 @@ private fun agendaDayLabel(date: LocalDate, today: LocalDate): String {
  * An all-day multi-day event is simply "All day" on every day it covers.
  */
 @Composable
-private fun agendaTimeSummary(event: EventInstance, day: LocalDate): String {
+private fun agendaTimeSummary(event: EventInstance, day: LocalDate, zone: TimeZone): String {
     val is24Hour = LocalUse24HourFormat.current
     val locale = currentLocale()
 
     val time = when (val label = agendaTimeLabel(event, day, zone)) {
         AgendaTimeLabel.AllDay -> stringResource(R.string.event_detail_all_day)
-        is AgendaTimeLabel.Starts ->
-            stringResource(R.string.agenda_span_starts, formatTime(label.start, is24Hour, locale))
-        is AgendaTimeLabel.Ends ->
-            stringResource(R.string.agenda_span_ends, formatTime(label.end, is24Hour, locale))
-        is AgendaTimeLabel.Range ->
-            "${formatTime(label.start, is24Hour, locale)} – ${formatTime(label.end, is24Hour, locale)}"
+        is AgendaTimeLabel.Starts -> stringResource(
+            R.string.agenda_span_starts,
+            formatTime(label.start, zone, is24Hour, locale),
+        )
+        is AgendaTimeLabel.Ends -> stringResource(
+            R.string.agenda_span_ends,
+            formatTime(label.end, zone, is24Hour, locale),
+        )
+        is AgendaTimeLabel.Range -> "${formatTime(label.start, zone, is24Hour, locale)} – " +
+            formatTime(label.end, zone, is24Hour, locale)
     }
 
     val location = event.location?.takeIf { it.isNotBlank() }
     return if (location != null) "$time · $location" else time
 }
 
-private fun formatTime(instant: Instant, is24Hour: Boolean, locale: Locale): String {
+private fun formatTime(
+    instant: Instant,
+    zone: TimeZone,
+    is24Hour: Boolean,
+    locale: Locale,
+): String {
     val t = instant.toLocalDateTime(zone).time
     return formatTimeOfDay(t.hour, t.minute, is24Hour, locale)
 }

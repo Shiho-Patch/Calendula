@@ -31,7 +31,32 @@ data class TimeZoneOption(
 
     /** The leading segment ("Europe/Berlin" -> "Europe"); empty for bare ids like "UTC". */
     val region: String get() = id.substringBeforeLast('/', missingDelimiterValue = "")
+
+    /**
+     * The four fields [filterTimeZones] matches on, normalized once here rather
+     * than per query. Normalizing is not cheap — NFD decomposition plus a combining-
+     * mark strip — and a search re-examines every option on every keystroke, so
+     * doing it at construction turns ~2400 normalizations per character into a few
+     * hundred plain `startsWith`/`contains` calls.
+     *
+     * Declared in the class body, so it stays out of `equals`/`hashCode`/`copy`:
+     * it is derived state, and two options with the same id are the same option.
+     */
+    internal val searchKeys: TimeZoneSearchKeys = TimeZoneSearchKeys(
+        city = city.normalizeForSearch(),
+        id = id.normalizeForSearch(),
+        displayName = displayName.normalizeForSearch(),
+        shortName = shortName.normalizeForSearch(),
+    )
 }
+
+/** Pre-normalized match targets for one [TimeZoneOption]. */
+internal data class TimeZoneSearchKeys(
+    val city: String,
+    val id: String,
+    val displayName: String,
+    val shortName: String,
+)
 
 private fun optionFor(
     zone: ZoneId,
@@ -87,9 +112,13 @@ private fun resolveAbbreviation(
 private fun String.looksLikeOffset(): Boolean = this == "UTC" || startsWith("GMT")
 
 /**
- * Every zone the JVM knows, resolved at [at]. This is ~600 entries, so build it
- * once and filter the result rather than rebuilding per keystroke. [regionOf]
- * (see [resolveAbbreviation]) supplies the zone's region for the abbreviation.
+ * Every zone the JVM knows, resolved at [at]. [regionOf] (see
+ * [resolveAbbreviation]) supplies the zone's region for the abbreviation.
+ *
+ * This is ~600 entries, each costing a localized display name plus up to two ICU
+ * short-name lookups, so it is **not** cheap enough for the main thread — build
+ * it off-thread once and filter the result with [filterTimeZones] rather than
+ * rebuilding per keystroke.
  *
  * Bare three-letter ids ("EST", "CST6CDT") and the legacy SystemV tree are
  * dropped: they're aliases the tz database keeps for compatibility, they'd
@@ -154,18 +183,15 @@ fun filterTimeZones(options: List<TimeZoneOption>, query: String): List<TimeZone
     if (needle.isEmpty()) return options
     return options
         .mapNotNull { option ->
-            val city = option.city.normalizeForSearch()
-            val id = option.id.normalizeForSearch()
-            val name = option.displayName.normalizeForSearch()
-            val abbrev = option.shortName.normalizeForSearch()
+            val keys = option.searchKeys
             val rank = when {
-                city.startsWith(needle) -> 0
-                abbrev == needle -> 1
-                name.startsWith(needle) -> 2
-                abbrev.startsWith(needle) -> 3
-                city.contains(needle) -> 4
-                id.contains(needle) -> 5
-                name.contains(needle) -> 6
+                keys.city.startsWith(needle) -> 0
+                keys.shortName == needle -> 1
+                keys.displayName.startsWith(needle) -> 2
+                keys.shortName.startsWith(needle) -> 3
+                keys.city.contains(needle) -> 4
+                keys.id.contains(needle) -> 5
+                keys.displayName.contains(needle) -> 6
                 else -> return@mapNotNull null
             }
             rank to option
@@ -174,6 +200,9 @@ fun filterTimeZones(options: List<TimeZoneOption>, query: String): List<TimeZone
         .map { it.second }
 }
 
+/** Unicode combining marks — what NFD decomposition leaves an accent as. */
+private val COMBINING_MARKS = Regex("\\p{Mn}+")
+
 /**
  * Lowercased, accent-stripped, underscores and slashes flattened to spaces, so
  * a query types the way a place is spoken rather than the way the tz database
@@ -181,7 +210,7 @@ fun filterTimeZones(options: List<TimeZoneOption>, query: String): List<TimeZone
  */
 private fun String.normalizeForSearch(): String =
     Normalizer.normalize(this, Normalizer.Form.NFD)
-        .replace(Regex("\\p{Mn}+"), "")
+        .replace(COMBINING_MARKS, "")
         .replace('_', ' ')
         .replace('/', ' ')
         .lowercase(Locale.ROOT)
