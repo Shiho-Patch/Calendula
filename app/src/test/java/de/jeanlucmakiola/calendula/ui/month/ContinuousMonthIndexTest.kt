@@ -172,25 +172,53 @@ class ContinuousMonthIndexTest {
 
     @Test
     fun `nearing a loaded edge widens the window around the visible range`() {
-        // Within a month of the top edge → reload, padded on both sides.
+        // Within two months of the top edge → reload, padded on both sides.
         assertThat(nextLoadWindow(loaded = 0..100, firstVisible = 1, lastVisible = 2))
-            .isEqualTo(-3..6)
+            .isEqualTo(-4..7)
 
         assertThat(nextLoadWindow(loaded = 0..100, firstVisible = 98, lastVisible = 100))
-            .isEqualTo(94..104)
+            .isEqualTo(93..105)
     }
 
     @Test
     fun `a jump far outside the window reloads around the destination`() {
         assertThat(nextLoadWindow(loaded = 0..100, firstVisible = 500, lastVisible = 501))
-            .isEqualTo(496..505)
+            .isEqualTo(495..506)
     }
 
     @Test
     fun `the reloaded window always clears the trigger it just crossed`() {
-        // Otherwise every scroll frame would re-trigger a query.
-        val window = nextLoadWindow(loaded = 0..100, firstVisible = 1, lastVisible = 2)!!
-        assertThat(nextLoadWindow(window, firstVisible = 1, lastVisible = 2)).isNull()
+        // Otherwise every scroll frame would re-trigger a query — and with the
+        // window growing from a pad of 1, this has to hold at every rung of the
+        // ladder, not just the widest one.
+        (1..8).forEach { pad ->
+            val loaded = (10 - pad)..(10 + pad)
+            val past = 10 + pad + 1
+            val widened = nextLoadWindow(loaded, past, past, pad)!!
+            assertThat(nextLoadWindow(widened, past, past, pad)).isNull()
+        }
+    }
+
+    @Test
+    fun `the reload trigger stays inside the pad`() {
+        // A trigger at or beyond the pad would fire again the instant its own
+        // reload landed, and the window would query forever.
+        (1..8).forEach { pad -> assertThat(edgeForPad(pad)).isLessThan(pad) }
+        // A one-month window has no room for hysteresis: reload only on contact.
+        assertThat(edgeForPad(1)).isEqualTo(0)
+        assertThat(edgeForPad(0)).isEqualTo(0)
+    }
+
+    @Test
+    fun `the smallest window reloads on crossing rather than nearing its edge`() {
+        // The first frame loads one month either side of today, which leaves no
+        // room to reload *before* the edge: at pad 1 the trigger is contact.
+        // Only momentary — the first completed load widens the pad to 3, which
+        // buys the usual head start back.
+        val initial = 10..12
+        assertThat(nextLoadWindow(initial, firstVisible = 12, lastVisible = 12, pad = 1)).isNull()
+        assertThat(nextLoadWindow(initial, firstVisible = 13, lastVisible = 13, pad = 1))
+            .isEqualTo(12..14)
     }
 
     @Test

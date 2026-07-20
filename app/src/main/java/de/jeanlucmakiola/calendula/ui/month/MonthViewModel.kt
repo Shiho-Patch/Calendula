@@ -20,7 +20,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
@@ -101,23 +103,45 @@ class MonthViewModel @Inject constructor(
                 initialValue = MonthUiState.Loading,
             )
 
-    // --- Continuous style (#38) -------------------------------------------
+    // --- Continuous + Dense styles (#38) ----------------------------------
     //
-    // The continuous grid scrolls through every month there is, so it can't load
-    // one month at a time — it loads a sliding window of month indices around
-    // whatever is on screen. The window only moves when the visible range comes
-    // within WINDOW_EDGE months of a loaded edge, so a scroll re-queries
-    // occasionally rather than on every frame.
+    // These scroll through every month there is, so they can't load "a month" —
+    // they load a sliding window of month indices around whatever is on screen.
+    // The window only moves when the visible range comes within WINDOW_EDGE
+    // months of a loaded edge, so a scroll re-queries occasionally rather than
+    // on every frame.
+    //
+    // The window also *starts small and grows*. A provider Instances query
+    // expands recurrences across its whole range, so opening straight onto a
+    // year of months made the first frame wait for eleven months of expansion
+    // when only one was about to be looked at. It now opens on INITIAL_PAD
+    // months, and each completed load widens by GROWTH_STEP in both directions
+    // until MAX_PAD — the months you can reach by scrolling arrive while you're
+    // still looking at the first one.
 
-    // Seeded around today so the first frame has data.
+    /** How far around the visible range we currently load; grows as loads land. */
+    @Volatile
+    private var loadPad = INITIAL_PAD
+
+    /** Last reported visible range, so a widening step can re-centre on it. */
+    @Volatile
+    private var visibleMonths = monthIndexOf(YearMonth(todayDate.year, todayDate.month))
+        .let { it..it }
+
     private val _loadedMonths = MutableStateFlow(
         monthIndexOf(YearMonth(todayDate.year, todayDate.month))
-            .let { it - WINDOW_PAD..it + WINDOW_PAD },
+            .let { clampMonthWindow(it - INITIAL_PAD..it + INITIAL_PAD) },
     )
 
     val continuousState: StateFlow<ContinuousMonthUiState> =
-        combine(_loadedMonths, weekStart) { window, ws -> window to ws }
-            .flatMapLatest { (window, ws) ->
+        combine(_loadedMonths, weekStart, viewStyle) { window, ws, style ->
+            Triple(window, ws, style)
+        }
+            .flatMapLatest { (window, ws, style) ->
+                // Nothing to load for the paged and split styles — they have
+                // their own single-month flow, and querying a year of months
+                // behind them is pure waste.
+                if (!style.isScrolling) return@flatMapLatest flowOf(ContinuousMonthUiState.Loading)
                 // Widened to whole grid weeks at both ends: a month block still
                 // has to know about an event that starts in the boundary week's
                 // clipped-off days, or a bar running into the block would vanish.
@@ -135,6 +159,10 @@ class MonthViewModel @Inject constructor(
                     buildContinuousState(window, ws, calendars, instances)
                 }
             }
+            // A load landing is the cue to reach further out. Widening from here
+            // rather than on a timer means each step waits for the previous one,
+            // so the ladder can never outrun the provider.
+            .onEach { if (it is ContinuousMonthUiState.Success) widenLoadedWindow() }
             .catch { emit(ContinuousMonthUiState.Failure(FailureReason.ProviderUnavailable)) }
             .flowOn(io)
             .stateIn(
@@ -149,8 +177,22 @@ class MonthViewModel @Inject constructor(
      * close enough to a loaded edge to warrant a wider query.
      */
     fun onVisibleMonthsChanged(firstIndex: Int, lastIndex: Int) {
-        nextLoadWindow(_loadedMonths.value, firstIndex, lastIndex)
+        visibleMonths = firstIndex..lastIndex
+        nextLoadWindow(_loadedMonths.value, firstIndex, lastIndex, loadPad)
             ?.let { _loadedMonths.value = clampMonthWindow(it) }
+    }
+
+    /**
+     * One rung up the ladder: reach [GROWTH_STEP] further in each direction,
+     * stopping at [MAX_PAD]. A no-op once there, so the provider notifications
+     * that re-emit the same window don't restart it.
+     */
+    private fun widenLoadedWindow() {
+        if (loadPad >= MAX_PAD) return
+        loadPad = (loadPad + GROWTH_STEP).coerceAtMost(MAX_PAD)
+        _loadedMonths.value = clampMonthWindow(
+            visibleMonths.first - loadPad..visibleMonths.last + loadPad,
+        )
     }
 
     private fun buildContinuousState(
@@ -347,13 +389,24 @@ internal fun monthGridRange(
 }
 
 /**
- * How many months the continuous window loads beyond the visible range, and how
- * close the visible range may drift to a loaded edge before it reloads. The pad
- * is generous relative to the trigger so a steady scroll crosses the trigger
- * well before it would run out of laid-out months.
+ * The sliding window's shape.
+ *
+ * [INITIAL_PAD] is what the first frame waits for — one month either side of the
+ * visible one, so opening the view costs about what the paged style costs. Each
+ * completed load then reaches [GROWTH_STEP] further out until [MAX_PAD], filling
+ * in the months a scroll could reach while the first ones are already on screen.
+ *
+ * [WINDOW_EDGE] is how close the visible range may drift to a loaded edge before
+ * it reloads. It is always kept below the current pad — a trigger at or beyond
+ * the pad would re-fire the moment its own reload landed.
  */
-private const val WINDOW_PAD = 4
+private const val INITIAL_PAD = 1
+private const val GROWTH_STEP = 2
+private const val MAX_PAD = 5
 private const val WINDOW_EDGE = 2
+
+/** The reload trigger for a given pad, held strictly inside it. */
+internal fun edgeForPad(pad: Int): Int = minOf(WINDOW_EDGE, pad - 1).coerceAtLeast(0)
 
 /**
  * Which day the split style should select when the grid lands on [month]:
@@ -373,11 +426,17 @@ internal fun selectionForMonth(month: YearMonth, today: LocalDate): LocalDate =
  * Kept pure and separate from the view model so the hysteresis — the reason a
  * scroll doesn't re-query the provider on every frame — is testable on its own.
  */
-internal fun nextLoadWindow(loaded: IntRange, firstVisible: Int, lastVisible: Int): IntRange? {
+internal fun nextLoadWindow(
+    loaded: IntRange,
+    firstVisible: Int,
+    lastVisible: Int,
+    pad: Int = MAX_PAD,
+): IntRange? {
+    val edge = edgeForPad(pad)
     val comfortablyInside =
-        firstVisible - WINDOW_EDGE >= loaded.first && lastVisible + WINDOW_EDGE <= loaded.last
+        firstVisible - edge >= loaded.first && lastVisible + edge <= loaded.last
     if (comfortablyInside) return null
-    return (firstVisible - WINDOW_PAD)..(lastVisible + WINDOW_PAD)
+    return (firstVisible - pad)..(lastVisible + pad)
 }
 
 /**

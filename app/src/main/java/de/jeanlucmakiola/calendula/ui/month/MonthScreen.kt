@@ -1,6 +1,11 @@
 package de.jeanlucmakiola.calendula.ui.month
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -430,7 +435,10 @@ private fun ContinuousMonthContent(
     onOpenDay: (LocalDate) -> Unit,
 ) {
     when (state) {
-        ContinuousMonthUiState.Loading -> MonthGridLoading()
+        // The scrolling styles get their own skeleton rather than the paged
+        // grid's: same row height, same header, so nothing reflows when the
+        // months land on top of it.
+        ContinuousMonthUiState.Loading -> ContinuousMonthSkeleton(dense = dense)
         is ContinuousMonthUiState.Failure ->
             CalendarFailure(reason = state.reason, onRetry = onRetry)
         is ContinuousMonthUiState.Success -> if (dense) {
@@ -1037,6 +1045,7 @@ internal fun SplitDayPane(
 /** A week the sliding window hasn't loaded yet — same height, so nothing jumps. */
 @Composable
 private fun ContinuousWeekPlaceholder() {
+    val pulse = rememberSkeletonPulse()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1048,10 +1057,82 @@ private fun ContinuousWeekPlaceholder() {
                     .weight(1f)
                     .fillMaxHeight()
                     .padding(horizontal = CELL_GAP, vertical = 1.dp)
+                    .alpha(pulse)
                     .background(MaterialTheme.colorScheme.surfaceContainerLow, CELL_SHAPE),
             )
         }
     }
+}
+
+/**
+ * The first-frame skeleton for the scrolling styles: the layout they are about
+ * to become, at the same measurements, so the arriving months replace it in
+ * place instead of shifting everything.
+ *
+ * In practice the window is small enough that this is rarely on screen for long
+ * — it is there for the calendar big enough to make even one month's worth of
+ * recurrence expansion take a moment.
+ */
+@Composable
+private fun ContinuousMonthSkeleton(dense: Boolean) {
+    val pulse = rememberSkeletonPulse()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 8.dp)
+            .clipToBounds(),
+    ) {
+        if (!dense) {
+            // Stand-in for the sticky month header, so the first rows start
+            // where they will once the real one is there.
+            Box(
+                modifier = Modifier
+                    .padding(start = 4.dp, top = 20.dp, bottom = 8.dp)
+                    .width(SKELETON_HEADER_WIDTH)
+                    .height(SKELETON_HEADER_HEIGHT)
+                    .alpha(pulse)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                        MaterialTheme.shapes.small,
+                    ),
+            )
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+        } else {
+            Spacer(Modifier.height(4.dp))
+        }
+        // More rows than a viewport holds; the clip takes the overflow.
+        repeat(6) {
+            ContinuousWeekPlaceholder()
+            Spacer(Modifier.height(2.dp))
+        }
+    }
+}
+
+private val SKELETON_HEADER_WIDTH = 128.dp
+private val SKELETON_HEADER_HEIGHT = 20.dp
+
+/**
+ * The slow breath that tells a skeleton from an empty grid. Held at full opacity
+ * when the system asks for reduced motion — the placeholders still read as
+ * unfilled without it.
+ */
+@Composable
+private fun rememberSkeletonPulse(): Float {
+    if (rememberReduceMotion()) return 1f
+    val transition = rememberInfiniteTransition(label = "skeleton")
+    val alpha by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "skeleton-alpha",
+    )
+    return alpha
 }
 
 /**
