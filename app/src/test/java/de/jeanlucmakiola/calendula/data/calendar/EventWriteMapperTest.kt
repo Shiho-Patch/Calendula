@@ -123,8 +123,18 @@ class EventWriteMapperTest {
 
     private val seriesStart = 1_700_000_000_000L
 
-    private fun update(original: EventForm, updated: EventForm): Map<String, Any?> =
-        buildEventUpdateValues(original, updated, seriesStart, berlin)
+    private fun update(
+        original: EventForm,
+        updated: EventForm,
+        series: Long = seriesStart,
+    ): Map<String, Any?> = buildEventUpdateValues(original, updated, series, berlin)
+
+    /** The instant [local] names in [zoneId], as the provider would store it. */
+    private fun instantAt(local: String, zoneId: String): Long =
+        java.time.LocalDateTime.parse(local)
+            .atZone(java.time.ZoneId.of(zoneId))
+            .toInstant()
+            .toEpochMilli()
 
     @Test
     fun `pristine form produces no values`() {
@@ -217,6 +227,77 @@ class EventWriteMapperTest {
         assertThat(values).containsEntry(CalendarContract.Events.DTEND, null)
         assertThat(values[CalendarContract.Events.RRULE]).isEqualTo("FREQ=WEEKLY")
         assertThat(values[CalendarContract.Events.DURATION]).isEqualTo("P5400S")
+    }
+
+    @Test
+    fun `pinning a recurring event to another zone keeps the series wall clock`() {
+        // The regression this guards: the series DTSTART used to move by a
+        // millisecond delta measured at the *edited occurrence*. Here the series
+        // anchor sits in January (Berlin CET, +1) and the edited occurrence in
+        // July (Berlin CEST, +2), so the July delta is an hour off for January —
+        // the whole series would have drifted to 10:00 Tokyo.
+        val series = instantAt("2026-01-07T09:00", "Europe/Berlin")
+        val original = form(
+            start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(10, 0)),
+        ).copy(rrule = "FREQ=WEEKLY")
+
+        val values = update(original, original.copy(timezone = "Asia/Tokyo"), series)
+
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("Asia/Tokyo")
+        // The anchor still reads 09:00 — now 09:00 in Tokyo, not 10:00.
+        assertThat(values[CalendarContract.Events.DTSTART])
+            .isEqualTo(instantAt("2026-01-07T09:00", "Asia/Tokyo"))
+    }
+
+    @Test
+    fun `a time edit moves the series anchor in wall clock across a DST boundary`() {
+        // Anchor in winter, edited occurrence in summer: pushing the occurrence
+        // one hour later must leave the anchor at 10:00 winter time, not at an
+        // instant that re-reads as 11:00 once the offset differs.
+        val series = instantAt("2026-01-07T09:00", "Europe/Berlin")
+        val original = form(
+            start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(10, 0)),
+        ).copy(rrule = "FREQ=WEEKLY")
+        val moved = original.copy(
+            start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(10, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(11, 0)),
+        )
+
+        assertThat(update(original, moved, series)[CalendarContract.Events.DTSTART])
+            .isEqualTo(instantAt("2026-01-07T10:00", "Europe/Berlin"))
+    }
+
+    @Test
+    fun `moving a recurring occurrence to another day shifts the anchor by whole days`() {
+        val series = instantAt("2026-01-07T09:00", "Europe/Berlin")
+        val original = form(
+            start = LocalDateTime(LocalDate(2026, 1, 7), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 1, 7), LocalTime(10, 0)),
+        ).copy(rrule = "FREQ=WEEKLY")
+        val moved = original.copy(
+            start = LocalDateTime(LocalDate(2026, 1, 9), LocalTime(14, 30)),
+            end = LocalDateTime(LocalDate(2026, 1, 9), LocalTime(15, 30)),
+        )
+
+        assertThat(update(original, moved, series)[CalendarContract.Events.DTSTART])
+            .isEqualTo(instantAt("2026-01-09T14:30", "Europe/Berlin"))
+    }
+
+    @Test
+    fun `switching a recurring event to all-day anchors the series on a UTC midnight`() {
+        val series = instantAt("2026-01-07T09:00", "Europe/Berlin")
+        val original = form(
+            start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(10, 0)),
+        ).copy(rrule = "FREQ=WEEKLY")
+
+        val values = update(original, original.copy(isAllDay = true), series)
+
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("UTC")
+        val dtStart = values[CalendarContract.Events.DTSTART] as Long
+        assertThat(dtStart % (24L * 60 * 60 * 1000)).isEqualTo(0L)
     }
 
     @Test

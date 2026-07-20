@@ -880,13 +880,21 @@ private fun minToHm(min: Int, is24Hour: Boolean, locale: java.util.Locale): Stri
  * month of [weekStart] means a week straddling a boundary keeps the outgoing
  * month until it is fully gone — a week is seven contiguous days, so the earlier
  * month has a day in it exactly while [weekStart] is still inside it. That also
- * makes the title depend on nothing but [weekStart], so it cannot drift with the
- * direction you paged in from.
+ * makes the *month* depend on nothing but [weekStart], so it cannot drift with
+ * the direction you paged in from.
+ *
+ * The *year* is decided from the whole week, not just its start: a week running
+ * Dec 28 – Jan 3 has four of its seven visible columns in the new year, so
+ * "December" with no year would be actively misleading while the reader is
+ * looking straight at January dates.
  */
-private fun formatWeekTitle(weekStart: LocalDate, locale: Locale, currentYear: Int): String =
-    formatCalendarTitle(
+private fun formatWeekTitle(weekStart: LocalDate, locale: Locale, currentYear: Int): String {
+    val weekEnd = weekStart.plus(6, kotlinx.datetime.DateTimeUnit.DAY)
+    return formatCalendarTitle(
         date = java.time.LocalDate.of(weekStart.year, weekStart.month.ordinal + 1, 1),
         locale = locale,
         currentYear = currentYear,
         skeleton = "LLLL",
+        forceYear = weekEnd.year != weekStart.year,
     )
+}

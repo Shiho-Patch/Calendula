@@ -172,6 +172,7 @@ class AgendaViewModel @Inject constructor(
             rangeIsOverride = params.rangeIsOverride,
             rangeEnd = rangeEnd,
             showRangeBar = params.showRangeBar,
+            zone = zone,
         )
     }
 }

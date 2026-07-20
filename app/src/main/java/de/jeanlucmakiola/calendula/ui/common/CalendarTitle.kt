@@ -16,13 +16,19 @@ import java.util.Locale
  * sits directly above a grid that already says which year it is, and the year's
  * *absence* is itself the signal that you're in the current one — it appears the
  * moment you page out of it, which is when it starts carrying information.
+ *
+ * [forceYear] overrides that for titles whose [date] does not tell the whole
+ * story — a week view's title names only the month its *first* day falls in, so
+ * a week straddling New Year must still show the year even though [date] is in
+ * [currentYear].
  */
 fun formatCalendarTitle(
     date: java.time.LocalDate,
     locale: Locale,
     currentYear: Int,
     skeleton: String,
+    forceYear: Boolean = false,
 ): String {
-    val fields = if (date.year == currentYear) skeleton else skeleton + "y"
+    val fields = if (date.year == currentYear && !forceYear) skeleton else skeleton + "y"
     return localizedDateFormatter(locale, fields).format(date)
 }
