@@ -47,6 +47,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -580,12 +581,6 @@ internal fun MonthGrid(
     state: MonthUiState.Success,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
-    /**
-     * Outlined when set, matching the compact grid's marker. Only the split
-     * style's expanded form passes one — the paged style has no selection, and
-     * marking a day there would invent a state it doesn't have (#53).
-     */
-    selected: LocalDate? = null,
 ) {
     Column(
         modifier = Modifier
@@ -604,7 +599,6 @@ internal fun MonthGrid(
                 inMonth = { it.month == month.month && it.year == month.year },
                 showWeekNumbers = showWeekNumbers,
                 onOpenDay = onOpenDay,
-                selected = selected,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
@@ -832,29 +826,29 @@ private fun rememberMonthSwipeModifier(
     return Modifier.pointerInput(onSwipeNext, onSwipePrev, onExpand, onCollapse) {
         var accum = Offset.Zero
         var axis = DragAxis.Undecided
+        var fired = false
         detectDragGestures(
             onDragStart = {
                 accum = Offset.Zero
                 axis = DragAxis.Undecided
+                fired = false
             },
             onDragEnd = {
-                when (axis) {
-                    DragAxis.Horizontal -> when {
+                // Only paging waits for the lift; see onDrag.
+                if (!fired && axis == DragAxis.Horizontal) {
+                    when {
                         accum.x < -pageThreshold -> onSwipeNext()
                         accum.x > pageThreshold -> onSwipePrev()
                     }
-                    DragAxis.Vertical -> when {
-                        accum.y > expandThreshold -> onExpand?.invoke()
-                        accum.y < -expandThreshold -> onCollapse?.invoke()
-                    }
-                    DragAxis.Undecided -> Unit
                 }
                 accum = Offset.Zero
                 axis = DragAxis.Undecided
+                fired = false
             },
             onDragCancel = {
                 accum = Offset.Zero
                 axis = DragAxis.Undecided
+                fired = false
             },
             onDrag = { _, drag ->
                 accum += drag
@@ -865,6 +859,27 @@ private fun rememberMonthSwipeModifier(
                         DragAxis.Horizontal
                     } else {
                         DragAxis.Vertical
+                    }
+                }
+                // Expand and collapse fire the instant the drag clears the
+                // threshold, rather than on release. Waiting for the lift left the
+                // screen inert under a finger that had already asked for the thing,
+                // and the answer only arrived once you let go — which read as the
+                // gesture being slow to take rather than as a deliberate commit.
+                //
+                // Paging still waits, because there the pending gesture is
+                // genuinely undecided: you can drag back the other way and settle
+                // on a different month. There is nothing between expanded and
+                // collapsed to change your mind about.
+                if (!fired && axis == DragAxis.Vertical) {
+                    val commit = when {
+                        accum.y > expandThreshold -> onExpand
+                        accum.y < -expandThreshold -> onCollapse
+                        else -> null
+                    }
+                    if (commit != null) {
+                        fired = true
+                        commit()
                     }
                 }
             },
@@ -894,7 +909,7 @@ private val MONTH_EXPAND_THRESHOLD = 48.dp
  * screen to explain why. [rememberSaveable] carries it across a rotation, which
  * is as long as it should live.
  */
-@OptIn(ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SplitMonthContent(
     state: MonthUiState,
@@ -909,7 +924,9 @@ private fun SplitMonthContent(
     onEventClick: (EventInstance) -> Unit,
     onCreateEvent: (LocalDate) -> Unit,
 ) {
-    val fadeSpec = rememberCalendarFadeSpec()
+    // The fast effects spec, matching the morph's fast spatial one — the page
+    // slide's default pace made the swap trail behind a gesture already committed.
+    val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
     val reduceMotion = rememberReduceMotion()
     var expanded by rememberSaveable { mutableStateOf(false) }
     // Back collapses before it does anything else. Expanding replaces the whole
@@ -986,7 +1003,6 @@ private fun SplitMonthBody(
     if (expanded) {
         SplitMonthExpanded(
             state = state,
-            selected = selected,
             slideDir = slideDir,
             showWeekNumbers = showWeekNumbers,
             swipeModifier = swipeModifier,
@@ -1081,11 +1097,14 @@ private fun SplitMonthCollapsed(
  * The split style pulled open: the pane is gone and the month gets the whole
  * screen in the paged style's own vocabulary — real event bars and pills instead
  * of dots. The handle stays, now at the foot of the grid, to pull it back.
+ *
+ * No selection marker here, deliberately. Once the cells carry real event bars
+ * the outline is one mark too many, and it has nothing to say: every day is a tap
+ * away from being the selected one, and tapping is what closes this view.
  */
 @Composable
 private fun SplitMonthExpanded(
     state: MonthUiState.Success,
-    selected: LocalDate,
     slideDir: Int,
     showWeekNumbers: Boolean,
     swipeModifier: Modifier,
@@ -1098,19 +1117,18 @@ private fun SplitMonthExpanded(
 
     Column(Modifier.fillMaxSize()) {
         AnimatedContent(
-            targetState = state to selected,
+            targetState = state,
             modifier = Modifier.weight(1f).then(swipeModifier),
-            contentKey = { (s, _) -> s.month },
+            contentKey = { it.month },
             transitionSpec = {
                 calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion)
             },
             label = "split-expanded-month-transition",
-        ) { (s, sel) ->
+        ) { s ->
             MonthGrid(
                 state = s,
                 showWeekNumbers = showWeekNumbers,
                 onOpenDay = onPickDay,
-                selected = sel,
             )
         }
         SplitExpandHandle(expanded = true, onToggle = onCollapse)
@@ -1572,8 +1590,6 @@ private fun MonthWeekRow(
     modifier: Modifier = Modifier,
     blankOutside: Boolean = false,
     labelMonthOnFirst: Boolean = false,
-    /** See [MonthGrid]'s `selected`; null for every style but expanded split. */
-    selected: LocalDate? = null,
 ) {
     val dark = isSystemInDarkTheme()
     val laneCount = (week.spans.maxOfOrNull { it.lane } ?: -1) + 1
@@ -1619,21 +1635,6 @@ private fun MonthWeekRow(
                                     else -> MaterialTheme.colorScheme.surfaceContainerLow
                                 },
                                 shape = CELL_SHAPE,
-                            )
-                            // Scoped to the row's own month for the same reason the
-                            // compact grid scopes it: a boundary week shows the
-                            // neighbour month's dates too, and the marker belongs to
-                            // exactly one of them.
-                            .then(
-                                if (d == selected && inMonth(d)) {
-                                    Modifier.border(
-                                        width = 1.5.dp,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        shape = CELL_SHAPE,
-                                    )
-                                } else {
-                                    Modifier
-                                },
                             ),
                     )
                 }
