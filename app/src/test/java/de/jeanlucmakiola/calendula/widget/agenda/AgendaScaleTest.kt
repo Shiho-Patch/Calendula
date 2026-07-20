@@ -4,70 +4,32 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.google.common.truth.Truth.assertThat
+import de.jeanlucmakiola.calendula.widget.WidgetScale
+import de.jeanlucmakiola.calendula.widget.scaleFor
 import org.junit.jupiter.api.Test
 
 class AgendaScaleTest {
 
-    // --- scaleFor: bucketing -------------------------------------------------
+    // --- the "default size is unchanged" regression guard ---------------------
 
     @Test
-    fun `the on-device calibration points map to their tiers`() {
-        // The two sizes measured on-device: the compact widget stays COMPACT (the
-        // baseline, unchanged), the large one steps up to LARGE — not XLARGE,
-        // which read as too big on a phone (#51).
-        assertThat(scaleFor(DpSize(222.dp, 270.dp))).isEqualTo(AgendaScale.COMPACT)
-        assertThat(scaleFor(DpSize(378.dp, 672.dp))).isEqualTo(AgendaScale.LARGE)
+    fun `every default placement width stays COMPACT`() {
+        // Ties the guarantee to the provider XML's declared 3-cell default rather
+        // than to one measured launcher: the whole band a default placement can
+        // land in must bucket to COMPACT, or a freshly placed widget silently
+        // changes appearance (#51). See AGENDA_DEFAULT_WIDTH_BAND.
+        val band = AGENDA_DEFAULT_WIDTH_BAND
+        var w = band.start
+        while (w <= band.endInclusive) {
+            assertThat(scaleFor(DpSize(w, 270.dp))).isEqualTo(WidgetScale.COMPACT)
+            w += 1.dp
+        }
     }
-
-    @Test
-    fun `width buckets into the four tiers`() {
-        // Tall enough that the height cap never binds, isolating the width rule.
-        val h = 500.dp
-        assertThat(scaleFor(DpSize(180.dp, h))).isEqualTo(AgendaScale.COMPACT)
-        assertThat(scaleFor(DpSize(259.dp, h))).isEqualTo(AgendaScale.COMPACT)
-        assertThat(scaleFor(DpSize(260.dp, h))).isEqualTo(AgendaScale.REGULAR)
-        assertThat(scaleFor(DpSize(329.dp, h))).isEqualTo(AgendaScale.REGULAR)
-        assertThat(scaleFor(DpSize(330.dp, h))).isEqualTo(AgendaScale.LARGE)
-        assertThat(scaleFor(DpSize(419.dp, h))).isEqualTo(AgendaScale.LARGE)
-        assertThat(scaleFor(DpSize(420.dp, h))).isEqualTo(AgendaScale.XLARGE)
-        assertThat(scaleFor(DpSize(900.dp, h))).isEqualTo(AgendaScale.XLARGE)
-    }
-
-    @Test
-    fun `extra height never raises the tier`() {
-        // Height decides how many rows are visible, not how big they are: a tall,
-        // narrow widget wants more events, not bigger text.
-        val short = scaleFor(DpSize(222.dp, 200.dp))
-        val tall = scaleFor(DpSize(222.dp, 900.dp))
-        assertThat(short).isEqualTo(AgendaScale.COMPACT)
-        assertThat(tall).isEqualTo(AgendaScale.COMPACT)
-    }
-
-    @Test
-    fun `a squashed widget is stepped back down`() {
-        // Same (wide) width, shrinking height: the tier must walk down rather than
-        // keep big type in a sliver of space.
-        val wide = 378.dp
-        assertThat(scaleFor(DpSize(wide, 672.dp))).isEqualTo(AgendaScale.LARGE)
-        assertThat(scaleFor(DpSize(wide, 400.dp))).isEqualTo(AgendaScale.LARGE)
-        assertThat(scaleFor(DpSize(wide, 300.dp))).isEqualTo(AgendaScale.REGULAR)
-        assertThat(scaleFor(DpSize(wide, 200.dp))).isEqualTo(AgendaScale.COMPACT)
-    }
-
-    @Test
-    fun `the height cap never exceeds what the width earned`() {
-        // A tall but narrow widget stays at its width's tier — the cap only ever
-        // lowers, so a huge height can't promote a 222dp-wide widget.
-        assertThat(scaleFor(DpSize(222.dp, 900.dp))).isEqualTo(AgendaScale.COMPACT)
-        assertThat(scaleFor(DpSize(300.dp, 900.dp))).isEqualTo(AgendaScale.REGULAR)
-    }
-
-    // --- metricsFor: the "default unchanged" regression guard -----------------
 
     @Test
     fun `COMPACT metrics equal the widget's original constants`() {
         // If this fails, a default-sized agenda widget no longer looks as it did.
-        val m = metricsFor(AgendaScale.COMPACT)
+        val m = metricsFor(WidgetScale.COMPACT)
         assertThat(m.title).isEqualTo(16.sp)
         assertThat(m.dayHeader).isEqualTo(13.sp)
         assertThat(m.eventTitle).isEqualTo(14.sp)
@@ -78,16 +40,22 @@ class AgendaScaleTest {
         assertThat(m.iconImage).isEqualTo(22.dp)
         assertThat(m.iconBox).isEqualTo(40.dp)
         assertThat(m.rowVPad).isEqualTo(4.dp)
+        assertThat(m.dayHeaderTopPad).isEqualTo(10.dp)
     }
 
     @Test
-    fun `type sizes are non-decreasing across the tiers`() {
-        val tiers = listOf(
-            AgendaScale.COMPACT,
-            AgendaScale.REGULAR,
-            AgendaScale.LARGE,
-            AgendaScale.XLARGE,
-        ).map(::metricsFor)
+    fun `the derived text indent matches the original hardcoded inset`() {
+        // TEXT_INDENT replaced a hardcoded 19dp; it must still resolve to 19dp or
+        // day headers and the placeholder line stop aligning with event titles.
+        assertThat(TEXT_INDENT).isEqualTo(19.dp)
+        assertThat(TEXT_INDENT).isEqualTo(ROW_H_PAD + STRIPE_WIDTH + STRIPE_GAP)
+    }
+
+    // --- the ramp ------------------------------------------------------------
+
+    @Test
+    fun `sizes are non-decreasing across the tiers`() {
+        val tiers = WidgetScale.entries.map(::metricsFor)
 
         tiers.zipWithNext { small, big ->
             assertThat(big.title.value).isAtLeast(small.title.value)
@@ -100,6 +68,54 @@ class AgendaScaleTest {
             assertThat(big.iconImage.value).isAtLeast(small.iconImage.value)
             assertThat(big.iconBox.value).isAtLeast(small.iconBox.value)
             assertThat(big.rowVPad.value).isAtLeast(small.rowVPad.value)
+            assertThat(big.dayHeaderTopPad.value).isAtLeast(small.dayHeaderTopPad.value)
         }
+    }
+
+    @Test
+    fun `the event title keeps its lead over the time line`() {
+        // The secondary line steps more slowly on purpose; if it ever caught up the
+        // row would lose its hierarchy.
+        WidgetScale.entries.map(::metricsFor).forEach { m ->
+            assertThat(m.eventTitle.value).isGreaterThan(m.eventTime.value)
+        }
+    }
+
+    @Test
+    fun `no tier grows type more than half again over the baseline`() {
+        // Guards against a future edit turning "more readable" into "absurd".
+        val base = metricsFor(WidgetScale.COMPACT)
+        val top = metricsFor(WidgetScale.XLARGE)
+        assertThat(top.title.value / base.title.value).isLessThan(1.5f)
+        assertThat(top.eventTitle.value / base.eventTitle.value).isLessThan(1.5f)
+    }
+
+    // --- font scale ----------------------------------------------------------
+
+    @Test
+    fun `the stripe tracks the system font scale`() {
+        // The stripe is Dp, the text beside it is sp: without this the two diverge
+        // at large accessibility font settings and the stripe under-runs the row.
+        val m = metricsFor(WidgetScale.COMPACT)
+        assertThat(m.scaledForFont(1f).stripeH).isEqualTo(36.dp)
+        assertThat(m.scaledForFont(1.3f).stripeH.value).isWithin(0.01f).of(46.8f)
+        assertThat(m.scaledForFont(0.85f).stripeH.value).isWithin(0.01f).of(30.6f)
+    }
+
+    @Test
+    fun `scaling for the default font scale changes nothing`() {
+        val m = metricsFor(WidgetScale.LARGE)
+        assertThat(m.scaledForFont(1f)).isSameInstanceAs(m)
+    }
+
+    @Test
+    fun `font scaling leaves the sp sizes alone`() {
+        // Glance already applies the font scale to sp; scaling them here too would
+        // double-count it.
+        val m = metricsFor(WidgetScale.REGULAR)
+        val scaled = m.scaledForFont(1.3f)
+        assertThat(scaled.title).isEqualTo(m.title)
+        assertThat(scaled.eventTitle).isEqualTo(m.eventTitle)
+        assertThat(scaled.rowVPad).isEqualTo(m.rowVPad)
     }
 }

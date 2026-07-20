@@ -62,6 +62,7 @@ import de.jeanlucmakiola.floret.locale.localizedDateFormatter
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.widget.AgendaWidgetData
 import de.jeanlucmakiola.calendula.widget.CalendulaGlanceTheme
+import de.jeanlucmakiola.calendula.widget.scaleFor
 import de.jeanlucmakiola.calendula.widget.loadAgendaWidgetData
 import de.jeanlucmakiola.calendula.widget.systemZone
 import de.jeanlucmakiola.calendula.widget.today
@@ -108,11 +109,17 @@ class AgendaWidget : GlanceAppWidget() {
 
     override val stateDefinition = PreferencesGlanceStateDefinition
 
-    // Exact (not Responsive) so a single copy of the day/event list is laid out at
-    // the widget's live size — Responsive would replicate the whole LazyColumn per
-    // declared tier. The composition reads LocalSize.current and scales type/rows
+    // Exact so the composition sees the widget's live size and can scale type/rows
     // from it ([scaleFor]/[metricsFor]); at the default size that resolves to
-    // COMPACT, i.e. the layout is unchanged (#51).
+    // COMPACT, i.e. the layout is unchanged (#51). MonthWidget already does the
+    // same.
+    //
+    // Note Exact still asks Glance for one RemoteViews per host size (typically
+    // portrait + landscape) where the old SizeMode.Single produced exactly one —
+    // so the serialized payload roughly doubles. That is why the row list below is
+    // capped: an uncapped agenda (the range goes up to AgendaRange.MAX_CUSTOM_DAYS
+    // = 365) could otherwise push the RemoteViews past the binder transaction
+    // limit and the host would just show "Problem loading widget".
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -134,6 +141,15 @@ class RefreshAgendaAction : ActionCallback {
     }
 }
 
+/**
+ * Upper bound on rows handed to the [LazyColumn], so the serialized RemoteViews
+ * stays well inside the binder transaction limit regardless of range and calendar
+ * size (see the [SizeMode.Exact] note above). Far more than fits on screen — a
+ * user scrolling a home-screen widget past a hundred rows is not a case worth
+ * risking a failed update for.
+ */
+private const val MAX_AGENDA_ROWS = 100
+
 /** Flat row model so the [LazyColumn] can mix day headers and events. */
 private sealed interface AgendaRow {
     data class Header(val date: LocalDate, val today: LocalDate) : AgendaRow
@@ -146,7 +162,10 @@ private sealed interface AgendaRow {
 private fun AgendaWidgetBody(data: AgendaWidgetData, dark: Boolean) {
     // Type and row metrics scale with the widget's live size (SizeMode.Exact); a
     // short/compact widget resolves to COMPACT, leaving the layout unchanged (#51).
-    val metrics = metricsFor(scaleFor(LocalSize.current))
+    // The stripe is then re-resolved against the system font scale so it tracks the
+    // sp-sized text beside it instead of drifting at large accessibility settings.
+    val fontScale = androidx.glance.LocalContext.current.resources.configuration.fontScale
+    val metrics = metricsFor(scaleFor(LocalSize.current)).scaledForFont(fontScale)
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -202,6 +221,10 @@ private fun AgendaWidgetBody(data: AgendaWidgetData, dark: Boolean) {
                             }
                         }
                     }
+                        // Bound the payload, then drop a day header the cut left
+                        // stranded with nothing under it.
+                        .take(MAX_AGENDA_ROWS)
+                        .dropLastWhile { it is AgendaRow.Header }
                     LazyColumn(modifier = GlanceModifier.fillMaxSize()) {
                         items(rows.size) { index ->
                             when (val row = rows[index]) {
@@ -300,7 +323,12 @@ private fun DayHeaderRow(date: LocalDate, today: LocalDate, metrics: AgendaMetri
         ),
         modifier = GlanceModifier
             .fillMaxWidth()
-            .padding(start = 8.dp, end = 8.dp, top = 10.dp, bottom = 4.dp)
+            .padding(
+                start = 8.dp,
+                end = 8.dp,
+                top = metrics.dayHeaderTopPad,
+                bottom = metrics.rowVPad,
+            )
             .clickable(
                 actionStartActivity(
                     MainActivity.openDateIntent(context, date, CalendarView.Agenda),
@@ -322,7 +350,12 @@ private fun PlaceholderRow(date: LocalDate, metrics: AgendaMetrics) {
         style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = metrics.placeholder),
         modifier = GlanceModifier
             .fillMaxWidth()
-            .padding(start = 19.dp, end = 8.dp, top = 2.dp, bottom = 6.dp)
+            .padding(
+                start = TEXT_INDENT,
+                end = 8.dp,
+                top = 2.dp,
+                bottom = metrics.rowVPad + 2.dp,
+            )
             .clickable(
                 actionStartActivity(
                     MainActivity.openDateIntent(context, date, CalendarView.Agenda),
@@ -352,7 +385,7 @@ private fun EventRow(
     Row(
         modifier = GlanceModifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = metrics.rowVPad)
+            .padding(horizontal = ROW_H_PAD, vertical = metrics.rowVPad)
             .clickable(
                 actionStartActivity(
                     MainActivity.openEventIntent(
@@ -368,12 +401,12 @@ private fun EventRow(
     ) {
         Box(
             modifier = GlanceModifier
-                .width(5.dp)
+                .width(STRIPE_WIDTH)
                 .height(metrics.stripeH)
                 .cornerRadius(3.dp)
                 .background(stripeColor),
         ) {}
-        Spacer(GlanceModifier.width(10.dp))
+        Spacer(GlanceModifier.width(STRIPE_GAP))
         Column(modifier = GlanceModifier.defaultWeight()) {
             Text(
                 text = title,
