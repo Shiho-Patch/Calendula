@@ -338,6 +338,7 @@ fun CalendarHost(
                     selectedView = currentView,
                     onSelectView = onSelectView,
                     onOpenDay = onOpenDay,
+                    onEventClick = onEventClick,
                     onOpenSettings = onOpenSettings,
                     onOpenSearch = onOpenSearch,
                     onCreateEvent = onCreateEvent,

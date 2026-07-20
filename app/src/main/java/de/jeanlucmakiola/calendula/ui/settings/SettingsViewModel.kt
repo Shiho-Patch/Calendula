@@ -35,6 +35,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import de.jeanlucmakiola.calendula.ui.theme.AppFontSettings
 import de.jeanlucmakiola.calendula.ui.theme.FONT_CUSTOM_TOKEN
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_PAST_DISPLAY_KEY
@@ -150,8 +151,12 @@ class SettingsViewModel @Inject constructor(
                 prefs.dimCompletedEvents,
                 // View customisation (#24) folded into one flow so it fits this
                 // group — the outer combine is already at its five-arg limit.
-                combine(prefs.quickSwitchConfig, prefs.drawerViewOrder) { quickSwitch, drawer ->
-                    ViewCustomization(quickSwitch, drawer)
+                combine(
+                    prefs.quickSwitchConfig,
+                    prefs.drawerViewOrder,
+                    prefs.monthViewStyle,
+                ) { quickSwitch, drawer, monthStyle ->
+                    ViewCustomization(quickSwitch, drawer, monthStyle)
                 },
             ) { showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization ->
                 MiscSettings(showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization)
@@ -173,6 +178,7 @@ class SettingsViewModel @Inject constructor(
                 dimCompletedEvents = misc.dimCompletedEvents,
                 quickSwitchConfig = misc.viewCustomization.quickSwitch,
                 drawerViewOrder = misc.viewCustomization.drawerOrder,
+                monthViewStyle = misc.viewCustomization.monthViewStyle,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -286,6 +292,7 @@ class SettingsViewModel @Inject constructor(
     private data class ViewCustomization(
         val quickSwitch: QuickSwitchConfig,
         val drawerOrder: List<CalendarView>,
+        val monthViewStyle: MonthViewStyle,
     )
 
     /** Contact special-dates sub-page (issue #15); its own flow — the main state is full. */
@@ -560,6 +567,10 @@ class SettingsViewModel @Inject constructor(
     /** Reorder the quick-switch views (atomic read-modify-write; keeps the enabled set). */
     fun setQuickSwitchOrder(order: List<CalendarView>) {
         viewModelScope.launch { prefs.updateQuickSwitch { it.copy(order = order) } }
+    }
+
+    fun setMonthViewStyle(style: MonthViewStyle) {
+        viewModelScope.launch { prefs.setMonthViewStyle(style) }
     }
 
     fun setDrawerViewOrder(order: List<CalendarView>) {

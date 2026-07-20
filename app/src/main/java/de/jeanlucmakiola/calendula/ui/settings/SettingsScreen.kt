@@ -104,6 +104,7 @@ import de.jeanlucmakiola.floret.reminders.reminderOverrideFor
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
+import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.qs.NewEventTileService
@@ -125,6 +126,7 @@ import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.month.labelRes
 import de.jeanlucmakiola.floret.components.ReorderableColumn
 import de.jeanlucmakiola.floret.components.ReorderableRowHeight
 import de.jeanlucmakiola.calendula.ui.common.icon
@@ -847,12 +849,24 @@ private fun ViewsScreen(
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
 ) {
+    var showMonthStyle by remember { mutableStateOf(false) }
+
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_views),
         onBack = onBack,
     ) {
         val config = state.quickSwitchConfig
 
+        // Per-view layout, above the cross-view switcher/order settings below.
+        SectionHeader(stringResource(R.string.settings_month_header))
+        GroupedRow(
+            title = stringResource(R.string.settings_month_view_style),
+            summary = stringResource(state.monthViewStyle.labelRes),
+            position = Position.Alone,
+            onClick = { showMonthStyle = true },
+        )
+
+        Spacer(Modifier.height(24.dp))
         SectionHeader(stringResource(R.string.settings_quick_switch_header))
         SettingsHint(stringResource(R.string.settings_quick_switch_hint))
         Spacer(Modifier.height(8.dp))
@@ -897,6 +911,16 @@ private fun ViewsScreen(
                 dragHandle = dragHandle,
             )
         }
+    }
+
+    if (showMonthStyle) {
+        MonthViewStylePicker(
+            selected = state.monthViewStyle,
+            // The preview is a real grid, so it uses the real week start too.
+            weekStart = state.weekStart.resolveFirstDay(currentLocale()),
+            onSelect = viewModel::setMonthViewStyle,
+            onDismiss = { showMonthStyle = false },
+        )
     }
 }
 
