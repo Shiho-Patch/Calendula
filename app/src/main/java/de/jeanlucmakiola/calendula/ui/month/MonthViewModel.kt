@@ -85,8 +85,12 @@ class MonthViewModel @Inject constructor(
     val month: StateFlow<YearMonth> = _month
 
     val state: StateFlow<MonthUiState> =
-        combine(_month, weekStart) { ym, ws -> ym to ws }
-            .flatMapLatest { (ym, ws) ->
+        combine(_month, weekStart, viewStyle) { ym, ws, style -> Triple(ym, ws, style) }
+            .flatMapLatest { (ym, ws, style) ->
+                // The mirror of the gate below: the paged grid is what Paged and
+                // Split draw, so under a scrolling style this query is a month
+                // of provider work for a view that isn't on screen.
+                if (style.isScrolling) return@flatMapLatest flowOf(MonthUiState.Loading)
                 val range = monthGridRange(ym, ws, zone)
                 combine(
                     repository.calendars(),
@@ -156,7 +160,7 @@ class MonthViewModel @Inject constructor(
                     repository.calendars(),
                     repository.instances(range),
                 ) { calendars, instances ->
-                    buildContinuousState(window, ws, calendars, instances)
+                    buildContinuousState(window, ws, style, calendars, instances)
                 }
             }
             // A load landing is the cue to reach further out. Widening from here
@@ -198,23 +202,35 @@ class MonthViewModel @Inject constructor(
     private fun buildContinuousState(
         window: IntRange,
         weekStart: DayOfWeek,
+        style: MonthViewStyle,
         calendars: List<CalendarSource>,
         instances: List<EventInstance>,
     ): ContinuousMonthUiState {
         if (calendars.isEmpty()) {
             return ContinuousMonthUiState.Failure(FailureReason.NoCalendarsConfigured)
         }
-        val months = window.associateWith { index ->
-            val ym = yearMonthForIndex(index)
-            layoutMonthWeeks(ym, weekStart, instances, zone).map { clipWeekToMonth(it, ym) }
-        }
-        // The Dense style's rows, from the same query: every week the window's
-        // months touch, laid out whole rather than clipped to a month.
-        val weeks = weekWindowFor(window, weekStart).associateWith { index ->
-            val days = (0 until 7).map {
-                weekStartForIndex(index, weekStart).plus(it, DateTimeUnit.DAY)
+        // Bucketed once for the whole window: a row then takes the handful of
+        // events on its seven days instead of re-scanning a year of them.
+        val byDay = DayIndex(instances, zone)
+        // Only the style on screen is laid out. Building both doubled the work
+        // for a layout nothing was going to draw.
+        val months = if (style == MonthViewStyle.Continuous) {
+            window.associateWith { index ->
+                val ym = yearMonthForIndex(index)
+                layoutMonthWeeks(ym, weekStart, byDay, zone).map { clipWeekToMonth(it, ym) }
             }
-            layoutCalendarWeek(days, instances, zone)
+        } else {
+            emptyMap()
+        }
+        val weeks = if (style == MonthViewStyle.Dense) {
+            weekWindowFor(window, weekStart).associateWith { index ->
+                val days = (0 until 7).map {
+                    weekStartForIndex(index, weekStart).plus(it, DateTimeUnit.DAY)
+                }
+                layoutCalendarWeek(days, byDay.eventsOn(days), zone)
+            }
+        } else {
+            emptyMap()
         }
         return ContinuousMonthUiState.Success(
             today = todayDate,
@@ -308,13 +324,68 @@ internal fun layoutMonthWeeks(
     weekStart: DayOfWeek,
     instances: List<EventInstance>,
     zone: TimeZone,
+): List<MonthWeek> = layoutMonthWeeks(ym, weekStart, DayIndex(instances, zone), zone)
+
+/**
+ * As above, but reusing a [DayIndex] already built for a wider range — what the
+ * scrolling styles need, since they lay out many months from one query and
+ * rebuilding the index per month would put the cost straight back.
+ */
+internal fun layoutMonthWeeks(
+    ym: YearMonth,
+    weekStart: DayOfWeek,
+    byDay: DayIndex,
+    zone: TimeZone,
 ): List<MonthWeek> {
     val gridStart = firstOfMonth(ym).startOfGridWeek(weekStart)
     val weekCount = weekRowsInMonth(ym, weekStart)
 
     return (0 until weekCount).map { row ->
         val days = (0 until 7).map { gridStart.plus(row * 7 + it, DateTimeUnit.DAY) }
-        layoutCalendarWeek(days, instances, zone)
+        layoutCalendarWeek(days, byDay.eventsOn(days), zone)
+    }
+}
+
+/**
+ * Events bucketed by the dates they cover, built once per load.
+ *
+ * [layoutCalendarWeek] opens by filtering the instances it was handed down to
+ * the ones touching its seven days. That is fine for a single month's grid, but
+ * the scrolling styles lay out a hundred-odd rows from one query, and scanning
+ * *every* instance in an eleven-month window for each of them made the work grow
+ * with the number of enabled calendars until opening the view stalled.
+ *
+ * Membership is decided by [coversDay] itself rather than by re-deriving the
+ * rule from the timestamps: the all-day and timed cases have enough edge cases
+ * between them (UTC anchoring, exclusive ends, zero-length events at midnight)
+ * that a second implementation would drift. The walk only visits an event's own
+ * candidate days, so the check runs a couple of times per event rather than once
+ * per event per row.
+ */
+internal class DayIndex(instances: List<EventInstance>, private val zone: TimeZone) {
+
+    private val byDay: Map<LocalDate, List<EventInstance>> = buildMap<LocalDate, MutableList<EventInstance>> {
+        instances.forEach { event ->
+            // All-day events are anchored to UTC midnights; timed ones to the
+            // device zone. Either way the candidate span is the event's own
+            // dates, which is one or two days for almost everything.
+            val anchor = if (event.isAllDay) TimeZone.UTC else zone
+            var day = event.start.toLocalDateTime(anchor).date
+            val lastCandidate = event.end.toLocalDateTime(anchor).date
+            while (day <= lastCandidate) {
+                if (event.coversDay(day, zone)) getOrPut(day) { mutableListOf() }.add(event)
+                day = day.plus(1, DateTimeUnit.DAY)
+            }
+        }
+    }
+
+    /** Every event touching any of [days], each listed once, in input order. */
+    fun eventsOn(days: List<LocalDate>): List<EventInstance> {
+        if (days.isEmpty()) return emptyList()
+        val hits = days.flatMap { byDay[it].orEmpty() }
+        // A multi-day event is bucketed on each date it covers, so a row that
+        // holds several of its days would otherwise list it several times.
+        return if (hits.size < 2) hits else hits.distinctBy { it.instanceId }
     }
 }
 
