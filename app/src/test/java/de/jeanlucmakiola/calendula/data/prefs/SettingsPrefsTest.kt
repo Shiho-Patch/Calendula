@@ -13,6 +13,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DayOfWeek
@@ -123,6 +124,30 @@ class SettingsPrefsTest {
         prefs.setAgendaWidgetRange(AgendaRange.Week)
         assertThat(prefs.agendaScreenRange.first()).isEqualTo(AgendaRange.Custom(14))
         assertThat(prefs.agendaWidgetRange.first()).isEqualTo(AgendaRange.Week)
+    }
+
+    @Test
+    fun `month view style defaults to paged and round-trips`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.monthViewStyle.first()).isEqualTo(MonthViewStyle.Paged)
+
+        prefs.setMonthViewStyle(MonthViewStyle.Split)
+        assertThat(prefs.monthViewStyle.first()).isEqualTo(MonthViewStyle.Split)
+
+        prefs.setMonthViewStyle(MonthViewStyle.Continuous)
+        assertThat(prefs.monthViewStyle.first()).isEqualTo(MonthViewStyle.Continuous)
+    }
+
+    @Test
+    fun `garbage stored month view style falls back to paged`(@TempDir tempDir: Path) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = SettingsPrefs(store)
+        store.updateData { p ->
+            val m = p.toMutablePreferences()
+            m[SettingsPrefs.MONTH_VIEW_STYLE_KEY] = "Carousel"
+            m
+        }
+        assertThat(prefs.monthViewStyle.first()).isEqualTo(MonthViewStyle.Paged)
     }
 
     @Test

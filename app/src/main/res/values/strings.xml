@@ -372,6 +372,17 @@
         <item quantity="other">%d days</item>
     </plurals>
     <string name="settings_section_views">Views</string>
+    <!-- Month view style (#38, #53) -->
+    <string name="settings_month_header">Month view</string>
+    <string name="settings_month_view_style">Month view style</string>
+    <string name="settings_month_view_style_summary">Choose how the month view is laid out and how you move through it.</string>
+    <string name="month_style_paged">Pages</string>
+    <string name="month_style_paged_summary">One month at a time. Swipe sideways to change month.</string>
+    <string name="month_style_continuous">Continuous</string>
+    <string name="month_style_continuous_summary">Scroll up and down through the weeks. No month is cut off and no day appears twice.</string>
+    <string name="month_style_split">Split</string>
+    <string name="month_style_split_summary">A compact grid with dots for events, and the day you tap listed underneath.</string>
+    <string name="month_split_no_events">Nothing scheduled</string>
     <string name="settings_quick_switch_header">Quick-switch button</string>
     <string name="settings_quick_switch_hint">Choose which views the top-right button cycles through, and drag to reorder them. Turned-off views stay reachable from the navigation menu.</string>
     <string name="settings_drawer_order_header">Navigation menu</string>
@@ -411,7 +422,7 @@
     <string name="settings_translate_hint">Add or improve a language on Weblate</string>
     <!-- Hub category subtitles -->
     <string name="settings_appearance_subtitle">Theme, default view, week start</string>
-    <string name="settings_views_subtitle">Quick-switch button and menu order</string>
+    <string name="settings_views_subtitle">Month layout, quick-switch button, menu order</string>
     <string name="settings_event_form_subtitle">Default fields for new events</string>
     <string name="settings_notifications_subtitle">Event reminders</string>
     <string name="settings_special_dates_subtitle">Contact birthdays &amp; anniversaries</string>

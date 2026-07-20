@@ -21,6 +21,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
 import java.time.ZoneId
 import kotlinx.coroutines.CoroutineScope
@@ -254,6 +255,18 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setShowWeekNumbers(enabled: Boolean) {
         store.edit { it[SHOW_WEEK_NUMBERS_KEY] = enabled }
+    }
+
+    /**
+     * How the Month view lays itself out (#38, #53). Defaults to [MonthViewStyle.Paged]
+     * — the historical behaviour, so existing installs see no change until they opt in.
+     */
+    val monthViewStyle: Flow<MonthViewStyle> = store.data.map { prefs ->
+        prefs[MONTH_VIEW_STYLE_KEY].toEnum(MonthViewStyle.Paged)
+    }
+
+    suspend fun setMonthViewStyle(style: MonthViewStyle) {
+        store.edit { it[MONTH_VIEW_STYLE_KEY] = style.name }
     }
 
     /**
@@ -775,6 +788,7 @@ class SettingsPrefs @Inject constructor(
         internal val PAST_EVENT_DISPLAY_KEY = stringPreferencesKey("agenda_past_event_display")
         internal val DIM_COMPLETED_EVENTS_KEY = booleanPreferencesKey("dim_completed_events")
         internal val SHOW_WEEK_NUMBERS_KEY = booleanPreferencesKey("show_week_numbers")
+        internal val MONTH_VIEW_STYLE_KEY = stringPreferencesKey("month_view_style")
         internal val TODAY_BUTTON_IN_TOOLBAR_KEY = booleanPreferencesKey("today_button_in_toolbar")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
         internal val QUICK_SWITCH_VIEWS_KEY = stringPreferencesKey("quick_switch_views")

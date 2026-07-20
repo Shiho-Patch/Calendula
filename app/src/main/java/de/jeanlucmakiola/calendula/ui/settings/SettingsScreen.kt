@@ -125,6 +125,7 @@ import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.month.labelRes
 import de.jeanlucmakiola.floret.components.ReorderableColumn
 import de.jeanlucmakiola.floret.components.ReorderableRowHeight
 import de.jeanlucmakiola.calendula.ui.common.icon
@@ -847,12 +848,24 @@ private fun ViewsScreen(
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
 ) {
+    var showMonthStyle by remember { mutableStateOf(false) }
+
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_views),
         onBack = onBack,
     ) {
         val config = state.quickSwitchConfig
 
+        // Per-view layout, above the cross-view switcher/order settings below.
+        SectionHeader(stringResource(R.string.settings_month_header))
+        GroupedRow(
+            title = stringResource(R.string.settings_month_view_style),
+            summary = stringResource(state.monthViewStyle.labelRes),
+            position = Position.Alone,
+            onClick = { showMonthStyle = true },
+        )
+
+        Spacer(Modifier.height(24.dp))
         SectionHeader(stringResource(R.string.settings_quick_switch_header))
         SettingsHint(stringResource(R.string.settings_quick_switch_hint))
         Spacer(Modifier.height(8.dp))
@@ -897,6 +910,14 @@ private fun ViewsScreen(
                 dragHandle = dragHandle,
             )
         }
+    }
+
+    if (showMonthStyle) {
+        MonthViewStylePicker(
+            selected = state.monthViewStyle,
+            onSelect = viewModel::setMonthViewStyle,
+            onDismiss = { showMonthStyle = false },
+        )
     }
 }
 
