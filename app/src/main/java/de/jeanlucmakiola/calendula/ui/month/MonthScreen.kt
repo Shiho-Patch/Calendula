@@ -591,6 +591,8 @@ internal fun MonthGrid(
     state: MonthUiState.Success,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
+    /** See [MonthWeekRow]'s `selected`: an anchor for the morph, never a mark. */
+    selected: LocalDate? = null,
 ) {
     Column(
         modifier = Modifier
@@ -609,6 +611,7 @@ internal fun MonthGrid(
                 inMonth = { it.month == month.month && it.year == month.year },
                 showWeekNumbers = showWeekNumbers,
                 onOpenDay = onOpenDay,
+                selected = selected,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
@@ -1003,6 +1006,7 @@ private fun SplitMonthBody(
     if (expanded) {
         SplitMonthExpanded(
             state = state,
+            selected = selected,
             slideDir = slideDir,
             showWeekNumbers = showWeekNumbers,
             swipeModifier = swipeModifier,
@@ -1109,6 +1113,8 @@ private fun SplitMonthCollapsed(
 @Composable
 private fun SplitMonthExpanded(
     state: MonthUiState.Success,
+    /** Marked nowhere here; it only anchors the outline's morph. */
+    selected: LocalDate,
     slideDir: Int,
     showWeekNumbers: Boolean,
     swipeModifier: Modifier,
@@ -1123,18 +1129,19 @@ private fun SplitMonthExpanded(
     // of it, and the handle is the obvious thing to reach for on the way back.
     Column(Modifier.fillMaxSize().then(swipeModifier)) {
         AnimatedContent(
-            targetState = state,
+            targetState = state to selected,
             modifier = Modifier.weight(1f),
-            contentKey = { it.month },
+            contentKey = { (s, _) -> s.month },
             transitionSpec = {
                 calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion)
             },
             label = "split-expanded-month-transition",
-        ) { s ->
+        ) { (s, sel) ->
             MonthGrid(
                 state = s,
                 showWeekNumbers = showWeekNumbers,
                 onOpenDay = onPickDay,
+                selected = sel,
             )
         }
         SplitExpandHandle(expanded = true, onToggle = onCollapse)
@@ -1350,12 +1357,21 @@ private fun SplitDayCell(
         // is laid out where the collapsed cell actually is and simply fades in,
         // which is the only size it is ever true at.
         //
-        // It can stay plain content now that nothing renders into an overlay above
-        // the tree — see [morphElement]. It sits above its own pill by ordinary
-        // z-order and fades with the page it belongs to, in step with the rest.
+        // Tagged only while it is the selected day, and paired with an invisible
+        // stand-in over the same cell in the expanded grid, so it travels with its
+        // cell instead of fading in place. Tagged unconditionally it would put a
+        // key on all 42 cells against the one partner the expanded grid offers,
+        // and the other 41 would fly in from the layout origin.
         Box(
             Modifier
                 .fillMaxSize()
+                .then(
+                    if (isSelected) {
+                        Modifier.morphBounds(MonthMorphKey.Selection(date))
+                    } else {
+                        Modifier
+                    },
+                )
                 .drawBehind {
                     val alpha = selection.value
                     if (alpha <= 0f) return@drawBehind
@@ -1647,6 +1663,13 @@ private fun MonthWeekRow(
     modifier: Modifier = Modifier,
     blankOutside: Boolean = false,
     labelMonthOnFirst: Boolean = false,
+    /**
+     * The selected day, when there is one. Draws *nothing* — it only places the
+     * invisible counterpart the compact grid's outline morphs against. Null for
+     * every style but the split style's expanded form, which composes no extra
+     * layer at all.
+     */
+    selected: LocalDate? = null,
 ) {
     val dark = isSystemInDarkTheme()
     val laneCount = (week.spans.maxOfOrNull { it.lane } ?: -1) + 1
@@ -1841,6 +1864,29 @@ private fun MonthWeekRow(
                                     .width(colW)
                                     .padding(horizontal = 3.dp),
                             )
+                        }
+                    }
+                }
+            }
+
+            // Invisible stand-in for the compact grid's selection outline, so it
+            // has somewhere to travel to and from. Its own layer rather than a
+            // child of the cell pill: that pill is itself a tagged piece, and a
+            // tag nested inside a tag travels twice. Padded to match the outline's
+            // own bounds over there, or it would arrive at the wrong size.
+            if (selected != null) {
+                Row(Modifier.matchParentSize()) {
+                    week.days.forEach { d ->
+                        if (d == selected && inMonth(d)) {
+                            Box(
+                                Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .padding(horizontal = CELL_GAP, vertical = 1.dp)
+                                    .morphBounds(MonthMorphKey.Selection(d)),
+                            )
+                        } else {
+                            Spacer(Modifier.weight(1f).fillMaxHeight())
                         }
                     }
                 }

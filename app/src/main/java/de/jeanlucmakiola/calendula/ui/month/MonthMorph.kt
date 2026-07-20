@@ -54,6 +54,15 @@ internal sealed interface MonthMorphKey {
      */
     data class Overflow(val date: LocalDate) : MonthMorphKey
 
+    /**
+     * The selected day's outline. The expanded grid draws no outline — once the
+     * cells carry real event bars it is one mark too many — so this pairs the
+     * compact grid's outline with an *invisible* stand-in over the same cell
+     * there. Without one it had nowhere to travel and could only fade in place
+     * while everything around it moved.
+     */
+    data class Selection(val date: LocalDate) : MonthMorphKey
+
     /** The grab handle, which slides from the pane's seam to the foot of the grid. */
     data object Handle : MonthMorphKey
 }
