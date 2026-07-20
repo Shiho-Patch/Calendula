@@ -1,18 +1,13 @@
 package de.jeanlucmakiola.calendula.ui.month
 
 import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
 import kotlinx.datetime.LocalDate
 
 /**
@@ -62,22 +57,6 @@ internal class MonthMorphScope(
 internal val LocalMonthMorph = compositionLocalOf<MonthMorphScope?> { null }
 
 /**
- * How fast a tagged piece travels between its two homes.
- *
- * The *fast* spatial spec, not the default one the month/week/day page slide
- * uses. Paging is a spring under one whole page and wants room to settle; this is
- * a direct answer to a drag the user has already committed to, and at the default
- * pace the grid felt like it was catching up rather than responding. It is also
- * a hundred-odd pieces moving at once, where a long settle reads as lag.
- */
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)
-@Composable
-internal fun rememberMorphBoundsTransform(): BoundsTransform {
-    val spec = MaterialTheme.motionScheme.fastSpatialSpec<Rect>()
-    return remember(spec) { BoundsTransform { _, _ -> spec } }
-}
-
-/**
  * Tag content that is *the same thing* on both sides — a background pill, a day
  * number — so it animates between its two positions and sizes.
  */
@@ -89,7 +68,6 @@ internal fun Modifier.morphElement(key: MonthMorphKey): Modifier {
         this@morphElement.sharedElement(
             sharedContentState = rememberSharedContentState(key),
             animatedVisibilityScope = morph.visibility,
-            boundsTransform = rememberMorphBoundsTransform(),
         )
     }
 }
@@ -114,7 +92,6 @@ internal fun Modifier.morphBounds(key: MonthMorphKey): Modifier {
             animatedVisibilityScope = morph.visibility,
             enter = fadeIn(),
             exit = fadeOut(),
-            boundsTransform = rememberMorphBoundsTransform(),
             resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
         )
     }

@@ -47,7 +47,6 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -909,7 +908,7 @@ private val MONTH_EXPAND_THRESHOLD = 48.dp
  * screen to explain why. [rememberSaveable] carries it across a rotation, which
  * is as long as it should live.
  */
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun SplitMonthContent(
     state: MonthUiState,
@@ -924,9 +923,7 @@ private fun SplitMonthContent(
     onEventClick: (EventInstance) -> Unit,
     onCreateEvent: (LocalDate) -> Unit,
 ) {
-    // The fast effects spec, matching the morph's fast spatial one — the page
-    // slide's default pace made the swap trail behind a gesture already committed.
-    val fadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    val fadeSpec = rememberCalendarFadeSpec()
     val reduceMotion = rememberReduceMotion()
     var expanded by rememberSaveable { mutableStateOf(false) }
     // Back collapses before it does anything else. Expanding replaces the whole
