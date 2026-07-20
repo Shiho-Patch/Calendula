@@ -354,6 +354,7 @@ fun MonthScreen(
                         SplitMonthContent(
                             state = state,
                             selected = selectedDate,
+                            slideDir = slideDir,
                             showWeekNumbers = showWeekNumbers,
                             onSwipeNext = goNext,
                             onSwipePrev = goPrev,
@@ -806,14 +807,16 @@ private fun rememberMonthSwipeModifier(
  * Split style content: the compact grid keeps the month swipe, the pane below it
  * lists whatever day is selected.
  *
- * No [AnimatedContent] here, unlike the paged style. The grid is 4–6 rows tall
- * depending on the month, so sliding one month over another would animate a
- * height change under a pane that is trying to hold still.
+ * The grid slides between months like the paged style, which it can only do
+ * because it always reserves [SPLIT_GRID_ROWS] rows. Sized to its own month it
+ * stood 4–6 rows tall, so every swipe shunted the pane up or down by a row on
+ * top of swapping the grid — the pane now holds still and only the grid moves.
  */
 @Composable
 private fun SplitMonthContent(
     state: MonthUiState,
     selected: LocalDate,
+    slideDir: Int,
     showWeekNumbers: Boolean,
     onSwipeNext: () -> Unit,
     onSwipePrev: () -> Unit,
@@ -823,23 +826,43 @@ private fun SplitMonthContent(
     onEventClick: (EventInstance) -> Unit,
     onCreateEvent: (LocalDate) -> Unit,
 ) {
+    val slideSpec = rememberCalendarSlideSpec()
+    val fadeSpec = rememberCalendarFadeSpec()
+    val reduceMotion = rememberReduceMotion()
+    // The swipe wraps the grid rather than living inside it: mid-transition
+    // there are two grids, and the gesture belongs to neither. The pane is left
+    // out of it — it scrolls and is full of tappable rows.
+    val swipeModifier = rememberMonthSwipeModifier(onSwipeNext, onSwipePrev)
+
     when (state) {
         MonthUiState.Loading -> MonthGridLoading()
         is MonthUiState.Failure -> CalendarFailure(reason = state.reason, onRetry = onRetry)
         is MonthUiState.Success -> Column(Modifier.fillMaxSize()) {
-            SplitMonthGrid(
-                state = state,
-                selected = selected,
-                showWeekNumbers = showWeekNumbers,
-                onSelectDay = onSelectDay,
-                // The swipe lives on the grid alone — the pane scrolls and is
-                // full of tappable rows, so it shouldn't also be a month gesture.
-                modifier = rememberMonthSwipeModifier(onSwipeNext, onSwipePrev),
-            )
+            AnimatedContent(
+                targetState = state,
+                modifier = swipeModifier,
+                // Keyed on the month alone, so a provider notification refreshing
+                // the month you are on updates in place instead of sliding.
+                contentKey = { it.month },
+                transitionSpec = {
+                    calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion)
+                },
+                label = "split-month-transition",
+            ) { s ->
+                SplitMonthGrid(
+                    state = s,
+                    selected = selected,
+                    showWeekNumbers = showWeekNumbers,
+                    onSelectDay = onSelectDay,
+                )
+            }
             SplitDayPane(
                 date = selected,
                 today = state.today,
-                events = state.instancesByDay[selected].orEmpty(),
+                // Null, not empty: the selection moves to the new month before
+                // its data arrives, and a missing key means "not loaded yet".
+                // Passing an empty list would claim the day was free.
+                events = state.instancesByDay[selected],
                 zone = state.zone,
                 onOpenDay = onOpenDay,
                 onEventClick = onEventClick,
@@ -860,6 +883,13 @@ private fun SplitMonthContent(
 private val SPLIT_ROW_HEIGHT = 46.dp
 private val SPLIT_DOT_SIZE = 5.dp
 private const val SPLIT_MAX_DOTS = 3
+
+/**
+ * Rows the split grid always reserves — the most any month needs. A month that
+ * fits in fewer pads the remainder with blank rows rather than shrinking, which
+ * is what lets the pane below hold still from month to month.
+ */
+private const val SPLIT_GRID_ROWS = 6
 
 /**
  * The split style's grid (#53): the month compressed to day numbers and event
@@ -908,6 +938,12 @@ internal fun SplitMonthGrid(
                     )
                 }
             }
+        }
+        // Hold the grid at a constant height whatever shape the month is, so the
+        // pane beneath it doesn't move as you page and one month can slide over
+        // another without a height change under it.
+        repeat(SPLIT_GRID_ROWS - state.weeks.size) {
+            Spacer(Modifier.fillMaxWidth().height(SPLIT_ROW_HEIGHT))
         }
     }
 }
@@ -1005,7 +1041,8 @@ private fun SplitDots(events: List<EventInstance>, dark: Boolean) {
 internal fun SplitDayPane(
     date: LocalDate,
     today: LocalDate,
-    events: List<EventInstance>,
+    /** Null while the selected day's month is still loading; empty means free. */
+    events: List<EventInstance>?,
     zone: TimeZone,
     onOpenDay: (LocalDate) -> Unit,
     onEventClick: (EventInstance) -> Unit,
@@ -1015,7 +1052,12 @@ internal fun SplitDayPane(
     val dimCutoff = LocalDimCutoff.current
     Column(modifier = modifier) {
         AgendaDayHeader(date = date, today = today, onOpenDay = onOpenDay)
-        if (events.isEmpty()) {
+        if (events == null) {
+            // The day isn't in the loaded grid yet — paging lands the selection
+            // on the new month before its events arrive. "Nothing scheduled"
+            // here would be a claim about the day rather than about the wait.
+            SplitPaneSkeleton()
+        } else if (events.isEmpty()) {
             AgendaEmptyDayRow(
                 text = stringResource(R.string.month_split_no_events),
                 onClick = { onCreateEvent(date) },
@@ -1042,6 +1084,31 @@ internal fun SplitDayPane(
         }
     }
 }
+
+/** Stand-in rows for a day pane whose month hasn't arrived yet. */
+@Composable
+private fun SplitPaneSkeleton() {
+    val pulse = rememberSkeletonPulse()
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        repeat(2) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(SPLIT_SKELETON_ROW_HEIGHT)
+                    .alpha(pulse)
+                    .background(
+                        MaterialTheme.colorScheme.surfaceContainer,
+                        MaterialTheme.shapes.medium,
+                    ),
+            )
+        }
+    }
+}
+
+private val SPLIT_SKELETON_ROW_HEIGHT = 56.dp
 
 /** A week the sliding window hasn't loaded yet — same height, so nothing jumps. */
 @Composable
