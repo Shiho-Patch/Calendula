@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -19,6 +20,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -36,9 +41,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -85,11 +93,14 @@ import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.floret.time.isoWeekNumber
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.YearMonth
+import kotlinx.datetime.plus
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
@@ -112,8 +123,10 @@ fun MonthScreen(
     viewModel: MonthViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val continuousState by viewModel.continuousState.collectAsStateWithLifecycle()
     val month by viewModel.month.collectAsStateWithLifecycle()
     val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
+    val viewStyle by viewModel.viewStyle.collectAsStateWithLifecycle()
     val dimCompleted by viewModel.dimCompletedEvents.collectAsStateWithLifecycle()
     val showWeekNumbers by viewModel.showWeekNumbers.collectAsStateWithLifecycle()
     // The instant before which an event counts as completed, or null when dimming
@@ -128,17 +141,52 @@ fun MonthScreen(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    val isOnCurrentMonth = when (val s = state) {
-        is MonthUiState.Success -> s.month == YearMonth(s.today.year, s.today.month)
-        else -> true
+    val continuous = viewStyle == MonthViewStyle.Continuous
+
+    // Today, from whichever state is driving; the clock only covers the first
+    // frame, before either has loaded.
+    val today = when {
+        continuous -> (continuousState as? ContinuousMonthUiState.Success)?.today
+        else -> (state as? MonthUiState.Success)?.today
+    } ?: Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+
+    // Keyed on the week start: week indices are anchored on it, so a changed
+    // week start would leave the saved scroll offset pointing at a different week.
+    val listState = key(weekStart) {
+        rememberLazyListState(
+            initialFirstVisibleItemIndex =
+                weekIndexOf(LocalDate(month.year, month.month, 1), weekStart),
+        )
     }
 
-    // Drives whether the title carries the year. Falls back to the clock only
-    // while the first load is in flight, when there is no state to read today from.
-    val currentYear = when (val s = state) {
-        is MonthUiState.Success -> s.today.year
-        else -> Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.year
+    // The continuous stream has no single "current" month, so the title takes the
+    // one the viewport mostly sits in: the midweek day of the row below the top
+    // edge, which flips over as that month's first full week comes into view.
+    val visibleMonth by remember(weekStart) {
+        derivedStateOf {
+            val midweek = weekStartForIndex(listState.firstVisibleItemIndex + 1, weekStart)
+                .plus(3, DateTimeUnit.DAY)
+            YearMonth(midweek.year, midweek.month)
+        }
     }
+    val titleMonth = if (continuous) visibleMonth else month
+
+    // Feed the visible range back so the sliding data window can follow. The
+    // view model ignores everything that doesn't near a loaded edge.
+    LaunchedEffect(listState, continuous) {
+        if (!continuous) return@LaunchedEffect
+        snapshotFlow {
+            val visible = listState.layoutInfo.visibleItemsInfo
+            (visible.firstOrNull()?.index ?: 0) to (visible.lastOrNull()?.index ?: 0)
+        }
+            .distinctUntilChanged()
+            .collect { (first, last) -> viewModel.onVisibleWeeksChanged(first, last) }
+    }
+
+    val isOnCurrentMonth = titleMonth == YearMonth(today.year, today.month)
+
+    // Drives whether the title carries the year.
+    val currentYear = today.year
 
     // Slide direction for the grid transition: +1 = next, -1 = prev, 0 = jump (no slide).
     var slideDir by remember { mutableIntStateOf(0) }
@@ -152,19 +200,33 @@ fun MonthScreen(
         viewModel.goToPrev()
     }
     // Slide toward today: viewing the future → today comes in from the left
-    // (back), viewing the past → from the right (forward).
+    // (back), viewing the past → from the right (forward). The continuous stream
+    // scrolls to today's week instead — there is nothing to slide.
     val jumpToToday = {
-        slideDir = when (val s = state) {
-            is MonthUiState.Success ->
-                if (YearMonth(s.today.year, s.today.month) < s.month) -1 else 1
-            else -> 0
+        if (continuous) {
+            scope.launch { listState.animateScrollToItem(weekIndexOf(today, weekStart)) }
+            Unit
+        } else {
+            slideDir = when (val s = state) {
+                is MonthUiState.Success ->
+                    if (YearMonth(s.today.year, s.today.month) < s.month) -1 else 1
+                else -> 0
+            }
+            viewModel.goToToday()
         }
-        viewModel.goToToday()
     }
     // Drawer jump-to-date: slide from the side the target month lies on.
     val jumpToDate: (LocalDate) -> Unit = { target ->
-        slideDir = if (YearMonth(target.year, target.month) < month) -1 else 1
-        viewModel.goToDate(target)
+        if (continuous) {
+            scope.launch {
+                listState.animateScrollToItem(
+                    weekIndexOf(LocalDate(target.year, target.month, 1), weekStart),
+                )
+            }
+        } else {
+            slideDir = if (YearMonth(target.year, target.month) < month) -1 else 1
+            viewModel.goToDate(target)
+        }
     }
 
     ModalNavigationDrawer(
@@ -174,7 +236,7 @@ fun MonthScreen(
         drawerContent = {
             CalendarDrawer(
                 currentView = selectedView,
-                currentDate = LocalDate(month.year, month.month, 1),
+                currentDate = LocalDate(titleMonth.year, titleMonth.month, 1),
                 viewOrder = drawerViewOrder,
                 onSelectView = { view ->
                     onSelectView(view)
@@ -195,7 +257,7 @@ fun MonthScreen(
             modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
             topBar = {
                 MonthTopBar(
-                    month = month,
+                    month = titleMonth,
                     currentYear = currentYear,
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
@@ -213,11 +275,9 @@ fun MonthScreen(
                     onToday = jumpToToday,
                     onCreate = {
                         // Anchor on today when its month is shown, else the 1st.
-                        val today = Clock.System.now()
-                            .toLocalDateTime(TimeZone.currentSystemDefault()).date
                         onCreateEvent(
                             if (isOnCurrentMonth) today
-                            else LocalDate(month.year, month.month, 1),
+                            else LocalDate(titleMonth.year, titleMonth.month, 1),
                             null,
                         )
                     },
@@ -231,15 +291,25 @@ fun MonthScreen(
             ) {
                 WeekdayHeader(weekStart = weekStart, showWeekNumbers = showWeekNumbers)
                 CompositionLocalProvider(LocalDimCutoff provides dimCutoff) {
-                    MonthContent(
-                        state = state,
-                        slideDir = slideDir,
-                        showWeekNumbers = showWeekNumbers,
-                        onSwipeNext = goNext,
-                        onSwipePrev = goPrev,
-                        onRetry = jumpToToday,
-                        onOpenDay = onOpenDay,
-                    )
+                    if (continuous) {
+                        ContinuousMonthContent(
+                            state = continuousState,
+                            listState = listState,
+                            showWeekNumbers = showWeekNumbers,
+                            onRetry = jumpToToday,
+                            onOpenDay = onOpenDay,
+                        )
+                    } else {
+                        MonthContent(
+                            state = state,
+                            slideDir = slideDir,
+                            showWeekNumbers = showWeekNumbers,
+                            onSwipeNext = goNext,
+                            onSwipePrev = goPrev,
+                            onRetry = jumpToToday,
+                            onOpenDay = onOpenDay,
+                        )
+                    }
                 }
             }
         }
@@ -300,6 +370,32 @@ private fun MonthContent(
                 onOpenDay = onOpenDay,
             )
         }
+    }
+}
+
+/**
+ * Continuous style content. No swipe detector and no [AnimatedContent]: vertical
+ * scrolling owns the gesture, and the list never swaps wholesale — it keeps
+ * scrolling while the window behind it reloads.
+ */
+@Composable
+private fun ContinuousMonthContent(
+    state: ContinuousMonthUiState,
+    listState: LazyListState,
+    showWeekNumbers: Boolean,
+    onRetry: () -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+) {
+    when (state) {
+        ContinuousMonthUiState.Loading -> MonthGridLoading()
+        is ContinuousMonthUiState.Failure ->
+            CalendarFailure(reason = state.reason, onRetry = onRetry)
+        is ContinuousMonthUiState.Success -> ContinuousMonthGrid(
+            state = state,
+            listState = listState,
+            showWeekNumbers = showWeekNumbers,
+            onOpenDay = onOpenDay,
+        )
     }
 }
 
@@ -391,6 +487,14 @@ private val CELL_GAP = 2.dp
 private val CELL_SHAPE = RoundedCornerShape(12.dp)
 private const val MAX_EVENT_ROWS = 3
 
+/**
+ * Row height in the continuous grid. The paged grid divides the viewport between
+ * however many rows the month has; a scrolling stream has no such bound, so it
+ * fixes a height that seats the day number plus [MAX_EVENT_ROWS] event rows —
+ * close to what a five-row month gets on a typical phone.
+ */
+private val CONTINUOUS_ROW_HEIGHT = 112.dp
+
 @Composable
 private fun MonthGrid(
     state: MonthUiState.Success,
@@ -406,16 +510,89 @@ private fun MonthGrid(
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
+        val month = state.month
         state.weeks.forEach { week ->
             MonthWeekRow(
                 week = week,
                 today = state.today,
-                month = state.month,
+                inMonth = { it.month == month.month && it.year == month.year },
                 showWeekNumbers = showWeekNumbers,
                 onOpenDay = onOpenDay,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
+            )
+        }
+    }
+}
+
+/**
+ * The continuous grid (#38): one uninterrupted vertical stream of weeks.
+ *
+ * The list is indexed by *absolute week number*, so a row's identity never
+ * changes and there is no page seam to scroll across. Weeks the loaded window
+ * hasn't reached yet render as a skeleton and pull the window along behind them.
+ *
+ * Deliberately not a stack of month grids — that would still repeat a boundary
+ * week at the end of one month and the start of the next, which is exactly the
+ * duplication #38 asks to be rid of.
+ */
+@Composable
+private fun ContinuousMonthGrid(
+    state: ContinuousMonthUiState.Success,
+    listState: LazyListState,
+    showWeekNumbers: Boolean,
+    onOpenDay: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val weekCount = remember(state.weekStart) { continuousWeekCount(state.weekStart) }
+    LazyColumn(
+        state = listState,
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        // Bottom inset clears the FAB stack so the last row stays tappable.
+        contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp),
+    ) {
+        items(count = weekCount, key = { it }) { index ->
+            val week = state.weeksByIndex[index]
+            if (week == null) {
+                ContinuousWeekPlaceholder()
+            } else {
+                MonthWeekRow(
+                    week = week,
+                    today = state.today,
+                    // Every day in the stream belongs to a month equally — there
+                    // is no "other month" to recede here.
+                    inMonth = { true },
+                    showWeekNumbers = showWeekNumbers,
+                    onOpenDay = onOpenDay,
+                    labelMonthOnFirst = true,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(CONTINUOUS_ROW_HEIGHT),
+                )
+            }
+        }
+    }
+}
+
+/** A week the sliding window hasn't loaded yet — same height, so nothing jumps. */
+@Composable
+private fun ContinuousWeekPlaceholder() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(CONTINUOUS_ROW_HEIGHT),
+    ) {
+        repeat(7) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(horizontal = CELL_GAP, vertical = 1.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow, CELL_SHAPE),
             )
         }
     }
@@ -432,10 +609,11 @@ private fun MonthGrid(
 private fun MonthWeekRow(
     week: MonthWeek,
     today: LocalDate,
-    month: YearMonth,
+    inMonth: (LocalDate) -> Boolean,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
+    labelMonthOnFirst: Boolean = false,
 ) {
     val dark = isSystemInDarkTheme()
     val laneCount = (week.spans.maxOfOrNull { it.lane } ?: -1) + 1
@@ -466,14 +644,13 @@ private fun MonthWeekRow(
             // as one continuous event.
             Row(Modifier.matchParentSize()) {
                 week.days.forEach { d ->
-                    val inMonth = d.month == month.month && d.year == month.year
                     Box(
                         Modifier
                             .weight(1f)
                             .fillMaxHeight()
                             .padding(horizontal = CELL_GAP, vertical = 1.dp)
                             .background(
-                                color = if (inMonth) MaterialTheme.colorScheme.surfaceContainer
+                                color = if (inMonth(d)) MaterialTheme.colorScheme.surfaceContainer
                                 else MaterialTheme.colorScheme.surfaceContainerLow,
                                 shape = CELL_SHAPE,
                             ),
@@ -487,7 +664,15 @@ private fun MonthWeekRow(
                         DayNumberCell(
                             date = d,
                             isToday = d == today,
-                            inMonth = d.month == month.month && d.year == month.year,
+                            inMonth = inMonth(d),
+                            // Continuous has no month boundaries to dim across, so
+                            // the 1st names its month instead — the only marker
+                            // telling one month from the next inside the stream.
+                            monthLabel = if (labelMonthOnFirst && d.day == 1) {
+                                shortMonthName(d)
+                            } else {
+                                null
+                            },
                             modifier = Modifier.weight(1f),
                         )
                     }
@@ -620,6 +805,7 @@ private fun DayNumberCell(
     isToday: Boolean,
     inMonth: Boolean,
     modifier: Modifier = Modifier,
+    monthLabel: String? = null,
 ) {
     Box(
         modifier = modifier.height(DAY_NUMBER_HEIGHT),
@@ -639,6 +825,16 @@ private fun DayNumberCell(
                     color = MaterialTheme.colorScheme.onPrimary,
                 )
             }
+        } else if (monthLabel != null) {
+            Text(
+                text = "$monthLabel ${date.day}",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Visible,
+                softWrap = false,
+            )
         } else {
             Text(
                 text = date.day.toString(),
@@ -647,6 +843,16 @@ private fun DayNumberCell(
                 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
             )
         }
+    }
+}
+
+/** Locale-short month name ("Jul", "Juli"), for the 1st in the continuous grid. */
+@Composable
+private fun shortMonthName(date: LocalDate): String {
+    val locale = currentLocale()
+    return remember(date.month, locale) {
+        java.time.Month.of(date.month.ordinal + 1)
+            .getDisplayName(JavaTextStyle.SHORT, locale)
     }
 }
 
