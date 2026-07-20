@@ -4,6 +4,7 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
 import kotlinx.datetime.YearMonth
 
 /**
@@ -70,5 +71,12 @@ sealed interface MonthUiState {
         val today: LocalDate,
         val weeks: List<MonthWeek>,
         val instancesByDay: Map<LocalDate, List<EventInstance>> = emptyMap(),
+        /**
+         * Travels on the state rather than being read at the call site, for the
+         * same reason the agenda does it: a file-level constant would be fixed
+         * for the process lifetime and drift from the zone the events were laid
+         * out in after a device time-zone change.
+         */
+        val zone: TimeZone = TimeZone.currentSystemDefault(),
     ) : MonthUiState
 }

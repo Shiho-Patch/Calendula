@@ -2,6 +2,7 @@ package de.jeanlucmakiola.calendula.ui.month
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -23,7 +24,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +34,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -71,7 +75,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.hasEnded
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaDayHeader
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaEmptyDayRow
+import de.jeanlucmakiola.calendula.ui.agenda.AgendaEventRow
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
@@ -88,6 +96,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
+import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
@@ -113,6 +122,7 @@ fun MonthScreen(
     selectedView: CalendarView,
     onSelectView: (CalendarView) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenSearch: () -> Unit,
     onCreateEvent: (LocalDate, Int?) -> Unit,
@@ -127,6 +137,7 @@ fun MonthScreen(
     val month by viewModel.month.collectAsStateWithLifecycle()
     val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
     val viewStyle by viewModel.viewStyle.collectAsStateWithLifecycle()
+    val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val dimCompleted by viewModel.dimCompletedEvents.collectAsStateWithLifecycle()
     val showWeekNumbers by viewModel.showWeekNumbers.collectAsStateWithLifecycle()
     // The instant before which an event counts as completed, or null when dimming
@@ -299,6 +310,19 @@ fun MonthScreen(
                             onRetry = jumpToToday,
                             onOpenDay = onOpenDay,
                         )
+                    } else if (viewStyle == MonthViewStyle.Split) {
+                        SplitMonthContent(
+                            state = state,
+                            selected = selectedDate,
+                            showWeekNumbers = showWeekNumbers,
+                            onSwipeNext = goNext,
+                            onSwipePrev = goPrev,
+                            onRetry = jumpToToday,
+                            onSelectDay = viewModel::selectDate,
+                            onOpenDay = onOpenDay,
+                            onEventClick = onEventClick,
+                            onCreateEvent = { onCreateEvent(it, null) },
+                        )
                     } else {
                         MonthContent(
                             state = state,
@@ -326,27 +350,10 @@ private fun MonthContent(
     onRetry: () -> Unit,
     onOpenDay: (LocalDate) -> Unit,
 ) {
-    val density = LocalDensity.current
-    val threshold = with(density) { 6.dp.toPx() }
-    var dragAccum by remember { mutableFloatStateOf(0f) }
     val slideSpec = rememberCalendarSlideSpec()
     val fadeSpec = rememberCalendarFadeSpec()
     val reduceMotion = rememberReduceMotion()
-
-    val swipeModifier = Modifier.pointerInput(Unit) {
-        detectHorizontalDragGestures(
-            onDragStart = { dragAccum = 0f },
-            onDragEnd = {
-                when {
-                    dragAccum < -threshold -> onSwipeNext()
-                    dragAccum > threshold -> onSwipePrev()
-                }
-                dragAccum = 0f
-            },
-            onDragCancel = { dragAccum = 0f },
-            onHorizontalDrag = { _, drag -> dragAccum += drag },
-        )
-    }
+    val swipeModifier = rememberMonthSwipeModifier(onSwipeNext, onSwipePrev)
 
     AnimatedContent(
         targetState = state,
@@ -573,6 +580,274 @@ private fun ContinuousMonthGrid(
                         .fillMaxWidth()
                         .height(CONTINUOUS_ROW_HEIGHT),
                 )
+            }
+        }
+    }
+}
+
+/**
+ * The month-changing horizontal swipe, shared by the paged and split styles.
+ * Accumulates the drag and commits past a small threshold on release — the grid
+ * doesn't follow the finger, so there is no distance to rubber-band against.
+ */
+@Composable
+private fun rememberMonthSwipeModifier(
+    onSwipeNext: () -> Unit,
+    onSwipePrev: () -> Unit,
+): Modifier {
+    val threshold = with(LocalDensity.current) { 6.dp.toPx() }
+    var dragAccum by remember { mutableFloatStateOf(0f) }
+    return Modifier.pointerInput(Unit) {
+        detectHorizontalDragGestures(
+            onDragStart = { dragAccum = 0f },
+            onDragEnd = {
+                when {
+                    dragAccum < -threshold -> onSwipeNext()
+                    dragAccum > threshold -> onSwipePrev()
+                }
+                dragAccum = 0f
+            },
+            onDragCancel = { dragAccum = 0f },
+            onHorizontalDrag = { _, drag -> dragAccum += drag },
+        )
+    }
+}
+
+/**
+ * Split style content: the compact grid keeps the month swipe, the pane below it
+ * lists whatever day is selected.
+ *
+ * No [AnimatedContent] here, unlike the paged style. The grid is 4–6 rows tall
+ * depending on the month, so sliding one month over another would animate a
+ * height change under a pane that is trying to hold still.
+ */
+@Composable
+private fun SplitMonthContent(
+    state: MonthUiState,
+    selected: LocalDate,
+    showWeekNumbers: Boolean,
+    onSwipeNext: () -> Unit,
+    onSwipePrev: () -> Unit,
+    onRetry: () -> Unit,
+    onSelectDay: (LocalDate) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
+    onCreateEvent: (LocalDate) -> Unit,
+) {
+    when (state) {
+        MonthUiState.Loading -> MonthGridLoading()
+        is MonthUiState.Failure -> CalendarFailure(reason = state.reason, onRetry = onRetry)
+        is MonthUiState.Success -> Column(Modifier.fillMaxSize()) {
+            SplitMonthGrid(
+                state = state,
+                selected = selected,
+                showWeekNumbers = showWeekNumbers,
+                onSelectDay = onSelectDay,
+                // The swipe lives on the grid alone — the pane scrolls and is
+                // full of tappable rows, so it shouldn't also be a month gesture.
+                modifier = rememberMonthSwipeModifier(onSwipeNext, onSwipePrev),
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            SplitDayPane(
+                date = selected,
+                today = state.today,
+                events = state.instancesByDay[selected].orEmpty(),
+                zone = state.zone,
+                onOpenDay = onOpenDay,
+                onEventClick = onEventClick,
+                onCreateEvent = onCreateEvent,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            )
+        }
+    }
+}
+
+// --- Split style (#53) ----------------------------------------------------
+
+/**
+ * Row height in the split grid. Only a day number and a row of dots to seat, so
+ * it's roughly a third of a paged row — which is the point: the space it gives
+ * up goes to the day pane below.
+ */
+private val SPLIT_ROW_HEIGHT = 46.dp
+private val SPLIT_DOT_SIZE = 5.dp
+private const val SPLIT_MAX_DOTS = 3
+
+/**
+ * The split style's grid (#53): the month compressed to day numbers and event
+ * dots, with the selected day listed underneath by [SplitDayPane].
+ *
+ * Tapping selects rather than drilling into the Day view — the pane is the
+ * answer to "what's on this day", so opening a whole screen for it would defeat
+ * the layout. The full Day view stays one tap away on the pane's date header.
+ */
+@Composable
+private fun SplitMonthGrid(
+    state: MonthUiState.Success,
+    selected: LocalDate,
+    showWeekNumbers: Boolean,
+    onSelectDay: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val dark = isSystemInDarkTheme()
+    val month = state.month
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        state.weeks.forEach { week ->
+            Row(Modifier.fillMaxWidth().height(SPLIT_ROW_HEIGHT)) {
+                if (showWeekNumbers) {
+                    WeekNumberGutter(
+                        weekStart = week.days.first(),
+                        modifier = Modifier
+                            .width(WEEK_NUMBER_GUTTER)
+                            .fillMaxHeight(),
+                    )
+                }
+                week.days.forEach { day ->
+                    SplitDayCell(
+                        date = day,
+                        events = state.instancesByDay[day].orEmpty(),
+                        isToday = day == state.today,
+                        isSelected = day == selected,
+                        inMonth = day.month == month.month && day.year == month.year,
+                        dark = dark,
+                        onClick = { onSelectDay(day) },
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * One compact day: its number over up to [SPLIT_MAX_DOTS] event dots.
+ *
+ * Selection and today are deliberately different signals — a tinted, outlined
+ * cell versus the filled circle the other views already use for today — so the
+ * two read at once when they land on the same day.
+ */
+@Composable
+private fun SplitDayCell(
+    date: LocalDate,
+    events: List<EventInstance>,
+    isToday: Boolean,
+    isSelected: Boolean,
+    inMonth: Boolean,
+    dark: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val background = when {
+        isSelected -> MaterialTheme.colorScheme.primaryContainer
+        inMonth -> MaterialTheme.colorScheme.surfaceContainer
+        else -> MaterialTheme.colorScheme.surfaceContainerLow
+    }
+    Box(
+        modifier = modifier
+            .padding(horizontal = CELL_GAP, vertical = 1.dp)
+            .clip(CELL_SHAPE)
+            .background(background)
+            .then(
+                if (isSelected) {
+                    Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, CELL_SHAPE)
+                } else {
+                    Modifier
+                },
+            )
+            .selectable(selected = isSelected, onClick = onClick),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(top = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            DayNumberCell(
+                date = date,
+                isToday = isToday,
+                inMonth = inMonth,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(2.dp))
+            SplitDots(events = events, dark = dark)
+        }
+    }
+}
+
+/** Up to three colour dots for a day, plus a count when more are hidden. */
+@Composable
+private fun SplitDots(events: List<EventInstance>, dark: Boolean) {
+    if (events.isEmpty()) return
+    val soften = LocalSoftenColors.current
+    val colors = remember(events) { events.map { it.color }.distinct().take(SPLIT_MAX_DOTS) }
+    val extra = events.size - colors.size
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        colors.forEach { argb ->
+            Box(
+                modifier = Modifier
+                    .size(SPLIT_DOT_SIZE)
+                    .background(eventFill(argb, dark, soften), CircleShape),
+            )
+        }
+        if (extra > 0) {
+            Text(
+                text = "+$extra",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * The selected day's events, in the agenda's own row vocabulary so the two
+ * surfaces read as one app. The date header opens the full Day view, matching
+ * the Week and Agenda headers (#37).
+ */
+@Composable
+private fun SplitDayPane(
+    date: LocalDate,
+    today: LocalDate,
+    events: List<EventInstance>,
+    zone: TimeZone,
+    onOpenDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
+    onCreateEvent: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val dimCutoff = LocalDimCutoff.current
+    Column(modifier = modifier) {
+        AgendaDayHeader(date = date, today = today, onOpenDay = onOpenDay)
+        if (events.isEmpty()) {
+            AgendaEmptyDayRow(
+                text = stringResource(R.string.month_split_no_events),
+                onClick = { onCreateEvent(date) },
+            )
+        } else {
+            LazyColumn(
+                // Bottom inset clears the FAB stack so the last row stays tappable.
+                contentPadding = PaddingValues(bottom = 96.dp),
+            ) {
+                itemsIndexed(
+                    items = events,
+                    key = { _, event -> event.instanceId },
+                ) { index, event ->
+                    AgendaEventRow(
+                        event = event,
+                        day = date,
+                        zone = zone,
+                        position = positionOf(index, events.size),
+                        dimmed = dimCutoff != null && event.hasEnded(dimCutoff),
+                        onClick = { onEventClick(event) },
+                    )
+                }
             }
         }
     }

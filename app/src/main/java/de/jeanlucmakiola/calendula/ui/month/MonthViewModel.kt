@@ -167,21 +167,54 @@ class MonthViewModel @Inject constructor(
         )
     }
 
+    // --- Split style (#53) ------------------------------------------------
+    //
+    // The first selected-day concept in the app: the other views drill straight
+    // into a date, while the split style keeps one selected and lists it below
+    // the grid.
+
+    private val _selectedDate = MutableStateFlow(todayDate)
+    val selectedDate: StateFlow<LocalDate> = _selectedDate
+
+    /**
+     * Select [date], following it to its month if it sits in the grid's leading
+     * or trailing days — tapping a greyed-out day should show that day, not
+     * silently list a date the grid isn't pointing at.
+     */
+    fun selectDate(date: LocalDate) {
+        _selectedDate.value = date
+        val target = YearMonth(date.year, date.month)
+        if (target != _month.value) _month.value = target
+    }
+
+    /**
+     * Move the selection with the month: today if the new month holds it, else
+     * its 1st. Leaving the old date selected would list a day the grid no longer
+     * shows.
+     */
+    private fun realignSelection() {
+        _selectedDate.value = selectionForMonth(_month.value, todayDate)
+    }
+
     fun goToPrev() {
         _month.value = _month.value.minus(1, DateTimeUnit.MONTH)
+        realignSelection()
     }
 
     fun goToNext() {
         _month.value = _month.value.plus(1, DateTimeUnit.MONTH)
+        realignSelection()
     }
 
     fun goToToday() {
         _month.value = YearMonth(todayDate.year, todayDate.month)
+        _selectedDate.value = todayDate
     }
 
     /** Jump to the month containing [date] (drawer jump-to-date). */
     fun goToDate(date: LocalDate) {
         _month.value = YearMonth(date.year, date.month)
+        _selectedDate.value = date
     }
 
     private fun buildState(
@@ -199,6 +232,7 @@ class MonthViewModel @Inject constructor(
             today = todayDate,
             weeks = weeks,
             instancesByDay = instancesByDay(weeks.flatMap { it.days }, instances, zone),
+            zone = zone,
         )
     }
 }
@@ -309,6 +343,18 @@ internal fun monthGridRange(
  */
 private const val WINDOW_PAD = 12
 private const val WINDOW_EDGE = 4
+
+/**
+ * Which day the split style should select when the grid lands on [month]:
+ * [today] when the month holds it, otherwise the 1st. Pure so the rule can be
+ * tested without standing up a view model and a provider behind it.
+ */
+internal fun selectionForMonth(month: YearMonth, today: LocalDate): LocalDate =
+    if (YearMonth(today.year, today.month) == month) {
+        today
+    } else {
+        LocalDate(month.year, month.month, 1)
+    }
 
 /**
  * The window to load for a visible range, or null to keep the current one.

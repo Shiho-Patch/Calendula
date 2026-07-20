@@ -4,6 +4,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.YearMonth
 import kotlinx.datetime.plus
 import org.junit.jupiter.api.Test
 
@@ -100,5 +101,21 @@ class ContinuousWeekIndexTest {
         val window = nextLoadWindow(loaded, firstVisible = 2, lastVisible = 7)!!
         loaded = window
         assertThat(nextLoadWindow(loaded, firstVisible = 2, lastVisible = 7)).isNull()
+    }
+
+    @Test
+    fun `the split selection follows the month, landing on today when it's there`() {
+        val today = LocalDate(2026, 6, 10)
+        assertThat(selectionForMonth(YearMonth(2026, kotlinx.datetime.Month.JUNE), today))
+            .isEqualTo(today)
+    }
+
+    @Test
+    fun `the split selection falls to the 1st of any other month`() {
+        val today = LocalDate(2026, 6, 10)
+        assertThat(selectionForMonth(YearMonth(2026, kotlinx.datetime.Month.JULY), today))
+            .isEqualTo(LocalDate(2026, 7, 1))
+        assertThat(selectionForMonth(YearMonth(2025, kotlinx.datetime.Month.JUNE), today))
+            .isEqualTo(LocalDate(2025, 6, 1))
     }
 }
