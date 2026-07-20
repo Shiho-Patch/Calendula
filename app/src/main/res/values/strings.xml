@@ -375,15 +375,14 @@
     <!-- Month view style (#38, #53) -->
     <string name="settings_month_header">Month view</string>
     <string name="settings_month_view_style">Month view style</string>
-    <string name="settings_month_view_style_summary">Choose how the month view is laid out and how you move through it.</string>
     <string name="month_style_paged">Pages</string>
-    <string name="month_style_paged_summary">One month at a time. Swipe sideways to change month.</string>
-    <string name="month_style_continuous">Continuous</string>
-    <string name="month_style_continuous_summary">Scroll up and down through the months. Each month keeps to itself under its own heading, with no days borrowed from its neighbours.</string>
-    <string name="month_style_dense">Dense</string>
-    <string name="month_style_dense_summary">The same endless scroll with the seams taken out — one unbroken run of weeks, months flowing into each other.</string>
+    <string name="month_style_paged_summary">One month fills the screen. Swipe left or right to change month.</string>
+    <string name="month_style_continuous">Scrolling months</string>
+    <string name="month_style_continuous_summary">Each month sits under its own heading, with a little space setting it apart from the next.</string>
+    <string name="month_style_dense">Seamless weeks</string>
+    <string name="month_style_dense_summary">The weeks run on without a break, each month flowing straight into the next with no gap between them.</string>
     <string name="month_style_split">Split</string>
-    <string name="month_style_split_summary">A compact grid with dots for events, and the day you tap listed underneath.</string>
+    <string name="month_style_split_summary">A compact grid marks the days that have events, and the day you tap is listed underneath.</string>
     <string name="month_split_no_events">Nothing scheduled</string>
     <string name="month_split_expand">Show the whole month</string>
     <string name="month_split_collapse">Show the day\'s events</string>

@@ -39,8 +39,9 @@ import kotlinx.datetime.DayOfWeek
  * closing on tap would hide the very thing the screen is for. Back exits, the
  * same as the App name picker, which stays open for the same reason.
  *
- * Below the preview it is the family's standard picker shape: connected grouped
- * rows with a tonal highlight and [SelectedCheck] on the current one.
+ * Under the preview sits the selected style's own one-line blurb, then the
+ * family's standard picker shape: connected single-line grouped rows with a
+ * tonal highlight and [SelectedCheck] on the current one.
  */
 @Composable
 internal fun MonthViewStylePicker(
@@ -59,7 +60,7 @@ internal fun MonthViewStylePicker(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
                 .height(PREVIEW_HEIGHT),
             contentAlignment = Alignment.Center,
         ) {
@@ -84,12 +85,14 @@ internal fun MonthViewStylePicker(
                 }
             }
         }
-        PickerDescription(stringResource(R.string.settings_month_view_style_summary))
+        // The selected style's own blurb lives here, under its preview, rather
+        // than on every row — the rows stay single-line and dense, and the words
+        // describe exactly what is being shown above.
+        PickerDescription(stringResource(selected.descriptionRes))
         options.forEachIndexed { index, style ->
             val isSelected = style == selected
             GroupedRow(
                 title = stringResource(style.labelRes),
-                summary = stringResource(style.descriptionRes),
                 position = positionOf(index, options.size),
                 selected = isSelected,
                 trailing = if (isSelected) {
@@ -105,5 +108,5 @@ internal fun MonthViewStylePicker(
     }
 }
 
-private val PREVIEW_HEIGHT = 240.dp
+private val PREVIEW_HEIGHT = 280.dp
 private val PREVIEW_SHAPE = RoundedCornerShape(12.dp)
