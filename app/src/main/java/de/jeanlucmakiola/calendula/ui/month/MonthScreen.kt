@@ -75,8 +75,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -100,6 +104,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
+import de.jeanlucmakiola.calendula.ui.common.CALENDAR_SWIPE_THRESHOLD
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
@@ -556,7 +561,13 @@ private val WEEK_NUMBER_GUTTER = 40.dp
 private val DAY_NUMBER_GAP = 4.dp
 private val CELL_TOP_PADDING = 6.dp
 private val CELL_GAP = 2.dp
-private val CELL_SHAPE = RoundedCornerShape(12.dp)
+/** Named separately because the split style's selection outline draws its own
+ *  rounded rect and has to match this radius exactly. */
+private val CELL_CORNER = 12.dp
+private val CELL_SHAPE = RoundedCornerShape(CELL_CORNER)
+
+/** Width of the split style's selected-day outline. */
+private val SPLIT_SELECTION_STROKE = 1.5.dp
 private const val MAX_EVENT_ROWS = 3
 
 /**
@@ -793,20 +804,21 @@ private enum class DragAxis { Undecided, Horizontal, Vertical }
 
 /**
  * The month grid's drag gesture: horizontal pages the month, vertical expands or
- * collapses the split style (#53). Accumulates and commits past a threshold on
- * release — the grid doesn't follow the finger, so there is no distance to
- * rubber-band against.
+ * collapses the split style (#53). The grid doesn't follow the finger, so there is
+ * no distance to rubber-band against — it commits the moment the accumulated drag
+ * clears the threshold, once per gesture, exactly as
+ * [rememberCalendarPageSwipe][de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSwipe]
+ * does for the week and day views.
  *
- * The axis is **locked on the first movement and held for the whole gesture**, so
- * a drag can page or expand but never both. Two independent detectors on one
- * surface would each see their own component of a diagonal drag and both fire.
+ * This is the month's own detector rather than that shared one because it needs
+ * two axes, and the axis is **locked on the first movement and held for the whole
+ * gesture** so a drag can page or expand but never both. Two independent
+ * detectors on one surface would each see their own component of a diagonal drag
+ * and both fire.
  *
- * The horizontal threshold matches the week and day views'. It used to be 6dp,
- * which is inside the distance a tap wanders: brushing the grid changed the
- * month, and a page that turns on an unintended gesture reads as the animation
- * misfiring rather than as the gesture being over-eager. The vertical one is
- * larger — swapping the whole layout out deserves a more deliberate pull than
- * stepping to the next month.
+ * The horizontal threshold is the shared one. The vertical is larger — swapping
+ * the whole layout out deserves a more deliberate pull than stepping to the next
+ * month.
  *
  * [onExpand]/[onCollapse] are null for the paged style, which leaves the vertical
  * axis unclaimed: the lock still happens, so a vertical drag there does nothing
@@ -820,7 +832,7 @@ private fun rememberMonthSwipeModifier(
     onCollapse: (() -> Unit)? = null,
 ): Modifier {
     val density = LocalDensity.current
-    val pageThreshold = with(density) { MONTH_SWIPE_THRESHOLD.toPx() }
+    val pageThreshold = with(density) { CALENDAR_SWIPE_THRESHOLD.toPx() }
     val expandThreshold = with(density) { MONTH_EXPAND_THRESHOLD.toPx() }
     return Modifier.pointerInput(onSwipeNext, onSwipePrev, onExpand, onCollapse) {
         var accum = Offset.Zero
@@ -833,13 +845,6 @@ private fun rememberMonthSwipeModifier(
                 fired = false
             },
             onDragEnd = {
-                // Only paging waits for the lift; see onDrag.
-                if (!fired && axis == DragAxis.Horizontal) {
-                    when {
-                        accum.x < -pageThreshold -> onSwipeNext()
-                        accum.x > pageThreshold -> onSwipePrev()
-                    }
-                }
                 accum = Offset.Zero
                 axis = DragAxis.Undecided
                 fired = false
@@ -860,21 +865,22 @@ private fun rememberMonthSwipeModifier(
                         DragAxis.Vertical
                     }
                 }
-                // Expand and collapse fire the instant the drag clears the
-                // threshold, rather than on release. Waiting for the lift left the
-                // screen inert under a finger that had already asked for the thing,
-                // and the answer only arrived once you let go — which read as the
-                // gesture being slow to take rather than as a deliberate commit.
-                //
-                // Paging still waits, because there the pending gesture is
-                // genuinely undecided: you can drag back the other way and settle
-                // on a different month. There is nothing between expanded and
-                // collapsed to change your mind about.
-                if (!fired && axis == DragAxis.Vertical) {
-                    val commit = when {
-                        accum.y > expandThreshold -> onExpand
-                        accum.y < -expandThreshold -> onCollapse
-                        else -> null
+                // Both axes commit the instant the drag clears their threshold,
+                // rather than on release — see [rememberCalendarPageSwipe], which
+                // does the same for the week and day views.
+                if (!fired) {
+                    val commit = when (axis) {
+                        DragAxis.Horizontal -> when {
+                            accum.x < -pageThreshold -> onSwipeNext
+                            accum.x > pageThreshold -> onSwipePrev
+                            else -> null
+                        }
+                        DragAxis.Vertical -> when {
+                            accum.y > expandThreshold -> onExpand
+                            accum.y < -expandThreshold -> onCollapse
+                            else -> null
+                        }
+                        DragAxis.Undecided -> null
                     }
                     if (commit != null) {
                         fired = true
@@ -885,9 +891,6 @@ private fun rememberMonthSwipeModifier(
         )
     }
 }
-
-/** Drag distance that commits a month change, matching the week and day views. */
-private val MONTH_SWIPE_THRESHOLD = 24.dp
 
 /** Drag distance that commits an expand/collapse — deliberately longer than a page. */
 private val MONTH_EXPAND_THRESHOLD = 48.dp
@@ -1298,13 +1301,22 @@ private fun SplitDayCell(
     // Each cell fades its own outline, so moving the selection reads as one
     // mark crossing the grid rather than as an outline blinking out here and
     // reappearing there. Snapped under reduced motion.
+    //
+    // Held as a State and read *inside the draw lambda below*, never unwrapped
+    // here. Read in composition it made every frame of the fade recompose all
+    // 42 cells at once, which is what made the outline shiver rather than fade.
+    // Kept in the draw phase, the animation touches nothing but the pixels.
     val reduceMotion = rememberReduceMotion()
     val fadeSpec = rememberCalendarFadeSpec()
-    val selection by animateFloatAsState(
+    val selection = animateFloatAsState(
         targetValue = if (isSelected) 1f else 0f,
         animationSpec = if (reduceMotion) snap() else fadeSpec,
         label = "split-day-selection",
     )
+    val outlineColor = MaterialTheme.colorScheme.primary
+    val density = LocalDensity.current
+    val outlineStroke = with(density) { SPLIT_SELECTION_STROKE.toPx() }
+    val outlineRadius = with(density) { CELL_CORNER.toPx() }
     // Background and content are separate layers, mirroring how the paged row is
     // built — and so the pill can be tagged for the morph on its own. Tagged as
     // one piece with its contents inside, the dots would be nested shared
@@ -1331,11 +1343,22 @@ private fun SplitDayCell(
         Box(
             Modifier
                 .fillMaxSize()
-                .border(
-                    width = 1.5.dp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = selection),
-                    shape = CELL_SHAPE,
-                ),
+                .drawBehind {
+                    val alpha = selection.value
+                    if (alpha <= 0f) return@drawBehind
+                    // Inset by half the stroke: a stroke straddles the path it
+                    // follows, so drawn on the bounds themselves the outer half
+                    // would fall outside the cell and be clipped to a hairline
+                    // along the edges.
+                    val inset = outlineStroke / 2f
+                    drawRoundRect(
+                        color = outlineColor.copy(alpha = alpha),
+                        topLeft = Offset(inset, inset),
+                        size = Size(size.width - outlineStroke, size.height - outlineStroke),
+                        cornerRadius = CornerRadius(outlineRadius - inset),
+                        style = Stroke(width = outlineStroke),
+                    )
+                },
         )
         Column(
             modifier = Modifier.fillMaxSize().padding(top = 4.dp),

@@ -5,7 +5,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -49,7 +48,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -94,6 +92,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
+import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSwipe
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
@@ -296,8 +295,6 @@ private fun WeekContent(
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
-    val threshold = with(density) { 24.dp.toPx() }
-    var dragAccum by remember { mutableFloatStateOf(0f) }
     val slideSpec = rememberCalendarSlideSpec()
     val fadeSpec = rememberCalendarFadeSpec()
     val reduceMotion = rememberReduceMotion()
@@ -329,20 +326,7 @@ private fun WeekContent(
     // vertical scroll: a horizontal drag only crosses *this* detector's slop,
     // while a vertical drag is consumed by the inner scroll first — so the two
     // gestures coexist without fighting.
-    val swipeModifier = Modifier.pointerInput(Unit) {
-        detectHorizontalDragGestures(
-            onDragStart = { dragAccum = 0f },
-            onDragEnd = {
-                when {
-                    dragAccum < -threshold -> onSwipeNext()
-                    dragAccum > threshold -> onSwipePrev()
-                }
-                dragAccum = 0f
-            },
-            onDragCancel = { dragAccum = 0f },
-            onHorizontalDrag = { _, drag -> dragAccum += drag },
-        )
-    }
+    val swipeModifier = rememberCalendarPageSwipe(onSwipeNext, onSwipePrev)
 
     AnimatedContent(
         targetState = state,
