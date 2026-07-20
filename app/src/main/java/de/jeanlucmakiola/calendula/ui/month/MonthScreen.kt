@@ -2,10 +2,14 @@ package de.jeanlucmakiola.calendula.ui.month
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -102,6 +106,8 @@ import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.floret.components.positionOf
+import de.jeanlucmakiola.floret.identity.animateItemMotion
+import de.jeanlucmakiola.floret.identity.itemEnter
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
@@ -847,19 +853,25 @@ private fun SplitMonthContent(
         is MonthUiState.Failure -> CalendarFailure(reason = state.reason, onRetry = onRetry)
         is MonthUiState.Success -> Column(Modifier.fillMaxSize()) {
             AnimatedContent(
-                targetState = state,
+                // The selection travels *with* the state so each page keeps its
+                // own. Read from outside, both pages would show the incoming
+                // one, and paging visibly threw the marker across the outgoing
+                // grid — onto the new month's 1st, which the old grid still
+                // shows among its trailing days — before the new page arrived.
+                targetState = state to selected,
                 modifier = swipeModifier,
                 // Keyed on the month alone, so a provider notification refreshing
-                // the month you are on updates in place instead of sliding.
-                contentKey = { it.month },
+                // the month you are on — or a tap moving the selection within it
+                // — updates in place instead of sliding.
+                contentKey = { (s, _) -> s.month },
                 transitionSpec = {
                     calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion)
                 },
                 label = "split-month-transition",
-            ) { s ->
+            ) { (s, sel) ->
                 SplitMonthGrid(
                     state = s,
-                    selected = selected,
+                    selected = sel,
                     showWeekNumbers = showWeekNumbers,
                     onSelectDay = onSelectDay,
                 )
@@ -981,17 +993,25 @@ private fun SplitDayCell(
         inMonth -> MaterialTheme.colorScheme.surfaceContainer
         else -> MaterialTheme.colorScheme.surfaceContainerLow
     }
+    // Each cell fades its own outline, so moving the selection reads as one
+    // mark crossing the grid rather than as an outline blinking out here and
+    // reappearing there. Snapped under reduced motion.
+    val reduceMotion = rememberReduceMotion()
+    val fadeSpec = rememberCalendarFadeSpec()
+    val selection by animateFloatAsState(
+        targetValue = if (isSelected) 1f else 0f,
+        animationSpec = if (reduceMotion) snap() else fadeSpec,
+        label = "split-day-selection",
+    )
     Box(
         modifier = modifier
             .padding(horizontal = CELL_GAP, vertical = 1.dp)
             .clip(CELL_SHAPE)
             .background(background)
-            .then(
-                if (isSelected) {
-                    Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, CELL_SHAPE)
-                } else {
-                    Modifier
-                },
+            .border(
+                width = 1.5.dp,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = selection),
+                shape = CELL_SHAPE,
             )
             .selectable(selected = isSelected, onClick = onClick),
         contentAlignment = Alignment.TopCenter,
@@ -1058,35 +1078,54 @@ internal fun SplitDayPane(
     modifier: Modifier = Modifier,
 ) {
     val dimCutoff = LocalDimCutoff.current
+    // A day's list used to be replaced outright, so changing day popped one set
+    // of rows out and another in. The incoming list rises as it fades, which is
+    // the same entrance the rest of the family uses for resolved content.
+    val enter = itemEnter()
+    val fadeSpec = rememberCalendarFadeSpec()
     Column(modifier = modifier) {
         AgendaDayHeader(date = date, today = today, onOpenDay = onOpenDay)
-        if (events == null) {
-            // The day isn't in the loaded grid yet — paging lands the selection
-            // on the new month before its events arrive. "Nothing scheduled"
-            // here would be a claim about the day rather than about the wait.
-            SplitPaneSkeleton()
-        } else if (events.isEmpty()) {
-            AgendaEmptyDayRow(
-                text = stringResource(R.string.month_split_no_events),
-                onClick = { onCreateEvent(date) },
-            )
-        } else {
-            LazyColumn(
-                // Bottom inset clears the FAB stack so the last row stays tappable.
-                contentPadding = PaddingValues(bottom = 96.dp),
-            ) {
-                itemsIndexed(
-                    items = events,
-                    key = { _, event -> event.instanceId },
-                ) { index, event ->
-                    AgendaEventRow(
-                        event = event,
-                        day = date,
-                        zone = zone,
-                        position = positionOf(index, events.size),
-                        dimmed = dimCutoff != null && event.hasEnded(dimCutoff),
-                        onClick = { onEventClick(event) },
-                    )
+        AnimatedContent(
+            targetState = date to events,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            // Whether the day is still loading is part of the identity, so the
+            // skeleton hands over to the real list with the same transition.
+            contentKey = { (d, e) -> d to (e == null) },
+            transitionSpec = { enter togetherWith fadeOut(fadeSpec) },
+            label = "split-day-pane",
+        ) { (day, dayEvents) ->
+            when {
+                // The day isn't in the loaded grid yet — paging lands the
+                // selection on the new month before its events arrive. "Nothing
+                // scheduled" here would be a claim about the day rather than
+                // about the wait.
+                dayEvents == null -> SplitPaneSkeleton()
+                dayEvents.isEmpty() -> AgendaEmptyDayRow(
+                    text = stringResource(R.string.month_split_no_events),
+                    onClick = { onCreateEvent(day) },
+                )
+                else -> LazyColumn(
+                    // Bottom inset clears the FAB stack so the last row stays
+                    // tappable.
+                    contentPadding = PaddingValues(bottom = 96.dp),
+                ) {
+                    itemsIndexed(
+                        items = dayEvents,
+                        key = { _, event -> event.instanceId },
+                    ) { index, event ->
+                        AgendaEventRow(
+                            event = event,
+                            day = day,
+                            zone = zone,
+                            position = positionOf(index, dayEvents.size),
+                            dimmed = dimCutoff != null && event.hasEnded(dimCutoff),
+                            onClick = { onEventClick(event) },
+                            // An event added to or removed from the day you are
+                            // already looking at moves its neighbours rather
+                            // than teleporting them.
+                            modifier = animateItemMotion(),
+                        )
+                    }
                 }
             }
         }
