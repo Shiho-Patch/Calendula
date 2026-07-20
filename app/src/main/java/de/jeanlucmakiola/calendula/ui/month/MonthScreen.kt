@@ -946,12 +946,22 @@ internal fun SplitMonthGrid(
                     )
                 }
                 week.days.forEach { day ->
+                    val inMonth = day.month == month.month && day.year == month.year
                     SplitDayCell(
                         date = day,
                         events = state.instancesByDay[day].orEmpty(),
                         isToday = day == state.today,
-                        isSelected = day == selected,
-                        inMonth = day.month == month.month && day.year == month.year,
+                        // A page marks only the days its own month owns. Paging
+                        // moves the selection before this month's replacement
+                        // has loaded, so for a moment the grid is asked to mark
+                        // the *next* month's 1st — a date it shows among its
+                        // trailing days, where the marker would fade in just
+                        // before the page slid away. Selection always lands
+                        // inside the month it belongs to, so scoping it here
+                        // removes that without timing anything against the
+                        // page transition.
+                        isSelected = day == selected && inMonth,
+                        inMonth = inMonth,
                         dark = dark,
                         onClick = { onSelectDay(day) },
                         modifier = Modifier.weight(1f).fillMaxHeight(),
