@@ -40,18 +40,21 @@ data class MonthWeek(
 )
 
 /**
- * State for the continuous style (#38). Weeks are keyed by absolute week index
- * rather than gathered into months: the whole point of the style is that there
- * are no month boundaries to scroll across, so there is no "current month" here
- * and no notion of an out-of-month day. [weeksByIndex] holds only the loaded
- * window; indices outside it render as placeholders until the window catches up.
+ * State for the continuous style (#38): a vertical stream of *self-contained*
+ * months rather than one undifferentiated run of weeks. Each month is keyed by
+ * absolute month index and carries only its own days — the boundary week keeps
+ * its seven columns so the grid geometry never shifts, but the neighbour month's
+ * dates are clipped out of it (see `clipWeekToMonth`) and render as blanks.
+ *
+ * [monthsByIndex] holds only the loaded window; indices outside it render as
+ * placeholders until the window catches up.
  */
 sealed interface ContinuousMonthUiState {
     data object Loading : ContinuousMonthUiState
     data class Failure(val reason: FailureReason) : ContinuousMonthUiState
     data class Success(
         val today: LocalDate,
-        val weeksByIndex: Map<Int, MonthWeek>,
+        val monthsByIndex: Map<Int, List<MonthWeek>>,
         val weekStart: DayOfWeek,
     ) : ContinuousMonthUiState
 }

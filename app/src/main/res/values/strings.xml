@@ -379,7 +379,7 @@
     <string name="month_style_paged">Pages</string>
     <string name="month_style_paged_summary">One month at a time. Swipe sideways to change month.</string>
     <string name="month_style_continuous">Continuous</string>
-    <string name="month_style_continuous_summary">Scroll up and down through the weeks. No month is cut off and no day appears twice.</string>
+    <string name="month_style_continuous_summary">Scroll up and down through the months. Each month keeps to itself under its own heading, with no days borrowed from its neighbours.</string>
     <string name="month_style_split">Split</string>
     <string name="month_style_split_summary">A compact grid with dots for events, and the day you tap listed underneath.</string>
     <string name="month_split_no_events">Nothing scheduled</string>

@@ -112,8 +112,9 @@ internal fun MonthStylePreview(
                     MonthViewStyle.Continuous -> ContinuousMonthGrid(
                         state = sample.continuous,
                         listState = rememberLazyListState(
-                            initialFirstVisibleItemIndex =
-                                weekIndexOf(LocalDate(today.year, today.month, 1), weekStart),
+                            initialFirstVisibleItemIndex = itemIndexForMonth(
+                                monthIndexOf(YearMonth(today.year, today.month)),
+                            ),
                         ),
                         showWeekNumbers = false,
                         onOpenDay = {},
@@ -157,7 +158,7 @@ private class SampleMonth(
 
 /**
  * A month's worth of stand-in events, laid out through the same
- * [layoutMonthWeeks] / [layoutCalendarWeek] the live views use — so the preview
+ * [layoutMonthWeeks] / [clipWeekToMonth] the live views use — so the preview
  * exercises the real span, lane and overflow logic rather than approximating it.
  *
  * Colours are raw ARGB on purpose: that is what the provider hands out for an
@@ -181,17 +182,15 @@ private fun sampleMonthState(
         zone = zone,
     )
 
-    // Enough weeks either side of today for the continuous list to fill the
-    // viewport and still have somewhere to scroll.
-    val centre = weekIndexOf(today, weekStart)
-    val window = (centre - 8)..(centre + 8)
+    // This month and the next: enough for the preview to show a month block, the
+    // whitespace under it and the following month's header coming up.
+    val centre = monthIndexOf(ym)
+    val window = centre..(centre + 1)
     val continuous = ContinuousMonthUiState.Success(
         today = today,
-        weeksByIndex = window.associateWith { index ->
-            val days = (0 until 7).map {
-                weekStartForIndex(index, weekStart).plus(it, DateTimeUnit.DAY)
-            }
-            layoutCalendarWeek(days, events, zone)
+        monthsByIndex = window.associateWith { index ->
+            val m = yearMonthForIndex(index)
+            layoutMonthWeeks(m, weekStart, events, zone).map { clipWeekToMonth(it, m) }
         },
         weekStart = weekStart,
     )

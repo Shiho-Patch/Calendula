@@ -25,11 +25,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.YearMonth
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.atTime
-import kotlinx.datetime.daysUntil
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
@@ -102,24 +102,30 @@ class MonthViewModel @Inject constructor(
 
     // --- Continuous style (#38) -------------------------------------------
     //
-    // The continuous grid is one endless stream of weeks, so it can't load "a
-    // month" — it loads a sliding window of week indices around whatever is on
-    // screen. The window only moves when the visible range comes within
-    // WINDOW_EDGE weeks of a loaded edge, so a scroll re-queries occasionally
-    // rather than on every frame.
+    // The continuous grid scrolls through every month there is, so it can't load
+    // one month at a time — it loads a sliding window of month indices around
+    // whatever is on screen. The window only moves when the visible range comes
+    // within WINDOW_EDGE months of a loaded edge, so a scroll re-queries
+    // occasionally rather than on every frame.
 
-    // Seeded around today so the first frame has data. The week-start preference
-    // hasn't arrived yet, but anchoring on a different day shifts an index by at
-    // most one week — well inside the pad, and the first scroll report corrects it.
-    private val _loadedWeeks = MutableStateFlow(
-        weekIndexOf(todayDate, DayOfWeek.MONDAY).let { it - WINDOW_PAD..it + WINDOW_PAD },
+    // Seeded around today so the first frame has data.
+    private val _loadedMonths = MutableStateFlow(
+        monthIndexOf(YearMonth(todayDate.year, todayDate.month))
+            .let { it - WINDOW_PAD..it + WINDOW_PAD },
     )
 
     val continuousState: StateFlow<ContinuousMonthUiState> =
-        combine(_loadedWeeks, weekStart) { window, ws -> window to ws }
+        combine(_loadedMonths, weekStart) { window, ws -> window to ws }
             .flatMapLatest { (window, ws) ->
-                val first = weekStartForIndex(window.first, ws)
-                val last = weekStartForIndex(window.last, ws).plus(6, DateTimeUnit.DAY)
+                // Widened to whole grid weeks at both ends: a month block still
+                // has to know about an event that starts in the boundary week's
+                // clipped-off days, or a bar running into the block would vanish.
+                val first = firstOfMonth(yearMonthForIndex(window.first)).startOfGridWeek(ws)
+                val last = firstOfMonth(yearMonthForIndex(window.last))
+                    .plus(1, DateTimeUnit.MONTH)
+                    .minus(1, DateTimeUnit.DAY)
+                    .startOfGridWeek(ws)
+                    .plus(6, DateTimeUnit.DAY)
                 val range = first.atStartOfDayIn(zone)..last.atTime(23, 59, 59).toInstant(zone)
                 combine(
                     repository.calendars(),
@@ -137,12 +143,12 @@ class MonthViewModel @Inject constructor(
             )
 
     /**
-     * Report which absolute week indices are on screen. Cheap to call on every
+     * Report which absolute month indices are on screen. Cheap to call on every
      * scroll frame: it returns immediately unless the visible range has drifted
      * close enough to a loaded edge to warrant a wider query.
      */
-    fun onVisibleWeeksChanged(firstIndex: Int, lastIndex: Int) {
-        nextLoadWindow(_loadedWeeks.value, firstIndex, lastIndex)?.let { _loadedWeeks.value = it }
+    fun onVisibleMonthsChanged(firstIndex: Int, lastIndex: Int) {
+        nextLoadWindow(_loadedMonths.value, firstIndex, lastIndex)?.let { _loadedMonths.value = it }
     }
 
     private fun buildContinuousState(
@@ -154,15 +160,13 @@ class MonthViewModel @Inject constructor(
         if (calendars.isEmpty()) {
             return ContinuousMonthUiState.Failure(FailureReason.NoCalendarsConfigured)
         }
-        val weeks = window.associateWith { index ->
-            val days = (0 until 7).map {
-                weekStartForIndex(index, weekStart).plus(it, DateTimeUnit.DAY)
-            }
-            layoutCalendarWeek(days, instances, zone)
+        val months = window.associateWith { index ->
+            val ym = yearMonthForIndex(index)
+            layoutMonthWeeks(ym, weekStart, instances, zone).map { clipWeekToMonth(it, ym) }
         }
         return ContinuousMonthUiState.Success(
             today = todayDate,
-            weeksByIndex = weeks,
+            monthsByIndex = months,
             weekStart = weekStart,
         )
     }
@@ -252,12 +256,8 @@ internal fun layoutMonthWeeks(
     instances: List<EventInstance>,
     zone: TimeZone,
 ): List<MonthWeek> {
-    val firstOfMonth = LocalDate(ym.year, ym.month, 1)
-    val gridStart = firstOfMonth.startOfGridWeek(weekStart)
-    val leadOffset = ((firstOfMonth.dayOfWeek.ordinal - weekStart.ordinal) + 7) % 7
-    val daysInMonth =
-        java.time.YearMonth.of(ym.year, ym.month.ordinal + 1).lengthOfMonth()
-    val weekCount = (leadOffset + daysInMonth + 6) / 7
+    val gridStart = firstOfMonth(ym).startOfGridWeek(weekStart)
+    val weekCount = weekRowsInMonth(ym, weekStart)
 
     return (0 until weekCount).map { row ->
         val days = (0 until 7).map { gridStart.plus(row * 7 + it, DateTimeUnit.DAY) }
@@ -336,13 +336,13 @@ internal fun monthGridRange(
 }
 
 /**
- * How many weeks the continuous window loads beyond the visible range, and how
+ * How many months the continuous window loads beyond the visible range, and how
  * close the visible range may drift to a loaded edge before it reloads. The pad
  * is generous relative to the trigger so a steady scroll crosses the trigger
- * well before it would run out of laid-out weeks.
+ * well before it would run out of laid-out months.
  */
-private const val WINDOW_PAD = 12
-private const val WINDOW_EDGE = 4
+private const val WINDOW_PAD = 4
+private const val WINDOW_EDGE = 2
 
 /**
  * Which day the split style should select when the grid lands on [month]:
@@ -370,28 +370,89 @@ internal fun nextLoadWindow(loaded: IntRange, firstVisible: Int, lastVisible: In
 }
 
 /**
- * The continuous grid addresses weeks by an absolute index rather than a
- * (month, row) pair, so the list has one stable, gap-free coordinate space to
- * scroll through and key its items by. Index 0 is the first week of 1900 under
- * the active week-start; the list runs to [CONTINUOUS_WEEK_COUNT].
+ * The continuous grid addresses months by an absolute index, so the list has one
+ * stable, gap-free coordinate space to scroll through and key its items by.
+ * Index 0 is January 1900; the list runs to [continuousMonthCount].
  *
- * The epoch is deliberately far in the past so every index is non-negative,
- * which keeps the LazyColumn's item indices and week indices the same number.
+ * Unlike the week indexing this replaced, the coordinate space doesn't depend on
+ * the week-start preference — changing it reflows the rows *inside* a month
+ * block but never moves the block, so a scroll position stays put.
  */
-private val WEEK_INDEX_EPOCH = LocalDate(1900, 1, 1)
-private val WEEK_INDEX_END = LocalDate(2100, 12, 31)
+private const val MONTH_INDEX_EPOCH_YEAR = 1900
+private const val MONTH_INDEX_END_YEAR = 2100
 
-internal fun weekIndexOf(date: LocalDate, weekStart: DayOfWeek): Int {
-    val base = WEEK_INDEX_EPOCH.startOfGridWeek(weekStart)
-    return base.daysUntil(date.startOfGridWeek(weekStart)) / 7
+internal fun monthIndexOf(ym: YearMonth): Int =
+    (ym.year - MONTH_INDEX_EPOCH_YEAR) * 12 + ym.month.ordinal
+
+internal fun yearMonthForIndex(index: Int): YearMonth = YearMonth(
+    MONTH_INDEX_EPOCH_YEAR + index / 12,
+    Month.entries[index % 12],
+)
+
+/** Total months the continuous grid scrolls through (1900 → 2100). */
+internal fun continuousMonthCount(): Int =
+    (MONTH_INDEX_END_YEAR - MONTH_INDEX_EPOCH_YEAR + 1) * 12
+
+/**
+ * Each month occupies two LazyColumn items — its sticky header and the block of
+ * week rows under it — so the two coordinate spaces differ by a factor of two.
+ * Scrolling to a month means scrolling to its header.
+ */
+internal fun itemIndexForMonth(monthIndex: Int): Int = monthIndex * 2
+
+internal fun monthIndexForItem(itemIndex: Int): Int = itemIndex / 2
+
+internal fun firstOfMonth(ym: YearMonth): LocalDate = LocalDate(ym.year, ym.month, 1)
+
+/** How many week rows [ym] needs under [weekStart] — 4 (a non-leap February), 5 or 6. */
+internal fun weekRowsInMonth(ym: YearMonth, weekStart: DayOfWeek): Int {
+    val first = firstOfMonth(ym)
+    val leadOffset = ((first.dayOfWeek.ordinal - weekStart.ordinal) + 7) % 7
+    val daysInMonth = java.time.YearMonth.of(ym.year, ym.month.ordinal + 1).lengthOfMonth()
+    return (leadOffset + daysInMonth + 6) / 7
 }
 
-internal fun weekStartForIndex(index: Int, weekStart: DayOfWeek): LocalDate =
-    WEEK_INDEX_EPOCH.startOfGridWeek(weekStart).plus(index * 7, DateTimeUnit.DAY)
-
-/** Total weeks the continuous grid scrolls through (1900 → 2100). */
-internal fun continuousWeekCount(weekStart: DayOfWeek): Int =
-    weekIndexOf(WEEK_INDEX_END, weekStart) + 1
+/**
+ * Strip everything outside [month] from a boundary week row, for the continuous
+ * style's self-contained month blocks.
+ *
+ * The seven [MonthWeek.days] stay put — the row keeps its column geometry, and
+ * the grid decides which cells to draw blank — but the neighbour month's events
+ * are removed: its pills and counts go, and a bar reaching in from (or out into)
+ * it is cut back to the month's own columns. A bar cut this way keeps a flat
+ * cap, which is what says "this continues past the block" rather than "it ends
+ * here".
+ */
+internal fun clipWeekToMonth(week: MonthWeek, month: YearMonth): MonthWeek {
+    val inMonth = week.days.map { it.year == month.year && it.month == month.month }
+    val firstCol = inMonth.indexOfFirst { it }
+    val lastCol = inMonth.indexOfLast { it }
+    // Can't happen for a row of the month's own grid, but a caller-proof no-op
+    // beats an out-of-range crash.
+    if (firstCol == -1) {
+        return week.copy(spans = emptyList(), timedByDay = emptyMap(), countByDay = emptyMap())
+    }
+    val spans = week.spans.mapNotNull { span ->
+        val start = maxOf(span.startCol, firstCol)
+        val end = minOf(span.endCol, lastCol)
+        if (start > end) {
+            null
+        } else {
+            span.copy(
+                startCol = start,
+                endCol = end,
+                continuesLeft = span.continuesLeft || start > span.startCol,
+                continuesRight = span.continuesRight || end < span.endCol,
+            )
+        }
+    }
+    val own = week.days.filterIndexed { col, _ -> inMonth[col] }
+    return week.copy(
+        spans = spans,
+        timedByDay = week.timedByDay.filterKeys { it in own },
+        countByDay = week.countByDay.filterKeys { it in own },
+    )
+}
 
 internal fun LocalDate.startOfGridWeek(weekStart: DayOfWeek): LocalDate {
     // DayOfWeek.ordinal: MONDAY=0..SUNDAY=6 → identical to ISO ordering.
