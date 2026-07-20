@@ -8,7 +8,9 @@ import de.jeanlucmakiola.calendula.data.calendar.NoSuchEventException
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
+import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.data.prefs.resolveDefaultReminder
+import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.CalendarSource
@@ -40,12 +42,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import java.util.Locale
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
@@ -265,6 +269,19 @@ class EventEditViewModel @Inject constructor(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = null,
+        )
+
+    /**
+     * First day of the week for ordering the recurrence weekday toggles — the
+     * app's "week starts on" preference, matching the calendar views (Auto
+     * falls back to the locale convention).
+     */
+    val firstDayOfWeek: StateFlow<DayOfWeek> = settingsPrefs.weekStart
+        .map { it.resolveFirstDay(Locale.getDefault()) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = WeekStartPref.Auto.resolveFirstDay(Locale.getDefault()),
         )
 
     /**

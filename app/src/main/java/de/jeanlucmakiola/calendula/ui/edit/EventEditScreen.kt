@@ -163,14 +163,12 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.toJavaDayOfWeek
 import kotlinx.datetime.toJavaLocalDate
-import kotlinx.datetime.toKotlinDayOfWeek
 import kotlinx.datetime.toJavaLocalTime
 import kotlinx.datetime.toLocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.format.TextStyle as JavaTextStyle
-import java.time.temporal.WeekFields
 import java.util.Locale
 import kotlin.time.Clock
 
@@ -502,6 +500,7 @@ private fun EventEditContent(
 ) {
     val form = state.form
     val locale = currentLocale()
+    val firstDayOfWeek by viewModel.firstDayOfWeek.collectAsStateWithLifecycle()
     val dark = isSystemInDarkTheme()
     // The title, date and recurrence are managed by the special-dates sync, so
     // they're locked here; everything else (reminders, location, notes) is the
@@ -1122,6 +1121,7 @@ private fun EventEditContent(
         RecurrencePickerDialog(
             current = form.rrule,
             startDay = form.start.date.dayOfWeek,
+            firstDayOfWeek = firstDayOfWeek,
             onSelect = { rrule ->
                 viewModel.setRecurrence(rrule)
                 showRecurrencePicker = false
@@ -1293,6 +1293,7 @@ private enum class RecurrenceEndMode { Never, Until, Count }
 private fun RecurrencePickerDialog(
     current: String?,
     startDay: DayOfWeek,
+    firstDayOfWeek: DayOfWeek,
     onSelect: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1381,10 +1382,10 @@ private fun RecurrencePickerDialog(
                 onClick = { customMode = true },
             )
         } else {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
+            // Section gaps live on each block (not a parent spacedBy) so the
+            // weekday card's gap collapses *with* it under AnimatedVisibility —
+            // a parent arrangement would leave a residual gap that snaps shut.
+            Column(modifier = Modifier.fillMaxWidth()) {
                 // A live, human-readable read-out of the rule being built, so the
                 // effect of the controls below is never a guess.
                 Text(
@@ -1414,6 +1415,7 @@ private fun RecurrencePickerDialog(
                     shape = groupedShape(Position.Alone),
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(top = 16.dp)
                         .padding(horizontal = 16.dp),
                 ) {
                     Column(
@@ -1447,19 +1449,22 @@ private fun RecurrencePickerDialog(
                     }
                 }
 
-                // Weekday picks — only meaningful on a weekly rule.
+                // Weekday picks — only meaningful on a weekly rule. The 16dp gap
+                // sits inside the animated block so it grows/shrinks with the card.
                 AnimatedVisibility(visible = freq == RecurrenceFreq.Weekly) {
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         shape = groupedShape(Position.Alone),
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(top = 16.dp)
                             .padding(horizontal = 16.dp),
                     ) {
                         WeekdayToggleRow(
                             selected = daysMask.toDaySet(),
                             onToggle = { day -> daysMask = daysMask xor day.toMaskBit() },
                             locale = locale,
+                            firstDay = firstDayOfWeek,
                             modifier = Modifier.padding(16.dp),
                         )
                     }
@@ -1467,7 +1472,7 @@ private fun RecurrencePickerDialog(
 
                 // Ends: a connected never / on-a-date / after-N group, the count
                 // field folding into the bottom of the run when chosen.
-                Column {
+                Column(modifier = Modifier.padding(top = 16.dp)) {
                     Text(
                         text = stringResource(R.string.event_edit_recurrence_ends),
                         style = MaterialTheme.typography.labelLarge,
@@ -1559,11 +1564,11 @@ private fun WeekdayToggleRow(
     selected: Set<DayOfWeek>,
     onToggle: (DayOfWeek) -> Unit,
     locale: Locale,
+    firstDay: DayOfWeek,
     modifier: Modifier = Modifier,
 ) {
-    val days = remember(locale) {
-        val first = WeekFields.of(locale).firstDayOfWeek.toKotlinDayOfWeek()
-        (0 until 7).map { DayOfWeek(((first.isoDayNumber - 1 + it) % 7) + 1) }
+    val days = remember(firstDay) {
+        (0 until 7).map { DayOfWeek(((firstDay.isoDayNumber - 1 + it) % 7) + 1) }
     }
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
