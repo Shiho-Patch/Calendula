@@ -160,5 +160,12 @@ sealed interface AgendaUiState {
         val rangeEnd: LocalDate,
         /** Whether to show the top range bar — header + switcher (toggle, on by default). */
         val showRangeBar: Boolean,
+        /**
+         * The zone [days] were grouped in. Carried in the state rather than
+         * re-read by the screen so labelling and grouping cannot disagree: an
+         * event's "Starts …/Ends …/All day" line is only correct relative to the
+         * same zone that decided which day it was filed under.
+         */
+        val zone: TimeZone,
     ) : AgendaUiState
 }

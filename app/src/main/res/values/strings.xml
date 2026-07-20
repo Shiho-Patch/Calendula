@@ -1,6 +1,10 @@
 <resources>
     <string name="app_name">Calendula</string>
     <string name="app_tagline">A modern calendar.</string>
+    <!-- Alternative launcher label offered by the "App name" setting (issue #44).
+         translatable="false": this string becomes a launcher component's label, so
+         it must never be changed by an unreviewed community translation. -->
+    <string name="app_name_calendar_alias" translatable="false">Calendar</string>
 
     <!-- Loading / Failure / Success generic strings (used across screens) -->
     <string name="state_loading">Loading…</string>
@@ -106,7 +110,6 @@
     <string name="event_edit_timezone_recent">Recent</string>
     <string name="event_edit_timezone_all">All time zones</string>
     <string name="event_edit_timezone_none">No time zone matches “%1$s”</string>
-    <string name="event_edit_timezone_clear">Use device zone</string>
     <!-- Shown under the time fields when the event is pinned to another zone:
          the same event expressed where the user actually is. %1$s is a time
          range, e.g. "2:00 PM – 3:00 PM". -->
@@ -332,6 +335,8 @@
     <string name="settings_week_numbers_summary">Show calendar-week numbers in month view</string>
     <string name="settings_today_toolbar">Today button in toolbar</string>
     <string name="settings_today_toolbar_summary">Show a jump-to-today button in the toolbar instead of a floating button</string>
+    <string name="settings_app_name">App name</string>
+    <string name="settings_app_name_summary">Show Calendula as “Calendar” in your launcher. Only the launcher name changes; the icon may move to a new spot after switching.</string>
     <string name="settings_time_format">Time format</string>
     <string name="settings_time_format_auto">Automatic</string>
     <string name="settings_time_format_12h">12-hour (2:00 PM)</string>

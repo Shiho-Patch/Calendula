@@ -47,7 +47,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Tune
@@ -165,8 +164,10 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.toJavaDayOfWeek
 import kotlinx.datetime.toJavaLocalDate
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toJavaLocalTime
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.toJavaInstant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -684,7 +685,13 @@ private fun EventEditContent(
             // whoever is reading it. Spell the local equivalent out rather than
             // leaving the user to do the offset arithmetic. Absent (null) unless
             // the event is pinned somewhere other than here.
-            form.timesIn(TimeZone.currentSystemDefault())?.let { (localStart, localEnd) ->
+            // Keyed rather than recomputed: this sits in the same Column as the
+            // title field, so it would otherwise re-parse the zone on every
+            // keystroke.
+            val localTimes = remember(form.timezone, form.start, form.end, form.isAllDay) {
+                form.timesIn(TimeZone.currentSystemDefault())
+            }
+            localTimes?.let { (localStart, localEnd) ->
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = stringResource(
@@ -742,8 +749,20 @@ private fun EventEditContent(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    val pinned = remember(form.timezone, locale) {
-                        form.timezone?.let { timeZoneOptionOf(it, locale, regionOf = ::icuTimeZoneRegion) }
+                    // Resolved at the event's own start, not at "now": the
+                    // abbreviation and offset shown ("CEST · GMT+02:00") must be
+                    // the ones that apply when the event actually happens.
+                    val pinned = remember(form.timezone, form.start, locale) {
+                        form.timezone
+                            ?.let { id -> runCatching { id to TimeZone.of(id) }.getOrNull() }
+                            ?.let { (id, zone) ->
+                                timeZoneOptionOf(
+                                    id,
+                                    locale,
+                                    at = form.start.toInstant(zone).toJavaInstant(),
+                                    regionOf = ::icuTimeZoneRegion,
+                                )
+                            }
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
