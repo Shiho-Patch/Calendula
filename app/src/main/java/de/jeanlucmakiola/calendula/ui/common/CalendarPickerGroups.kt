@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material3.Icon
@@ -33,6 +32,7 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.Position
+import de.jeanlucmakiola.floret.components.SelectedCheck
 
 /**
  * The app's single "which calendar" selection list, shared by the event editor
@@ -99,13 +99,7 @@ private fun CalendarPickerGroup(
             selected = isSelected,
             leading = { CalendarColorChip(calendar.color) },
             trailing = if (isSelected) {
-                {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
+                { SelectedCheck() }
             } else {
                 null
             },

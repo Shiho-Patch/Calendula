@@ -43,7 +43,6 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Dashboard
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.ExpandLess
@@ -131,6 +130,7 @@ import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
 import de.jeanlucmakiola.calendula.ui.common.ReminderDefaultPicker
 import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
+import de.jeanlucmakiola.floret.components.SelectedCheck
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.SnoozeDurationPicker
@@ -1093,13 +1093,7 @@ private fun NotificationsScreen(
             },
             position = Position.Top,
             trailing = if (batteryExempt) {
-                {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
+                { SelectedCheck() }
             } else {
                 null
             },
@@ -1845,13 +1839,7 @@ private fun FontOptionRow(
             }
         },
         trailing = if (selected) {
-            {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
+            { SelectedCheck() }
         } else {
             null
         },

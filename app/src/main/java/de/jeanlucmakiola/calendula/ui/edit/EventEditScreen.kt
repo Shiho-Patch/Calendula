@@ -145,6 +145,7 @@ import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.OptionCard
 import de.jeanlucmakiola.floret.components.OptionPicker
 import de.jeanlucmakiola.floret.components.Position
+import de.jeanlucmakiola.floret.components.SelectedCheck
 import de.jeanlucmakiola.floret.components.groupedShape as floretGroupedShape
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
@@ -1379,6 +1380,11 @@ private fun RecurrencePickerDialog(
                 title = stringResource(R.string.event_edit_recurrence_none),
                 position = positionOf(0, rowCount),
                 selected = current == null,
+                trailing = if (current == null) {
+                    { SelectedCheck() }
+                } else {
+                    null
+                },
                 onClick = { onSelect(null) },
             )
             RecurrenceFreq.entries.forEachIndexed { index, entry ->
@@ -1386,6 +1392,11 @@ private fun RecurrencePickerDialog(
                     title = stringResource(recurrencePresetLabel(entry)),
                     position = positionOf(index + 1, rowCount),
                     selected = isPlainPreset && parsed?.freq == entry,
+                    trailing = if (isPlainPreset && parsed?.freq == entry) {
+                        { SelectedCheck() }
+                    } else {
+                        null
+                    },
                     onClick = { onSelect(SimpleRecurrence(entry).toRRule()) },
                 )
             }
@@ -1393,6 +1404,11 @@ private fun RecurrencePickerDialog(
                 title = stringResource(R.string.event_edit_recurrence_custom),
                 position = positionOf(rowCount - 1, rowCount),
                 selected = current != null && !isPlainPreset,
+                trailing = if (current != null && !isPlainPreset) {
+                    { SelectedCheck() }
+                } else {
+                    null
+                },
                 onClick = { customMode = true },
             )
         } else {
@@ -1477,7 +1493,11 @@ private fun RecurrencePickerDialog(
 
                 // Weekday picks — only meaningful on a weekly rule. The 16dp gap
                 // sits inside the animated block so it grows/shrinks with the card.
-                AnimatedVisibility(visible = freq == RecurrenceFreq.Weekly) {
+                AnimatedVisibility(
+                    visible = freq == RecurrenceFreq.Weekly,
+                    enter = expandEnter(),
+                    exit = collapseExit(),
+                ) {
                     GroupedSurface(
                         position = Position.Alone,
                         modifier = Modifier
@@ -1507,6 +1527,11 @@ private fun RecurrencePickerDialog(
                         title = stringResource(R.string.event_edit_recurrence_end_never),
                         position = Position.Top,
                         selected = endMode == RecurrenceEndMode.Never,
+                        trailing = if (endMode == RecurrenceEndMode.Never) {
+                            { SelectedCheck() }
+                        } else {
+                            null
+                        },
                         onClick = { endMode = RecurrenceEndMode.Never },
                     )
                     GroupedRow(
@@ -1514,6 +1539,11 @@ private fun RecurrencePickerDialog(
                         summary = untilSummary,
                         position = Position.Middle,
                         selected = endMode == RecurrenceEndMode.Until,
+                        trailing = if (endMode == RecurrenceEndMode.Until) {
+                            { SelectedCheck() }
+                        } else {
+                            null
+                        },
                         onClick = {
                             endMode = RecurrenceEndMode.Until
                             showUntilPicker = true
@@ -1527,12 +1557,21 @@ private fun RecurrencePickerDialog(
                             Position.Bottom
                         },
                         selected = endMode == RecurrenceEndMode.Count,
+                        trailing = if (endMode == RecurrenceEndMode.Count) {
+                            { SelectedCheck() }
+                        } else {
+                            null
+                        },
                         onClick = { endMode = RecurrenceEndMode.Count },
                     )
                     // Animated for the same reason the weekday card is: this is the
                     // picker's other collapsible block, and a bare `if` here made
                     // the ends group snap while the card above it glided.
-                    AnimatedVisibility(visible = endMode == RecurrenceEndMode.Count) {
+                    AnimatedVisibility(
+                        visible = endMode == RecurrenceEndMode.Count,
+                        enter = expandEnter(),
+                        exit = collapseExit(),
+                    ) {
                         GroupedSurface(
                             position = Position.Bottom,
                             modifier = Modifier.padding(horizontal = 16.dp),
