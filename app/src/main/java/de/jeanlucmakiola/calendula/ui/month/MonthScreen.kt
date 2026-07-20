@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.month
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
@@ -911,6 +912,11 @@ private fun SplitMonthContent(
     val fadeSpec = rememberCalendarFadeSpec()
     val reduceMotion = rememberReduceMotion()
     var expanded by rememberSaveable { mutableStateOf(false) }
+    // Back collapses before it does anything else. Expanding replaces the whole
+    // screen, so it is a place you can be, and every other place in the app can
+    // be backed out of. Declared deeper than CalendarHost's view-stack handler,
+    // which is what makes it win while it is enabled.
+    BackHandler(enabled = expanded) { expanded = false }
     // The swipe wraps the grid rather than living inside it: mid-transition
     // there are two grids, and the gesture belongs to neither. The pane is left
     // out of it — it scrolls and is full of tappable rows.
