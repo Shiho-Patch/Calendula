@@ -454,7 +454,7 @@ private fun MonthTopBar(
 }
 
 @Composable
-private fun WeekdayHeader(weekStart: DayOfWeek, showWeekNumbers: Boolean) {
+internal fun WeekdayHeader(weekStart: DayOfWeek, showWeekNumbers: Boolean) {
     val locale = currentLocale()
     val days = remember(weekStart, locale) {
         (0 until 7).map { offset ->
@@ -503,7 +503,7 @@ private const val MAX_EVENT_ROWS = 3
 private val CONTINUOUS_ROW_HEIGHT = 112.dp
 
 @Composable
-private fun MonthGrid(
+internal fun MonthGrid(
     state: MonthUiState.Success,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
@@ -545,7 +545,7 @@ private fun MonthGrid(
  * duplication #38 asks to be rid of.
  */
 @Composable
-private fun ContinuousMonthGrid(
+internal fun ContinuousMonthGrid(
     state: ContinuousMonthUiState.Success,
     listState: LazyListState,
     showWeekNumbers: Boolean,
@@ -682,7 +682,7 @@ private const val SPLIT_MAX_DOTS = 3
  * the layout. The full Day view stays one tap away on the pane's date header.
  */
 @Composable
-private fun SplitMonthGrid(
+internal fun SplitMonthGrid(
     state: MonthUiState.Success,
     selected: LocalDate,
     showWeekNumbers: Boolean,
@@ -812,7 +812,7 @@ private fun SplitDots(events: List<EventInstance>, dark: Boolean) {
  * the Week and Agenda headers (#37).
  */
 @Composable
-private fun SplitDayPane(
+internal fun SplitDayPane(
     date: LocalDate,
     today: LocalDate,
     events: List<EventInstance>,

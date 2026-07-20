@@ -104,6 +104,7 @@ import de.jeanlucmakiola.floret.reminders.reminderOverrideFor
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
+import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.qs.NewEventTileService
@@ -915,6 +916,8 @@ private fun ViewsScreen(
     if (showMonthStyle) {
         MonthViewStylePicker(
             selected = state.monthViewStyle,
+            // The preview is a real grid, so it uses the real week start too.
+            weekStart = state.weekStart.resolveFirstDay(currentLocale()),
             onSelect = viewModel::setMonthViewStyle,
             onDismiss = { showMonthStyle = false },
         )

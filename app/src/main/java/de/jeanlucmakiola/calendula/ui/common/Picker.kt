@@ -198,7 +198,7 @@ private fun CustomReminderEditor(
 
 /** A short explanatory paragraph shown under a picker's title, above the rows. */
 @Composable
-private fun PickerDescription(text: String) {
+internal fun PickerDescription(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
