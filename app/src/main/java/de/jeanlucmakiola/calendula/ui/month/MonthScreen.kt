@@ -1313,10 +1313,13 @@ private fun SplitDayCell(
     // 42 cells at once, which is what made the outline shiver rather than fade.
     // Kept in the draw phase, the animation touches nothing but the pixels.
     val reduceMotion = rememberReduceMotion()
-    val fadeSpec = rememberCalendarFadeSpec()
+    // The outline runs on the *fast* effects spec, unlike everything else here.
+    // It is a small mark that only ever appears or disappears, and at the shared
+    // pace it lingered after the thing it marks had already moved.
+    val outlineSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
     val selection = animateFloatAsState(
         targetValue = if (isSelected) 1f else 0f,
-        animationSpec = if (reduceMotion) snap() else fadeSpec,
+        animationSpec = if (reduceMotion) snap() else outlineSpec,
         label = "split-day-selection",
     )
     val outlineColor = MaterialTheme.colorScheme.primary
@@ -1354,7 +1357,7 @@ private fun SplitDayCell(
         Box(
             Modifier
                 .fillMaxSize()
-                .morphOverlay()
+                .morphOverlay(fadeSpec = outlineSpec)
                 .drawBehind {
                     val alpha = selection.value
                     if (alpha <= 0f) return@drawBehind
@@ -1408,18 +1411,29 @@ private fun SplitDots(date: LocalDate, events: List<EventInstance>, hidden: Int,
             // The dot keeps its own circle and the bar its 4dp corners; they
             // cross-fade inside shared bounds, and at the dot's size the two
             // radii are a fraction of a pixel apart.
+            //
+            // morphBounds goes *outside* the size: the shared bounds have to be
+            // free to drive the measurement. Behind a fixed .size() the dot stayed
+            // 5dp for the whole transition however far its bar had travelled, and
+            // only snapped to full width once the transition ended — the growth
+            // never happened, it was clamped away.
             Box(
                 modifier = Modifier
-                    .size(SPLIT_DOT_SIZE)
                     .morphBounds(MonthMorphKey.Event(date, event.instanceId))
+                    .size(SPLIT_DOT_SIZE)
                     .background(eventFill(event.color, dark, soften), CircleShape),
             )
         }
         if (hidden > 0) {
+            // Lifted into the overlay for the same reason the selection outline
+            // is: untagged content stays in the regular tree, which the tagged
+            // pieces paint over wholesale, so it vanished for the length of the
+            // transition and arrived a beat after everything else had settled.
             Text(
                 text = "+$hidden",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.morphOverlay(),
             )
         }
     }
@@ -1728,19 +1742,25 @@ private fun MonthWeekRow(
                                     x = colW * span.startCol,
                                     y = EVENT_ROW_HEIGHT * span.lane,
                                 )
-                                .width(colW * cols)
-                                .height(EVENT_ROW_HEIGHT)
-                                .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp)
                                 // Anchored on the day the bar starts *in this row*,
                                 // which is where its dot sat. A bar carried in from
                                 // the previous week starts at column 0, and column
                                 // 0's dot is the one that grows into it.
+                                //
+                                // Outside the width/height, so the shared bounds
+                                // drive the measurement instead of being pinned to
+                                // the bar's final size from the first frame. The
+                                // offset stays outside it: that is where the bar
+                                // sits, not how big it is.
                                 .morphBounds(
                                     MonthMorphKey.Event(
                                         date = week.days[span.startCol],
                                         instanceId = span.event.instanceId,
                                     ),
-                                ),
+                                )
+                                .width(colW * cols)
+                                .height(EVENT_ROW_HEIGHT)
+                                .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
                         )
                     }
                     // Single-day timed pills + overflow, per column. Pills fill the
@@ -1766,10 +1786,10 @@ private fun MonthWeekRow(
                                         x = colW * col,
                                         y = EVENT_ROW_HEIGHT * freeSlots[i],
                                     )
+                                    .morphBounds(MonthMorphKey.Event(d, ev.instanceId))
                                     .width(colW)
                                     .height(EVENT_ROW_HEIGHT)
-                                    .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp)
-                                    .morphBounds(MonthMorphKey.Event(d, ev.instanceId)),
+                                    .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
                             )
                         }
                         val hidden = (week.countByDay[d] ?: 0) - occupied.size - pillsShown.size
@@ -1786,6 +1806,10 @@ private fun MonthWeekRow(
                                 dark = dark,
                                 modifier = Modifier
                                     .offset(x = colW * col, y = EVENT_ROW_HEIGHT * MAX_EVENT_ROWS)
+                                    // Untagged, so lifted into the overlay or it
+                                    // spends the transition painted over — see the
+                                    // compact grid's "+N".
+                                    .morphOverlay()
                                     .width(colW)
                                     .padding(horizontal = 3.dp),
                             )

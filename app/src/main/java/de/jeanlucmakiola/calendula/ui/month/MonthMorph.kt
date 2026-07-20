@@ -3,6 +3,7 @@ package de.jeanlucmakiola.calendula.ui.month
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
@@ -97,9 +98,11 @@ internal fun Modifier.morphElement(key: MonthMorphKey): Modifier {
  */
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-internal fun Modifier.morphOverlay(zIndex: Float = 1f): Modifier {
+internal fun Modifier.morphOverlay(
+    zIndex: Float = 1f,
+    fadeSpec: FiniteAnimationSpec<Float> = rememberCalendarFadeSpec(),
+): Modifier {
     val morph = LocalMonthMorph.current ?: return this
-    val fadeSpec = rememberCalendarFadeSpec()
     val lifted = with(morph.shared) {
         this@morphOverlay.renderInSharedTransitionScopeOverlay(zIndexInOverlay = zIndex)
     }
