@@ -99,7 +99,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -140,11 +139,13 @@ import de.jeanlucmakiola.calendula.ui.common.eventFormFieldIcon
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldLabel
 import de.jeanlucmakiola.floret.components.FullScreenPicker
 import de.jeanlucmakiola.floret.components.GroupedRow
+import de.jeanlucmakiola.floret.components.GroupedSurface
 import de.jeanlucmakiola.calendula.ui.common.MILLIS_PER_DAY
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.OptionCard
 import de.jeanlucmakiola.floret.components.OptionPicker
 import de.jeanlucmakiola.floret.components.Position
+import de.jeanlucmakiola.floret.components.groupedShape as floretGroupedShape
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
 import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
@@ -1328,8 +1329,21 @@ private fun RecurrencePickerDialog(
 
     val locale = currentLocale()
     val untilDate = untilIso?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-    val interval = intervalText.toIntOrNull()?.takeIf { it in 1..999 }
-    val count = countText.toIntOrNull()?.takeIf { it in 1..999 }
+    // remember() must not sit behind the ?. — a slot that appears and disappears
+    // as a date is picked breaks Compose's positional memoisation. Format
+    // unconditionally and let the null fall through to a null summary.
+    val untilSummary = remember(untilDate, locale) {
+        untilDate?.let {
+            DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+                .withLocale(locale).format(it.toJavaLocalDate())
+        }
+    }
+    // A blank amount field shows its placeholder ("1" / "10") greyed out, so read
+    // blank as that default rather than as an error — otherwise simply clearing
+    // the field silently greys out OK. Only a real out-of-range value (0) is
+    // invalid, and that's the one case the read-out below reports.
+    val interval = if (intervalText.isBlank()) 1 else intervalText.toIntOrNull()?.takeIf { it in 1..999 }
+    val count = if (countText.isBlank()) 10 else countText.toIntOrNull()?.takeIf { it in 1..999 }
     val customEnd: RecurrenceEnd? = when (endMode) {
         RecurrenceEndMode.Never -> RecurrenceEnd.Never
         RecurrenceEndMode.Until -> untilDate?.let { RecurrenceEnd.Until(it) }
@@ -1387,22 +1401,25 @@ private fun RecurrencePickerDialog(
             // a parent arrangement would leave a residual gap that snaps shut.
             Column(modifier = Modifier.fillMaxWidth()) {
                 // A live, human-readable read-out of the rule being built, so the
-                // effect of the controls below is never a guess.
+                // effect of the controls below is never a guess. It renders
+                // *[customResult] itself* — the exact string OK would save — so it
+                // can never describe a different rule than the one that lands. When
+                // the form can't produce a rule, it says why instead of falling
+                // back to defaults and quietly disagreeing with the controls.
+                // minLines reserves the second line up front: without it the whole
+                // stack below shifts a line as the phrase grows with each weekday.
                 Text(
-                    text = recurrenceText(
-                        SimpleRecurrence(
-                            freq = freq,
-                            interval = interval ?: 1,
-                            end = customEnd ?: RecurrenceEnd.Never,
-                            byDays = if (freq == RecurrenceFreq.Weekly) {
-                                daysMask.toDaySet()
-                            } else {
-                                emptySet()
-                            },
-                        ).toRRule(),
-                        locale,
-                    ),
+                    text = customResult?.let { recurrenceText(it, locale) }
+                        ?: AnnotatedString(
+                            stringResource(R.string.event_edit_recurrence_incomplete),
+                        ),
                     style = MaterialTheme.typography.titleMedium,
+                    color = if (customResult != null) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                    minLines = 2,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
@@ -1410,11 +1427,9 @@ private fun RecurrencePickerDialog(
 
                 // How often: an interval amount plus a frequency segmented row —
                 // all four units on show, no unit hidden behind a dropdown.
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    shape = groupedShape(Position.Alone),
+                GroupedSurface(
+                    position = Position.Alone,
                     modifier = Modifier
-                        .fillMaxWidth()
                         .padding(top = 16.dp)
                         .padding(horizontal = 16.dp),
                 ) {
@@ -1442,7 +1457,18 @@ private fun RecurrencePickerDialog(
                                     shape = SegmentedButtonDefaults.itemShape(
                                         index, RecurrenceFreq.entries.size,
                                     ),
-                                    label = { Text(stringResource(recurrenceUnitLabel(entry))) },
+                                    // Drop the default check-icon slot: four segments
+                                    // share one row, and its reserved width is what
+                                    // pushes longer labels ("Monate", "Wochen") into
+                                    // an ellipsis on a compact screen. Selection is
+                                    // already carried by the segment's fill.
+                                    icon = {},
+                                    label = {
+                                        Text(
+                                            text = stringResource(recurrenceUnitLabel(entry)),
+                                            maxLines = 1,
+                                        )
+                                    },
                                 )
                             }
                         }
@@ -1452,11 +1478,9 @@ private fun RecurrencePickerDialog(
                 // Weekday picks — only meaningful on a weekly rule. The 16dp gap
                 // sits inside the animated block so it grows/shrinks with the card.
                 AnimatedVisibility(visible = freq == RecurrenceFreq.Weekly) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        shape = groupedShape(Position.Alone),
+                    GroupedSurface(
+                        position = Position.Alone,
                         modifier = Modifier
-                            .fillMaxWidth()
                             .padding(top = 16.dp)
                             .padding(horizontal = 16.dp),
                     ) {
@@ -1487,12 +1511,7 @@ private fun RecurrencePickerDialog(
                     )
                     GroupedRow(
                         title = stringResource(R.string.event_edit_recurrence_end_until),
-                        summary = untilDate?.let {
-                            remember(it, locale) {
-                                DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-                                    .withLocale(locale).format(it.toJavaLocalDate())
-                            }
-                        },
+                        summary = untilSummary,
                         position = Position.Middle,
                         selected = endMode == RecurrenceEndMode.Until,
                         onClick = {
@@ -1510,13 +1529,13 @@ private fun RecurrencePickerDialog(
                         selected = endMode == RecurrenceEndMode.Count,
                         onClick = { endMode = RecurrenceEndMode.Count },
                     )
-                    if (endMode == RecurrenceEndMode.Count) {
-                        Surface(
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            shape = groupedShape(Position.Bottom),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
+                    // Animated for the same reason the weekday card is: this is the
+                    // picker's other collapsible block, and a bare `if` here made
+                    // the ends group snap while the card above it glided.
+                    AnimatedVisibility(visible = endMode == RecurrenceEndMode.Count) {
+                        GroupedSurface(
+                            position = Position.Bottom,
+                            modifier = Modifier.padding(horizontal = 16.dp),
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -1549,7 +1568,13 @@ private fun RecurrencePickerDialog(
                 untilIso = it.toString()
                 showUntilPicker = false
             },
-            onDismiss = { showUntilPicker = false },
+            onDismiss = {
+                showUntilPicker = false
+                // Backing out of the date picker with nothing chosen would leave
+                // "on date" selected but dateless — a state that can't be saved and
+                // greys out OK with no visible cause. Fall back to "never".
+                if (untilIso == null) endMode = RecurrenceEndMode.Never
+            },
         )
     }
 }
@@ -1625,18 +1650,14 @@ private fun recurrenceUnitLabel(freq: RecurrenceFreq): Int = when (freq) {
     RecurrenceFreq.Yearly -> R.string.recurrence_unit_years
 }
 
-/** Corner shape for a card at [position] in a grouped run (mirrors GroupedRow). */
-private fun groupedShape(position: Position, full: Dp = 20.dp, small: Dp = 6.dp): Shape =
-    when (position) {
-        Position.Alone -> RoundedCornerShape(full)
-        Position.Top -> RoundedCornerShape(
-            topStart = full, topEnd = full, bottomStart = small, bottomEnd = small,
-        )
-        Position.Middle -> RoundedCornerShape(small)
-        Position.Bottom -> RoundedCornerShape(
-            topStart = small, topEnd = small, bottomStart = full, bottomEnd = full,
-        )
-    }
+/**
+ * Corner shape for a card at [position] in a grouped run. Delegates to the
+ * family primitive with the same radii [GroupedSurface] draws at rest — a local
+ * copy had drifted to 20dp, so a card sharing a run with GroupedRows had
+ * visibly tighter outer corners than the rows above it.
+ */
+private fun groupedShape(position: Position): Shape =
+    floretGroupedShape(position, full = 22.dp, small = 6.dp)
 
 /** The 2dp gap that visually separates grouped cards (none after the last). */
 private fun groupedGap(position: Position): Modifier = when (position) {

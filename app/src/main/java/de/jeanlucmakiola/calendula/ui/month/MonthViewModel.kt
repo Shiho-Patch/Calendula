@@ -6,7 +6,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
-import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
+import de.jeanlucmakiola.calendula.data.prefs.firstDayOfWeek
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
@@ -34,7 +33,6 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-import java.util.Locale
 import kotlin.time.Clock
 import kotlin.time.Instant
 import javax.inject.Inject
@@ -48,16 +46,9 @@ class MonthViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val zone = TimeZone.currentSystemDefault()
-    private val locale: Locale = Locale.getDefault()
 
     /** First day of the week, from the Settings preference (AUTO → locale). */
-    val weekStart: StateFlow<DayOfWeek> = settingsPrefs.weekStart
-        .map { it.resolveFirstDay(locale) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = DayOfWeek.MONDAY,
-        )
+    val weekStart: StateFlow<DayOfWeek> = settingsPrefs.firstDayOfWeek(viewModelScope)
 
     /** Whether to fade events that have already finished (display concern only). */
     val dimCompletedEvents: StateFlow<Boolean> = settingsPrefs.dimCompletedEvents

@@ -7,7 +7,7 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
-import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
+import de.jeanlucmakiola.calendula.data.prefs.firstDayOfWeek
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
@@ -20,13 +20,11 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
-import java.util.Locale
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.atTime
 import kotlinx.datetime.plus
@@ -51,8 +49,7 @@ class AgendaViewModel @Inject constructor(
     ) { range, showBar -> AgendaSettings(range, showBar) }
 
     // First day of the week, for the calendar-aligned "this week" range.
-    private val weekStartDay = settingsPrefs.weekStart
-        .map { it.resolveFirstDay(Locale.getDefault()) }
+    private val weekStartDay = settingsPrefs.firstDayOfWeek(viewModelScope)
 
     /**
      * How to treat events that already ended today (show / dim / hide). A display
