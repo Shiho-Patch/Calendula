@@ -297,6 +297,15 @@ fun MonthScreen(
             viewModel.goToDate(target)
         }
     }
+    // Selecting a day in the split grid can cross into a neighbour month — a
+    // tapped leading/trailing day follows to its own month. Point the slide the
+    // way the month is actually moving, so the incoming page travels the right
+    // direction instead of reusing whatever the last swipe left in slideDir.
+    val selectDay: (LocalDate) -> Unit = { date ->
+        val target = YearMonth(date.year, date.month)
+        if (target != month) slideDir = if (target < month) -1 else 1
+        viewModel.selectDate(date)
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -377,7 +386,7 @@ fun MonthScreen(
                             onSwipeNext = goNext,
                             onSwipePrev = goPrev,
                             onRetry = jumpToToday,
-                            onSelectDay = viewModel::selectDate,
+                            onSelectDay = selectDay,
                             onOpenDay = onOpenDay,
                             onEventClick = onEventClick,
                             onCreateEvent = { onCreateEvent(it, null) },
