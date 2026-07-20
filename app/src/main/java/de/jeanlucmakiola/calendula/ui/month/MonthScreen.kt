@@ -1320,7 +1320,17 @@ private fun SplitDayCell(
                 .fillMaxSize()
                 .morphElement(MonthMorphKey.Cell(date))
                 .clip(CELL_SHAPE)
-                .background(background)
+                .background(background),
+        )
+        // The outline is a layer of its own, deliberately *untagged*. Drawn on the
+        // morphing pill it rode the cell's shared bounds, so collapsing painted it
+        // at the expanded cell's size and shrank it down — a full-height outline
+        // flashing over a grid that no longer had full-height cells. Untagged it
+        // is laid out where the collapsed cell actually is and simply fades in,
+        // which is the only size it is ever true at.
+        Box(
+            Modifier
+                .fillMaxSize()
                 .border(
                     width = 1.5.dp,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = selection),
