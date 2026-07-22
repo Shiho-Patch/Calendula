@@ -228,7 +228,7 @@
     <string name="widget_new_event">Nuovo evento</string>
     <string name="widget_needs_permission">Apri Calendula per concedere l\'accesso al calendario</string>
     <string name="widget_prev_month">Mese precedente</string>
-    <string name="filter_title">Calendari</string>
+    <string name="filter_title">Calendario</string>
     <string name="settings_section_appearance">Aspetto</string>
     <string name="settings_theme">Tema</string>
     <string name="settings_theme_system">Sistema</string>
@@ -283,7 +283,7 @@
     <string name="settings_allday_reminder_time">Orario di invio dei promemoria degli eventi giornalieri</string>
     <string name="settings_allday_reminder_time_hint">I promemoria per gli eventi giornalieri vengono inviati alle %1$s</string>
     <string name="reminder_none">Nessuno</string>
-    <string name="reminder_use_default">Usa il promemoria standard</string>
+    <string name="reminder_use_default">Promemoria standard</string>
     <string name="reminder_custom_amount">Valore</string>
     <string name="reminder_custom_set">Imposta</string>
     <string name="settings_calendar_reminders_title">Promemoria per calendario</string>
@@ -421,7 +421,7 @@
     <string name="event_edit_managed_hint">Gestito da “%1$s” - titolo, data e ripetizioni sono sincronizzate dai tuoi contatti. Promemoria e note sono modificabili dall\'utente.</string>
     <string name="settings_font_headings">Carattere del titolo</string>
     <string name="settings_font_body">Carattere del corpo</string>
-    <string name="settings_font_system">Predefinito di sistema</string>
+    <string name="settings_font_system">Lingua di sistema</string>
     <string name="settings_font_choose_file">Scegli file…</string>
     <string name="settings_font_custom_selected">Font personalizzato</string>
     <string name="settings_font_import_failed">Impossibile leggere il file come font</string>
