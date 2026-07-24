@@ -222,10 +222,12 @@ class MainActivity : AppCompatActivity() {
      * [buildInsertEventForm].
      */
     private fun Intent.insertFormOrNull(): EventForm? {
-        // ACTION_EDIT on an existing event routes to the edit form instead
-        // ([editEventKeyOrNull]); only an id-less EDIT is a create.
+        // ACTION_EDIT / ACTION_INSERT_OR_EDIT on an existing event route to the
+        // edit form instead ([editEventKeyOrNull]); an id-less one is a create,
+        // as is any plain ACTION_INSERT.
         val isCreate = action == Intent.ACTION_INSERT ||
-            (action == Intent.ACTION_EDIT && editEventKeyOrNull() == null)
+            ((action == Intent.ACTION_EDIT || action == Intent.ACTION_INSERT_OR_EDIT) &&
+                editEventKeyOrNull() == null)
         if (!isCreate) return null
         return buildInsertEventForm(
             beginMillis = longExtraOrNull(CalendarContract.EXTRA_EVENT_BEGIN_TIME),
@@ -344,10 +346,11 @@ class MainActivity : AppCompatActivity() {
      * occurrence's times as `EXTRA_EVENT_BEGIN_TIME` / `EXTRA_EVENT_END_TIME`
      * when it has them, otherwise we carry [NO_OCCURRENCE_TIME] and
      * [EventEditViewModel.openForEdit] falls back to the event row's own
-     * DTSTART/DTEND. An id-less `ACTION_EDIT` is a create instead ([insertFormOrNull]).
+     * DTSTART/DTEND. An id-less `ACTION_EDIT` — or `ACTION_INSERT_OR_EDIT`, which
+     * some apps fire — is a create instead ([insertFormOrNull]).
      */
     private fun Intent.editEventKeyOrNull(): LongArray? {
-        if (action != Intent.ACTION_EDIT) return null
+        if (action != Intent.ACTION_EDIT && action != Intent.ACTION_INSERT_OR_EDIT) return null
         val uri = data ?: return null
         if (uri.host != CALENDAR_PROVIDER_HOST) return null
         val segments = uri.pathSegments
