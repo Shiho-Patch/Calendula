@@ -9,6 +9,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -31,7 +32,12 @@ class CalendarRepositorySmokeTest {
         val store: DataStore<Preferences> = PreferenceDataStoreFactory.create(
             produceFile = { context.cacheDir.resolve("smoke_test_prefs.preferences_pb") },
         )
-        return CalendarRepositoryImpl(dataSource, CalendarPrefs(store), Dispatchers.IO)
+        return CalendarRepositoryImpl(
+            dataSource,
+            CalendarPrefs(store),
+            SettingsPrefs(store),
+            Dispatchers.IO,
+        )
     }
 
     @Test

@@ -21,9 +21,15 @@ import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
+import java.time.ZoneId
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.DayOfWeek
 import java.time.temporal.WeekFields
 import java.util.Locale
@@ -80,6 +86,24 @@ fun WeekStartPref.resolveFirstDay(locale: Locale): DayOfWeek = when (this) {
     // java.time.DayOfWeek.value is ISO 1..7 (Mon..Sun) — same numbering kotlinx uses.
     WeekStartPref.Auto -> DayOfWeek(WeekFields.of(locale).firstDayOfWeek.value)
 }
+
+/**
+ * The resolved first day of the week as a hot [StateFlow] — the one shape every
+ * screen that orders or lays out weekdays should use (the month grid, the agenda
+ * "this week" range, the recurrence weekday toggles). Sharing it keeps the
+ * initial-frame value identical everywhere; hand-rolled copies had drifted onto
+ * different `initialValue`s, so two surfaces could disagree for a frame.
+ */
+fun SettingsPrefs.firstDayOfWeek(scope: CoroutineScope): StateFlow<DayOfWeek> =
+    weekStart
+        .map { it.resolveFirstDay(Locale.getDefault()) }
+        .stateIn(
+            scope = scope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            // Seed with the locale convention rather than a hardcoded weekday, so
+            // the first frame is already right for everyone still on Auto.
+            initialValue = WeekStartPref.Auto.resolveFirstDay(Locale.getDefault()),
+        )
 
 /**
  * Display settings (M4) persisted app-side: theme override, Material You
@@ -234,6 +258,33 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * How the Month view lays itself out (#38, #53). Defaults to [MonthViewStyle.Paged]
+     * — the historical behaviour, so existing installs see no change until they opt in.
+     */
+    val monthViewStyle: Flow<MonthViewStyle> = store.data.map { prefs ->
+        prefs[MONTH_VIEW_STYLE_KEY].toEnum(MonthViewStyle.Paged)
+    }
+
+    suspend fun setMonthViewStyle(style: MonthViewStyle) {
+        store.edit { it[MONTH_VIEW_STYLE_KEY] = style.name }
+    }
+
+    /**
+     * Where the jump-to-today control lives (issue #60). Default OFF — the
+     * historical layout, where it's an extended FAB that fades in above the "+"
+     * only while the view is off today. Turning it ON moves it to a persistent
+     * icon button in each calendar view's top bar (always shown, on today or
+     * not) and drops the FAB pill.
+     */
+    val todayButtonInToolbar: Flow<Boolean> = store.data.map { prefs ->
+        prefs[TODAY_BUTTON_IN_TOOLBAR_KEY] ?: false
+    }
+
+    suspend fun setTodayButtonInToolbar(enabled: Boolean) {
+        store.edit { it[TODAY_BUTTON_IN_TOOLBAR_KEY] = enabled }
+    }
+
+    /**
      * How far ahead the in-app Agenda screen shows events (v2.11). Defaults to
      * [AgendaRange.Month] — a month of upcoming events. Independent of the
      * widget's [agendaWidgetRange].
@@ -351,6 +402,26 @@ class SettingsPrefs @Inject constructor(
             val current = parseFormFields(prefs[FORM_FIELDS_KEY])
             val updated = if (enabled) current + field else current - field
             prefs[FORM_FIELDS_KEY] = updated.joinToString(",") { it.name }
+        }
+    }
+
+    /**
+     * Zones the user picked recently, most recent first — the timezone picker's
+     * default list, since scrolling ~600 zones to re-find the two you actually
+     * use is the whole problem. Stored comma-joined (IANA ids never contain a
+     * comma); unparseable ids are dropped on read, so a zone the tz database
+     * later retires can't wedge the list.
+     */
+    val recentTimeZones: Flow<List<String>> = store.data.map { prefs ->
+        parseRecentTimeZones(prefs[RECENT_TIMEZONES_KEY])
+    }
+
+    suspend fun addRecentTimeZone(zoneId: String) {
+        store.edit { prefs ->
+            val updated = (listOf(zoneId) + parseRecentTimeZones(prefs[RECENT_TIMEZONES_KEY]))
+                .distinct()
+                .take(MAX_RECENT_TIME_ZONES)
+            prefs[RECENT_TIMEZONES_KEY] = updated.joinToString(",")
         }
     }
 
@@ -650,6 +721,13 @@ class SettingsPrefs @Inject constructor(
     private fun titleTemplateKey(type: SpecialDateType) =
         stringPreferencesKey("special_dates_title_${type.name}")
 
+    private fun parseRecentTimeZones(stored: String?): List<String> =
+        stored?.split(',').orEmpty()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && runCatching { ZoneId.of(it) }.isSuccess }
+            .distinct()
+            .take(MAX_RECENT_TIME_ZONES)
+
     private fun parseFormFields(stored: String?): Set<EventFormField> = when (stored) {
         null -> DEFAULT_FORM_FIELDS
         else -> stored.split(',')
@@ -710,6 +788,8 @@ class SettingsPrefs @Inject constructor(
         internal val PAST_EVENT_DISPLAY_KEY = stringPreferencesKey("agenda_past_event_display")
         internal val DIM_COMPLETED_EVENTS_KEY = booleanPreferencesKey("dim_completed_events")
         internal val SHOW_WEEK_NUMBERS_KEY = booleanPreferencesKey("show_week_numbers")
+        internal val MONTH_VIEW_STYLE_KEY = stringPreferencesKey("month_view_style")
+        internal val TODAY_BUTTON_IN_TOOLBAR_KEY = booleanPreferencesKey("today_button_in_toolbar")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
         internal val QUICK_SWITCH_VIEWS_KEY = stringPreferencesKey("quick_switch_views")
         internal val DRAWER_VIEW_ORDER_KEY = stringPreferencesKey("drawer_view_order")
@@ -736,6 +816,10 @@ class SettingsPrefs @Inject constructor(
             stringPreferencesKey("per_calendar_allday_reminder_override")
         internal val DEFAULT_FORM_FIELDS =
             setOf(EventFormField.Location, EventFormField.Description)
+        internal val RECENT_TIMEZONES_KEY = stringPreferencesKey("recent_time_zones")
+
+        /** Enough to cover the zones a user actually recurs to, without a wall of rows. */
+        internal const val MAX_RECENT_TIME_ZONES = 5
         internal val AUTO_BACKUP_ENABLED_KEY = booleanPreferencesKey("auto_backup_enabled")
         internal val AUTO_BACKUP_INTERVAL_KEY = longPreferencesKey("auto_backup_interval_minutes")
         internal val AUTO_BACKUP_FOLDER_KEY = stringPreferencesKey("auto_backup_folder_uri")

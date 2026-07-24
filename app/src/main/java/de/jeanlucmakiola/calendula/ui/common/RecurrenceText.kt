@@ -9,6 +9,10 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import de.jeanlucmakiola.calendula.R
 import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.format.TextStyle as JavaTextStyle
@@ -111,16 +115,36 @@ private fun rruleDayName(token: String, locale: Locale): String? {
 
 /** Parse an RRULE UNTIL value ("20261231" or "20261231T235959Z") to a localized date. */
 private fun parseUntilDate(raw: String, locale: Locale): String? {
-    val digits = raw.takeWhile { it.isDigit() }
-    if (digits.length < 8) return null
-    return try {
-        val date = java.time.LocalDate.of(
+    val date = untilLocalDate(raw) ?: return null
+    return DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).format(date)
+}
+
+private val UNTIL_UTC_FORMAT: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'", Locale.ROOT)
+
+/**
+ * The calendar day an RRULE UNTIL value denotes, *in the device's zone*.
+ *
+ * The UTC form ("20261231T225959Z") must be converted back before its date is
+ * read: `SimpleRecurrence.toRRule` writes the end of the chosen **local** day
+ * expressed in UTC, so for zones behind UTC that instant already falls on the
+ * following UTC date. Taking the leading digits straight off would then show
+ * the day after the one the user picked. Date-only and floating forms are
+ * already local and pass through unchanged.
+ */
+internal fun untilLocalDate(raw: String, zone: ZoneId = ZoneId.systemDefault()): LocalDate? {
+    val value = raw.trim()
+    return runCatching {
+        LocalDateTime.parse(value, UNTIL_UTC_FORMAT)
+            .atOffset(ZoneOffset.UTC)
+            .atZoneSameInstant(zone)
+            .toLocalDate()
+    }.recoverCatching {
+        val digits = value.takeWhile { it.isDigit() }
+        LocalDate.of(
             digits.substring(0, 4).toInt(),
             digits.substring(4, 6).toInt(),
             digits.substring(6, 8).toInt(),
         )
-        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).format(date)
-    } catch (e: Exception) {
-        null
-    }
+    }.getOrNull()
 }

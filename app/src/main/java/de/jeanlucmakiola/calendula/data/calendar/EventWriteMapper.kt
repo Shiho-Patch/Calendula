@@ -6,9 +6,11 @@ import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.EventForm
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toJavaLocalDateTime
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.LocalDateTime as JavaLocalDateTime
 
 /** Provider-ready DTSTART / DTEND / EVENT_TIMEZONE for an event write. */
 internal data class EventWriteTimes(
@@ -20,7 +22,11 @@ internal data class EventWriteTimes(
 /**
  * All-day events live at UTC midnights with an exclusive DTEND (the
  * CalendarContract convention — a one-day event ends at the next midnight);
- * timed events resolve their wall-clock values in [zone].
+ * timed events resolve their wall-clock values in the form's own
+ * [EventForm.timezone], falling back to [zone] (the device) when it doesn't pin
+ * one. Passing the device zone is therefore still correct for an unpinned form —
+ * but it no longer overrides a pinned event's zone, which is what used to
+ * silently re-anchor a foreign-zone event to the device on any time edit.
  */
 internal fun EventForm.toWriteTimes(zone: ZoneId): EventWriteTimes = if (isAllDay) {
     EventWriteTimes(
@@ -31,11 +37,36 @@ internal fun EventForm.toWriteTimes(zone: ZoneId): EventWriteTimes = if (isAllDa
         timezone = "UTC",
     )
 } else {
+    val writeZone = writeZone(zone)
     EventWriteTimes(
-        dtStartMillis = start.toJavaLocalDateTime().atZone(zone).toInstant().toEpochMilli(),
-        dtEndMillis = end.toJavaLocalDateTime().atZone(zone).toInstant().toEpochMilli(),
-        timezone = zone.id,
+        dtStartMillis = start.toJavaLocalDateTime().atZone(writeZone).toInstant().toEpochMilli(),
+        dtEndMillis = end.toJavaLocalDateTime().atZone(writeZone).toInstant().toEpochMilli(),
+        timezone = writeZone.id,
     )
+}
+
+/**
+ * The zone this form's DTSTART is expressed in: UTC for an all-day event (the
+ * provider's date anchor), otherwise the form's own pinned zone, falling back to
+ * [deviceZone] when it doesn't pin one or pins something the tz database can't
+ * parse.
+ */
+private fun EventForm.writeZone(deviceZone: ZoneId): ZoneId = if (isAllDay) {
+    ZoneOffset.UTC
+} else {
+    timezone?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: deviceZone
+}
+
+/**
+ * The form's start as a bare wall-clock value — what the user sees on the form,
+ * stripped of any zone. All-day events use their date's midnight rather than
+ * [EventForm.start]'s placeholder time-of-day, which exists only so switching the
+ * event back to timed has something to show.
+ */
+private fun EventForm.anchorLocal(): JavaLocalDateTime = if (isAllDay) {
+    start.date.toJavaLocalDate().atStartOfDay()
+} else {
+    start.toJavaLocalDateTime()
 }
 
 /**
@@ -104,10 +135,12 @@ internal fun buildEventInsertValues(
  * Time fields travel together (the provider validates them as a unit):
  * - unchanged times, all-day flag and rrule → no time columns at all;
  * - non-recurring result → DTSTART/DTEND, DURATION and RRULE cleared;
- * - recurring result → the *series* DTSTART moves by the same delta the user
- *   applied to the displayed occurrence ([seriesDtStartMillis] is the row's
- *   current DTSTART), DURATION replaces DTEND, RRULE is written. This keeps
- *   past occurrences intact when someone edits a later occurrence's time.
+ * - recurring result → the *series* DTSTART moves by the same **wall-clock**
+ *   shift the user applied to the displayed occurrence and is re-resolved in the
+ *   event's zone ([seriesDtStartMillis] is the row's current DTSTART), DURATION
+ *   replaces DTEND, RRULE is written. This keeps past occurrences intact when
+ *   someone edits a later occurrence's time, and keeps the anchor's time-of-day
+ *   stable across a DST boundary or a zone change between the two.
  */
 internal fun buildEventUpdateValues(
     original: EventForm,
@@ -134,10 +167,14 @@ internal fun buildEventUpdateValues(
         putAll(eventColorColumns(updated.colorKey, updated.color))
     }
 
+    // A zone change counts as a time change even when the wall-clock is
+    // untouched: the same 09:00 in another zone is a different instant, so
+    // DTSTART has to move with it.
     val timesChanged = updated.start != original.start ||
         updated.end != original.end ||
         updated.isAllDay != original.isAllDay ||
-        updated.rrule != original.rrule
+        updated.rrule != original.rrule ||
+        updated.timezone != original.timezone
     if (!timesChanged) return@buildMap
 
     val newTimes = updated.toWriteTimes(zone)
@@ -149,8 +186,23 @@ internal fun buildEventUpdateValues(
         put(CalendarContract.Events.RRULE, null)
         put(CalendarContract.Events.DURATION, null)
     } else {
-        val startDelta = newTimes.dtStartMillis - original.toWriteTimes(zone).dtStartMillis
-        put(CalendarContract.Events.DTSTART, seriesDtStartMillis + startDelta)
+        // Move the series anchor by the *wall-clock* shift the user applied to the
+        // displayed occurrence, then re-resolve it in the event's (possibly new)
+        // zone — never by a millisecond delta. An instant delta silently bakes in
+        // the offset that happened to apply on the edited occurrence's date, which
+        // is a different offset from the series anchor's whenever a DST boundary
+        // sits between them, or whenever the zone itself changed. Working in wall
+        // clock keeps "09:00" meaning 09:00 at both ends.
+        val seriesLocal = Instant.ofEpochMilli(seriesDtStartMillis)
+            .atZone(original.writeZone(zone)).toLocalDateTime()
+        val wallClockShift = Duration.between(original.anchorLocal(), updated.anchorLocal())
+        val shifted = seriesLocal.plus(wallClockShift)
+        // An all-day series anchor must sit on a UTC midnight. A pure day move
+        // already lands there (both ends are midnights), but *switching* a
+        // recurring event to all-day shifts by a time-of-day too, so snap.
+        val newSeriesLocal = if (updated.isAllDay) shifted.toLocalDate().atStartOfDay() else shifted
+        val newSeriesStart = newSeriesLocal.atZone(updated.writeZone(zone))
+        put(CalendarContract.Events.DTSTART, newSeriesStart.toInstant().toEpochMilli())
         put(CalendarContract.Events.DTEND, null)
         put(CalendarContract.Events.RRULE, updated.rrule)
         put(CalendarContract.Events.DURATION, newTimes.toRfc2445Duration(updated.isAllDay))

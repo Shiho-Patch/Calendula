@@ -98,7 +98,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -111,6 +110,9 @@ import de.jeanlucmakiola.calendula.domain.EventAttendee
 import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
+import de.jeanlucmakiola.calendula.domain.zoneDescriptor
+import de.jeanlucmakiola.calendula.domain.timeZoneOptionOf
+import de.jeanlucmakiola.calendula.domain.timesIn
 import de.jeanlucmakiola.calendula.domain.EventFormProblem
 import de.jeanlucmakiola.calendula.domain.RecurrenceEnd
 import de.jeanlucmakiola.calendula.domain.RecurrenceFreq
@@ -126,6 +128,8 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarPickerGroups
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
+import de.jeanlucmakiola.calendula.ui.common.TimeZonePickerDialog
+import de.jeanlucmakiola.calendula.ui.common.icuTimeZoneRegion
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.floret.components.DialogAmountField
@@ -134,16 +138,19 @@ import de.jeanlucmakiola.calendula.ui.common.eventFormFieldIcon
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldLabel
 import de.jeanlucmakiola.floret.components.FullScreenPicker
 import de.jeanlucmakiola.floret.components.GroupedRow
+import de.jeanlucmakiola.floret.components.GroupedSurface
 import de.jeanlucmakiola.calendula.ui.common.MILLIS_PER_DAY
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.OptionCard
 import de.jeanlucmakiola.floret.components.OptionPicker
 import de.jeanlucmakiola.floret.components.Position
+import de.jeanlucmakiola.floret.components.SelectedCheck
+import de.jeanlucmakiola.floret.components.groupedShape as floretGroupedShape
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
 import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
 import de.jeanlucmakiola.floret.reminders.ReminderUnit
-import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
@@ -157,13 +164,14 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.isoDayNumber
 import kotlinx.datetime.toJavaDayOfWeek
 import kotlinx.datetime.toJavaLocalDate
-import kotlinx.datetime.toKotlinDayOfWeek
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toJavaLocalTime
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.toJavaInstant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.format.TextStyle as JavaTextStyle
-import java.time.temporal.WeekFields
 import java.util.Locale
 import kotlin.time.Clock
 
@@ -495,6 +503,7 @@ private fun EventEditContent(
 ) {
     val form = state.form
     val locale = currentLocale()
+    val firstDayOfWeek by viewModel.firstDayOfWeek.collectAsStateWithLifecycle()
     val dark = isSystemInDarkTheme()
     // The title, date and recurrence are managed by the special-dates sync, so
     // they're locked here; everything else (reminders, location, notes) is the
@@ -506,6 +515,7 @@ private fun EventEditContent(
     var showRecurrencePicker by rememberSaveable { mutableStateOf(false) }
     var showVisibilityPicker by rememberSaveable { mutableStateOf(false) }
     var showColorPicker by rememberSaveable { mutableStateOf(false) }
+    var showTimezonePicker by rememberSaveable { mutableStateOf(false) }
     var showFieldPicker by rememberSaveable { mutableStateOf(false) }
 
     // Pick a guest from contacts: a one-shot system picker returning the chosen
@@ -670,6 +680,28 @@ private fun EventEditContent(
                     color = MaterialTheme.colorScheme.error,
                 )
             }
+            // The rows above edit a pinned event in *its own* zone, which is the
+            // time it was set at — but that says nothing about when it lands for
+            // whoever is reading it. Spell the local equivalent out rather than
+            // leaving the user to do the offset arithmetic. Absent (null) unless
+            // the event is pinned somewhere other than here.
+            // Keyed rather than recomputed: this sits in the same Column as the
+            // title field, so it would otherwise re-parse the zone on every
+            // keystroke.
+            val localTimes = remember(form.timezone, form.start, form.end, form.isAllDay) {
+                form.timesIn(TimeZone.currentSystemDefault())
+            }
+            localTimes?.let { (localStart, localEnd) ->
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = stringResource(
+                        R.string.event_edit_timezone_local_time,
+                        formatTimeRange(localStart, localEnd, locale),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         Spacer(Modifier.height(gap))
@@ -706,6 +738,54 @@ private fun EventEditContent(
 
         // Optional sections: which ones render by default is a setting; the
         // rest unfold behind the "more fields" button below.
+        OptionalFormSection(visible = EventFormField.Timezone in state.visibleFields) {
+            Spacer(Modifier.height(gap))
+            EditCard(
+                icon = Icons.Default.Public,
+                iconContentDescription = null,
+                onClick = { showTimezonePicker = true },
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    // Resolved at the event's own start, not at "now": the
+                    // abbreviation and offset shown ("CEST · GMT+02:00") must be
+                    // the ones that apply when the event actually happens.
+                    val pinned = remember(form.timezone, form.start, locale) {
+                        form.timezone
+                            ?.let { id -> runCatching { id to TimeZone.of(id) }.getOrNull() }
+                            ?.let { (id, zone) ->
+                                timeZoneOptionOf(
+                                    id,
+                                    locale,
+                                    at = form.start.toInstant(zone).toJavaInstant(),
+                                    regionOf = ::icuTimeZoneRegion,
+                                )
+                            }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = pinned?.label
+                                ?: stringResource(R.string.event_edit_timezone_device),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = pinned?.let { zoneDescriptor(it) }
+                                ?: stringResource(R.string.event_edit_timezone_device_summary),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
         OptionalFormSection(visible = EventFormField.Location in state.visibleFields) {
             Spacer(Modifier.height(gap))
             EditCard(
@@ -1062,6 +1142,7 @@ private fun EventEditContent(
         RecurrencePickerDialog(
             current = form.rrule,
             startDay = form.start.date.dayOfWeek,
+            firstDayOfWeek = firstDayOfWeek,
             onSelect = { rrule ->
                 viewModel.setRecurrence(rrule)
                 showRecurrencePicker = false
@@ -1078,6 +1159,16 @@ private fun EventEditContent(
                 showVisibilityPicker = false
             },
             onDismiss = { showVisibilityPicker = false },
+        )
+    }
+
+    if (showTimezonePicker) {
+        TimeZonePickerDialog(
+            selected = form.timezone,
+            deviceZoneId = ZoneId.systemDefault().id,
+            recents = state.recentTimeZones,
+            onSelect = viewModel::setTimezone,
+            onDismiss = { showTimezonePicker = false },
         )
     }
 
@@ -1223,6 +1314,7 @@ private enum class RecurrenceEndMode { Never, Until, Count }
 private fun RecurrencePickerDialog(
     current: String?,
     startDay: DayOfWeek,
+    firstDayOfWeek: DayOfWeek,
     onSelect: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -1257,8 +1349,21 @@ private fun RecurrencePickerDialog(
 
     val locale = currentLocale()
     val untilDate = untilIso?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-    val interval = intervalText.toIntOrNull()?.takeIf { it in 1..999 }
-    val count = countText.toIntOrNull()?.takeIf { it in 1..999 }
+    // remember() must not sit behind the ?. — a slot that appears and disappears
+    // as a date is picked breaks Compose's positional memoisation. Format
+    // unconditionally and let the null fall through to a null summary.
+    val untilSummary = remember(untilDate, locale) {
+        untilDate?.let {
+            DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+                .withLocale(locale).format(it.toJavaLocalDate())
+        }
+    }
+    // A blank amount field shows its placeholder ("1" / "10") greyed out, so read
+    // blank as that default rather than as an error — otherwise simply clearing
+    // the field silently greys out OK. Only a real out-of-range value (0) is
+    // invalid, and that's the one case the read-out below reports.
+    val interval = if (intervalText.isBlank()) 1 else intervalText.toIntOrNull()?.takeIf { it in 1..999 }
+    val count = if (countText.isBlank()) 10 else countText.toIntOrNull()?.takeIf { it in 1..999 }
     val customEnd: RecurrenceEnd? = when (endMode) {
         RecurrenceEndMode.Never -> RecurrenceEnd.Never
         RecurrenceEndMode.Until -> untilDate?.let { RecurrenceEnd.Until(it) }
@@ -1294,6 +1399,11 @@ private fun RecurrencePickerDialog(
                 title = stringResource(R.string.event_edit_recurrence_none),
                 position = positionOf(0, rowCount),
                 selected = current == null,
+                trailing = if (current == null) {
+                    { SelectedCheck() }
+                } else {
+                    null
+                },
                 onClick = { onSelect(null) },
             )
             RecurrenceFreq.entries.forEachIndexed { index, entry ->
@@ -1301,6 +1411,11 @@ private fun RecurrencePickerDialog(
                     title = stringResource(recurrencePresetLabel(entry)),
                     position = positionOf(index + 1, rowCount),
                     selected = isPlainPreset && parsed?.freq == entry,
+                    trailing = if (isPlainPreset && parsed?.freq == entry) {
+                        { SelectedCheck() }
+                    } else {
+                        null
+                    },
                     onClick = { onSelect(SimpleRecurrence(entry).toRRule()) },
                 )
             }
@@ -1308,88 +1423,195 @@ private fun RecurrencePickerDialog(
                 title = stringResource(R.string.event_edit_recurrence_custom),
                 position = positionOf(rowCount - 1, rowCount),
                 selected = current != null && !isPlainPreset,
+                trailing = if (current != null && !isPlainPreset) {
+                    { SelectedCheck() }
+                } else {
+                    null
+                },
                 onClick = { customMode = true },
             )
         } else {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(horizontal = 24.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = stringResource(R.string.event_edit_recurrence_every),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    DialogAmountField(
-                        value = intervalText,
-                        onValueChange = { intervalText = it },
-                        placeholder = "1",
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    DialogUnitDropdown(
-                        label = stringResource(recurrenceUnitLabel(freq)),
-                        entries = RecurrenceFreq.entries.map {
-                            stringResource(recurrenceUnitLabel(it))
-                        },
-                        onPick = { freq = RecurrenceFreq.entries[it] },
-                    )
-                }
-                if (freq == RecurrenceFreq.Weekly) {
-                    WeekdayToggleRow(
-                        selected = daysMask.toDaySet(),
-                        onToggle = { day -> daysMask = daysMask xor day.toMaskBit() },
-                        locale = locale,
-                    )
-                }
+            // Section gaps live on each block (not a parent spacedBy) so the
+            // weekday card's gap collapses *with* it under AnimatedVisibility —
+            // a parent arrangement would leave a residual gap that snaps shut.
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // A live, human-readable read-out of the rule being built, so the
+                // effect of the controls below is never a guess. It renders
+                // *[customResult] itself* — the exact string OK would save — so it
+                // can never describe a different rule than the one that lands. When
+                // the form can't produce a rule, it says why instead of falling
+                // back to defaults and quietly disagreeing with the controls.
+                // minLines reserves the second line up front: without it the whole
+                // stack below shifts a line as the phrase grows with each weekday.
                 Text(
-                    text = stringResource(R.string.event_edit_recurrence_ends),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = customResult?.let { recurrenceText(it, locale) }
+                        ?: AnnotatedString(
+                            stringResource(R.string.event_edit_recurrence_incomplete),
+                        ),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = if (customResult != null) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                    minLines = 2,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
                 )
-            }
-            GroupedRow(
-                title = stringResource(R.string.event_edit_recurrence_end_never),
-                position = positionOf(0, 3),
-                selected = endMode == RecurrenceEndMode.Never,
-                onClick = { endMode = RecurrenceEndMode.Never },
-            )
-            GroupedRow(
-                title = stringResource(R.string.event_edit_recurrence_end_until),
-                summary = untilDate?.let {
-                    remember(it, locale) {
-                        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-                            .withLocale(locale).format(it.toJavaLocalDate())
-                    }
-                },
-                position = positionOf(1, 3),
-                selected = endMode == RecurrenceEndMode.Until,
-                onClick = {
-                    endMode = RecurrenceEndMode.Until
-                    showUntilPicker = true
-                },
-            )
-            GroupedRow(
-                title = stringResource(R.string.event_edit_recurrence_end_count),
-                position = positionOf(2, 3),
-                selected = endMode == RecurrenceEndMode.Count,
-                onClick = { endMode = RecurrenceEndMode.Count },
-            )
-            if (endMode == RecurrenceEndMode.Count) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+
+                // How often: an interval amount plus a frequency segmented row —
+                // all four units on show, no unit hidden behind a dropdown.
+                GroupedSurface(
+                    position = Position.Alone,
+                    modifier = Modifier
+                        .padding(top = 16.dp)
+                        .padding(horizontal = 16.dp),
                 ) {
-                    DialogAmountField(
-                        value = countText,
-                        onValueChange = { countText = it },
-                        placeholder = "10",
-                    )
-                    Spacer(Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = stringResource(R.string.event_edit_recurrence_every),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            DialogAmountField(
+                                value = intervalText,
+                                onValueChange = { intervalText = it },
+                                placeholder = "1",
+                            )
+                        }
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            RecurrenceFreq.entries.forEachIndexed { index, entry ->
+                                SegmentedButton(
+                                    selected = freq == entry,
+                                    onClick = { freq = entry },
+                                    shape = SegmentedButtonDefaults.itemShape(
+                                        index, RecurrenceFreq.entries.size,
+                                    ),
+                                    // Drop the default check-icon slot: four segments
+                                    // share one row, and its reserved width is what
+                                    // pushes longer labels ("Monate", "Wochen") into
+                                    // an ellipsis on a compact screen. Selection is
+                                    // already carried by the segment's fill.
+                                    icon = {},
+                                    label = {
+                                        Text(
+                                            text = stringResource(recurrenceUnitLabel(entry)),
+                                            maxLines = 1,
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Weekday picks — only meaningful on a weekly rule. The 16dp gap
+                // sits inside the animated block so it grows/shrinks with the card.
+                AnimatedVisibility(
+                    visible = freq == RecurrenceFreq.Weekly,
+                    enter = expandEnter(),
+                    exit = collapseExit(),
+                ) {
+                    GroupedSurface(
+                        position = Position.Alone,
+                        modifier = Modifier
+                            .padding(top = 16.dp)
+                            .padding(horizontal = 16.dp),
+                    ) {
+                        WeekdayToggleRow(
+                            selected = daysMask.toDaySet(),
+                            onToggle = { day -> daysMask = daysMask xor day.toMaskBit() },
+                            locale = locale,
+                            firstDay = firstDayOfWeek,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                }
+
+                // Ends: a connected never / on-a-date / after-N group, the count
+                // field folding into the bottom of the run when chosen.
+                Column(modifier = Modifier.padding(top = 16.dp)) {
                     Text(
-                        text = stringResource(R.string.event_edit_recurrence_times),
-                        style = MaterialTheme.typography.titleMedium,
+                        text = stringResource(R.string.event_edit_recurrence_ends),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 16.dp, bottom = 8.dp),
                     )
+                    GroupedRow(
+                        title = stringResource(R.string.event_edit_recurrence_end_never),
+                        position = Position.Top,
+                        selected = endMode == RecurrenceEndMode.Never,
+                        trailing = if (endMode == RecurrenceEndMode.Never) {
+                            { SelectedCheck() }
+                        } else {
+                            null
+                        },
+                        onClick = { endMode = RecurrenceEndMode.Never },
+                    )
+                    GroupedRow(
+                        title = stringResource(R.string.event_edit_recurrence_end_until),
+                        summary = untilSummary,
+                        position = Position.Middle,
+                        selected = endMode == RecurrenceEndMode.Until,
+                        trailing = if (endMode == RecurrenceEndMode.Until) {
+                            { SelectedCheck() }
+                        } else {
+                            null
+                        },
+                        onClick = {
+                            endMode = RecurrenceEndMode.Until
+                            showUntilPicker = true
+                        },
+                    )
+                    GroupedRow(
+                        title = stringResource(R.string.event_edit_recurrence_end_count),
+                        position = if (endMode == RecurrenceEndMode.Count) {
+                            Position.Middle
+                        } else {
+                            Position.Bottom
+                        },
+                        selected = endMode == RecurrenceEndMode.Count,
+                        trailing = if (endMode == RecurrenceEndMode.Count) {
+                            { SelectedCheck() }
+                        } else {
+                            null
+                        },
+                        onClick = { endMode = RecurrenceEndMode.Count },
+                    )
+                    // Animated for the same reason the weekday card is: this is the
+                    // picker's other collapsible block, and a bare `if` here made
+                    // the ends group snap while the card above it glided.
+                    AnimatedVisibility(
+                        visible = endMode == RecurrenceEndMode.Count,
+                        enter = expandEnter(),
+                        exit = collapseExit(),
+                    ) {
+                        GroupedSurface(
+                            position = Position.Bottom,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(16.dp),
+                            ) {
+                                DialogAmountField(
+                                    value = countText,
+                                    onValueChange = { countText = it },
+                                    placeholder = "10",
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    text = stringResource(R.string.event_edit_recurrence_times),
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1404,7 +1626,13 @@ private fun RecurrencePickerDialog(
                 untilIso = it.toString()
                 showUntilPicker = false
             },
-            onDismiss = { showUntilPicker = false },
+            onDismiss = {
+                showUntilPicker = false
+                // Backing out of the date picker with nothing chosen would leave
+                // "on date" selected but dateless — a state that can't be saved and
+                // greys out OK with no visible cause. Fall back to "never".
+                if (untilIso == null) endMode = RecurrenceEndMode.Never
+            },
         )
     }
 }
@@ -1419,14 +1647,15 @@ private fun WeekdayToggleRow(
     selected: Set<DayOfWeek>,
     onToggle: (DayOfWeek) -> Unit,
     locale: Locale,
+    firstDay: DayOfWeek,
+    modifier: Modifier = Modifier,
 ) {
-    val days = remember(locale) {
-        val first = WeekFields.of(locale).firstDayOfWeek.toKotlinDayOfWeek()
-        (0 until 7).map { DayOfWeek(((first.isoDayNumber - 1 + it) % 7) + 1) }
+    val days = remember(firstDay) {
+        (0 until 7).map { DayOfWeek(((firstDay.isoDayNumber - 1 + it) % 7) + 1) }
     }
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         days.forEach { day ->
             val isSelected = day in selected
@@ -1479,18 +1708,14 @@ private fun recurrenceUnitLabel(freq: RecurrenceFreq): Int = when (freq) {
     RecurrenceFreq.Yearly -> R.string.recurrence_unit_years
 }
 
-/** Corner shape for a card at [position] in a grouped run (mirrors GroupedRow). */
-private fun groupedShape(position: Position, full: Dp = 20.dp, small: Dp = 6.dp): Shape =
-    when (position) {
-        Position.Alone -> RoundedCornerShape(full)
-        Position.Top -> RoundedCornerShape(
-            topStart = full, topEnd = full, bottomStart = small, bottomEnd = small,
-        )
-        Position.Middle -> RoundedCornerShape(small)
-        Position.Bottom -> RoundedCornerShape(
-            topStart = small, topEnd = small, bottomStart = full, bottomEnd = full,
-        )
-    }
+/**
+ * Corner shape for a card at [position] in a grouped run. Delegates to the
+ * family primitive with the same radii [GroupedSurface] draws at rest — a local
+ * copy had drifted to 20dp, so a card sharing a run with GroupedRows had
+ * visibly tighter outer corners than the rows above it.
+ */
+private fun groupedShape(position: Position): Shape =
+    floretGroupedShape(position, full = 22.dp, small = 6.dp)
 
 /** The 2dp gap that visually separates grouped cards (none after the last). */
 private fun groupedGap(position: Position): Modifier = when (position) {
@@ -1931,6 +2156,21 @@ private fun EditCard(
             modifier = Modifier.fillMaxWidth(),
         ) { inner() }
     }
+}
+
+/**
+ * "2:00 PM – 3:00 PM", honouring the user's 12/24-hour setting. Collapses to one
+ * time when both land on the same minute (an instant event shouldn't read as a
+ * range against itself). Dates are deliberately absent — the rows above carry
+ * them.
+ */
+@Composable
+private fun formatTimeRange(start: LocalDateTime, end: LocalDateTime, locale: Locale): String {
+    val use24Hour = LocalUse24HourFormat.current
+    val timeFormat = remember(locale, use24Hour) { timeOfDayFormatter(use24Hour, locale) }
+    val from = timeFormat.format(start.time.toJavaLocalTime())
+    val to = timeFormat.format(end.time.toJavaLocalTime())
+    return if (from == to) from else "$from – $to"
 }
 
 /**

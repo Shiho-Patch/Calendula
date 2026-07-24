@@ -13,6 +13,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 
 /**
  * Settings screen state (M4). Persisted preferences are instant to read, so
@@ -37,6 +38,8 @@ data class SettingsUiState(
     val dimCompletedEvents: Boolean = false,
     /** Whether the Month grid shows calendar-week numbers in a left gutter (#25). */
     val showWeekNumbers: Boolean = false,
+    /** Whether the jump-to-today control sits in the top bar instead of the FAB (#60). */
+    val todayButtonInToolbar: Boolean = false,
     /** How far ahead the in-app Agenda screen shows events (v2.11). */
     val agendaScreenRange: AgendaRange = AgendaRange.Month,
     /** How far ahead the agenda widget shows events (v2.11). */
@@ -49,6 +52,8 @@ data class SettingsUiState(
     val defaultView: CalendarView = CalendarView.Week,
     /** Which views the top-bar quick-switch button cycles through, and their order (#24). */
     val quickSwitchConfig: QuickSwitchConfig = QuickSwitchConfig.Default,
+    /** How the Month view lays itself out: pages, continuous scroll, or split (#38, #53). */
+    val monthViewStyle: MonthViewStyle = MonthViewStyle.Paged,
     /** Order of the views in the navigation drawer (#24); every view is always listed. */
     val drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
     /** Optional event-form fields shown by default (rest behind "more fields"). */

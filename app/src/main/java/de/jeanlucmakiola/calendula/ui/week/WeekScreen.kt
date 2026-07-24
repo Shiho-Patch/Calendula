@@ -5,7 +5,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -49,7 +48,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -77,8 +75,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.hasEnded
+import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
+import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
@@ -92,8 +92,9 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
+import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSwipe
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
-import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.formatHourLabel
@@ -143,6 +144,7 @@ fun WeekScreen(
     onCreateEvent: (LocalDate, Int?) -> Unit,
     quickSwitchViews: List<CalendarView> = IMPLEMENTED_VIEWS,
     drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
+    todayInToolbar: Boolean = false,
     modifier: Modifier = Modifier,
     viewModel: WeekViewModel = hiltViewModel(),
 ) {
@@ -178,6 +180,13 @@ fun WeekScreen(
         is WeekUiState.Success ->
             s.today >= s.weekStart && s.today <= s.weekStart.plus(6, kotlinx.datetime.DateTimeUnit.DAY)
         else -> true
+    }
+
+    // Drives whether the title carries the year. Falls back to the clock only
+    // while the first load is in flight, when there is no state to read today from.
+    val currentYear = when (val s = state) {
+        is WeekUiState.Success -> s.today.year
+        else -> Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.year
     }
 
     // Slide direction for the week transition: +1 = next, -1 = prev, 0 = jump.
@@ -228,16 +237,19 @@ fun WeekScreen(
             topBar = {
                 WeekTopBar(
                     weekStart = weekStart,
+                    currentYear = currentYear,
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
+                    showTodayButton = todayInToolbar,
+                    onToday = jumpToToday,
                     scrollBehavior = scrollBehavior,
                 )
             },
             floatingActionButton = {
                 CalendarFabColumn(
-                    todayVisible = !isOnCurrentWeek,
+                    todayVisible = !isOnCurrentWeek && !todayInToolbar,
                     todayText = stringResource(R.string.week_today_action),
                     onToday = jumpToToday,
                     onCreate = {
@@ -283,8 +295,6 @@ private fun WeekContent(
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
-    val threshold = with(density) { 24.dp.toPx() }
-    var dragAccum by remember { mutableFloatStateOf(0f) }
     val slideSpec = rememberCalendarSlideSpec()
     val fadeSpec = rememberCalendarFadeSpec()
     val reduceMotion = rememberReduceMotion()
@@ -316,20 +326,7 @@ private fun WeekContent(
     // vertical scroll: a horizontal drag only crosses *this* detector's slop,
     // while a vertical drag is consumed by the inner scroll first — so the two
     // gestures coexist without fighting.
-    val swipeModifier = Modifier.pointerInput(Unit) {
-        detectHorizontalDragGestures(
-            onDragStart = { dragAccum = 0f },
-            onDragEnd = {
-                when {
-                    dragAccum < -threshold -> onSwipeNext()
-                    dragAccum > threshold -> onSwipePrev()
-                }
-                dragAccum = 0f
-            },
-            onDragCancel = { dragAccum = 0f },
-            onHorizontalDrag = { _, drag -> dragAccum += drag },
-        )
-    }
+    val swipeModifier = rememberCalendarPageSwipe(onSwipeNext, onSwipePrev)
 
     AnimatedContent(
         targetState = state,
@@ -395,16 +392,20 @@ private fun WeekSuccess(
 @Composable
 private fun WeekTopBar(
     weekStart: LocalDate,
+    currentYear: Int,
     selectedView: CalendarView,
     onCycleView: () -> Unit,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
+    showTodayButton: Boolean,
+    onToday: () -> Unit,
     scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
+    val locale = currentLocale()
     TopAppBar(
         title = {
             Text(
-                text = formatWeekRange(weekStart),
+                text = formatWeekTitle(weekStart, locale, currentYear),
                 style = MaterialTheme.typography.titleLarge,
             )
         },
@@ -417,6 +418,7 @@ private fun WeekTopBar(
             }
         },
         actions = {
+            TodayAction(show = showTodayButton, onToday = onToday)
             IconButton(onClick = onOpenSearch) {
                 Icon(
                     imageVector = Icons.Default.Search,
@@ -854,18 +856,29 @@ private fun WeekLoading() {
 private fun minToHm(min: Int, is24Hour: Boolean, locale: java.util.Locale): String =
     formatMinuteOfDay(min, is24Hour, locale)
 
-private fun formatWeekRange(weekStart: LocalDate): String {
-    val locale = Locale.getDefault()
-    val end = weekStart.plus(6, kotlinx.datetime.DateTimeUnit.DAY)
-    val monthName = { d: LocalDate ->
-        java.time.Month.of(d.month.ordinal + 1).getDisplayName(JavaTextStyle.SHORT, locale)
-    }
-    return if (weekStart.month == end.month && weekStart.year == end.year) {
-        "${weekStart.day}.–${end.day}. ${monthName(weekStart)} ${weekStart.year}"
-    } else if (weekStart.year == end.year) {
-        "${weekStart.day}. ${monthName(weekStart)} – ${end.day}. ${monthName(end)} ${end.year}"
-    } else {
-        "${weekStart.day}. ${monthName(weekStart)} ${weekStart.year} – " +
-            "${end.day}. ${monthName(end)} ${end.year}"
-    }
+/**
+ * The week's title: just the month [weekStart] falls in.
+ *
+ * The day numbers are already in the column headers directly below, so spelling
+ * out "13.–19. Jul" restates them in the widest string in the bar. Naming the
+ * month of [weekStart] means a week straddling a boundary keeps the outgoing
+ * month until it is fully gone — a week is seven contiguous days, so the earlier
+ * month has a day in it exactly while [weekStart] is still inside it. That also
+ * makes the *month* depend on nothing but [weekStart], so it cannot drift with
+ * the direction you paged in from.
+ *
+ * The *year* is decided from the whole week, not just its start: a week running
+ * Dec 28 – Jan 3 has four of its seven visible columns in the new year, so
+ * "December" with no year would be actively misleading while the reader is
+ * looking straight at January dates.
+ */
+private fun formatWeekTitle(weekStart: LocalDate, locale: Locale, currentYear: Int): String {
+    val weekEnd = weekStart.plus(6, kotlinx.datetime.DateTimeUnit.DAY)
+    return formatCalendarTitle(
+        date = java.time.LocalDate.of(weekStart.year, weekStart.month.ordinal + 1, 1),
+        locale = locale,
+        currentYear = currentYear,
+        skeleton = "LLLL",
+        forceYear = weekEnd.year != weekStart.year,
+    )
 }

@@ -23,6 +23,8 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,8 +44,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material.icons.filled.ExpandLess
@@ -75,6 +77,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
@@ -93,6 +96,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.appname.LauncherName
 import de.jeanlucmakiola.calendula.data.contacts.hasContactsPermission
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.floret.reminders.ReminderOverride
@@ -100,6 +104,7 @@ import de.jeanlucmakiola.floret.reminders.reminderOverrideFor
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
+import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.qs.NewEventTileService
@@ -121,6 +126,7 @@ import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.month.labelRes
 import de.jeanlucmakiola.floret.components.ReorderableColumn
 import de.jeanlucmakiola.floret.components.ReorderableRowHeight
 import de.jeanlucmakiola.calendula.ui.common.icon
@@ -131,11 +137,12 @@ import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
 import de.jeanlucmakiola.calendula.ui.common.ReminderDefaultPicker
 import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
+import de.jeanlucmakiola.floret.components.SelectedCheck
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.SnoozeDurationPicker
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
-import de.jeanlucmakiola.calendula.ui.common.currentLocale
+import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldIcon
 import de.jeanlucmakiola.calendula.ui.common.eventFormFieldLabel
 import de.jeanlucmakiola.calendula.ui.theme.BundledFont
@@ -487,8 +494,10 @@ private fun AppearanceScreen(
     var showPastEvents by remember { mutableStateOf(false) }
     var showBrandFont by remember { mutableStateOf(false) }
     var showPlainFont by remember { mutableStateOf(false) }
+    var showAppName by remember { mutableStateOf(false) }
 
     val fonts by viewModel.fontState.collectAsStateWithLifecycle()
+    val launcherName by viewModel.launcherName.collectAsStateWithLifecycle()
     // A picked file that didn't parse as a font: tell the user and keep the old choice.
     val context = LocalContext.current
     val importFailedMessage = stringResource(R.string.settings_font_import_failed)
@@ -570,6 +579,18 @@ private fun AppearanceScreen(
             summary = stringResource(state.defaultView.labelRes),
             position = Position.Top,
             onClick = { showDefaultView = true },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_today_toolbar),
+            summary = stringResource(R.string.settings_today_toolbar_summary),
+            position = Position.Middle,
+            trailing = {
+                Switch(
+                    checked = state.todayButtonInToolbar,
+                    onCheckedChange = viewModel::setTodayButtonInToolbar,
+                )
+            },
+            onClick = { viewModel.setTodayButtonInToolbar(!state.todayButtonInToolbar) },
         )
         GroupedRow(
             title = stringResource(R.string.settings_week_start),
@@ -667,8 +688,58 @@ private fun AppearanceScreen(
             },
             onClick = { viewModel.setAgendaShowRangeBar(!state.agendaShowRangeBar) },
         )
+
+        Spacer(Modifier.height(16.dp))
+
+        // App name — chooses the launcher label between "Calendula" and "Calendar"
+        // (issue #44). Own group: it's a launcher/system concern, not calendar
+        // formatting. A sub-page chooser (not a switch), matching the app's other
+        // "choose one" settings and leaving room for more names later.
+        GroupedRow(
+            title = stringResource(R.string.settings_app_name),
+            summary = launcherNameLabel(launcherName),
+            position = Position.Alone,
+            onClick = { showAppName = true },
+        )
     }
 
+    if (showAppName) {
+        FullScreenPicker(
+            title = stringResource(R.string.settings_app_name),
+            onDismiss = { showAppName = false },
+            predictiveBack = true,
+        ) {
+            // Show both names as launcher-mark previews so the user sees what
+            // they'd switch to, not just the current state. Tapping applies
+            // immediately and highlights — the picker stays open so the change is
+            // visible; back exits.
+            Text(
+                text = stringResource(R.string.settings_app_name_summary),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+            )
+            Spacer(Modifier.height(24.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                LauncherName.entries.forEach { option ->
+                    AppNameOptionCard(
+                        name = option,
+                        selected = launcherName == option,
+                        onClick = { viewModel.setLauncherName(option) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+    }
     if (showTheme) {
         OptionPicker(
             title = stringResource(R.string.settings_theme),
@@ -778,12 +849,24 @@ private fun ViewsScreen(
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
 ) {
+    var showMonthStyle by remember { mutableStateOf(false) }
+
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_views),
         onBack = onBack,
     ) {
         val config = state.quickSwitchConfig
 
+        // Per-view layout, above the cross-view switcher/order settings below.
+        SectionHeader(stringResource(R.string.settings_month_header))
+        GroupedRow(
+            title = stringResource(R.string.settings_month_view_style),
+            summary = stringResource(state.monthViewStyle.labelRes),
+            position = Position.Alone,
+            onClick = { showMonthStyle = true },
+        )
+
+        Spacer(Modifier.height(24.dp))
         SectionHeader(stringResource(R.string.settings_quick_switch_header))
         SettingsHint(stringResource(R.string.settings_quick_switch_hint))
         Spacer(Modifier.height(8.dp))
@@ -828,6 +911,16 @@ private fun ViewsScreen(
                 dragHandle = dragHandle,
             )
         }
+    }
+
+    if (showMonthStyle) {
+        MonthViewStylePicker(
+            selected = state.monthViewStyle,
+            // The preview is a real grid, so it uses the real week start too.
+            weekStart = state.weekStart.resolveFirstDay(currentLocale()),
+            onSelect = viewModel::setMonthViewStyle,
+            onDismiss = { showMonthStyle = false },
+        )
     }
 }
 
@@ -1081,13 +1174,7 @@ private fun NotificationsScreen(
             },
             position = Position.Top,
             trailing = if (batteryExempt) {
-                {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                }
+                { SelectedCheck() }
             } else {
                 null
             },
@@ -1692,6 +1779,98 @@ private fun openUrl(context: Context, url: String) {
     runCatching { context.startActivity(intent) }
 }
 
+/** The display name for a launcher-label choice (issue #44). */
+@Composable
+private fun launcherNameLabel(name: LauncherName): String = stringResource(
+    when (name) {
+        LauncherName.CALENDULA -> R.string.app_name
+        LauncherName.CALENDAR -> R.string.app_name_calendar_alias
+    },
+)
+
+/**
+ * One selectable launcher-name preview in the App name picker (issue #44): the
+ * app's launcher mark over the name, framed as a card. The active one carries a
+ * primary border, a tinted container and a check; tapping selects it. The mark
+ * is the same for both — only the label changes — so the card previews exactly
+ * what the home screen will read.
+ */
+@Composable
+private fun AppNameOptionCard(
+    name: LauncherName,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(24.dp)
+    val borderColor = if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+    } else {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    }
+    Column(
+        modifier = modifier
+            .clip(shape)
+            .background(containerColor)
+            .border(width = if (selected) 2.dp else 1.dp, color = borderColor, shape = shape)
+            .clickable(onClick = onClick)
+            .padding(vertical = 20.dp, horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // The adaptive launcher mark, reconstructed as a squircle (as in the
+        // onboarding BrandHero) so it renders identically everywhere.
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(colorResource(R.color.ic_launcher_background)),
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_launcher_foreground),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Text(
+            text = launcherNameLabel(name),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
+        // Selection indicator: a filled check when active, an empty ring otherwise.
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                .then(
+                    if (selected) {
+                        Modifier
+                    } else {
+                        Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun themeLabel(mode: ThemeMode): String = stringResource(
     when (mode) {
@@ -1833,13 +2012,7 @@ private fun FontOptionRow(
             }
         },
         trailing = if (selected) {
-            {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
+            { SelectedCheck() }
         } else {
             null
         },

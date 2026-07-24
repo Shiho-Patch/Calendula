@@ -8,6 +8,7 @@ import de.jeanlucmakiola.calendula.data.calendar.NoSuchEventException
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
+import de.jeanlucmakiola.calendula.data.prefs.firstDayOfWeek
 import de.jeanlucmakiola.calendula.data.prefs.resolveDefaultReminder
 import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Availability
@@ -39,6 +40,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -219,7 +222,8 @@ class EventEditViewModel @Inject constructor(
         ).flowOn(io),
         colorPalette,
         allCalendars,
-    ) { local, external, palette, allCalendars ->
+        settingsPrefs.recentTimeZones.flowOn(io),
+    ) { local, external, palette, allCalendars, recentTimeZones ->
         val form = local.form ?: return@combine null
         val resolvedId = form.calendarId
             ?: external.lastUsed?.takeIf { id -> external.writable.any { it.id == id } }
@@ -235,14 +239,19 @@ class EventEditViewModel @Inject constructor(
         val pickerCalendars =
             if (isManaged && resolvedCalendar != null) external.writable + resolvedCalendar
             else external.writable
-        val visibleFields = external.defaultFields + local.revealed
+        // An all-day event is date-anchored, so a zone is meaningless on it —
+        // the field is withheld from both lists rather than shown as a no-op.
+        val offerableFields = EventFormField.entries.toSet() -
+            if (resolved.isAllDay) setOf(EventFormField.Timezone) else emptySet()
+        val visibleFields = (external.defaultFields + local.revealed) intersect offerableFields
         EventEditUiState(
             form = resolved,
             calendars = pickerCalendars,
             problems = if (local.showProblems) resolved.problems() else emptySet(),
             saveState = local.saveState,
             visibleFields = visibleFields,
-            hiddenFields = (EventFormField.entries.toSet() - visibleFields).sorted(),
+            hiddenFields = (offerableFields - visibleFields).sorted(),
+            recentTimeZones = recentTimeZones,
             isEditing = local.editTarget != null,
             isManaged = isManaged,
             autofocusTitle = external.autofocusTitle,
@@ -259,6 +268,13 @@ class EventEditViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = null,
         )
+
+    /**
+     * First day of the week for ordering the recurrence weekday toggles — the
+     * app's "week starts on" preference, matching the calendar views (Auto
+     * falls back to the locale convention).
+     */
+    val firstDayOfWeek: StateFlow<DayOfWeek> = settingsPrefs.firstDayOfWeek(viewModelScope)
 
     /**
      * Initialise a fresh form for a new event on [date]. [startMinutes] (minutes
@@ -453,10 +469,26 @@ class EventEditViewModel @Inject constructor(
     fun setLocation(value: String) = update { it.copy(location = value) }
     fun setDescription(value: String) = update { it.copy(description = value) }
     fun setAllDay(value: Boolean) {
-        update { it.copy(isAllDay = value) }
+        // Going all-day drops any pinned zone: the times become bare dates that
+        // the provider stores UTC-anchored, so a zone could only misrepresent
+        // them. Coming back out of all-day leaves the event on the device zone,
+        // which is the same thing a fresh event gets.
+        update { it.copy(isAllDay = value, timezone = if (value) null else it.timezone) }
         // The default reminder differs for all-day vs timed; re-apply the
         // type-appropriate default unless the user has hand-edited it (guarded).
         applyDefaultReminder()
+    }
+
+    /**
+     * Pin the event to [zoneId], or pass null to follow the device. The zone
+     * rides along as a recent so the picker can offer it without a search next
+     * time — only real picks are remembered, not the device fallback.
+     */
+    fun setTimezone(zoneId: String?) {
+        update { it.copy(timezone = zoneId) }
+        if (zoneId != null) {
+            viewModelScope.launch { withContext(io) { settingsPrefs.addRecentTimeZone(zoneId) } }
+        }
     }
 
     /**
