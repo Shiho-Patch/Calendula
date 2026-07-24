@@ -123,11 +123,13 @@
 
             <!-- Let another app or widget (e.g. the Todo Agenda widget) launch us
                  to create a new event, the way the AOSP calendar accepts it:
-                 ACTION_INSERT on the events dir mime type, carrying the new
+                 ACTION_INSERT on the events *dir* mime type, carrying the new
                  event's fields as CalendarContract extras
                  (MainActivity.insertFormOrNull, issue #30). ACTION_EDIT on the
                  dir mime is AOSP's "edit a new event" — i.e. create — so it maps
-                 to the same prefilled create form. -->
+                 to the same prefilled create form. (The far more common *item*-
+                 typed INSERT — the form the Android docs' example and apps like
+                 DB Navigator use — is the item filter below, issue #74.) -->
             <intent-filter>
                 <action android:name="android.intent.action.INSERT" />
                 <action android:name="android.intent.action.EDIT" />
@@ -135,14 +137,31 @@
                 <data android:mimeType="vnd.android.cursor.dir/event" />
             </intent-filter>
 
-            <!-- Edit an existing event another app/assistant/widget points at:
-                 ACTION_EDIT on content://com.android.calendar/events/<id>, the way
-                 AOSP fires it. Opens the occurrence in the edit form (not the
-                 read-only detail — that's the VIEW filter above). Matched by the
-                 provider's item MIME type, like the VIEW filter. The occurrence's
-                 times ride as EXTRA_EVENT_BEGIN_TIME / EXTRA_EVENT_END_TIME when
-                 supplied (MainActivity.editEventKeyOrNull). -->
+            <!-- Create or edit an event another app/assistant/widget points at,
+                 addressed by the provider's *item* MIME type. Three actions share
+                 this filter, told apart at runtime by the intent's data:
+
+                 • ACTION_INSERT — create. This is the form the Android docs'
+                   "insert an event" example and many apps use
+                   (setType("vnd.android.cursor.item/event")), e.g. DB Navigator's
+                   "Save to calendar". The dir-typed filter above alone missed it,
+                   so Calendula never showed in the chooser — and, when it was the
+                   only calendar app, the intent resolved to nothing (issue #74).
+                 • ACTION_INSERT_OR_EDIT — the third "add to calendar" action AOSP
+                   and Google Calendar register; a create, or an edit when it
+                   carries an event id.
+                 • ACTION_EDIT — edit the existing event at
+                   content://com.android.calendar/events/<id> (an id-less EDIT is a
+                   create). Opens the occurrence in the edit form, not the
+                   read-only detail — that's the VIEW filter above.
+
+                 Create fields ride as CalendarContract extras; an edit's
+                 occurrence times ride as EXTRA_EVENT_BEGIN_TIME /
+                 EXTRA_EVENT_END_TIME when supplied (MainActivity.insertFormOrNull
+                 / editEventKeyOrNull). -->
             <intent-filter>
+                <action android:name="android.intent.action.INSERT" />
+                <action android:name="android.intent.action.INSERT_OR_EDIT" />
                 <action android:name="android.intent.action.EDIT" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="vnd.android.cursor.item/event" />

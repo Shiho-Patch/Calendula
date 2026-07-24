@@ -32,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Now a bigger widget gets bigger, more readable type and roomier rows, while the
   default size looks exactly as before — no new setting; it follows the size you
   already chose ([#51]).
+- Calendula now appears under other apps' "Add to calendar" / "Save to calendar"
+  actions. Some apps (e.g. DB Navigator) fire the widely-used "insert event"
+  intent with the singular `vnd.android.cursor.item/event` type, which Calendula
+  didn't advertise — so it was left out of the chooser, and if it was your only
+  calendar app the save silently did nothing. It now accepts that form, plus the
+  `INSERT_OR_EDIT` action, and opens the new event prefilled for review ([#74]).
 
 ## [2.16.0] — 2026-07-17
 
@@ -1079,3 +1085,4 @@ automatically, with zero telemetry and no internet permission.
 [#53]: https://codeberg.org/jlmakiola/calendula/issues/53
 [#60]: https://codeberg.org/jlmakiola/calendula/issues/60
 [#65]: https://codeberg.org/jlmakiola/calendula/issues/65
+[#74]: https://codeberg.org/jlmakiola/calendula/issues/74
