@@ -38,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   didn't advertise — so it was left out of the chooser, and if it was your only
   calendar app the save silently did nothing. It now accepts that form, plus the
   `INSERT_OR_EDIT` action, and opens the new event prefilled for review ([#74]).
+- Opening a `.ics`/`.vcs` file now works even when another app hands it over
+  mislabelled as a generic download (`application/octet-stream`), as some mail
+  clients, browsers and file managers do — Calendula recognises it by its file
+  extension instead of relying on the declared type ([#74]).
 
 ## [2.16.0] — 2026-07-17
 

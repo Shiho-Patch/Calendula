@@ -112,6 +112,28 @@
                 <data android:mimeType="text/x-vcalendar" />
                 <data android:mimeType="application/ics" />
             </intent-filter>
+            <!-- Same .ics/.vcs data arriving mislabelled as a generic download —
+                 application/octet-stream — the way many mail clients, browsers and
+                 file managers hand off attachments. Matched by file extension, so
+                 this stays a separate filter: a pathPattern here must not narrow
+                 the MIME-typed VIEW filter above (that one has no path and must
+                 keep matching regardless of name). The import handler ignores the
+                 MIME type, so a let-through octet-stream .ics imports normally.
+                 Best-effort: pathPattern is reliable for file:// (and content://
+                 whose path carries the filename); content:// URIs that expose no
+                 name still fall back to the MIME-typed filter above. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:host="*" />
+                <data android:mimeType="application/octet-stream" />
+                <data android:pathPattern=".*\\.ics" />
+                <data android:pathPattern=".*\\.vcs" />
+            </intent-filter>
+
             <!-- Receive a .ics/.vcs shared from another app (same MIME set). -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
