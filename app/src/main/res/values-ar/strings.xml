@@ -178,7 +178,6 @@
     <string name="reminder_channel_description">الإشعارات في أوقات التذكير الخاصه بأحداثك</string>
     <string name="reminder_onboarding_title">لا تفوّت أي حدث أبدًا</string>
     <string name="reminder_onboarding_body">Android لا يعرض تذكيرات الأحداث من نفسه — بل يجب أن يقوم تطبيق تقويم بذلك. دع Calendula يتولى هذه المهمة.</string>
-    <string name="reminder_benefit_delivery_title"></string>
     <string name="reminder_benefit_delivery_body">كل تذكير لأحداثك يصِل كإشعار، في الوقت المحدد تمامًا.</string>
     <string name="reminder_benefit_duplicates_title">هل تستخدم تطبيق تقويم ثانٍ؟</string>
     <string name="reminder_benefit_duplicates_body">إذا كان تطبيق آخر أيضًا ينشر تذكيرات، فستراهم مرتين — قم بإيقاف تشغيلهم هناك أو هنا.</string>
