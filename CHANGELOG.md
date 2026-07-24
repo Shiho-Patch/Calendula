@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.16.0] — 2026-07-24
+
 ### Added
 - Choose how the month view is laid out. A new **Month view style** setting
   (Settings → Views) offers three ways to read a month, each shown with a
@@ -24,28 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The Agenda view is untouched by this and stays available in all three styles —
   the split layout lists a single day, while Agenda remains a rolling multi-day
   window with its own range settings.
-
-### Fixed
-- The "Upcoming" agenda widget now scales its text and rows to the size you give
-  it. Previously it was laid out once for the smallest size and simply stretched
-  when enlarged, so the text stayed small no matter how big you made the widget.
-  Now a bigger widget gets bigger, more readable type and roomier rows, while the
-  default size looks exactly as before — no new setting; it follows the size you
-  already chose ([#51]).
-- Calendula now appears under other apps' "Add to calendar" / "Save to calendar"
-  actions. Some apps (e.g. DB Navigator) fire the widely-used "insert event"
-  intent with the singular `vnd.android.cursor.item/event` type, which Calendula
-  didn't advertise — so it was left out of the chooser, and if it was your only
-  calendar app the save silently did nothing. It now accepts that form, plus the
-  `INSERT_OR_EDIT` action, and opens the new event prefilled for review ([#74]).
-- Opening a `.ics`/`.vcs` file now works even when another app hands it over
-  mislabelled as a generic download (`application/octet-stream`), as some mail
-  clients, browsers and file managers do — Calendula recognises it by its file
-  extension instead of relying on the declared type ([#74]).
-
-## [2.16.0] — 2026-07-17
-
-### Added
 - Give an event its own time zone. A new **Time zone** field (under "more
   fields" in the event form) pins an event to a specific zone, so a call set for
   8:00 AM in New York stays 8:00 AM in New York wherever you open it — and keeps
@@ -63,6 +43,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   today icon in the top bar — always there, on today or not, matching the
   familiar calendar-app pattern. Leave it off to keep the floating button as
   before ([#60]).
+- Choose what Calendula calls itself on your home screen. A new **App name**
+  setting (Settings → Appearance) switches the launcher label between
+  **Calendula** and **Calendar**, for launchers that can't rename apps
+  themselves. Pick from a full-screen chooser that previews both names as
+  launcher marks; the change applies at once ([#44]).
+- Calendula now speaks **Arabic**, laid out right-to-left, and its French and
+  Italian translations have been brought up to date — thanks to the community
+  translators on Weblate. Pick a language under Settings → Language (or leave it
+  on the system default).
 
 ### Changed
 - Dates in the Month, Week and Day title bars now follow your language and
@@ -81,6 +70,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "24. Jun – 31. Jun" restated the day numbers already printed in the column
   headers right below it, in the widest string in the bar. A week that straddles
   two months keeps the outgoing month until it is fully gone ([#60]).
+- The custom recurrence picker has been redesigned and tightened up. As you
+  build a rule — "every 2 weeks on Mon & Wed, until a date" — the live summary
+  now describes exactly what will be saved rather than a near-copy that could
+  drift from it, the amount fields accept being left blank (reading as their
+  shown default instead of greying out OK), and the read-out no longer jumps
+  around as you tap weekdays ([#42]).
 
 ### Fixed
 - An all-day event no longer shows up again the day after it happened. In time
@@ -90,6 +85,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   window reached back across that boundary and pulled the event forward onto
   "today". Each all-day event now lists only on the day it actually falls on
   ([#65]).
+- A multi-day event now shows under every day it spans in the Agenda, not just
+  its first day, so a trip or a multi-day booking appears on each day it covers.
+- The "Upcoming" agenda widget now scales its text and rows to the size you give
+  it. Previously it was laid out once for the smallest size and simply stretched
+  when enlarged, so the text stayed small no matter how big you made the widget.
+  Now a bigger widget gets bigger, more readable type and roomier rows, while the
+  default size looks exactly as before — no new setting; it follows the size you
+  already chose ([#51]).
+- Calendula now appears under other apps' "Add to calendar" / "Save to calendar"
+  actions. Some apps (e.g. DB Navigator) fire the widely-used "insert event"
+  intent with the singular `vnd.android.cursor.item/event` type, which Calendula
+  didn't advertise — so it was left out of the chooser, and if it was your only
+  calendar app the save silently did nothing. It now accepts that form, plus the
+  `INSERT_OR_EDIT` action, and opens the new event prefilled for review ([#74]).
+- Opening a `.ics`/`.vcs` file now works even when another app hands it over
+  mislabelled as a generic download (`application/octet-stream`), as some mail
+  clients, browsers and file managers do — Calendula recognises it by its file
+  extension instead of relying on the declared type ([#74]).
+- A recurrence end date no longer lands a day late. West of UTC, setting a rule
+  to end "until" a given day could save and show the day after the one picked;
+  the end date now reads back as chosen ([#42]).
+- The status- and navigation-bar icons stay legible over full-screen pickers in
+  dark theme. They could render dark-on-dark — a near-invisible black clock
+  against the dark picker — instead of switching to light ([#70]).
 
 ## [2.15.0] — 2026-07-15
 
@@ -1090,3 +1109,6 @@ automatically, with zero telemetry and no internet permission.
 [#60]: https://codeberg.org/jlmakiola/calendula/issues/60
 [#65]: https://codeberg.org/jlmakiola/calendula/issues/65
 [#74]: https://codeberg.org/jlmakiola/calendula/issues/74
+[#42]: https://codeberg.org/jlmakiola/calendula/issues/42
+[#44]: https://codeberg.org/jlmakiola/calendula/issues/44
+[#70]: https://codeberg.org/jlmakiola/calendula/issues/70

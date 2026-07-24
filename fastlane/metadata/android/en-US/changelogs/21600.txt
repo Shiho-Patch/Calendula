@@ -1,21 +1,46 @@
 ### Added
-- Give an event its own time zone. A new Time zone field (under "more fields" in
-  the event form) pins an event to a specific zone, so a call set for 8:00 AM in
-  New York stays 8:00 AM in New York wherever you open it, and keeps tracking
-  that zone across daylight-saving changes. The form shows the local equivalent
-  under the times, and the event's details keep your local time first with the
-  original noted beneath. Pick a zone from a searchable full-screen picker — by
-  city, IANA id, or abbreviation like "CEST". All-day events stay date-anchored
-  and carry no zone ([#31]).
-- Put the "jump to today" button in the toolbar. A new Today button in toolbar
-  setting (Settings → Appearance, off by default) swaps the floating corner
-  button for a permanent today icon in the top bar — always there, matching the
-  familiar calendar-app pattern. Leave it off to keep the floating button ([#60]).
-- Show the app as "Calendar" in your launcher. A new App name setting
-  (Settings → Appearance) switches the launcher label from "Calendula" to the
-  generic "Calendar" for anyone who prefers it — handy on launchers that can't
-  rename apps themselves. Only the launcher name changes; your home-screen icon
-  may move to a new spot after switching ([#44]).
+- Choose how the month view is laid out. A new **Month view style** setting
+  (Settings → Views) offers three ways to read a month, each shown with a
+  preview of the layout it produces:
+  - **Pages** — what you have today: one month at a time, swiped sideways.
+  - **Continuous** — scroll up and down through the weeks without a break
+    between months. Because the weeks run on unbroken, no month is cut off and
+    no day appears twice, where paging repeats a boundary week at the end of one
+    month and the start of the next. The 1st of each month names itself so you
+    always know where you are, and the title bar keeps up as you scroll ([#38]).
+  - **Split** — a compact grid showing coloured dots for the days that have
+    something on them, with the day you tap listed in full underneath. Tap the
+    date above the list to open the whole day ([#53]).
+
+  The Agenda view is untouched by this and stays available in all three styles —
+  the split layout lists a single day, while Agenda remains a rolling multi-day
+  window with its own range settings.
+- Give an event its own time zone. A new **Time zone** field (under "more
+  fields" in the event form) pins an event to a specific zone, so a call set for
+  8:00 AM in New York stays 8:00 AM in New York wherever you open it — and keeps
+  tracking that zone across daylight-saving changes instead of drifting an hour.
+  The form edits the event in its own zone and shows the local equivalent under
+  the times ("2:00 PM – 3:00 PM your time"); the event's details keep your local
+  time first and note the original beneath it, so both are always clear. Pick a
+  zone from a full-screen picker with your device zone and recent choices on top,
+  searching by city ("new york"), IANA id ("europe/berlin"), or abbreviation
+  ("CEST") to gather every matching zone at once. All-day events stay
+  date-anchored and carry no zone, as before ([#31]).
+- Put the "jump to today" button in the toolbar. A new **Today button in
+  toolbar** setting (Settings → Appearance, off by default) swaps the floating
+  button that fades into the corner while you're away from today for a permanent
+  today icon in the top bar — always there, on today or not, matching the
+  familiar calendar-app pattern. Leave it off to keep the floating button as
+  before ([#60]).
+- Choose what Calendula calls itself on your home screen. A new **App name**
+  setting (Settings → Appearance) switches the launcher label between
+  **Calendula** and **Calendar**, for launchers that can't rename apps
+  themselves. Pick from a full-screen chooser that previews both names as
+  launcher marks; the change applies at once ([#44]).
+- Calendula now speaks **Arabic**, laid out right-to-left, and its French and
+  Italian translations have been brought up to date — thanks to the community
+  translators on Weblate. Pick a language under Settings → Language (or leave it
+  on the system default).
 
 ### Changed
 - Dates in the Month, Week and Day title bars now follow your language and
@@ -34,4 +59,43 @@
   "24. Jun – 31. Jun" restated the day numbers already printed in the column
   headers right below it, in the widest string in the bar. A week that straddles
   two months keeps the outgoing month until it is fully gone ([#60]).
+- The custom recurrence picker has been redesigned and tightened up. As you
+  build a rule — "every 2 weeks on Mon & Wed, until a date" — the live summary
+  now describes exactly what will be saved rather than a near-copy that could
+  drift from it, the amount fields accept being left blank (reading as their
+  shown default instead of greying out OK), and the read-out no longer jumps
+  around as you tap weekdays ([#42]).
+
+### Fixed
+- An all-day event no longer shows up again the day after it happened. In time
+  zones east of UTC, an all-day event — a birthday, say — set for one day also
+  appeared under the *next* day's heading in the Agenda (and the agenda widget),
+  because all-day events are anchored to UTC midnight and the following day's
+  window reached back across that boundary and pulled the event forward onto
+  "today". Each all-day event now lists only on the day it actually falls on
+  ([#65]).
+- A multi-day event now shows under every day it spans in the Agenda, not just
+  its first day, so a trip or a multi-day booking appears on each day it covers.
+- The "Upcoming" agenda widget now scales its text and rows to the size you give
+  it. Previously it was laid out once for the smallest size and simply stretched
+  when enlarged, so the text stayed small no matter how big you made the widget.
+  Now a bigger widget gets bigger, more readable type and roomier rows, while the
+  default size looks exactly as before — no new setting; it follows the size you
+  already chose ([#51]).
+- Calendula now appears under other apps' "Add to calendar" / "Save to calendar"
+  actions. Some apps (e.g. DB Navigator) fire the widely-used "insert event"
+  intent with the singular `vnd.android.cursor.item/event` type, which Calendula
+  didn't advertise — so it was left out of the chooser, and if it was your only
+  calendar app the save silently did nothing. It now accepts that form, plus the
+  `INSERT_OR_EDIT` action, and opens the new event prefilled for review ([#74]).
+- Opening a `.ics`/`.vcs` file now works even when another app hands it over
+  mislabelled as a generic download (`application/octet-stream`), as some mail
+  clients, browsers and file managers do — Calendula recognises it by its file
+  extension instead of relying on the declared type ([#74]).
+- A recurrence end date no longer lands a day late. West of UTC, setting a rule
+  to end "until" a given day could save and show the day after the one picked;
+  the end date now reads back as chosen ([#42]).
+- The status- and navigation-bar icons stay legible over full-screen pickers in
+  dark theme. They could render dark-on-dark — a near-invisible black clock
+  against the dark picker — instead of switching to light ([#70]).
 
