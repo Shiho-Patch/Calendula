@@ -111,6 +111,32 @@ interface CalendarDataSource {
     fun deleteCalendar(id: Long)
 
     /**
+     * Show or hide the calendar device-wide by writing `Calendars.VISIBLE` — the
+     * app's one visibility model (#75). `VISIBLE` also gates the provider's own
+     * reminder scheduling, so switching a calendar off here is what actually
+     * stops its notifications; switching it on is what brings them back.
+     * Writable by a plain app (one of the three columns the platform documents
+     * as such) and device-local — no sync adapter pushes it anywhere.
+     */
+    fun setCalendarVisible(id: Long, visible: Boolean)
+
+    /**
+     * Whether one calendar is currently switched on at system level, without
+     * reading every row — for the reminder gate, which sees a calendar id and
+     * nothing else. Null when the answer can't be had: no row (the calendar was
+     * deleted) or no read permission.
+     */
+    fun isCalendarVisible(id: Long): Boolean?
+
+    /**
+     * Whether the app holds `WRITE_CALENDAR`, i.e. may write
+     * [setCalendarVisible] at all. Read-only users (READ granted, WRITE denied)
+     * keep their calendar switches app-side instead — see
+     * [de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs.pendingDisabledCalendarIds].
+     */
+    fun canWriteCalendars(): Boolean
+
+    /**
      * Create a local calendar tagged as the special-dates mirror for [type]
      * (a marker in `CAL_SYNC2`); returns its `Calendars._ID`. Otherwise a normal
      * local calendar, so it inherits per-calendar colour/visibility/reminders.
@@ -372,6 +398,40 @@ class AndroidCalendarDataSource @Inject constructor(
         )
         if (deleted == 0) throw WriteFailedException("delete calendar id=$id")
     }
+
+    /**
+     * Addressed by appended id on the plain (non-sync-adapter) Calendars URI,
+     * one calendar per call. Both parts are load-bearing:
+     * `CalendarProvider2.updateInTransaction` short-circuits to a raw database
+     * update unless the selection is `_id=…`, skipping the dirty marking *and*
+     * the `checkNextAlarm()` reschedule — i.e. an `_id IN (…)` batch would write
+     * the flag but never re-arm the reminder alarms this write exists to
+     * trigger. The sync-adapter URI is avoided so the write also applies to
+     * synced calendars, which is where the bug bites.
+     */
+    override fun setCalendarVisible(id: Long, visible: Boolean) {
+        val values = ContentValues().apply {
+            put(CalendarContract.Calendars.VISIBLE, if (visible) 1 else 0)
+        }
+        val rows = resolver.update(
+            ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, id),
+            values, null, null,
+        )
+        if (rows == 0) throw WriteFailedException("set calendar visibility id=$id")
+    }
+
+    override fun isCalendarVisible(id: Long): Boolean? {
+        if (!hasCalendarPermission()) return null
+        return resolver.query(
+            ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, id),
+            arrayOf(CalendarContract.Calendars.VISIBLE),
+            null, null, null,
+        )?.use { if (it.moveToFirst()) it.getInt(0) != 0 else null }
+    }
+
+    override fun canWriteCalendars(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) ==
+            PackageManager.PERMISSION_GRANTED
 
     override fun createManagedCalendar(displayName: String, color: Int, type: SpecialDateType): Long {
         val name = displayName.trim().ifEmpty { Fallbacks.UNNAMED_CALENDAR }

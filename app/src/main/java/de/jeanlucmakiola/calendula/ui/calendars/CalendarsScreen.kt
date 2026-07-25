@@ -139,7 +139,6 @@ fun CalendarsScreen(
     viewModel: CalendarsViewModel = hiltViewModel(),
 ) {
     val calendars by viewModel.calendars.collectAsStateWithLifecycle()
-    val disabledIds by viewModel.disabledCalendarIds.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val backupResult by viewModel.backupResult.collectAsStateWithLifecycle()
     val autoBackup by viewModel.autoBackup.collectAsStateWithLifecycle()
@@ -177,7 +176,6 @@ fun CalendarsScreen(
         CalendarsList(
             local = calendars.filter { it.isLocal },
             synced = calendars.filterNot { it.isLocal },
-            disabledIds = disabledIds,
             error = error,
             onConsumeError = viewModel::consumeError,
             backupResult = backupResult,
@@ -191,8 +189,8 @@ fun CalendarsScreen(
             onBack = onBack,
             onAdd = { editorSession++; editorId = NEW_CALENDAR_ID },
             onEdit = { calendar -> editorSession++; editorId = calendar.id },
-            onSetDisabled = viewModel::setDisabled,
-            onSetAccountDisabled = viewModel::setAccountDisabled,
+            onSetVisible = viewModel::setCalendarVisible,
+            onSetAccountVisible = viewModel::setAccountVisible,
         )
     }
 }
@@ -201,7 +199,6 @@ fun CalendarsScreen(
 private fun CalendarsList(
     local: List<CalendarSource>,
     synced: List<CalendarSource>,
-    disabledIds: Set<Long>,
     error: Boolean,
     onConsumeError: () -> Unit,
     backupResult: BackupResult?,
@@ -215,8 +212,8 @@ private fun CalendarsList(
     onBack: () -> Unit,
     onAdd: () -> Unit,
     onEdit: (CalendarSource) -> Unit,
-    onSetDisabled: (Long, Boolean) -> Unit,
-    onSetAccountDisabled: (Collection<Long>, Boolean) -> Unit,
+    onSetVisible: (Long, Boolean) -> Unit,
+    onSetAccountVisible: (Collection<Long>, Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -281,12 +278,12 @@ private fun CalendarsList(
         predictiveBack = true,
     ) {
         // What the per-calendar / per-account switches below actually do.
-        HintText(stringResource(R.string.calendars_disable_hint))
+        HintText(stringResource(R.string.calendars_visibility_hint))
 
         // Local (device-only) calendars — one collapsible group. The header's
         // "+" adds a calendar; the switch enables/disables them all at once;
         // tapping a calendar row opens its editor.
-        val localDisabled = local.isNotEmpty() && local.all { it.id in disabledIds }
+        val localDisabled = local.isNotEmpty() && local.none { it.isVisibleInSystem }
         CalendarGroup(
             title = stringResource(R.string.calendars_local_header),
             expanded = localExpanded,
@@ -298,14 +295,14 @@ private fun CalendarsList(
             onManage = onAdd,
             onToggleExpand = { localExpanded = !localExpanded },
             showToggleAll = local.isNotEmpty(),
-            allEnabled = local.none { it.id in disabledIds },
-            onToggleAll = { enabled -> onSetAccountDisabled(local.map { it.id }, !enabled) },
+            allEnabled = local.all { it.isVisibleInSystem },
+            onToggleAll = { enabled -> onSetAccountVisible(local.map { it.id }, enabled) },
         ) {
             if (local.isEmpty()) {
                 HintText(stringResource(R.string.calendars_local_empty))
             } else {
                 local.forEachIndexed { index, calendar ->
-                    val disabled = calendar.id in disabledIds
+                    val disabled = !calendar.isVisibleInSystem
                     GroupedRow(
                         title = calendar.displayName,
                         summary = calendar.description,
@@ -317,7 +314,7 @@ private fun CalendarsList(
                             EnableSwitch(
                                 calendarName = calendar.displayName,
                                 enabled = !disabled,
-                                onToggle = { enabled -> onSetDisabled(calendar.id, !enabled) },
+                                onToggle = { enabled -> onSetVisible(calendar.id, enabled) },
                             )
                         },
                         onClick = { onEdit(calendar) },
@@ -415,7 +412,7 @@ private fun CalendarsList(
             .forEach { (account, cals) ->
                 val expanded = account !in collapsedAccounts
                 val accountType = cals.first().accountType
-                val accountDisabled = cals.all { it.id in disabledIds }
+                val accountDisabled = cals.none { it.isVisibleInSystem }
                 Spacer(Modifier.height(16.dp))
                 CalendarGroup(
                     title = account,
@@ -436,11 +433,11 @@ private fun CalendarsList(
                         }
                     },
                     showToggleAll = true,
-                    allEnabled = cals.none { it.id in disabledIds },
-                    onToggleAll = { enabled -> onSetAccountDisabled(cals.map { it.id }, !enabled) },
+                    allEnabled = cals.all { it.isVisibleInSystem },
+                    onToggleAll = { enabled -> onSetAccountVisible(cals.map { it.id }, enabled) },
                 ) {
                     cals.forEachIndexed { index, calendar ->
-                        val disabled = calendar.id in disabledIds
+                        val disabled = !calendar.isVisibleInSystem
                         GroupedRow(
                             title = calendar.displayName,
                             position = if (index == cals.lastIndex) Position.Bottom else Position.Middle,
@@ -451,7 +448,7 @@ private fun CalendarsList(
                                 EnableSwitch(
                                     calendarName = calendar.displayName,
                                     enabled = !disabled,
-                                    onToggle = { enabled -> onSetDisabled(calendar.id, !enabled) },
+                                    onToggle = { enabled -> onSetVisible(calendar.id, enabled) },
                                 )
                             },
                         )
@@ -698,10 +695,12 @@ private fun CalendarEditor(
 }
 
 /**
- * The per-row enable/disable control. Checked = the calendar is shown in the
- * app; unchecking disables it (events, filters and pickers all drop it) without
- * touching any provider data. Carries its own content description so the toggle
- * is self-describing to screen readers even on a dimmed row.
+ * The per-row on/off control, writing the system's `Calendars.VISIBLE`: checked
+ * = the calendar is shown, unchecked = it drops out of every surface (events,
+ * filters, pickers) and the provider stops scheduling its reminders. The flag is
+ * device-local — nothing is deleted and nothing is synced anywhere. Carries its
+ * own content description so the toggle is self-describing to screen readers
+ * even on a dimmed row.
  */
 @Composable
 private fun EnableSwitch(
@@ -709,7 +708,7 @@ private fun EnableSwitch(
     enabled: Boolean,
     onToggle: (Boolean) -> Unit,
 ) {
-    val label = stringResource(R.string.calendars_show_in_app_a11y, calendarName)
+    val label = stringResource(R.string.calendars_visibility_a11y, calendarName)
     Switch(
         checked = enabled,
         onCheckedChange = onToggle,

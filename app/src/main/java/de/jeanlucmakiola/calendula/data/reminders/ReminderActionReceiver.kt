@@ -23,7 +23,9 @@ import javax.inject.Inject
  * - **Snooze** cancels the notification and schedules an exact alarm to re-show
  *   it after the user's snooze delay.
  * - **Show** (the alarm) re-posts the same notification, so the user can snooze
- *   or dismiss it again.
+ *   or dismiss it again — unless the calendar was switched off during the
+ *   snooze, which [ReminderNotifier.post] catches (this alarm is ours, so no
+ *   provider alert row stands between it and the notification).
  */
 @AndroidEntryPoint
 class ReminderActionReceiver : BroadcastReceiver() {

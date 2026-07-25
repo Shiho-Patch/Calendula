@@ -317,8 +317,6 @@
     <string name="calendars_local_header">Calendari locali</string>
     <string name="calendars_local_empty">Non ci sono ancora calendari locali. Creane uno con eventi salvati solo su questo dispositivo.</string>
     <string name="calendars_add">Aggiungi calendario</string>
-    <string name="calendars_disable_hint">Disattiva un calendario per non vederlo più sull\'app. Non viene cancellato nulla, puoi riattivarlo in qualsiasi momento.</string>
-    <string name="calendars_show_in_app_a11y">Mostra \"%1$s\" nell\'app</string>
     <string name="calendars_synced_header">Calendari sincronizzati</string>
     <string name="calendars_synced_hint">Questi calendari vengono dagli account sincronizzati sul tuo dispositivo. Puoi modificarli o crearne di nuovi dall\'app di sincronizzazione.</string>
     <string name="calendars_manage_in_app">Gestisci in app</string>

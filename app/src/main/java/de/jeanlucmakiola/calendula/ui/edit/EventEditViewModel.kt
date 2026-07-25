@@ -177,18 +177,19 @@ class EventEditViewModel @Inject constructor(
         repository.calendars().catch { emit(emptyList()) }
 
     /**
-     * Writable calendars — the only valid event targets. Disabled calendars are
-     * excluded, so you can't create into a calendar you've removed from the app;
-     * a last-used preselect landing on a now-disabled calendar falls back to the
-     * first remaining writable one (handled by [resolvedCalendarId] and [state]).
-     * Managed special-dates calendars are excluded too: their events are owned by
-     * the contact sync, which would delete any user event created there.
+     * Writable calendars — the only valid event targets. Calendars switched off
+     * in Settings → Calendars are excluded, so you can't create into one you've
+     * turned off; a last-used preselect landing on a now-off calendar falls back
+     * to the first remaining writable one (handled by [resolvedCalendarId] and
+     * [state]). Managed special-dates calendars are excluded too: their events
+     * are owned by the contact sync, which would delete any user event created
+     * there.
+     *
+     * This is the list of *targets*. An event already living in an excluded
+     * calendar keeps it — [state] adds it back to the picker.
      */
-    private val writableCalendars: Flow<List<CalendarSource>> = combine(
-        allCalendars,
-        prefs.disabledCalendarIds,
-    ) { calendars, disabled ->
-        calendars.filter { it.canModifyContents && it.id !in disabled && !it.isManaged }
+    private val writableCalendars: Flow<List<CalendarSource>> = allCalendars.map { calendars ->
+        calendars.filter { it.canModifyContents && it.isVisibleInSystem && !it.isManaged }
     }
 
     /** The target calendar id, resolved exactly as the form shows it. */
@@ -234,11 +235,16 @@ class EventEditViewModel @Inject constructor(
         // off the calendar's durable marker, not a stored id, so it holds after a
         // backup restore too.
         val isManaged = local.editTarget != null && resolvedCalendar?.isManaged == true
-        // The picker offers writable calendars only; when editing a managed event
-        // its own (excluded) calendar is added back so the row still names it.
+        // The picker offers writable calendars only; the event's own calendar is
+        // added back whenever it isn't among them — a managed special-dates one,
+        // or one switched off on this device — so the row keeps naming it instead
+        // of reading as the "no calendar" error, and saving can leave the event
+        // where it is. A calendar the app may not write to is still no target.
+        val ownCalendar = resolvedCalendar?.takeIf { own ->
+            own.canModifyContents && external.writable.none { it.id == own.id }
+        }
         val pickerCalendars =
-            if (isManaged && resolvedCalendar != null) external.writable + resolvedCalendar
-            else external.writable
+            if (ownCalendar != null) external.writable + ownCalendar else external.writable
         // An all-day event is date-anchored, so a zone is meaningless on it —
         // the field is withheld from both lists rather than shown as a no-op.
         val offerableFields = EventFormField.entries.toSet() -

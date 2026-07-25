@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.MainActivity
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.calendar.CalendarDataSource
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.is24Hour
@@ -39,6 +40,7 @@ class ReminderNotifier @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsPrefs: SettingsPrefs,
     private val calendarPrefs: CalendarPrefs,
+    private val calendarDataSource: CalendarDataSource,
 ) {
 
     /** False when the user declined `POST_NOTIFICATIONS` or muted the app. */
@@ -49,12 +51,26 @@ class ReminderNotifier @Inject constructor(
         return granted && NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
-    suspend fun post(alert: ReminderAlert) {
-        // The single choke point for the disabled-calendar gate: it covers both
-        // the provider broadcast (EventReminderReceiver) and a snoozed re-show
-        // (ReminderActionReceiver), so a calendar disabled after a snooze no
-        // longer notifies — without either receiver duplicating the check.
-        if (alert.isForDisabledCalendar(calendarPrefs.disabledCalendarIds.first())) return
+    /**
+     * The single choke point for "this calendar is switched off". The provider
+     * side needs no help — with `VISIBLE = 0` it creates no alert rows at all —
+     * but two paths reach [post] without one: a snooze we re-show from our own
+     * exact alarm, scheduled before the calendar was switched off, and a
+     * read-only install whose switch lives app-side ([CalendarPrefs]) because it
+     * may not write the flag. Both are covered here rather than in either
+     * receiver.
+     */
+    private suspend fun isSilenced(calendarId: Long): Boolean =
+        calendarId in calendarPrefs.pendingDisabledCalendarIds.first() ||
+            calendarDataSource.isCalendarVisible(calendarId) == false
+
+    /**
+     * Post [alert], unless its calendar is switched off. Returns whether the
+     * notification was put up: a silenced alert must stay unhandled so that
+     * switching the calendar back on can still surface it (see [handledAlertIds]).
+     */
+    suspend fun post(alert: ReminderAlert): Boolean {
+        if (isSilenced(alert.calendarId)) return false
         ensureChannel()
         val title = alert.title.ifBlank { context.getString(R.string.event_untitled) }
         val is24Hour = settingsPrefs.timeFormat.first()
@@ -106,6 +122,8 @@ class ReminderNotifier @Inject constructor(
             // POST_NOTIFICATIONS was revoked between canPost() and here.
             Log.w(TAG, "Could not post reminder for event ${alert.eventId}", e)
         }
+        // Handled either way: re-running it would hit the same revoked permission.
+        return true
     }
 
     /** Remove a posted reminder (snooze re-shows it later; dismiss is final). */

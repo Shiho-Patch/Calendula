@@ -4,6 +4,7 @@ import android.app.Application
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
 import de.jeanlucmakiola.calendula.data.backup.BackupScheduler
+import de.jeanlucmakiola.calendula.data.calendar.CalendarVisibilityReconciler
 import de.jeanlucmakiola.calendula.data.backup.BackupWorker
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesSyncWorker
@@ -39,6 +40,24 @@ class CalendulaApp : Application() {
         )
         reconcileAutoBackup()
         reconcileSpecialDates()
+        reconcileCalendarVisibility()
+    }
+
+    /**
+     * Flush any calendar switch-off the app hasn't been allowed to write into
+     * the system's `Calendars.VISIBLE` yet — including the retired app-local
+     * "disabled calendars" set the upgrade inherits (#75). A no-op on a fresh
+     * install and in the steady state; a launch without the calendar permission
+     * leaves the set pending, and `RootScreen` runs it again once the app comes
+     * up holding it — whichever way it was granted.
+     */
+    private fun reconcileCalendarVisibility() {
+        val deps = EntryPointAccessors.fromApplication(
+            this, CalendarVisibilityReconciler.Deps::class.java,
+        )
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            deps.calendarVisibilityReconciler().run()
+        }
     }
 
     /**

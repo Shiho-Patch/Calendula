@@ -449,8 +449,6 @@
     <string name="settings_special_dates_disable_type_message">Dadurch werden der Kalender „%1$s“ und seine Ereignisse gelöscht. Alle von dir hinzugefügten Erinnerungen oder Notizen gehen verloren.</string>
     <string name="settings_special_dates_disable_confirm">Deaktivieren</string>
     <string name="dialog_save">Speichern</string>
-    <string name="calendars_disable_hint">Deaktiviere einen Kalender, um ihn aus der App zu entfernen – seine Ereignisse, Filter und Auswahlmöglichkeiten. Es wird nichts gelöscht und du kannst ihn hier jederzeit wieder aktivieren.</string>
-    <string name="calendars_show_in_app_a11y">„%1$s“ in der App anzeigen</string>
     <string name="calendars_account_menu_a11y">Weitere Optionen für %1$s</string>
     <string name="calendars_enable_all">Alle aktivieren</string>
     <string name="calendars_disable_all">Alle deaktivieren</string>

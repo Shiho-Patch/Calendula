@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Reminders now arrive for every calendar you have switched on. A calendar that
+  was hidden at system level — switched off in another calendar app, or never
+  switched on after being added — still showed its events and listed their
+  reminders in Calendula, but never notified: Android only schedules reminder
+  alarms for calendars marked visible, and Calendula kept its own separate
+  on/off list that had no say in it. There is now one switch: **Settings →
+  Calendars** turns a calendar on or off for the whole device, so what you see
+  and what reminds you can no longer disagree ([#75]).
+
+  Calendars you had switched off in Calendula are switched off here too on first
+  launch. Calendars that were already off — hidden in another calendar app, or
+  never switched on after being added — stay off, and Calendula says so once
+  rather than quietly switching them on for every app on your device; you can
+  turn any of them back on in Settings → Calendars.
+
+  If you gave Calendula read-only access to your calendars, the switch still
+  works: your choice is kept in the app until it can be written.
+
+  The drawer's filter is unchanged and still app-only: hiding a calendar there
+  tidies your view without silencing its reminders.
+
 ## [2.16.0] — 2026-07-24
 
 ### Added
@@ -1112,3 +1134,4 @@ automatically, with zero telemetry and no internet permission.
 [#42]: https://codeberg.org/jlmakiola/calendula/issues/42
 [#44]: https://codeberg.org/jlmakiola/calendula/issues/44
 [#70]: https://codeberg.org/jlmakiola/calendula/issues/70
+[#75]: https://codeberg.org/jlmakiola/calendula/issues/75

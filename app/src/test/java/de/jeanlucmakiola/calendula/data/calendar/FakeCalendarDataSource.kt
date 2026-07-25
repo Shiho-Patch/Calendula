@@ -61,7 +61,14 @@ internal class FakeCalendarDataSource : CalendarDataSource {
 
     private val listeners = mutableListOf<() -> Unit>()
 
-    override fun calendars(): List<CalendarSource> = calendarsResult
+    /** How often [calendars] was queried — the repository shares one read per tick. */
+    var calendarQueries = 0
+        private set
+
+    override fun calendars(): List<CalendarSource> {
+        calendarQueries++
+        return calendarsResult
+    }
     override fun instances(beginMillis: Long, endMillis: Long): List<EventInstance> =
         instancesResult(beginMillis, endMillis)
     override fun searchEvents(query: String): List<EventInstance> = searchResult(query)
@@ -94,6 +101,27 @@ internal class FakeCalendarDataSource : CalendarDataSource {
         writeError?.let { throw it }
         updatedCalendars += UpdatedCalendar(id, displayName, color, description)
     }
+
+    /** (id, visible) pairs passed to [setCalendarVisible], in call order. */
+    val visibilityWrites = mutableListOf<Pair<Long, Boolean>>()
+
+    override fun setCalendarVisible(id: Long, visible: Boolean) {
+        writeError?.let { throw it }
+        visibilityWrites += id to visible
+        // Reflect the write so a follow-up [calendars] read sees it, the way the
+        // provider would once its notification has re-triggered the query.
+        calendarsResult = calendarsResult.map {
+            if (it.id == id) it.copy(isVisibleInSystem = visible) else it
+        }
+    }
+
+    /** Whether the fake holds `WRITE_CALENDAR`; false models a read-only grant. */
+    var canWrite: Boolean = true
+
+    override fun canWriteCalendars(): Boolean = canWrite
+
+    override fun isCalendarVisible(id: Long): Boolean? =
+        calendarsResult.firstOrNull { it.id == id }?.isVisibleInSystem
 
     override fun deleteCalendar(id: Long) {
         writeError?.let { throw it }

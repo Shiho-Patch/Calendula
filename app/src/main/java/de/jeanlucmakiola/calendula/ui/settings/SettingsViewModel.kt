@@ -74,9 +74,14 @@ class SettingsViewModel @Inject constructor(
 
     private val dynamicColorAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
-    /** Writable calendars — the only ones that take a per-calendar reminder override. */
+    /**
+     * Writable calendars that are switched on — the only ones that take a
+     * per-calendar reminder override. A calendar switched off in Settings →
+     * Calendars is `VISIBLE = 0`, so the provider schedules no alarms for it and
+     * a default reminder configured there could never fire (#75).
+     */
     private val writableCalendars: Flow<List<CalendarSource>> = repository.calendars()
-        .map { calendars -> calendars.filter { it.canModifyContents } }
+        .map { calendars -> calendars.filter { it.canModifyContents && it.isVisibleInSystem } }
         .catch { emit(emptyList()) }
 
     val state: StateFlow<SettingsUiState> =

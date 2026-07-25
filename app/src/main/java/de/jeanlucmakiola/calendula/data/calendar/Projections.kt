@@ -19,6 +19,7 @@ internal object CalendarProjection {
         // uses to recognise its own managed calendars, independent of any
         // stored preference id (which a backup restore / data wipe can lose).
         MANAGED_MARKER_COLUMN,
+        CalendarContract.Calendars.SYNC_EVENTS,
     )
 
     const val DESCRIPTION_COLUMN: String = CalendarContract.Calendars.CAL_SYNC1
@@ -36,6 +37,7 @@ internal object CalendarProjection {
     const val IDX_ACCESS_LEVEL = 6
     const val IDX_DESCRIPTION = 7
     const val IDX_MANAGED_MARKER = 8
+    const val IDX_SYNC_EVENTS = 9
 }
 
 internal object InstanceProjection {

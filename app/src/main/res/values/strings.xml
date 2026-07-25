@@ -473,8 +473,10 @@
     <string name="calendars_local_header">Your calendars</string>
     <string name="calendars_local_empty">No local calendars yet. Create one to keep events on this device only.</string>
     <string name="calendars_add">Add calendar</string>
-    <string name="calendars_disable_hint">Turn a calendar off to remove it from the app — its events, filters and pickers. Nothing is deleted, and you can turn it back on here anytime.</string>
-    <string name="calendars_show_in_app_a11y">Show \"%1$s\" in the app</string>
+    <string name="calendars_visibility_hint">Turn a calendar off to hide it on this device — its events disappear from the app and it stops reminding you. This is the same switch your other calendar apps use, so they hide it too. Nothing is deleted, no other device is affected, and you can turn it back on here anytime.</string>
+    <string name="calendars_visibility_a11y">Show \"%1$s\"</string>
+    <string name="calendars_visibility_notice_title">Some calendars are switched off</string>
+    <string name="calendars_visibility_notice_message">Calendula now shows the calendars that are switched on for this device, so what you see and what reminds you can no longer disagree. Some of yours are currently off — they were switched off here or in another calendar app. Turn any of them back on in Settings → Calendars.</string>
     <string name="calendars_synced_header">Synced calendars</string>
     <string name="calendars_synced_hint">These come from accounts on your device. Create and edit them in their own app.</string>
     <string name="calendars_manage_in_app">Manage in app</string>
