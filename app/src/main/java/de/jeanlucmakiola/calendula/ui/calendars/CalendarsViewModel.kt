@@ -13,6 +13,7 @@ import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.ics.IcsExporter
 import de.jeanlucmakiola.calendula.data.prefs.BackupStatus
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
+import de.jeanlucmakiola.calendula.data.reminders.ReminderRecovery
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.ics.IcsWriter
 import kotlinx.coroutines.CoroutineDispatcher
@@ -43,6 +44,7 @@ class CalendarsViewModel @Inject constructor(
     private val repository: CalendarRepository,
     private val icsExporter: IcsExporter,
     private val settingsPrefs: SettingsPrefs,
+    private val reminderRecovery: ReminderRecovery,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -125,9 +127,14 @@ class CalendarsViewModel @Inject constructor(
      * every surface *and* the provider stops (or resumes) scheduling its
      * reminders. Nothing is patched by hand — the provider notifies and the
      * observer re-queries.
+     *
+     * Switching one back on also re-posts the reminders it silenced while it was
+     * off and that are still relevant — those the app kept app-side because it
+     * may not write the flag ([ReminderRecovery]).
      */
     fun setCalendarVisible(id: Long, visible: Boolean) = write {
         repository.setCalendarsVisible(listOf(id), visible)
+        if (visible) reminderRecovery.rePostFor(listOf(id))
     }
 
     /**
@@ -138,6 +145,7 @@ class CalendarsViewModel @Inject constructor(
      */
     fun setAccountVisible(ids: Collection<Long>, visible: Boolean) = write {
         repository.setCalendarsVisible(ids, visible)
+        if (visible) reminderRecovery.rePostFor(ids)
     }
 
     // --- Automatic backup (issue #8) ------------------------------------

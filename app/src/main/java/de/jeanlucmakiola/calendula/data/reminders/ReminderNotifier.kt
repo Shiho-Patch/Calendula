@@ -64,8 +64,13 @@ class ReminderNotifier @Inject constructor(
         calendarId in calendarPrefs.pendingDisabledCalendarIds.first() ||
             calendarDataSource.isCalendarVisible(calendarId) == false
 
-    suspend fun post(alert: ReminderAlert) {
-        if (isSilenced(alert.calendarId)) return
+    /**
+     * Post [alert], unless its calendar is switched off. Returns whether the
+     * notification was put up: a silenced alert must stay unhandled so that
+     * switching the calendar back on can still surface it (see [handledAlertIds]).
+     */
+    suspend fun post(alert: ReminderAlert): Boolean {
+        if (isSilenced(alert.calendarId)) return false
         ensureChannel()
         val title = alert.title.ifBlank { context.getString(R.string.event_untitled) }
         val is24Hour = settingsPrefs.timeFormat.first()
@@ -117,6 +122,8 @@ class ReminderNotifier @Inject constructor(
             // POST_NOTIFICATIONS was revoked between canPost() and here.
             Log.w(TAG, "Could not post reminder for event ${alert.eventId}", e)
         }
+        // Handled either way: re-running it would hit the same revoked permission.
+        return true
     }
 
     /** Remove a posted reminder (snooze re-shows it later; dismiss is final). */

@@ -30,7 +30,9 @@ import javax.inject.Inject
  * Settings → Calendars has `Calendars.VISIBLE = 0`, and the provider creates no
  * alert rows for it in the first place (#75). The one case that flag can't
  * cover — a read-only install, which keeps its switches app-side — is gated in
- * [ReminderNotifier.post], where the snoozed re-show passes too.
+ * [ReminderNotifier.post], where the snoozed re-show passes too. What that gate
+ * silences is *not* marked fired while the event is still ahead, so switching
+ * the calendar back on can still surface it (see [handledAlertIds]).
  */
 @AndroidEntryPoint
 class EventReminderReceiver : BroadcastReceiver() {
@@ -52,8 +54,10 @@ class EventReminderReceiver : BroadcastReceiver() {
                 if (settingsPrefs.remindersEnabled.first()) {
                     val now = System.currentTimeMillis()
                     val due = alertStore.dueAlerts(now)
-                    due.forEach { notifier.post(it) }
-                    alertStore.markFired(due.map { it.alertId }, now)
+                    val postedIds = due
+                        .filter { notifier.post(it) }
+                        .mapTo(mutableSetOf()) { it.alertId }
+                    alertStore.markFired(handledAlertIds(due, postedIds, now), now)
                 }
             } finally {
                 pendingResult.finish()
