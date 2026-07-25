@@ -39,4 +39,9 @@ jobs:
           RENOVATE_REPOSITORIES: '["makiolaj/calendula"]'
           # Commits/PRs authored as the bot, not a real maintainer.
           RENOVATE_GIT_AUTHOR: 'Renovate Bot <renovate@jeanlucmakiola.de>'
+          # Read-only github.com PAT (no scopes needed). We run on Gitea, but
+          # nearly every dependency is *released* on GitHub — without this,
+          # changelog/release-note lookups hit the 60/h anonymous rate limit
+          # and PRs arrive with an empty "Release Notes" section.
+          RENOVATE_GITHUB_COM_TOKEN: ${{ secrets.GITHUB_COM_TOKEN }}
           LOG_LEVEL: info
