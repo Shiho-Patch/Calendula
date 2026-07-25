@@ -171,8 +171,13 @@ the app has not been allowed to write yet (read-only permission grant, or a
 pre-permission launch); `CalendarVisibilityReconciler` drains it entry by entry,
 and until it does, the repository and `ReminderNotifier.post` honour it. That
 gate also covers a snooze re-shown from our own alarm after its calendar was
-switched off. The drawer's filter sheet (`CalendarPrefs.hiddenCalendarIds`) is a
-separate in-app declutter that never touches reminders.
+switched off. Silencing is not handling: an alert the gate drops keeps its
+`SCHEDULED` state while its event is still ahead (`handledAlertIds`), so
+switching the calendar back on re-posts it (`ReminderRecovery`) instead of
+losing it — the provider's own table is the stash. The drawer's filter sheet
+(`CalendarPrefs.hiddenCalendarIds`) is a separate in-app declutter that never
+touches reminders.
+
 Deliberately absent until real devices prove it necessary: own alarm
 scheduling, `BOOT_COMPLETED`, snooze/dismiss actions, battery-exemption
 prompts.
