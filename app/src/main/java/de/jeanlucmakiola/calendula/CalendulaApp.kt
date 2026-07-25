@@ -47,9 +47,9 @@ class CalendulaApp : Application() {
      * Flush any calendar switch-off the app hasn't been allowed to write into
      * the system's `Calendars.VISIBLE` yet — including the retired app-local
      * "disabled calendars" set the upgrade inherits (#75). A no-op on a fresh
-     * install and in the steady state; a launch without the calendar permissions
-     * leaves the set pending, and granting them on the permission screen runs it
-     * there instead.
+     * install and in the steady state; a launch without the calendar permission
+     * leaves the set pending, and `RootScreen` runs it again once the app comes
+     * up holding it — whichever way it was granted.
      */
     private fun reconcileCalendarVisibility() {
         val deps = EntryPointAccessors.fromApplication(

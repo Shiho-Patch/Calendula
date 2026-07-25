@@ -7,6 +7,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -84,6 +85,10 @@ fun RootScreen(
             // visibility (#75); armed by the reconciler, shown over the app.
             val visibilityNotice: CalendarVisibilityNoticeViewModel = hiltViewModel()
             val noticePending by visibilityNotice.pending.collectAsStateWithLifecycle()
+            // Runs on entry however the permission was granted — including from
+            // Android's app-settings screen, which only comes back through the
+            // ON_RESUME check above. Cheap once there is nothing left to do.
+            LaunchedEffect(Unit) { visibilityNotice.reconcile() }
             if (onboardingDone == true && noticePending) {
                 CalendarVisibilityNoticeDialog(onDismiss = visibilityNotice::dismiss)
             }
