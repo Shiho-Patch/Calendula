@@ -33,14 +33,20 @@
   // One reviewable surface; the dashboard issue lists everything pending.
   dependencyDashboard: true,
 
-  // The cooling-off periods below are advisory, not a gate: "none" turns off
-  // filtering on the minimumReleaseAge check, so the PR is opened at the
-  // highest version straight away and merging early stays a judgement call.
-  // (Renovate's default here is "strict", which suppresses the PR entirely
-  // until the release has aged in.) A still-young release carries a pending
+  // The cooling-off periods below are advisory, not a gate. "flexible" still
+  // prefers a version that has cleared its window, but when every candidate is
+  // too young it opens the PR at the newest one anyway, so merging early stays
+  // a judgement call. (The default, "strict", would suppress the PR entirely
+  // until a release aged in.) A still-young branch carries a yellow
   // `renovate/stability-days` check so it's visible which side of the line
   // it's on; with automerge off, nothing acts on that check by itself.
-  internalChecksFilter: "none",
+  //
+  // NOT "none": that short-circuits the candidate loop in filter-checks.ts, and
+  // that loop is what calls postprocessRelease — the only thing that fetches a
+  // Maven artifact's Last-Modified header. Skipping it leaves releaseTimestamp
+  // unset, which empties the Age column and quietly makes minimumReleaseAge and
+  // the stability check no-ops, since both need that timestamp to compare.
+  internalChecksFilter: "flexible",
 
   labels: ["dependencies"],
   prConcurrentLimit: 5,
@@ -52,8 +58,10 @@
 
   // Gitea Actions workflows live under .gitea/workflows, not .github — extend
   // the github-actions manager (same syntax) to watch them too.
+  // `fileMatch` is deprecated; the replacement takes the regex delimited, and
+  // Renovate's config migration was already rewriting this on every run.
   "github-actions": {
-    fileMatch: ["^\\.gitea/workflows/[^/]+\\.ya?ml$"],
+    managerFilePatterns: ["/^\\.gitea/workflows/[^/]+\\.ya?ml$/"],
   },
 
   packageRules: [
@@ -100,9 +108,12 @@
     // deps, and the Gradle wrapper / Actions / container bumps would keep the
     // default columns and show no age at all. A rule declared after it wins,
     // and gives every PR the same table.
+    // "Pending" earns its place under a flexible filter: when the bump lands on
+    // a version that has cleared its window but a newer one hasn't, that newer
+    // version is named here rather than silently withheld.
     {
       matchPackageNames: ["*"],
-      prBodyColumns: ["Package", "Type", "Change", "Age", "Confidence"],
+      prBodyColumns: ["Package", "Type", "Change", "Age", "Pending", "Confidence"],
     },
   ],
 }
