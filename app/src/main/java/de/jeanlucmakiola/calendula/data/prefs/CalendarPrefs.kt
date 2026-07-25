@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,9 +29,13 @@ class CalendarPrefs @Inject constructor(
     private val store: DataStore<Preferences>,
 ) {
 
-    val hiddenCalendarIds: Flow<Set<Long>> = store.data.map { prefs ->
-        prefs[HIDDEN_IDS_KEY].parseIds()
-    }
+    // Both id sets are deduped: the store is shared with SettingsPrefs, so every
+    // unrelated write (a settings toggle, the last-used calendar) re-emits an
+    // identical set otherwise — and a change to the pending set now costs a
+    // fresh provider read in CalendarRepositoryImpl.
+    val hiddenCalendarIds: Flow<Set<Long>> = store.data
+        .map { prefs -> prefs[HIDDEN_IDS_KEY].parseIds() }
+        .distinctUntilChanged()
 
     suspend fun setHiddenCalendarIds(ids: Set<Long>) {
         store.edit { prefs -> prefs.writeIds(HIDDEN_IDS_KEY, ids) }
@@ -49,9 +54,9 @@ class CalendarPrefs @Inject constructor(
      * provider entry by entry the moment the app may write, and nothing ever
      * adds to it while it may.
      */
-    val pendingDisabledCalendarIds: Flow<Set<Long>> = store.data.map { prefs ->
-        prefs[DISABLED_IDS_KEY].parseIds()
-    }
+    val pendingDisabledCalendarIds: Flow<Set<Long>> = store.data
+        .map { prefs -> prefs[DISABLED_IDS_KEY].parseIds() }
+        .distinctUntilChanged()
 
     suspend fun addPendingDisabledCalendarIds(ids: Collection<Long>) =
         editPendingDisabled { it + ids }

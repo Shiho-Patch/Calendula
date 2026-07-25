@@ -376,9 +376,69 @@ class CalendarRepositoryImplTest {
             }
 
             // The next tick invalidates it — one fresh read, not one per flow.
+            // (The list has to change: an identical one is collapsed.)
+            fake.calendarsResult = listOf(makeCal(1L), makeCal(2L), makeCal(3L))
             fake.tick()
             awaitItem()
             assertThat(fake.calendarQueries).isEqualTo(2)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `calendars does not re-emit an unchanged list`(@TempDir tempDir: Path) = runTest {
+        // The store is shared with SettingsPrefs, so an unrelated write would
+        // otherwise re-run every view's combine for an identical list.
+        val prefs = newPrefs(tempDir)
+        val fake = FakeCalendarDataSource().apply { calendarsResult = listOf(makeCal(1L)) }
+        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
+
+        repo.calendars().test {
+            assertThat(awaitItem().map { it.id }).containsExactly(1L)
+
+            prefs.setLastUsedCalendarId(1L)
+            fake.tick()
+
+            expectNoEvents()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `a flushed switch-off never reads as on again before the provider ticks`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        // The reconciler's shape: write VISIBLE = 0 straight to the provider,
+        // then release the id app-side. The provider's notification only arrives
+        // afterwards (it is dispatched through the main looper), so the release
+        // must not be read against the snapshot from before the write — that
+        // would flash exactly the events being hidden back into every view.
+        val prefs = newPrefs(tempDir)
+        prefs.addPendingDisabledCalendarIds(setOf(2L))
+        val fake = FakeCalendarDataSource().apply {
+            calendarsResult = listOf(makeCal(1L), makeCal(2L))
+            instancesResult = { _, _ ->
+                listOf(makeEvent(10L, "A", calendarId = 1L), makeEvent(11L, "B", calendarId = 2L))
+            }
+        }
+        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
+        val range = Instant.fromEpochMilliseconds(0)..Instant.fromEpochMilliseconds(10_000L)
+
+        // Warm the snapshot the way an open view would.
+        repo.instances(range).test {
+            assertThat(awaitItem().map { it.title }).containsExactly("A")
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        fake.setCalendarVisible(2L, false) // no tick(): the observer hasn't fired yet
+        prefs.removePendingDisabledCalendarIds(setOf(2L))
+
+        repo.instances(range).test {
+            assertThat(awaitItem().map { it.title }).containsExactly("A")
+            cancelAndIgnoreRemainingEvents()
+        }
+        repo.calendars().test {
+            assertThat(awaitItem().single { it.id == 2L }.isVisibleInSystem).isFalse()
             cancelAndIgnoreRemainingEvents()
         }
     }

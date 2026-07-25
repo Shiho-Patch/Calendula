@@ -16,9 +16,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -63,21 +66,38 @@ class CalendarRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * Re-query signal for everything filtered by visibility: the provider's own
+     * notifications, plus every change to the pending switch-off set (an id
+     * leaves it as its `VISIBLE` write lands, which changes what is shown).
+     * [calendarsSnapshot] keeps the two in step.
+     */
+    private fun visibilityTicks(): Flow<Unit> = merge(
+        ticks.onStart { emit(Unit) },
+        // The current value is already covered by the tick above; only later
+        // changes re-query (the set is deduped, so an unrelated DataStore write
+        // doesn't).
+        prefs.pendingDisabledCalendarIds.drop(1).map {},
+    )
+
     // A switch-off the app hasn't been allowed to write yet is folded into the
     // flag itself, so every consumer — the Settings switch, the filter sheet,
     // the form and import pickers, the widgets — reads one visibility and can't
     // disagree with what the user just tapped. The reconciler reads the data
     // source directly, because it needs the provider's own answer.
     override fun calendars(): Flow<List<CalendarSource>> =
-        combine(
-            ticks.onStart { emit(Unit) }.reQuery { calendarsSnapshot() },
-            prefs.pendingDisabledCalendarIds,
-        ) { calendars, pendingDisabled ->
+        visibilityTicks().reQuery {
+            val calendars = calendarsSnapshot()
+            val pendingDisabled = prefs.pendingDisabledCalendarIds.first()
             if (pendingDisabled.isEmpty()) calendars
             else calendars.map {
                 if (it.id in pendingDisabled) it.copy(isVisibleInSystem = false) else it
             }
-        }.flowOn(io)
+        }
+            // Collapse re-emissions that carry an identical list (see
+            // [instances]).
+            .distinctUntilChanged()
+            .flowOn(io)
 
     // Instances are filtered by the system's per-calendar VISIBLE flag ∪ the
     // switch-offs still waiting to be written to it ∪ the app-side hidden set:
@@ -89,23 +109,21 @@ class CalendarRepositoryImpl @Inject constructor(
     // and re-enable invisible calendars.
     override fun instances(range: ClosedRange<Instant>): Flow<List<EventInstance>> =
         combine(
-            ticks
-                .onStart { emit(Unit) }
-                .reQuery {
-                    // Both reads in one pass, so a list of instances is never
-                    // filtered against a visibility snapshot from another tick.
-                    QueriedInstances(
-                        instances = dataSource.instances(
-                            beginMillis = range.start.toEpochMillis(),
-                            endMillis = range.endInclusive.toEpochMillis(),
-                        ),
-                        invisibleCalendarIds = invisibleCalendarIds(),
-                    )
-                },
+            visibilityTicks().reQuery {
+                // All three reads in one pass, so a list of instances is never
+                // filtered against a visibility snapshot from another tick.
+                QueriedInstances(
+                    instances = dataSource.instances(
+                        beginMillis = range.start.toEpochMillis(),
+                        endMillis = range.endInclusive.toEpochMillis(),
+                    ),
+                    switchedOffCalendarIds = invisibleCalendarIds() +
+                        prefs.pendingDisabledCalendarIds.first(),
+                )
+            },
             prefs.hiddenCalendarIds,
-            prefs.pendingDisabledCalendarIds,
-        ) { queried, hidden, pendingDisabled ->
-            val excluded = hidden + pendingDisabled + queried.invisibleCalendarIds
+        ) { queried, hidden ->
+            val excluded = hidden + queried.switchedOffCalendarIds
             if (excluded.isEmpty()) queried.instances
             else queried.instances.filterNot { it.calendarId in excluded }
         }
@@ -119,7 +137,7 @@ class CalendarRepositoryImpl @Inject constructor(
     /** One instances query plus the visibility it must be filtered against. */
     private data class QueriedInstances(
         val instances: List<EventInstance>,
-        val invisibleCalendarIds: Set<Long>,
+        val switchedOffCalendarIds: Set<Long>,
     )
 
     /** Calendars switched off at system level — hidden, and never reminded about. */
@@ -129,6 +147,7 @@ class CalendarRepositoryImpl @Inject constructor(
 
     private val calendarsLock = Mutex()
     private var cachedGeneration = -1L
+    private var cachedPending: Set<Long>? = null
     private var cachedCalendars: List<CalendarSource> = emptyList()
 
     /**
@@ -140,12 +159,21 @@ class CalendarRepositoryImpl @Inject constructor(
      *
      * An empty result is never cached — it is what a read without the calendar
      * permission returns, and the grant itself doesn't notify the provider.
+     *
+     * The pending switch-off set keys the cache alongside the tick. An id leaves
+     * that set the moment its `VISIBLE` write lands, while the observer that
+     * would invalidate the snapshot is only dispatched through the main looper
+     * afterwards — so a snapshot taken while the id was still pending, read
+     * against the set that no longer holds it, would report the calendar as *on*
+     * again and re-admit exactly the events being hidden.
      */
     private suspend fun calendarsSnapshot(): List<CalendarSource> = calendarsLock.withLock {
         val current = generation.get()
-        if (current != cachedGeneration || cachedCalendars.isEmpty()) {
+        val pending = prefs.pendingDisabledCalendarIds.first()
+        if (current != cachedGeneration || pending != cachedPending || cachedCalendars.isEmpty()) {
             cachedCalendars = dataSource.calendars()
             cachedGeneration = current
+            cachedPending = pending
         }
         cachedCalendars
     }
