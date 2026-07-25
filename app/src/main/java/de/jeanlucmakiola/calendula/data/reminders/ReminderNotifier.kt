@@ -14,6 +14,8 @@ import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.MainActivity
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.calendar.CalendarDataSource
+import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.is24Hour
 import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
@@ -37,6 +39,8 @@ import javax.inject.Singleton
 class ReminderNotifier @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsPrefs: SettingsPrefs,
+    private val calendarPrefs: CalendarPrefs,
+    private val calendarDataSource: CalendarDataSource,
 ) {
 
     /** False when the user declined `POST_NOTIFICATIONS` or muted the app. */
@@ -47,7 +51,21 @@ class ReminderNotifier @Inject constructor(
         return granted && NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
+    /**
+     * The single choke point for "this calendar is switched off". The provider
+     * side needs no help — with `VISIBLE = 0` it creates no alert rows at all —
+     * but two paths reach [post] without one: a snooze we re-show from our own
+     * exact alarm, scheduled before the calendar was switched off, and a
+     * read-only install whose switch lives app-side ([CalendarPrefs]) because it
+     * may not write the flag. Both are covered here rather than in either
+     * receiver.
+     */
+    private suspend fun isSilenced(calendarId: Long): Boolean =
+        calendarId in calendarPrefs.pendingDisabledCalendarIds.first() ||
+            calendarDataSource.isCalendarVisible(calendarId) == false
+
     suspend fun post(alert: ReminderAlert) {
+        if (isSilenced(alert.calendarId)) return
         ensureChannel()
         val title = alert.title.ifBlank { context.getString(R.string.event_untitled) }
         val is24Hour = settingsPrefs.timeFormat.first()

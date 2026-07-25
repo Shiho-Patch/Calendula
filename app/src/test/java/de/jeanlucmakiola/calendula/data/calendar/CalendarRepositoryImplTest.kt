@@ -12,6 +12,7 @@ import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -264,6 +265,122 @@ class CalendarRepositoryImplTest {
         repo.setCalendarsVisible(listOf(1L, 3L), false)
 
         assertThat(fake.visibilityWrites).containsExactly(1L to false, 3L to false).inOrder()
+    }
+
+    @Test
+    fun `without write permission the switch is kept app-side and still filters`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        // READ granted, WRITE denied: the provider flag can't be written, so the
+        // choice is parked in the pending set — and honoured from there, or the
+        // user's switched-off calendars would come back on upgrade (#75).
+        val prefs = newPrefs(tempDir)
+        val fake = FakeCalendarDataSource().apply {
+            canWrite = false
+            calendarsResult = listOf(makeCal(1L), makeCal(2L))
+            instancesResult = { _, _ ->
+                listOf(
+                    makeEvent(10L, "A", calendarId = 1L),
+                    makeEvent(11L, "B", calendarId = 2L),
+                )
+            }
+        }
+        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
+
+        val range = Instant.fromEpochMilliseconds(0)..Instant.fromEpochMilliseconds(10_000L)
+        repo.instances(range).test {
+            assertThat(awaitItem().map { it.title }).containsExactly("A", "B").inOrder()
+
+            repo.setCalendarsVisible(listOf(2L), false)
+
+            assertThat(awaitItem().map { it.title }).containsExactly("A")
+            assertThat(fake.visibilityWrites).isEmpty()
+            assertThat(prefs.pendingDisabledCalendarIds.first()).containsExactly(2L)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `calendars reports a pending switch-off as off`(@TempDir tempDir: Path) = runTest {
+        // Otherwise the Settings switch would snap straight back on for a
+        // read-only install, and the pickers would keep offering the calendar.
+        val prefs = newPrefs(tempDir)
+        val fake = FakeCalendarDataSource().apply {
+            canWrite = false
+            calendarsResult = listOf(makeCal(1L), makeCal(2L))
+        }
+        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
+
+        repo.calendars().test {
+            assertThat(awaitItem().map { it.isVisibleInSystem }).containsExactly(true, true)
+
+            repo.setCalendarsVisible(listOf(2L), false)
+
+            assertThat(awaitItem().single { it.id == 2L }.isVisibleInSystem).isFalse()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `switching a calendar back on without write permission retires its entry`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val prefs = newPrefs(tempDir)
+        prefs.addPendingDisabledCalendarIds(setOf(2L))
+        val fake = FakeCalendarDataSource().apply {
+            canWrite = false
+            calendarsResult = listOf(makeCal(1L), makeCal(2L))
+        }
+        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), Dispatchers.Unconfined)
+
+        repo.setCalendarsVisible(listOf(2L), true)
+
+        assertThat(prefs.pendingDisabledCalendarIds.first()).isEmpty()
+    }
+
+    @Test
+    fun `a provider write clears anything still pending for that calendar`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val prefs = newPrefs(tempDir)
+        prefs.addPendingDisabledCalendarIds(setOf(2L))
+        val fake = FakeCalendarDataSource().apply {
+            calendarsResult = listOf(makeCal(1L), makeCal(2L))
+        }
+        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), Dispatchers.Unconfined)
+
+        repo.setCalendarsVisible(listOf(2L), false)
+
+        assertThat(fake.visibilityWrites).containsExactly(2L to false)
+        assertThat(prefs.pendingDisabledCalendarIds.first()).isEmpty()
+    }
+
+    @Test
+    fun `one tick costs one calendar query however many collectors there are`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val fake = FakeCalendarDataSource().apply {
+            calendarsResult = listOf(makeCal(1L), makeCal(2L))
+            instancesResult = { _, _ -> listOf(makeEvent(10L, "A", calendarId = 1L)) }
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
+
+        val range = Instant.fromEpochMilliseconds(0)..Instant.fromEpochMilliseconds(10_000L)
+        repo.calendars().test {
+            awaitItem()
+            repo.instances(range).test {
+                awaitItem()
+                // Both flows listed/filtered off the same snapshot.
+                assertThat(fake.calendarQueries).isEqualTo(1)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            // The next tick invalidates it — one fresh read, not one per flow.
+            fake.tick()
+            awaitItem()
+            assertThat(fake.calendarQueries).isEqualTo(2)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test

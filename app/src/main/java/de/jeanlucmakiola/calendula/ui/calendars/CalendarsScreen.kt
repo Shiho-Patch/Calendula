@@ -278,7 +278,7 @@ private fun CalendarsList(
         predictiveBack = true,
     ) {
         // What the per-calendar / per-account switches below actually do.
-        HintText(stringResource(R.string.calendars_disable_hint))
+        HintText(stringResource(R.string.calendars_visibility_hint))
 
         // Local (device-only) calendars — one collapsible group. The header's
         // "+" adds a calendar; the switch enables/disables them all at once;
@@ -708,7 +708,7 @@ private fun EnableSwitch(
     enabled: Boolean,
     onToggle: (Boolean) -> Unit,
 ) {
-    val label = stringResource(R.string.calendars_show_in_app_a11y, calendarName)
+    val label = stringResource(R.string.calendars_visibility_a11y, calendarName)
     Switch(
         checked = enabled,
         onCheckedChange = onToggle,

@@ -3,7 +3,7 @@ package de.jeanlucmakiola.calendula.ui.permission
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import de.jeanlucmakiola.calendula.data.calendar.CalendarVisibilityMigration
+import de.jeanlucmakiola.calendula.data.calendar.CalendarVisibilityReconciler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,7 +12,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class PermissionViewModel @Inject constructor(
-    private val visibilityMigration: CalendarVisibilityMigration,
+    private val visibilityReconciler: CalendarVisibilityReconciler,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<PermissionUiState>(PermissionUiState.Rationale)
@@ -20,11 +20,10 @@ class PermissionViewModel @Inject constructor(
 
     fun onGranted() {
         _state.value = PermissionUiState.Granted
-        // The one-shot visibility migration needs the calendar permissions, so a
-        // launch that started without them left it pending (#75) — this is the
-        // moment it can finally run. A no-op once it has, and on a fresh install
-        // (nothing was ever disabled) it just stamps its guard.
-        viewModelScope.launch { visibilityMigration.runIfNeeded() }
+        // The visibility reconcile needs the calendar permissions, so the launch
+        // that started without them skipped it (#75) — this is the moment it can
+        // finally run. A no-op on a fresh install, where nothing is pending.
+        viewModelScope.launch { visibilityReconciler.run() }
     }
 
     fun onDenied() {

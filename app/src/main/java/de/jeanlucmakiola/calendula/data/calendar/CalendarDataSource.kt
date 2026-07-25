@@ -121,6 +121,22 @@ interface CalendarDataSource {
     fun setCalendarVisible(id: Long, visible: Boolean)
 
     /**
+     * Whether one calendar is currently switched on at system level, without
+     * reading every row — for the reminder gate, which sees a calendar id and
+     * nothing else. Null when the answer can't be had: no row (the calendar was
+     * deleted) or no read permission.
+     */
+    fun isCalendarVisible(id: Long): Boolean?
+
+    /**
+     * Whether the app holds `WRITE_CALENDAR`, i.e. may write
+     * [setCalendarVisible] at all. Read-only users (READ granted, WRITE denied)
+     * keep their calendar switches app-side instead — see
+     * [de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs.pendingDisabledCalendarIds].
+     */
+    fun canWriteCalendars(): Boolean
+
+    /**
      * Create a local calendar tagged as the special-dates mirror for [type]
      * (a marker in `CAL_SYNC2`); returns its `Calendars._ID`. Otherwise a normal
      * local calendar, so it inherits per-calendar colour/visibility/reminders.
@@ -403,6 +419,19 @@ class AndroidCalendarDataSource @Inject constructor(
         )
         if (rows == 0) throw WriteFailedException("set calendar visibility id=$id")
     }
+
+    override fun isCalendarVisible(id: Long): Boolean? {
+        if (!hasCalendarPermission()) return null
+        return resolver.query(
+            ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, id),
+            arrayOf(CalendarContract.Calendars.VISIBLE),
+            null, null, null,
+        )?.use { if (it.moveToFirst()) it.getInt(0) != 0 else null }
+    }
+
+    override fun canWriteCalendars(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) ==
+            PackageManager.PERMISSION_GRANTED
 
     override fun createManagedCalendar(displayName: String, color: Int, type: SpecialDateType): Long {
         val name = displayName.trim().ifEmpty { Fallbacks.UNNAMED_CALENDAR }

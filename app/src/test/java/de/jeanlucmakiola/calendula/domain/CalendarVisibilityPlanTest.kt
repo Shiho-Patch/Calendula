@@ -4,53 +4,45 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 
 /**
- * The one-shot reconciliation of the retired app-local "disabled calendars" set
- * into the system's `Calendars.VISIBLE` (#75), across every
- * (sync_events, visible) combination.
+ * Draining the app's pending "switched off" set into the system's
+ * `Calendars.VISIBLE` (#75) — including the set an upgrade inherits from the
+ * retired app-local visibility model.
  */
 class CalendarVisibilityPlanTest {
 
     private fun cal(
         id: Long,
         visible: Boolean = true,
+        local: Boolean = false,
         syncsEvents: Boolean = true,
     ): CalendarSource = CalendarSource(
         id = id,
         displayName = "Cal $id",
         accountName = "acc@local",
-        accountType = "LOCAL",
+        accountType = if (local) "LOCAL" else "com.google",
         color = 0,
         isVisibleInSystem = visible,
+        isLocal = local,
         syncsEvents = syncsEvents,
     )
 
     @Test
-    fun `a calendar disabled in-app is switched off at system level`() {
+    fun `a pending calendar is switched off at system level`() {
         val plan = calendarVisibilityPlan(listOf(cal(1L, visible = true)), setOf(1L))
         assertThat(plan.hide).containsExactly(1L)
-        assertThat(plan.show).isEmpty()
+        assertThat(plan.settled).isEmpty()
     }
 
     @Test
-    fun `a calendar enabled in-app but hidden at system level is switched on`() {
+    fun `a calendar hidden at system level is never switched on`() {
+        // The plan only hides: switching it on would un-hide the calendar in
+        // every other calendar app and start firing its reminders.
         val plan = calendarVisibilityPlan(listOf(cal(1L, visible = false)), emptySet())
-        assertThat(plan.show).containsExactly(1L)
-        assertThat(plan.hide).isEmpty()
-    }
-
-    @Test
-    fun `a not-synced calendar is never switched on`() {
-        // sync_events = 0 means the provider holds none of its events locally,
-        // so making it visible could only produce an enabled-yet-empty row.
-        val plan = calendarVisibilityPlan(
-            listOf(cal(1L, visible = false, syncsEvents = false)),
-            emptySet(),
-        )
         assertThat(plan.isEmpty).isTrue()
     }
 
     @Test
-    fun `a not-synced calendar disabled in-app is still switched off`() {
+    fun `a not-synced calendar is switched off like any other`() {
         val plan = calendarVisibilityPlan(
             listOf(cal(1L, visible = true, syncsEvents = false)),
             setOf(1L),
@@ -59,38 +51,74 @@ class CalendarVisibilityPlanTest {
     }
 
     @Test
-    fun `calendars that already agree are left untouched`() {
-        val plan = calendarVisibilityPlan(
-            listOf(cal(1L, visible = true), cal(2L, visible = false)),
-            disabledCalendarIds = setOf(2L),
-        )
-        assertThat(plan.isEmpty).isTrue()
+    fun `a pending calendar already switched off is settled without a write`() {
+        val plan = calendarVisibilityPlan(listOf(cal(1L, visible = false)), setOf(1L))
+        assertThat(plan.hide).isEmpty()
+        assertThat(plan.settled).containsExactly(1L)
     }
 
     @Test
-    fun `a disabled id for a calendar that no longer exists writes nothing`() {
+    fun `a pending id for a calendar that no longer exists is settled`() {
         val plan = calendarVisibilityPlan(listOf(cal(1L)), setOf(99L))
+        assertThat(plan.hide).isEmpty()
+        assertThat(plan.settled).containsExactly(99L)
+    }
+
+    @Test
+    fun `an empty pending set writes nothing`() {
+        val plan = calendarVisibilityPlan(listOf(cal(1L), cal(2L, visible = false)), emptySet())
         assertThat(plan.isEmpty).isTrue()
     }
 
     @Test
-    fun `a mixed device is reconciled in both directions at once`() {
+    fun `a mixed device splits into writes and settled ids`() {
         val plan = calendarVisibilityPlan(
             listOf(
-                cal(1L, visible = true), // enabled, already visible → untouched
-                cal(2L, visible = false), // enabled but hidden → show
-                cal(3L, visible = true), // disabled in-app → hide
-                cal(4L, visible = false, syncsEvents = false), // not synced → untouched
+                cal(1L, visible = true), // not pending → untouched
+                cal(2L, visible = false), // hidden elsewhere → untouched
+                cal(3L, visible = true), // pending → hide
+                cal(4L, visible = false), // pending, already off → settled
             ),
-            disabledCalendarIds = setOf(3L),
+            pendingDisabledIds = setOf(3L, 4L, 77L),
         )
-        assertThat(plan.show).containsExactly(2L)
         assertThat(plan.hide).containsExactly(3L)
+        assertThat(plan.settled).containsExactly(4L, 77L)
     }
 
     @Test
-    fun `nothing disabled and everything visible is a no-op`() {
-        val plan = calendarVisibilityPlan(listOf(cal(1L), cal(2L)), emptySet())
-        assertThat(plan.isEmpty).isTrue()
+    fun `a calendar hidden outside the app arms the notice`() {
+        assertThat(
+            hasSystemHiddenCalendars(listOf(cal(1L), cal(2L, visible = false)), emptySet()),
+        ).isTrue()
+    }
+
+    @Test
+    fun `a calendar we are about to hide ourselves does not arm the notice`() {
+        // It is off because the user switched it off here — nothing to explain.
+        assertThat(
+            hasSystemHiddenCalendars(listOf(cal(1L, visible = false)), setOf(1L)),
+        ).isFalse()
+    }
+
+    @Test
+    fun `an all-visible device does not arm the notice`() {
+        assertThat(hasSystemHiddenCalendars(listOf(cal(1L), cal(2L)), emptySet())).isFalse()
+    }
+
+    @Test
+    fun `a device-local calendar is treated like any other`() {
+        // Its sync_events flag says nothing about whether it holds events, so
+        // neither the plan nor the notice may reason about it.
+        val plan = calendarVisibilityPlan(
+            listOf(cal(1L, visible = true, local = true, syncsEvents = false)),
+            setOf(1L),
+        )
+        assertThat(plan.hide).containsExactly(1L)
+        assertThat(
+            hasSystemHiddenCalendars(
+                listOf(cal(2L, visible = false, local = true, syncsEvents = false)),
+                emptySet(),
+            ),
+        ).isTrue()
     }
 }

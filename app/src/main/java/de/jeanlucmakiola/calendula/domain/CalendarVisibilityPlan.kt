@@ -1,45 +1,58 @@
 package de.jeanlucmakiola.calendula.domain
 
 /**
- * The `Calendars.VISIBLE` writes that bring the system flag in line with the
- * app's retired disabled set. Empty when the two already agree.
+ * The `Calendars.VISIBLE` writes that flush the app's pending "switched off"
+ * set into the provider, plus the ids that need no write at all.
  */
 data class CalendarVisibilityPlan(
-    val show: Set<Long> = emptySet(),
     val hide: Set<Long> = emptySet(),
+    val settled: Set<Long> = emptySet(),
 ) {
-    val isEmpty: Boolean get() = show.isEmpty() && hide.isEmpty()
+    val isEmpty: Boolean get() = hide.isEmpty() && settled.isEmpty()
 }
 
 /**
- * Reconcile the two visibility models Calendula used to keep in parallel (#75),
- * with the app's state winning:
+ * Reconcile [pendingDisabledIds] — calendars switched off in Settings →
+ * Calendars while the app could not write `Calendars.VISIBLE`, plus whatever
+ * the retired app-local visibility model left behind (#75) — against the
+ * calendars actually on the device.
  *
- * - enabled in-app but hidden at system level → show it, *unless* the calendar
- *   doesn't sync its events to the device ([CalendarSource.syncsEvents]). Those
- *   hold no local events, so switching them on would produce nothing but an
- *   "enabled yet permanently empty" row; left off, they read honestly as off.
- * - disabled in-app → hide it at system level, which is what stops the provider
- *   scheduling its reminders.
- * - anything already in agreement is left untouched, so the migration writes as
- *   little as possible.
+ * The plan only ever *hides*. Switching a calendar off is intent the user
+ * expressed in Calendula, so carrying it into the provider is fair. The other
+ * direction is deliberately absent: a calendar hidden at system level was hidden
+ * somewhere else (another calendar app, the account's own settings), and
+ * switching it back on would un-hide it there too *and* start firing reminders
+ * nobody asked for. Calendula follows that flag instead and explains itself once
+ * (see [hasSystemHiddenCalendars]).
  *
- * App-state-wins is also what keeps the upgrade invisible: reconciling the other
- * way would make events the user sees today vanish.
+ * [CalendarVisibilityPlan.settled] carries the ids that need no write — already
+ * hidden, or gone from the device. They leave the pending set exactly as a
+ * successful write would.
  */
 fun calendarVisibilityPlan(
     calendars: List<CalendarSource>,
-    disabledCalendarIds: Set<Long>,
+    pendingDisabledIds: Set<Long>,
 ): CalendarVisibilityPlan {
-    val show = mutableSetOf<Long>()
+    val byId = calendars.associateBy { it.id }
     val hide = mutableSetOf<Long>()
-    for (calendar in calendars) {
-        val disabledInApp = calendar.id in disabledCalendarIds
-        when {
-            disabledInApp && calendar.isVisibleInSystem -> hide += calendar.id
-            !disabledInApp && !calendar.isVisibleInSystem && calendar.syncsEvents ->
-                show += calendar.id
-        }
+    val settled = mutableSetOf<Long>()
+    for (id in pendingDisabledIds) {
+        val calendar = byId[id]
+        // No row means the calendar is gone; already invisible means someone
+        // (us, on an earlier run) got there first. Either way: nothing to write.
+        if (calendar != null && calendar.isVisibleInSystem) hide += id else settled += id
     }
-    return CalendarVisibilityPlan(show = show, hide = hide)
+    return CalendarVisibilityPlan(hide = hide, settled = settled)
 }
+
+/**
+ * Whether any calendar is switched off at system level without Calendula having
+ * asked for it. Those calendars showed their events before the app adopted
+ * `Calendars.VISIBLE` as its one visibility model and no longer do, which is
+ * what the one-time notice explains — the alternative, switching them on, would
+ * reach into every other calendar app on the device.
+ */
+fun hasSystemHiddenCalendars(
+    calendars: List<CalendarSource>,
+    pendingDisabledIds: Set<Long>,
+): Boolean = calendars.any { !it.isVisibleInSystem && it.id !in pendingDisabledIds }

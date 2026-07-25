@@ -21,6 +21,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
 import de.jeanlucmakiola.calendula.data.contacts.hasContactsPermission
+import de.jeanlucmakiola.calendula.ui.calendars.CalendarVisibilityNoticeDialog
+import de.jeanlucmakiola.calendula.ui.calendars.CalendarVisibilityNoticeViewModel
 import de.jeanlucmakiola.calendula.ui.permission.PermissionScreen
 import de.jeanlucmakiola.calendula.ui.permission.ReminderOnboardingScreen
 import de.jeanlucmakiola.calendula.ui.permission.ReminderOnboardingViewModel
@@ -78,6 +80,13 @@ fun RootScreen(
             // frame instead of flashing the wrong screen.
             val reminderOnboarding: ReminderOnboardingViewModel = hiltViewModel()
             val onboardingDone by reminderOnboarding.onboardingDone.collectAsStateWithLifecycle()
+            // One-time explainer for the switch to the device's own calendar
+            // visibility (#75); armed by the reconciler, shown over the app.
+            val visibilityNotice: CalendarVisibilityNoticeViewModel = hiltViewModel()
+            val noticePending by visibilityNotice.pending.collectAsStateWithLifecycle()
+            if (onboardingDone == true && noticePending) {
+                CalendarVisibilityNoticeDialog(onDismiss = visibilityNotice::dismiss)
+            }
             Crossfade(targetState = onboardingDone, animationSpec = gateSpec, label = "onboardingGate") { done ->
                 when (done) {
                     true -> CalendarHost(

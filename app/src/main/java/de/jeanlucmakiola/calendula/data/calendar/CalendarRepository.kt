@@ -44,6 +44,11 @@ interface CalendarRepository {
      * [CalendarDataSource.setCalendarVisible]. Each calendar is written on its
      * own, in order; a failure part-way leaves the earlier writes standing (the
      * observer reports whatever actually landed).
+     *
+     * Without `WRITE_CALENDAR` the choice is kept app-side instead (see
+     * [de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs.pendingDisabledCalendarIds]),
+     * where it filters events and reminders just the same until it can be
+     * written.
      */
     suspend fun setCalendarsVisible(ids: Collection<Long>, visible: Boolean)
 

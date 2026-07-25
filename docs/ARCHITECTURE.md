@@ -162,10 +162,17 @@ notifications never return because `FIRED` rows are never re-queried.
 `Calendars.VISIBLE = 1`, so that flag *is* the app's on/off switch: Settings →
 Calendars writes it (one calendar per update — `CalendarProvider2` skips its own
 `checkNextAlarm()` reschedule for any selection that isn't `_id=`), and every
-display predicate reads `CalendarSource.isVisibleInSystem`. There is deliberately
-no second, app-local model and therefore nothing to suppress here. The drawer's
-filter sheet (`CalendarPrefs.hiddenCalendarIds`) is a separate in-app declutter
-that never touches reminders. See `docs/design/calendar-visibility-model.md`.
+display predicate reads `CalendarSource.isVisibleInSystem`. The reconciliation
+runs one way only: a calendar the user switched off in Calendula is switched off
+in the provider, never the reverse — un-hiding one would reach into every other
+calendar app on the device — and a one-time notice explains the calendars that
+were already off. `CalendarPrefs.pendingDisabledCalendarIds` holds the switch-offs
+the app has not been allowed to write yet (read-only permission grant, or a
+pre-permission launch); `CalendarVisibilityReconciler` drains it entry by entry,
+and until it does, the repository and `ReminderNotifier.post` honour it. That
+gate also covers a snooze re-shown from our own alarm after its calendar was
+switched off. The drawer's filter sheet (`CalendarPrefs.hiddenCalendarIds`) is a
+separate in-app declutter that never touches reminders.
 Deliberately absent until real devices prove it necessary: own alarm
 scheduling, `BOOT_COMPLETED`, snooze/dismiss actions, battery-exemption
 prompts.

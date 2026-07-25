@@ -28,7 +28,9 @@ import javax.inject.Inject
  *
  * There is no per-calendar filtering here: a calendar switched off in
  * Settings → Calendars has `Calendars.VISIBLE = 0`, and the provider creates no
- * alert rows for it in the first place (#75).
+ * alert rows for it in the first place (#75). The one case that flag can't
+ * cover — a read-only install, which keeps its switches app-side — is gated in
+ * [ReminderNotifier.post], where the snoozed re-show passes too.
  */
 @AndroidEntryPoint
 class EventReminderReceiver : BroadcastReceiver() {

@@ -333,8 +333,6 @@
     <string name="calendars_local_header">Tus calendarios</string>
     <string name="calendars_local_empty">Sin calendarios locales todavia. Crea uno para mantener eventos solo en este dispositivo.</string>
     <string name="calendars_add">Añadir calendario</string>
-    <string name="calendars_disable_hint">Desactiva un calendario para removerlo de la aplicación — sus eventos, filtros y selectores. Nada se eliminara, y puedes reactivarlo en cualquier momento.</string>
-    <string name="calendars_show_in_app_a11y">Mostrar \"%1$s\" en la aplicación</string>
     <string name="calendars_synced_header">Calendarios sincronizados</string>
     <string name="calendars_synced_hint">Estos provienen de cuentas en tu dispositivo. Crea o editalos en su propia aplicación.</string>
     <string name="calendars_manage_in_app">Gestionar en aplicación</string>

@@ -43,10 +43,11 @@ data class CalendarSource(
     val isManaged: Boolean = false,
     /**
      * Whether the provider keeps this calendar's events on the device
-     * (`Calendars.SYNC_EVENTS`). Independent of [isVisibleInSystem]: a calendar
-     * with `syncsEvents = false` holds no local events at all, so making it
-     * visible cannot produce a single one — which is why the one-shot visibility
-     * migration leaves those calendars switched off.
+     * (`Calendars.SYNC_EVENTS`). Independent of [isVisibleInSystem]. For a
+     * synced account it means the events aren't stored locally at all, so the
+     * calendar reads as permanently empty; a device-local calendar another app
+     * created can hold events with the flag off, so it says nothing there.
+     * Read for the "not synced" row label (#76).
      */
     val syncsEvents: Boolean = true,
 )

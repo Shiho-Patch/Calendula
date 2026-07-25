@@ -15,9 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alarms for calendars marked visible, and Calendula kept its own separate
   on/off list that had no say in it. There is now one switch: **Settings →
   Calendars** turns a calendar on or off for the whole device, so what you see
-  and what reminds you can no longer disagree. Your current selection is carried
-  over on first launch, and calendars whose events aren't stored on this device
-  are left as they are ([#75]).
+  and what reminds you can no longer disagree ([#75]).
+
+  Calendars you had switched off in Calendula are switched off here too on first
+  launch. Calendars that were already off — hidden in another calendar app, or
+  never switched on after being added — stay off, and Calendula says so once
+  rather than quietly switching them on for every app on your device; you can
+  turn any of them back on in Settings → Calendars.
+
+  If you gave Calendula read-only access to your calendars, the switch still
+  works: your choice is kept in the app until it can be written.
 
   The drawer's filter is unchanged and still app-only: hiding a calendar there
   tidies your view without silencing its reminders.
