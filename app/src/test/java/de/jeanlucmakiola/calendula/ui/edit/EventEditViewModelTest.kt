@@ -109,6 +109,27 @@ class EventEditViewModelTest {
     }
 
     @Test
+    fun `editing an event in a switched-off calendar keeps it in the picker`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        // Otherwise the calendar row renders as the "no calendar" error and any
+        // pick routes the save through a move the user never asked for.
+        val fake = FakeCalendarDataSource().apply {
+            calendarsResult = listOf(cal(1L), cal(2L, visible = false))
+            eventDetailResult = { detail(calendarId = 2L) }
+        }
+        val vm = viewModel(tempDir, fake)
+        val job = activate(vm)
+
+        vm.openForEdit(eventId = 42L, beginMillis = beginMillis, endMillis = endMillis)
+        advanceUntilIdle()
+
+        assertThat(vm.state.value?.calendars?.map { it.id }).containsExactly(1L, 2L)
+        assertThat(vm.state.value?.form?.calendarId).isEqualTo(2L)
+        job.cancel()
+    }
+
+    @Test
     fun `changing the calendar routes the save through a move, not an update`(
         @TempDir tempDir: Path,
     ) = runTest(dispatcher) {
