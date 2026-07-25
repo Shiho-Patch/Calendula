@@ -2,17 +2,21 @@ package de.jeanlucmakiola.calendula.data.prefs
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * App-side preference for "calendars the user has hidden in this app",
- * separate from the system's per-calendar VISIBLE flag.
+ * App-side preference for "calendars the user has hidden in this app" — the
+ * drawer's filter sheet, a purely in-app declutter. It deliberately does *not*
+ * suppress reminders; switching a calendar off entirely is the system's
+ * `Calendars.VISIBLE` flag, written straight to the provider (#75).
  *
  * Persisted as a comma-separated string of Long ids; non-numeric tokens are
  * silently dropped (defensive — see CalendarPrefsTest).
@@ -40,28 +44,35 @@ class CalendarPrefs @Inject constructor(
     }
 
     /**
-     * App-side preference for "calendars the user has disabled in this app" — a
-     * heavier level than [hiddenCalendarIds]. A disabled calendar is removed from
-     * every surface (drawer filter, event-form picker, import picker) and its
-     * events never appear; it stays listed only in Settings → Calendars so it can
-     * be re-enabled. Stored exactly like the hidden set; never touches the
-     * system's VISIBLE/SYNC_EVENTS flags, so other calendar apps are unaffected.
+     * The retired app-local "disabled calendars" set, readable only so the
+     * one-shot visibility migration can reconcile it into `Calendars.VISIBLE`
+     * (see CalendarVisibilityMigration). Nothing else may consult it — it is a
+     * second visibility model, which is exactly what #75 removed. Dropped by
+     * [clearLegacyDisabledCalendarIds] once the migration has run.
      */
-    val disabledCalendarIds: Flow<Set<Long>> = store.data.map { prefs ->
+    suspend fun legacyDisabledCalendarIds(): Set<Long> = store.data.first().let { prefs ->
         prefs[DISABLED_IDS_KEY].orEmpty()
             .split(',')
             .mapNotNull { it.trim().toLongOrNull() }
             .toSet()
     }
 
-    suspend fun setDisabledCalendarIds(ids: Set<Long>) {
-        store.edit { prefs ->
-            if (ids.isEmpty()) {
-                prefs.remove(DISABLED_IDS_KEY)
-            } else {
-                prefs[DISABLED_IDS_KEY] = ids.sorted().joinToString(",")
-            }
-        }
+    suspend fun clearLegacyDisabledCalendarIds() {
+        store.edit { prefs -> prefs.remove(DISABLED_IDS_KEY) }
+    }
+
+    /**
+     * Whether the one-shot reconciliation of the retired disabled set into
+     * `Calendars.VISIBLE` has run. Set only once it actually wrote (it needs
+     * `WRITE_CALENDAR`), so a run skipped for a missing permission is retried on
+     * the next launch.
+     */
+    val visibilityMigrationDone: Flow<Boolean> = store.data.map { prefs ->
+        prefs[VISIBILITY_MIGRATION_KEY] == true
+    }
+
+    suspend fun setVisibilityMigrationDone() {
+        store.edit { prefs -> prefs[VISIBILITY_MIGRATION_KEY] = true }
     }
 
     /**
@@ -79,6 +90,7 @@ class CalendarPrefs @Inject constructor(
     companion object {
         internal val HIDDEN_IDS_KEY = stringPreferencesKey("hidden_calendar_ids")
         internal val DISABLED_IDS_KEY = stringPreferencesKey("disabled_calendar_ids")
+        internal val VISIBILITY_MIGRATION_KEY = booleanPreferencesKey("visibility_migration_done")
         internal val LAST_USED_CALENDAR_KEY = longPreferencesKey("last_used_calendar_id")
     }
 }

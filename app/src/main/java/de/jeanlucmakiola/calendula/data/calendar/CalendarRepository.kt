@@ -39,6 +39,15 @@ interface CalendarRepository {
     suspend fun deleteCalendar(id: Long)
 
     /**
+     * Show or hide [ids] device-wide (`Calendars.VISIBLE`), which is also what
+     * turns the provider's reminder scheduling for them on or off — see
+     * [CalendarDataSource.setCalendarVisible]. Each calendar is written on its
+     * own, in order; a failure part-way leaves the earlier writes standing (the
+     * observer reports whatever actually landed).
+     */
+    suspend fun setCalendarsVisible(ids: Collection<Long>, visible: Boolean)
+
+    /**
      * Every event of the writable local calendars, ready to serialise into a
      * whole-calendar `.ics` backup (see [CalendarDataSource.exportableEvents]).
      * [calendarIds] narrows the export to a chosen subset; `null` exports all.

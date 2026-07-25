@@ -57,34 +57,51 @@ class CalendarRepositoryImpl @Inject constructor(
             .reQuery { dataSource.calendars() }
             .flowOn(io)
 
-    // Instances are filtered by the app-side hidden ∪ disabled calendar sets
-    // (M3): an event is dropped whenever the user has hidden *or* disabled its
-    // calendar. Re-runs when the provider ticks *or* either set changes —
-    // toggling a calendar in the filter sheet or the calendar manager updates
-    // every view immediately. [calendars] stays unfiltered so those screens can
-    // list and re-enable hidden/disabled calendars.
+    // Instances are filtered by the system's per-calendar VISIBLE flag ∪ the
+    // app-side hidden set: an event is dropped when the user switched its
+    // calendar off in Settings → Calendars (which also stops the provider
+    // scheduling its reminders) *or* hid it in the filter sheet. Re-runs when
+    // the provider ticks — writing VISIBLE notifies, so switching a calendar
+    // updates every view — or when the hidden set changes. [calendars] stays
+    // unfiltered so those screens can list and re-enable invisible calendars.
     override fun instances(range: ClosedRange<Instant>): Flow<List<EventInstance>> =
         combine(
             ticks
                 .onStart { emit(Unit) }
                 .reQuery {
-                    dataSource.instances(
-                        beginMillis = range.start.toEpochMillis(),
-                        endMillis = range.endInclusive.toEpochMillis(),
+                    // Both reads in one pass, so a list of instances is never
+                    // filtered against a visibility snapshot from another tick.
+                    QueriedInstances(
+                        instances = dataSource.instances(
+                            beginMillis = range.start.toEpochMillis(),
+                            endMillis = range.endInclusive.toEpochMillis(),
+                        ),
+                        invisibleCalendarIds = invisibleCalendarIds(),
                     )
                 },
             prefs.hiddenCalendarIds,
-            prefs.disabledCalendarIds,
-        ) { instances, hidden, disabled ->
-            val excluded = hidden + disabled
-            if (excluded.isEmpty()) instances
-            else instances.filterNot { it.calendarId in excluded }
+        ) { queried, hidden ->
+            val excluded = hidden + queried.invisibleCalendarIds
+            if (excluded.isEmpty()) queried.instances
+            else queried.instances.filterNot { it.calendarId in excluded }
         }
-            // hidden and disabled both derive from one DataStore, so toggling
-            // either makes both re-emit and combine briefly surfaces the same
-            // list twice — collapse the duplicate so views don't re-render for it.
+            // Any DataStore edit re-emits the hidden set even when it is
+            // unchanged (e.g. writing the last-used calendar), which would
+            // re-surface an identical list — collapse those so views don't
+            // re-render for them.
             .distinctUntilChanged()
             .flowOn(io)
+
+    /** One instances query plus the visibility it must be filtered against. */
+    private data class QueriedInstances(
+        val instances: List<EventInstance>,
+        val invisibleCalendarIds: Set<Long>,
+    )
+
+    /** Calendars switched off at system level — hidden, and never reminded about. */
+    private fun invisibleCalendarIds(): Set<Long> = dataSource.calendars()
+        .filterNot { it.isVisibleInSystem }
+        .mapTo(mutableSetOf()) { it.id }
 
     override suspend fun eventDetail(eventId: Long): EventDetail = withContext(io) {
         dataSource.eventDetail(eventId) ?: throw NoSuchEventException(eventId)
@@ -92,7 +109,7 @@ class CalendarRepositoryImpl @Inject constructor(
 
     override suspend fun searchEvents(query: String): List<EventInstance> = withContext(io) {
         if (query.isBlank()) return@withContext emptyList()
-        val excluded = prefs.hiddenCalendarIds.first() + prefs.disabledCalendarIds.first()
+        val excluded = prefs.hiddenCalendarIds.first() + invisibleCalendarIds()
         dataSource.searchEvents(query)
             .let { if (excluded.isEmpty()) it else it.filterNot { e -> e.calendarId in excluded } }
     }
@@ -117,6 +134,9 @@ class CalendarRepositoryImpl @Inject constructor(
 
     override suspend fun deleteCalendar(id: Long) =
         withContext(io) { dataSource.deleteCalendar(id) }
+
+    override suspend fun setCalendarsVisible(ids: Collection<Long>, visible: Boolean) =
+        withContext(io) { ids.forEach { dataSource.setCalendarVisible(it, visible) } }
 
     override suspend fun exportEvents(calendarIds: Set<Long>?) =
         withContext(io) { dataSource.exportableEvents(calendarIds) }

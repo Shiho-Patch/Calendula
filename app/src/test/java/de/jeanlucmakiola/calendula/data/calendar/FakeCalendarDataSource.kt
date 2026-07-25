@@ -95,6 +95,19 @@ internal class FakeCalendarDataSource : CalendarDataSource {
         updatedCalendars += UpdatedCalendar(id, displayName, color, description)
     }
 
+    /** (id, visible) pairs passed to [setCalendarVisible], in call order. */
+    val visibilityWrites = mutableListOf<Pair<Long, Boolean>>()
+
+    override fun setCalendarVisible(id: Long, visible: Boolean) {
+        writeError?.let { throw it }
+        visibilityWrites += id to visible
+        // Reflect the write so a follow-up [calendars] read sees it, the way the
+        // provider would once its notification has re-triggered the query.
+        calendarsResult = calendarsResult.map {
+            if (it.id == id) it.copy(isVisibleInSystem = visible) else it
+        }
+    }
+
     override fun deleteCalendar(id: Long) {
         writeError?.let { throw it }
         deletedCalendarIds += id

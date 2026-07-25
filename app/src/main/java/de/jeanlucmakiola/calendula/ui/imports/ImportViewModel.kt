@@ -7,7 +7,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.ics.IcsImporter
-import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.ics.IcsImportSummary
@@ -57,7 +56,6 @@ sealed interface ImportUiState {
 class ImportViewModel @Inject constructor(
     private val repository: CalendarRepository,
     private val importer: IcsImporter,
-    private val prefs: CalendarPrefs,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -87,16 +85,18 @@ class ImportViewModel @Inject constructor(
                     warnings = parsed.warnings,
                 )
                 else -> {
-                    // A disabled calendar is removed from the app, so it can't be
-                    // an import target — exclude it alongside the read-only ones.
-                    // Managed special-dates calendars are contact-derived and
-                    // editor-locked, so they're not a valid destination either.
-                    val disabled = prefs.disabledCalendarIds.first()
+                    // A calendar switched off in Settings → Calendars is off
+                    // everywhere, so it can't be an import target — exclude it
+                    // alongside the read-only ones. Managed special-dates
+                    // calendars are contact-derived and editor-locked, so
+                    // they're not a valid destination either.
                     ImportUiState.Many(
                         events = parsed.events,
                         warnings = parsed.warnings,
                         calendars = repository.calendars().first()
-                            .filter { it.canModifyContents && !it.isManaged && it.id !in disabled },
+                            .filter {
+                                it.canModifyContents && !it.isManaged && it.isVisibleInSystem
+                            },
                     )
                 }
             }

@@ -8,6 +8,13 @@ data class CalendarSource(
     val accountName: String,
     val accountType: String,
     val color: Int,
+    /**
+     * The system's per-calendar `Calendars.VISIBLE` flag — the single visibility
+     * model: it decides both what Calendula shows and whether the provider
+     * schedules this calendar's reminder alarms at all (#75). Settings →
+     * Calendars writes it; the drawer's filter sheet is a separate, purely
+     * in-app declutter that leaves reminders alone.
+     */
     val isVisibleInSystem: Boolean,
     /**
      * Whether events in this calendar can be created/edited/deleted
@@ -34,6 +41,14 @@ data class CalendarSource(
      * even after a backup restore clears the app's stored ids.
      */
     val isManaged: Boolean = false,
+    /**
+     * Whether the provider keeps this calendar's events on the device
+     * (`Calendars.SYNC_EVENTS`). Independent of [isVisibleInSystem]: a calendar
+     * with `syncsEvents = false` holds no local events at all, so making it
+     * visible cannot produce a single one — which is why the one-shot visibility
+     * migration leaves those calendars switched off.
+     */
+    val syncsEvents: Boolean = true,
 )
 
 data class EventInstance(

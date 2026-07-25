@@ -4,6 +4,7 @@ import android.app.Application
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
 import de.jeanlucmakiola.calendula.data.backup.BackupScheduler
+import de.jeanlucmakiola.calendula.data.calendar.CalendarVisibilityMigration
 import de.jeanlucmakiola.calendula.data.backup.BackupWorker
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesSyncWorker
@@ -39,6 +40,22 @@ class CalendulaApp : Application() {
         )
         reconcileAutoBackup()
         reconcileSpecialDates()
+        migrateCalendarVisibility()
+    }
+
+    /**
+     * Fold the retired app-local "disabled calendars" set into the system's
+     * `Calendars.VISIBLE` once (#75). A no-op after it has run, and on a fresh
+     * install; a launch without the calendar permissions leaves it pending, and
+     * granting them on the permission screen runs it there instead.
+     */
+    private fun migrateCalendarVisibility() {
+        val deps = EntryPointAccessors.fromApplication(
+            this, CalendarVisibilityMigration.Deps::class.java,
+        )
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            deps.calendarVisibilityMigration().runIfNeeded()
+        }
     }
 
     /**

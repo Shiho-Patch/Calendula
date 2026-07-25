@@ -12,10 +12,7 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.ics.IcsExporter
 import de.jeanlucmakiola.calendula.data.prefs.BackupStatus
-import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
-import de.jeanlucmakiola.calendula.data.reminders.ReminderNotifier
-import de.jeanlucmakiola.calendula.data.reminders.SuppressedReminderStore
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.ics.IcsWriter
 import kotlinx.coroutines.CoroutineDispatcher
@@ -45,10 +42,7 @@ class CalendarsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: CalendarRepository,
     private val icsExporter: IcsExporter,
-    private val prefs: CalendarPrefs,
     private val settingsPrefs: SettingsPrefs,
-    private val suppressedStore: SuppressedReminderStore,
-    private val notifier: ReminderNotifier,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -60,20 +54,6 @@ class CalendarsViewModel @Inject constructor(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000L),
                 initialValue = emptyList(),
-            )
-
-    /**
-     * Calendars the user has disabled in the app. This screen is the only
-     * surface that lists them, so it both reads the set (to dim the rows) and
-     * toggles it. Every other surface simply excludes these ids.
-     */
-    val disabledCalendarIds: StateFlow<Set<Long>> =
-        prefs.disabledCalendarIds
-            .flowOn(io)
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000L),
-                initialValue = emptySet(),
             )
 
     /** Automatic-backup settings + last-run status, for the Backup section UI. */
@@ -140,54 +120,24 @@ class CalendarsViewModel @Inject constructor(
     }
 
     /**
-     * Enable or disable a calendar app-side. Disabling removes it from every
-     * surface but Settings → Calendars (and hides its events) without touching
-     * provider data — purely a reversible Calendula-local view choice.
+     * Switch a calendar on or off. This is the app's one visibility model: it
+     * writes the system's `Calendars.VISIBLE`, so the calendar disappears from
+     * every surface *and* the provider stops (or resumes) scheduling its
+     * reminders. Nothing is patched by hand — the provider notifies and the
+     * observer re-queries.
      */
-    fun setDisabled(id: Long, disabled: Boolean) {
-        viewModelScope.launch {
-            val current = prefs.disabledCalendarIds.first()
-            val next = if (disabled) current + id else current - id
-            if (next != current) {
-                prefs.setDisabledCalendarIds(next)
-                if (!disabled) recoverReminders(setOf(id))
-            }
-        }
+    fun setCalendarVisible(id: Long, visible: Boolean) = write {
+        repository.setCalendarsVisible(listOf(id), visible)
     }
 
     /**
-     * Enable or disable every calendar of one account in a single write — the
-     * "toggle all" affordance on an account header. Done as one set update so the
-     * per-calendar [setDisabled] calls can't race each other.
+     * Switch every calendar of one account on or off — the "toggle all"
+     * affordance on an account header. Each row is written on its own (the
+     * provider only re-arms reminder alarms for a single-id update), in one
+     * coroutine so the writes can't race each other.
      */
-    fun setAccountDisabled(ids: Collection<Long>, disabled: Boolean) {
-        viewModelScope.launch {
-            val current = prefs.disabledCalendarIds.first()
-            val next = if (disabled) current + ids else current - ids.toSet()
-            if (next != current) {
-                prefs.setDisabledCalendarIds(next)
-                if (!disabled) recoverReminders(current intersect ids.toSet())
-            }
-        }
-    }
-
-    /**
-     * Re-post the reminders that fired while [reEnabledIds] were disabled and are
-     * still relevant (event not yet over), then drop them from the stash. Runs
-     * after the disabled set is written, so the notifier's own disabled gate lets
-     * them through. Best-effort at re-enable time: it mirrors the receiver gates
-     * (reminders on + postable), and there is no later re-scan, so alerts left
-     * unposted because those gates are closed are simply released.
-     */
-    private suspend fun recoverReminders(reEnabledIds: Set<Long>) {
-        if (reEnabledIds.isEmpty()) return
-        val recovered = suppressedStore.recoverFor(reEnabledIds, System.currentTimeMillis())
-        if (recovered.isNotEmpty() &&
-            settingsPrefs.remindersEnabled.first() &&
-            notifier.canPost()
-        ) {
-            recovered.forEach { notifier.post(it) }
-        }
+    fun setAccountVisible(ids: Collection<Long>, visible: Boolean) = write {
+        repository.setCalendarsVisible(ids, visible)
     }
 
     // --- Automatic backup (issue #8) ------------------------------------

@@ -52,32 +52,51 @@ class CalendarPrefsTest {
     }
 
     @Test
-    fun `disabledCalendarIds defaults to empty when unset`(@TempDir tempDir: Path) = runTest {
-        val prefs = CalendarPrefs(newDataStore(tempDir))
-        assertThat(prefs.disabledCalendarIds.first()).isEmpty()
+    fun `legacy disabled set reads back what an older version stored`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = CalendarPrefs(store)
+        store.updateData { p ->
+            p.toMutablePreferences().apply { this[CalendarPrefs.DISABLED_IDS_KEY] = "2,9" }
+        }
+        assertThat(prefs.legacyDisabledCalendarIds()).isEqualTo(setOf(2L, 9L))
     }
 
     @Test
-    fun `setDisabledCalendarIds round-trips through DataStore`(@TempDir tempDir: Path) = runTest {
+    fun `legacy disabled set is empty when nothing was ever stored`(
+        @TempDir tempDir: Path,
+    ) = runTest {
         val prefs = CalendarPrefs(newDataStore(tempDir))
-        prefs.setDisabledCalendarIds(setOf(1L, 42L, 7L))
-        assertThat(prefs.disabledCalendarIds.first()).isEqualTo(setOf(1L, 42L, 7L))
+        assertThat(prefs.legacyDisabledCalendarIds()).isEmpty()
     }
 
     @Test
-    fun `setting empty disabled set clears storage`(@TempDir tempDir: Path) = runTest {
-        val prefs = CalendarPrefs(newDataStore(tempDir))
-        prefs.setDisabledCalendarIds(setOf(1L))
-        prefs.setDisabledCalendarIds(emptySet())
-        assertThat(prefs.disabledCalendarIds.first()).isEmpty()
-    }
-
-    @Test
-    fun `hidden and disabled sets are stored independently`(@TempDir tempDir: Path) = runTest {
-        val prefs = CalendarPrefs(newDataStore(tempDir))
+    fun `clearing the legacy disabled set leaves the hidden set alone`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = CalendarPrefs(store)
         prefs.setHiddenCalendarIds(setOf(1L))
-        prefs.setDisabledCalendarIds(setOf(2L))
+        store.updateData { p ->
+            p.toMutablePreferences().apply { this[CalendarPrefs.DISABLED_IDS_KEY] = "2" }
+        }
+
+        prefs.clearLegacyDisabledCalendarIds()
+
+        assertThat(prefs.legacyDisabledCalendarIds()).isEmpty()
         assertThat(prefs.hiddenCalendarIds.first()).isEqualTo(setOf(1L))
-        assertThat(prefs.disabledCalendarIds.first()).isEqualTo(setOf(2L))
+    }
+
+    @Test
+    fun `visibility migration guard defaults to not-done and latches`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val prefs = CalendarPrefs(newDataStore(tempDir))
+        assertThat(prefs.visibilityMigrationDone.first()).isFalse()
+
+        prefs.setVisibilityMigrationDone()
+
+        assertThat(prefs.visibilityMigrationDone.first()).isTrue()
     }
 }

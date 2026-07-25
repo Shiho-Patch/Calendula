@@ -15,6 +15,7 @@ class CalendarMapperTest {
         visible: Int = 1,
         accessLevel: Int = CalendarContract.Calendars.CAL_ACCESS_OWNER,
         description: String? = null,
+        syncEvents: Int? = 1,
     ): MapColumnReader = MapColumnReader(
         CalendarProjection.IDX_ID to id,
         CalendarProjection.IDX_DISPLAY_NAME to displayName,
@@ -24,6 +25,7 @@ class CalendarMapperTest {
         CalendarProjection.IDX_VISIBLE to visible,
         CalendarProjection.IDX_ACCESS_LEVEL to accessLevel,
         CalendarProjection.IDX_DESCRIPTION to description,
+        CalendarProjection.IDX_SYNC_EVENTS to syncEvents,
     )
 
     @Test
@@ -47,6 +49,18 @@ class CalendarMapperTest {
                 canModifyContents = true,
             )
         )
+    }
+
+    @Test
+    fun `sync_events 0 marks the calendar as not syncing its events`() {
+        assertThat(reader(syncEvents = 0).toCalendarSource().syncsEvents).isFalse()
+    }
+
+    @Test
+    fun `a NULL sync_events column is treated as syncing`() {
+        // The harmless default: it only ever holds the visibility migration back
+        // from switching a calendar on.
+        assertThat(reader(syncEvents = null).toCalendarSource().syncsEvents).isTrue()
     }
 
     @Test

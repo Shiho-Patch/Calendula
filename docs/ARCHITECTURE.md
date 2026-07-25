@@ -157,6 +157,15 @@ sequenceDiagram
 Posting happens before marking: a crash in between re-posts silently (same
 tag + `setOnlyAlertOnce`) rather than losing a reminder. Swiped
 notifications never return because `FIRED` rows are never re-queried.
+
+**One visibility model.** The provider only schedules alarms for calendars with
+`Calendars.VISIBLE = 1`, so that flag *is* the app's on/off switch: Settings →
+Calendars writes it (one calendar per update — `CalendarProvider2` skips its own
+`checkNextAlarm()` reschedule for any selection that isn't `_id=`), and every
+display predicate reads `CalendarSource.isVisibleInSystem`. There is deliberately
+no second, app-local model and therefore nothing to suppress here. The drawer's
+filter sheet (`CalendarPrefs.hiddenCalendarIds`) is a separate in-app declutter
+that never touches reminders. See `docs/design/calendar-visibility-model.md`.
 Deliberately absent until real devices prove it necessary: own alarm
 scheduling, `BOOT_COMPLETED`, snooze/dismiss actions, battery-exemption
 prompts.

@@ -177,18 +177,16 @@ class EventEditViewModel @Inject constructor(
         repository.calendars().catch { emit(emptyList()) }
 
     /**
-     * Writable calendars — the only valid event targets. Disabled calendars are
-     * excluded, so you can't create into a calendar you've removed from the app;
-     * a last-used preselect landing on a now-disabled calendar falls back to the
-     * first remaining writable one (handled by [resolvedCalendarId] and [state]).
-     * Managed special-dates calendars are excluded too: their events are owned by
-     * the contact sync, which would delete any user event created there.
+     * Writable calendars — the only valid event targets. Calendars switched off
+     * in Settings → Calendars are excluded, so you can't create into one you've
+     * turned off; a last-used preselect landing on a now-off calendar falls back
+     * to the first remaining writable one (handled by [resolvedCalendarId] and
+     * [state]). Managed special-dates calendars are excluded too: their events
+     * are owned by the contact sync, which would delete any user event created
+     * there.
      */
-    private val writableCalendars: Flow<List<CalendarSource>> = combine(
-        allCalendars,
-        prefs.disabledCalendarIds,
-    ) { calendars, disabled ->
-        calendars.filter { it.canModifyContents && it.id !in disabled && !it.isManaged }
+    private val writableCalendars: Flow<List<CalendarSource>> = allCalendars.map { calendars ->
+        calendars.filter { it.canModifyContents && it.isVisibleInSystem && !it.isManaged }
     }
 
     /** The target calendar id, resolved exactly as the form shows it. */

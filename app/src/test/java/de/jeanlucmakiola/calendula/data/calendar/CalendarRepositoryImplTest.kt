@@ -41,8 +41,12 @@ class CalendarRepositoryImplTest {
             produceFile = { tempDir.resolve("repo_test_prefs.preferences_pb").toFile() },
         )
 
-    private fun makeCal(id: Long, name: String = "Cal $id"): CalendarSource =
-        CalendarSource(id, name, "x@y", "LOCAL", 0xFF112233.toInt(), true)
+    private fun makeCal(
+        id: Long,
+        name: String = "Cal $id",
+        visible: Boolean = true,
+    ): CalendarSource =
+        CalendarSource(id, name, "x@y", "LOCAL", 0xFF112233.toInt(), visible)
 
     private fun makeEvent(
         id: Long,
@@ -171,37 +175,40 @@ class CalendarRepositoryImplTest {
     }
 
     @Test
-    fun `instances drops events whose calendar the user disabled`(@TempDir tempDir: Path) = runTest {
-        val prefs = newPrefs(tempDir)
-        prefs.setDisabledCalendarIds(setOf(2L))
+    fun `instances drops events whose calendar is hidden at system level`(
+        @TempDir tempDir: Path,
+    ) = runTest {
         val fake = FakeCalendarDataSource().apply {
+            calendarsResult = listOf(makeCal(1L), makeCal(2L, visible = false))
             instancesResult = { _, _ ->
                 listOf(
-                    makeEvent(10L, "Enabled", calendarId = 1L),
-                    makeEvent(11L, "Disabled", calendarId = 2L),
+                    makeEvent(10L, "Shown", calendarId = 1L),
+                    makeEvent(11L, "Switched off", calendarId = 2L),
                 )
             }
         }
-        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
 
         val range = Instant.fromEpochMilliseconds(0)..Instant.fromEpochMilliseconds(10_000L)
         repo.instances(range).test {
-            assertThat(awaitItem().map { it.title }).containsExactly("Enabled")
+            assertThat(awaitItem().map { it.title }).containsExactly("Shown")
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `instances applies the union of hidden and disabled sets`(@TempDir tempDir: Path) = runTest {
+    fun `instances applies the union of hidden and system-invisible calendars`(
+        @TempDir tempDir: Path,
+    ) = runTest {
         val prefs = newPrefs(tempDir)
         prefs.setHiddenCalendarIds(setOf(2L))
-        prefs.setDisabledCalendarIds(setOf(3L))
         val fake = FakeCalendarDataSource().apply {
+            calendarsResult = listOf(makeCal(1L), makeCal(2L), makeCal(3L, visible = false))
             instancesResult = { _, _ ->
                 listOf(
                     makeEvent(10L, "Shown", calendarId = 1L),
                     makeEvent(11L, "Hidden", calendarId = 2L),
-                    makeEvent(12L, "Disabled", calendarId = 3L),
+                    makeEvent(12L, "Switched off", calendarId = 3L),
                 )
             }
         }
@@ -215,9 +222,11 @@ class CalendarRepositoryImplTest {
     }
 
     @Test
-    fun `instances re-emits when the disabled set changes`(@TempDir tempDir: Path) = runTest {
-        val prefs = newPrefs(tempDir)
+    fun `instances re-emit after a calendar is switched off in the provider`(
+        @TempDir tempDir: Path,
+    ) = runTest {
         val fake = FakeCalendarDataSource().apply {
+            calendarsResult = listOf(makeCal(1L), makeCal(2L))
             instancesResult = { _, _ ->
                 listOf(
                     makeEvent(10L, "A", calendarId = 1L),
@@ -225,17 +234,57 @@ class CalendarRepositoryImplTest {
                 )
             }
         }
-        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), UnconfinedTestDispatcher(testScheduler))
 
         val range = Instant.fromEpochMilliseconds(0)..Instant.fromEpochMilliseconds(10_000L)
         repo.instances(range).test {
             assertThat(awaitItem().map { it.title }).containsExactly("A", "B").inOrder()
 
-            prefs.setDisabledCalendarIds(setOf(2L))
+            // The write itself is what the provider notifies about; the observer
+            // tick is what makes the views re-query.
+            repo.setCalendarsVisible(listOf(2L), false)
+            fake.tick()
 
             assertThat(awaitItem().map { it.title }).containsExactly("A")
             cancelAndIgnoreRemainingEvents()
         }
+    }
+
+    @Test
+    fun `setCalendarsVisible addresses each calendar on its own`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        // An _id IN (…) batch would skip the provider's own reminder-alarm
+        // reschedule, so every calendar must be written by appended id.
+        val fake = FakeCalendarDataSource().apply {
+            calendarsResult = listOf(makeCal(1L), makeCal(2L), makeCal(3L))
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+
+        repo.setCalendarsVisible(listOf(1L, 3L), false)
+
+        assertThat(fake.visibilityWrites).containsExactly(1L to false, 3L to false).inOrder()
+    }
+
+    @Test
+    fun `searchEvents drops results from calendars that are off or hidden`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val prefs = newPrefs(tempDir)
+        prefs.setHiddenCalendarIds(setOf(3L))
+        val fake = FakeCalendarDataSource().apply {
+            calendarsResult = listOf(makeCal(1L), makeCal(2L, visible = false), makeCal(3L))
+            searchResult = {
+                listOf(
+                    makeEvent(10L, "Shown", calendarId = 1L),
+                    makeEvent(11L, "Switched off", calendarId = 2L),
+                    makeEvent(12L, "Hidden", calendarId = 3L),
+                )
+            }
+        }
+        val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), Dispatchers.Unconfined)
+
+        assertThat(repo.searchEvents("e").map { it.title }).containsExactly("Shown")
     }
 
     @Test

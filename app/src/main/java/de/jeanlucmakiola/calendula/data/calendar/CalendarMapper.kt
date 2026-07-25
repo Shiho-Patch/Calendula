@@ -31,5 +31,10 @@ internal fun ColumnReader.toCalendarSource(): CalendarSource {
         isManaged = isLocal &&
             getString(CalendarProjection.IDX_MANAGED_MARKER)
                 ?.startsWith(CalendarProjection.MANAGED_MARKER_PREFIX) == true,
+        // A provider that leaves the column NULL is treated as syncing — the
+        // harmless default, since this flag only ever holds the one-shot
+        // visibility migration back from switching a calendar on.
+        syncsEvents = isNull(CalendarProjection.IDX_SYNC_EVENTS) ||
+            getInt(CalendarProjection.IDX_SYNC_EVENTS) != 0,
     )
 }
