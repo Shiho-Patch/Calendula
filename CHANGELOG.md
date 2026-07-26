@@ -40,6 +40,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Search results now show an all-day event's real date. West of UTC — anywhere in
   the Americas, say — a search hit was dated one day early, disagreeing with the
   day the month, week and agenda views file the same event under ([#82]).
+- Reminders no longer depend on Android telling Calendula when they are due.
+  Calendula now works out each reminder's time itself and sets its own alarm for
+  it. On some phones — Samsung's among them — the system's calendar storage never
+  sends the signal a calendar app is meant to wake up on, and no amount of
+  battery or notification settings helps: the reminder is simply never announced.
+  None of that is visible from inside an app that waits to be told, which is why
+  it took a second pass to find ([#75]).
+
+  Reminders also survive things that used to lose them quietly. After a restart
+  or an app update Calendula re-arms its alarms, and a reminder whose moment
+  passed while the phone was off still arrives, as long as the event has not
+  ended yet.
+
+- All-day reminders now arrive at the time you chose in **Settings →
+  Notifications**, on every occurrence. A yearly birthday could drift an hour
+  either way depending on daylight saving, and all-day reminders on calendars
+  from an account fired in the middle of the night instead of in the morning
+  ([#75]).
+
 - Reminders now arrive for every calendar you have switched on. A calendar that
   was hidden at system level — switched off in another calendar app, or never
   switched on after being added — still showed its events and listed their

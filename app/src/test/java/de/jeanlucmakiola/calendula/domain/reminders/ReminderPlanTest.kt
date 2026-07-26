@@ -438,6 +438,26 @@ class ReminderPlanTest {
     }
 
     @Test
+    fun `a first-ever scan starts from now, not from the epoch`() {
+        // Otherwise an install — or the upgrade onto in-house delivery — treats
+        // every reminder ever set as overdue and posts the lot.
+        assertThat(reminderWatermark(lastScanMillis = null, nowMillis = now)).isEqualTo(now)
+    }
+
+    @Test
+    fun `an ordinary watermark is used as recorded`() {
+        assertThat(reminderWatermark(lastScanMillis = now - day, nowMillis = now))
+            .isEqualTo(now - day)
+    }
+
+    @Test
+    fun `a watermark left in the future by a clock change is clamped`() {
+        // Left alone it would silence every reminder until real time caught up.
+        assertThat(reminderWatermark(lastScanMillis = now + 5 * day, nowMillis = now))
+            .isEqualTo(now)
+    }
+
+    @Test
     fun `a negative longest offset does not shrink the query horizon`() {
         assertThat(reminderQueryHorizon(lookaheadMillis = 7 * day, maxReminderMinutes = -420))
             .isEqualTo(7 * day)

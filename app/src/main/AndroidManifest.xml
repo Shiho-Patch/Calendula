@@ -33,6 +33,14 @@
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 
+    <!--
+      A reboot clears every pending alarm, including the one holding the next
+      reminder. Now that the app schedules that alarm itself (#75) rather than
+      leaning on the provider's, it has to hear about the reboot to re-arm it —
+      otherwise reminders simply stop after a restart.
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!-- Package visibility (Android 11+): without this, getLaunchIntentForPackage
          returns null and the calendar manager's per-account "manage" button can't
          open the source sync app (DAVx5, ICSx5, Google Calendar, …). The LAUNCHER
@@ -270,17 +278,22 @@
             </intent-filter>
         </service>
 
-        <!-- The provider broadcasts EVENT_REMINDER at reminder time but posts
-             no notification itself — a calendar app must (v1.4, Etar model).
-             Exported: the broadcast arrives from the provider's process. -->
+        <!-- Reminder delivery is the app's own (#75): it plans the alarms from
+             Instances + Reminders instead of waiting for the provider's
+             EVENT_REMINDER broadcast, which OEM-modified providers demonstrably
+             retarget or never send. This receiver takes our scan alarm plus
+             every outside event that invalidates it — boot and package-replace
+             wipe pending alarms, and a clock or timezone change moves every
+             reminder relative to the one that is armed.
+             Exported: the system broadcasts arrive from outside the app. -->
         <receiver
-            android:name=".data.reminders.EventReminderReceiver"
+            android:name=".data.reminders.ReminderScheduleReceiver"
             android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.EVENT_REMINDER" />
-                <data
-                    android:host="com.android.calendar"
-                    android:scheme="content" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
         </receiver>
 

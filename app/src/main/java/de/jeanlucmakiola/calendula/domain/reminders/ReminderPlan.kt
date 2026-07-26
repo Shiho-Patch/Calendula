@@ -196,6 +196,20 @@ fun ReminderEventInstance.isStillRelevant(nowMillis: Long): Boolean =
     (endMillis.takeIf { it > 0L } ?: beginMillis) >= nowMillis
 
 /**
+ * The watermark a scan at [nowMillis] should measure against, given what the
+ * last one recorded.
+ *
+ * A first-ever scan ([lastScanMillis] `null`) claims the present, so an install
+ * or an upgrade onto in-house delivery does not treat every reminder since the
+ * epoch as overdue and bury the user in notifications. A watermark in the
+ * *future* — the clock was moved back, or the user travelled across the date
+ * line — is clamped for the mirror-image reason: left alone it would silence
+ * every reminder until real time caught up with it.
+ */
+fun reminderWatermark(lastScanMillis: Long?, nowMillis: Long): Long =
+    lastScanMillis?.coerceAtMost(nowMillis) ?: nowMillis
+
+/**
  * How far ahead instances must be queried for [scheduleReminders] to see every
  * reminder in time: the plain lookahead plus the longest offset any reminder row
  * carries, so a "two weeks before" reminder is planned before it comes due
