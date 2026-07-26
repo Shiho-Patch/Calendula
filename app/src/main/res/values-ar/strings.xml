@@ -53,11 +53,11 @@
     <string name="event_share_failed">تعذّر مشاركة هذا الحدث.</string>
     <string name="event_delete_title">حذف الحدث؟</string>
     <string name="event_delete_body">الحدث أُزيل من تقويمك ومن كل جهاز تتم مزامنته معه.</string>
-    <string name="event_delete_recurring_title">حذف الحدث المتكرر</string>
+    <string name="event_delete_recurring_title">حذف الحدث المتكرّر</string>
     <string name="event_delete_option_occurrence">فقط هذا الحدث</string>
     <string name="event_delete_option_following">هذا وجميع الأحداث اللاحقة</string>
     <string name="event_delete_option_series">جميع الأحداث في السلسلة</string>
-    <string name="event_edit_recurring_title">تعديل الحدث المتكرر</string>
+    <string name="event_edit_recurring_title">تعديل الحدث المتكرّر</string>
     <string name="event_delete_failed">تعذّر حذف الحدث</string>
     <string name="event_delete_write_denied">Calendula يحتاج إلى صلاحية للكتابة لحذف الأحداث</string>
     <string name="dialog_cancel">إلغاء</string>
@@ -108,7 +108,7 @@
     <string name="event_edit_conflict_discard_hint">الحدث يبقى كما هو الآن</string>
     <string name="import_reminder_prompt_title">هل تريد تطبيق تذكيرك الافتراضي؟</string>
     <string name="event_edit_gone_body">هذا الحدث حُذف في هذه الأثناء، على سبيل المثال على جهاز آخر. لم يعد من الممكن حفظ تغييراتك.</string>
-    <string name="event_edit_more_fields">المزيد من الخيارات</string>
+    <string name="event_edit_more_fields">المزيد من الخانات</string>
     <string name="event_access_public">علني</string>
     <string name="event_access_default">الافتراضي</string>
     <string name="event_availability_busy">مشغول</string>
@@ -153,7 +153,7 @@
     <string name="recurrence_with_until">%1$s حتى %2$s</string>
     <string name="recurrence_with_count">%1$s، %2$d مرّات</string>
     <string name="import_reminder_prompt_apply">طَبِّق الافتراضي</string>
-    <string name="event_detail_recurring">حدث مُتكرر</string>
+    <string name="event_detail_recurring">حدث متكرّر</string>
     <string name="recurrence_on_days">%1$s في %2$s</string>
     <string name="event_attendee_unknown">—</string>
     <string name="event_attendee_accepted">تم القُبول</string>
@@ -166,7 +166,7 @@
     <string name="event_status_cancelled">ملغي</string>
     <string name="event_availability_free">متاح</string>
     <string name="event_access_private">خاص</string>
-    <string name="event_access_confidential">سري</string>
+    <string name="event_access_confidential">سرّي</string>
     <string name="event_attendee_organizer">المُنظِّم</string>
     <string name="event_attendee_optional">اختياري</string>
     <string name="reminder_default">التذكير الافتراضي</string>
@@ -180,7 +180,7 @@
     <string name="reminder_onboarding_body">Android لا يعرض تذكيرات الأحداث من نفسه — بل يجب أن يقوم تطبيق تقويم بذلك. دع Calendula يتولى هذه المهمة.</string>
     <string name="reminder_benefit_delivery_body">كل تذكير لأحداثك يصِل كإشعار، في الوقت المحدد تمامًا.</string>
     <string name="reminder_benefit_duplicates_title">هل تستخدم تطبيق تقويم ثانٍ؟</string>
-    <string name="reminder_benefit_duplicates_body">إذا كان تطبيق آخر أيضًا ينشر تذكيرات، فستراهم مرتين — قم بإيقاف تشغيلهم هناك أو هنا.</string>
+    <string name="reminder_benefit_duplicates_body">إذا تطبيق آخر أيضًا ينشر تذكيرات، فستراهم مرتين — قم بإيقاف تشغيلهم هناك أو هنا.</string>
     <string name="reminder_benefit_reversible_title">يمكنك تغييره في أي وقت</string>
     <string name="reminder_onboarding_enable_button">شَغِّل التذكيرات</string>
     <string name="reminder_onboarding_skip_button">ليس الآن</string>
@@ -200,7 +200,7 @@
     <string name="search_hint">البحث عن الأحداث</string>
     <string name="search_clear">مسح</string>
     <string name="agenda_no_more_today">لا مزيد من الأحداث اليوم</string>
-    <string name="search_empty">لا توجد أحداث مطابقة ”%1$s“.</string>
+    <string name="search_empty">لا أحداث مطابقة ”%1$s“.</string>
     <string name="search_idle_hint">ابحث عن أحداثك بالعنوان، الموقع أو الملاحظات.</string>
     <string name="search_back">الرجوع</string>
     <string name="search_action">البحث</string>
@@ -217,7 +217,7 @@
     <string name="back">رجوع</string>
     <string name="settings_section_appearance">المظهر</string>
     <string name="settings_dynamic_color">اللون الديناميكي</string>
-    <string name="settings_dynamic_color_unavailable">يتطلب Android 12 أو أحدث</string>
+    <string name="settings_dynamic_color_unavailable">يتطلب أندرويد ١٢ أو أحدث</string>
     <string name="settings_default_view">طريقة العرض الافتراضية</string>
     <string name="settings_soften_colors">ألوان تقويم ناعمة</string>
     <string name="settings_soften_colors_summary">خفف ألوان التقويم والأحداث لتتناسب مع الثيم. قم بإيقافه لإظهار الألوان الخام من مصدر التقويم.</string>
@@ -227,7 +227,7 @@
     <string name="settings_font_choose_file">اختر ملفًا…</string>
     <string name="settings_font_custom_selected">خط مخصص</string>
     <string name="settings_font_import_failed">تعذّر قراءة هذا الملف كخط</string>
-    <string name="settings_week_start">يبدأ الأسبوع في</string>
+    <string name="settings_week_start">الأسبوع يبدأ في</string>
     <string name="settings_week_start_auto">تلقائي</string>
     <string name="settings_time_format_auto">تلقائي</string>
     <string name="settings_time_format">تنسيق الوقت</string>
@@ -243,4 +243,58 @@
     <string name="settings_past_events_show">إظهار</string>
     <string name="settings_past_events_hide">إخفاء</string>
     <string name="settings_agenda_header">جدول</string>
+    <string name="event_edit_timezone_device">المنطقة الزمنية للجهاز</string>
+    <string name="event_edit_timezone_search">البحث عن المناطق الزمنية</string>
+    <string name="event_edit_timezone_all">جميع المناطق الزمنية</string>
+    <string name="event_edit_timezone_none">لا منطقة زمنية تطابق \"%1$s\"</string>
+    <string name="event_edit_timezone_local_time">%1$s توقيتك</string>
+    <string name="event_edit_timezone_recent">الأحدث</string>
+    <string name="event_edit_recurrence_incomplete">أدخل رقمًا من ١ إلى ٩٩٩</string>
+    <plurals name="duration_minutes">
+        <item quantity="zero">(%d) لا دقائق</item>
+        <item quantity="one">(%d) دقيقة واحده</item>
+        <item quantity="two">%d دقيقتان</item>
+        <item quantity="few">%d دقائق</item>
+        <item quantity="many">%d دقيقة</item>
+        <item quantity="other">%d دقيقة</item>
+    </plurals>
+    <plurals name="duration_hours">
+        <item quantity="zero">(%d) لا ساعات</item>
+        <item quantity="one">(%d) ساعة واحده</item>
+        <item quantity="two">%d ساعتان</item>
+        <item quantity="few">%d ساعات</item>
+        <item quantity="many">%d ساعة</item>
+        <item quantity="other">%d ساعة</item>
+    </plurals>
+    <plurals name="duration_days">
+        <item quantity="zero">(%d) لا أيام</item>
+        <item quantity="one">(%d) يوم واحد</item>
+        <item quantity="two">%d يومان</item>
+        <item quantity="few">%d أيام</item>
+        <item quantity="many">%d يوم</item>
+        <item quantity="other">%d يوم</item>
+    </plurals>
+    <plurals name="duration_weeks">
+        <item quantity="zero">(%d) لا أسابيع</item>
+        <item quantity="one">(%d) أسبوع واحد</item>
+        <item quantity="two">%d أسبوعان</item>
+        <item quantity="few">%d أسابيع</item>
+        <item quantity="many">%d أسبوع</item>
+        <item quantity="other">%d أسبوع</item>
+    </plurals>
+    <string name="agenda_span_starts">يبدأ %1$s</string>
+    <string name="agenda_span_ends">ينتهي %1$s</string>
+    <string name="today_jump_action">الانتقال إلى اليوم</string>
+    <string name="widget_refresh">تحديث</string>
+    <string name="settings_app_name">اسم التطبيق</string>
+    <string name="settings_dim_completed">تعتيم الأحداث المكتملة</string>
+    <string name="settings_dim_completed_summary">تعتيم الأحداث التي انتهت بالفعل في عرض الشهر والأسبوع</string>
+    <string name="settings_today_toolbar">زر اليوم في شريط الأدوات</string>
+    <string name="settings_today_toolbar_summary">إظهار زر الانتقال إلى اليوم في شريط الأدوات بدلاً من زر عائم</string>
+    <string name="settings_app_name_summary">اعرض Calendula كـ \"Calendar\" في مشغّل التطبيقات الخاص بك. فقط الاسم في المشغّل يتغير؛ وقد ينتقل الرمز إلى مكان جديد بعد التبديل.</string>
+    <string name="settings_past_events_dim">تعتيم</string>
+    <string name="settings_past_events">الأحداث السابقة</string>
+    <string name="settings_agenda_range">مدى الجدول</string>
+    <string name="agenda_range_custom">مخصص…</string>
+    <string name="agenda_range_custom_hint">أيام</string>
 </resources>
