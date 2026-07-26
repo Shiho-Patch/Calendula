@@ -1,5 +1,12 @@
 package de.jeanlucmakiola.calendula.domain.reminders
 
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
+
 /**
  * Works out *when* each reminder has to fire and *which* ones are due, with no
  * provider and no clock of its own — the whole decision layer of in-house
@@ -63,15 +70,30 @@ data class ReminderSchedule(
 )
 
 private const val MILLIS_PER_MINUTE = 60_000L
+private const val MINUTES_PER_DAY = 1_440
 
 /**
  * Pair every instance with each of its event's reminder offsets.
  *
- * The fire instant is `begin − minutes` for timed **and** all-day occurrences
- * alike. That is not an oversight: an all-day instance's `begin` is UTC midnight,
- * and `AllDayReminderEncoding` deliberately encodes the wanted wall-clock time
- * *into* the stored offset measured from exactly that point. Applying a second,
- * timezone-dependent correction here would undo it.
+ * A **timed** occurrence is trivial: `begin` is an absolute instant, so
+ * `begin − minutes` is exact by construction, in any timezone, across any DST
+ * boundary.
+ *
+ * An **all-day** occurrence is not, and taking the offset at face value is what
+ * makes reminders land at the wrong hour. Its `begin` is UTC midnight, and the
+ * stored offset is not a plain lead time — `AllDayReminderEncoding` folds the
+ * wanted wall-clock hour into it, sampled against *one* date's UTC offset. Fire
+ * at `begin − minutes` and every occurrence in a different DST phase than the one
+ * that was sampled drifts by the offset delta, an hour early in one direction and
+ * an hour late in the other. Rows written by other apps carry no wall-clock at
+ * all — a conventional `1440` fires at UTC midnight, which is 01:00 or 02:00
+ * local in Berlin and the wrong day west of UTC.
+ *
+ * So the offset is only read for *which day* it means, via [allDayLeadDays], and
+ * the hour comes from [allDayTimeMinutes] — the one global "show all-day
+ * reminders at" setting — recomposed against each occurrence's own date in
+ * [zone]. 09:00 Berlin is then 09:00 Berlin on every occurrence, whatever the
+ * offset was when the row was written.
  *
  * [minutesByEvent] may hold duplicate offsets (two identical reminder rows on one
  * event); they collapse, because they would otherwise fight over one notification.
@@ -79,15 +101,57 @@ private const val MILLIS_PER_MINUTE = 60_000L
 fun planReminders(
     instances: List<ReminderEventInstance>,
     minutesByEvent: Map<Long, List<Int>>,
+    zone: ZoneId,
+    allDayTimeMinutes: Int,
 ): List<PlannedReminder> = instances.flatMap { instance ->
     minutesByEvent[instance.eventId].orEmpty().distinct().map { minutes ->
         PlannedReminder(
             instance = instance,
             minutes = minutes,
-            alarmMillis = instance.beginMillis - minutes * MILLIS_PER_MINUTE,
+            alarmMillis = if (instance.isAllDay) {
+                allDayAlarmMillis(instance.beginMillis, minutes, zone, allDayTimeMinutes)
+            } else {
+                instance.beginMillis - minutes * MILLIS_PER_MINUTE
+            },
         )
     }
 }
+
+/** UTC midnight of an all-day occurrence, as the calendar date it stands for. */
+private fun allDayDate(beginMillis: Long): LocalDate =
+    Instant.ofEpochMilli(beginMillis).atZone(ZoneOffset.UTC).toLocalDate()
+
+/**
+ * How many whole days before its occurrence a raw all-day offset means.
+ *
+ * A plain multiple of 1440 is read at face value. That covers rows from other
+ * calendar apps, which carry no encoded hour — and it stays right for our own
+ * rows that happen to land on a multiple, because those encode a wall-clock hour
+ * equal to the sampled UTC offset, so the day count is the same either way.
+ *
+ * Anything else is one of ours, with an hour folded in: recover the day count the
+ * way [de.jeanlucmakiola.calendula.data.calendar.fromProviderAllDayMinutes]
+ * does for display, by asking which local date the encoded instant falls on.
+ * Keeping the two in step is what makes the notification arrive on the day the
+ * event screen says it will.
+ */
+internal fun allDayLeadDays(rawMinutes: Int, beginMillis: Long, zone: ZoneId): Long {
+    if (rawMinutes % MINUTES_PER_DAY == 0) return (rawMinutes / MINUTES_PER_DAY).toLong()
+    val encoded = Instant.ofEpochMilli(beginMillis - rawMinutes * MILLIS_PER_MINUTE)
+    return ChronoUnit.DAYS.between(encoded.atZone(zone).toLocalDate(), allDayDate(beginMillis))
+}
+
+private fun allDayAlarmMillis(
+    beginMillis: Long,
+    rawMinutes: Int,
+    zone: ZoneId,
+    allDayTimeMinutes: Int,
+): Long = allDayDate(beginMillis)
+    .minusDays(allDayLeadDays(rawMinutes, beginMillis, zone))
+    .atTime(LocalTime.of(allDayTimeMinutes / 60, allDayTimeMinutes % 60))
+    .atZone(zone)
+    .toInstant()
+    .toEpochMilli()
 
 /**
  * Split [planned] into what is due now and when to wake up next.
