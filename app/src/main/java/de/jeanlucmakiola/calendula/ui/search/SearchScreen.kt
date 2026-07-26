@@ -57,9 +57,12 @@ import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventFill
+import de.jeanlucmakiola.calendula.domain.spanFirstDay
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.floret.components.positionOf
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toJavaLocalDate
 import java.time.Instant as JavaInstant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -220,9 +223,14 @@ private fun searchSummary(event: EventInstance): String {
     val start = remember(event.start, zone) {
         JavaInstant.ofEpochMilli(event.start.toEpochMilliseconds()).atZone(zone)
     }
-    val dateText = remember(locale) {
+    // The date comes from the shared span rule, not from [start]: an all-day
+    // event sits at UTC midnight, so reading its date in the device zone names
+    // the day before west of UTC (#82). The clock time below stays in the device
+    // zone — it is only ever rendered for timed events.
+    val dateText = remember(event.start, event.end, event.isAllDay, locale) {
         DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
-    }.format(start)
+            .format(event.spanFirstDay(TimeZone.currentSystemDefault()).toJavaLocalDate())
+    }
     val use24Hour = LocalUse24HourFormat.current
     val timeText = if (event.isAllDay) {
         stringResource(R.string.event_detail_all_day)

@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Search results now show an all-day event's real date. West of UTC — anywhere in
+  the Americas, say — a search hit was dated one day early, disagreeing with the
+  day the month, week and agenda views file the same event under ([#82]).
 - Reminders now arrive for every calendar you have switched on. A calendar that
   was hidden at system level — switched off in another calendar app, or never
   switched on after being added — still showed its events and listed their
@@ -1135,3 +1138,4 @@ automatically, with zero telemetry and no internet permission.
 [#44]: https://codeberg.org/jlmakiola/calendula/issues/44
 [#70]: https://codeberg.org/jlmakiola/calendula/issues/70
 [#75]: https://codeberg.org/jlmakiola/calendula/issues/75
+[#82]: https://codeberg.org/jlmakiola/calendula/issues/82
