@@ -75,6 +75,7 @@ fun ImportScreen(
     onClose: () -> Unit,
     onOpenSingle: (EventForm) -> Unit,
     forceMany: Boolean = false,
+    onManageCalendars: (() -> Unit)? = null,
     // Key the VM by the file uri. This screen has no nav backstack, so an
     // unkeyed hiltViewModel() resolves to the Activity's store and is retained
     // across imports — its one-shot `load` guard would then show the *previous*
@@ -155,7 +156,12 @@ fun ImportScreen(
 
                 ImportUiState.Empty -> CenteredMessage(stringResource(R.string.import_empty), onClose)
                 ImportUiState.Failed -> CenteredMessage(stringResource(R.string.import_failed), onClose)
-                is ImportUiState.Many -> ManyContent(s, selected, onSelect = { selected = it })
+                is ImportUiState.Many -> ManyContent(
+                    state = s,
+                    selected = selected,
+                    onSelect = { selected = it },
+                    onManageCalendars = onManageCalendars,
+                )
                 is ImportUiState.Done -> DoneContent(s, onClose)
             }
         }
@@ -163,10 +169,24 @@ fun ImportScreen(
 }
 
 @Composable
-private fun ManyContent(state: ImportUiState.Many, selected: Long?, onSelect: (Long) -> Unit) {
-    // No writable calendar to import into — tell the user honestly.
+private fun ManyContent(
+    state: ImportUiState.Many,
+    selected: Long?,
+    onSelect: (Long) -> Unit,
+    onManageCalendars: (() -> Unit)? = null,
+) {
+    // No calendar to import into — tell the user honestly, and carry the same
+    // way out the picker's footer offers below. This is the state that footer
+    // exists for: every writable calendar being switched off, read-only or
+    // contact-filled is exactly what empties this list (#76).
     if (state.calendars.isEmpty()) {
-        CenteredMessage(stringResource(R.string.import_no_calendar), onClose = null)
+        CenteredMessage(
+            message = stringResource(R.string.import_no_calendar),
+            onClose = null,
+            actionLabel = stringResource(R.string.settings_manage_calendars)
+                .takeIf { onManageCalendars != null },
+            onAction = onManageCalendars,
+        )
         return
     }
 
@@ -178,6 +198,7 @@ private fun ManyContent(state: ImportUiState.Many, selected: Long?, onSelect: (L
             calendars = state.calendars,
             selectedId = selected,
             onSelect = onSelect,
+            onManageCalendars = onManageCalendars,
         )
         if (state.warnings.isNotEmpty()) {
             Column(
@@ -333,7 +354,12 @@ private fun WarningText(warning: IcsParseWarning) {
 }
 
 @Composable
-private fun CenteredMessage(message: String, onClose: (() -> Unit)?) {
+private fun CenteredMessage(
+    message: String,
+    onClose: (() -> Unit)?,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             Modifier.padding(24.dp),
@@ -343,6 +369,9 @@ private fun CenteredMessage(message: String, onClose: (() -> Unit)?) {
             Text(message, style = MaterialTheme.typography.bodyLarge)
             if (onClose != null) {
                 Button(onClick = onClose) { Text(stringResource(R.string.import_close)) }
+            }
+            if (actionLabel != null && onAction != null) {
+                Button(onClick = onAction) { Text(actionLabel) }
             }
         }
     }

@@ -67,6 +67,14 @@ class CalendarVisibilityReconciler @Inject constructor(
             // drain and nothing left to decide, so don't pay for the query.
             if (pending.isEmpty() && noticeSettled) return@withContext
             val calendars = dataSource.calendars()
+            // An empty read means "couldn't read", not "no calendars": the data
+            // source turns a null cursor — a provider momentarily unavailable —
+            // into an empty list. Both decisions below are one-way, so taking
+            // that reading as the truth would drop the whole pending set without
+            // ever writing VISIBLE = 0 (switching the user's calendars back on,
+            // events and reminders with them) and settle the notice as "nothing
+            // to explain". Leave both to the next run.
+            if (calendars.isEmpty()) return@withContext
             settleNoticeOnce(hasSystemHiddenCalendars(calendars, pending))
             if (pending.isEmpty() || !hasPermission(Manifest.permission.WRITE_CALENDAR)) {
                 return@withContext

@@ -19,6 +19,7 @@ import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
+import de.jeanlucmakiola.calendula.domain.isEventTarget
 import de.jeanlucmakiola.calendula.domain.populatedFields
 import de.jeanlucmakiola.calendula.domain.problems
 import de.jeanlucmakiola.calendula.domain.toEditSnapshot
@@ -177,19 +178,16 @@ class EventEditViewModel @Inject constructor(
         repository.calendars().catch { emit(emptyList()) }
 
     /**
-     * Writable calendars — the only valid event targets. Calendars switched off
-     * in Settings → Calendars are excluded, so you can't create into one you've
-     * turned off; a last-used preselect landing on a now-off calendar falls back
-     * to the first remaining writable one (handled by [resolvedCalendarId] and
-     * [state]). Managed special-dates calendars are excluded too: their events
-     * are owned by the contact sync, which would delete any user event created
-     * there.
+     * The calendars a new event can be saved to ([isEventTarget]): writable,
+     * switched on, not a contact-filled mirror, not a non-syncing subscription.
+     * A last-used preselect landing on an excluded calendar falls back to the
+     * first remaining one (handled by [resolvedCalendarId] and [state]).
      *
      * This is the list of *targets*. An event already living in an excluded
      * calendar keeps it — [state] adds it back to the picker.
      */
     private val writableCalendars: Flow<List<CalendarSource>> = allCalendars.map { calendars ->
-        calendars.filter { it.canModifyContents && it.isVisibleInSystem && !it.isManaged }
+        calendars.filter { it.isEventTarget }
     }
 
     /** The target calendar id, resolved exactly as the form shows it. */

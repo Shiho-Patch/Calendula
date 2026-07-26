@@ -14,6 +14,7 @@ import de.jeanlucmakiola.calendula.domain.ics.IcsParseWarning
 import de.jeanlucmakiola.calendula.domain.ics.IcsParser
 import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
 import de.jeanlucmakiola.calendula.domain.ics.toEventForm
+import de.jeanlucmakiola.calendula.domain.isEventTarget
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -85,18 +86,14 @@ class ImportViewModel @Inject constructor(
                     warnings = parsed.warnings,
                 )
                 else -> {
-                    // A calendar switched off in Settings → Calendars is off
-                    // everywhere, so it can't be an import target — exclude it
-                    // alongside the read-only ones. Managed special-dates
-                    // calendars are contact-derived and editor-locked, so
-                    // they're not a valid destination either.
+                    // The same targets the event form offers ([isEventTarget]):
+                    // an import is a bulk create, so a calendar that can't hold
+                    // one event can't hold thirty.
                     ImportUiState.Many(
                         events = parsed.events,
                         warnings = parsed.warnings,
                         calendars = repository.calendars().first()
-                            .filter {
-                                it.canModifyContents && !it.isManaged && it.isVisibleInSystem
-                            },
+                            .filter { it.isEventTarget },
                     )
                 }
             }

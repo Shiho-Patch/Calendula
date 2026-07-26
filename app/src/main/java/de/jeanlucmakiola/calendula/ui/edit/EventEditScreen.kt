@@ -89,6 +89,8 @@ import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -193,6 +195,7 @@ fun EventEditScreen(
     initialStartMinutes: Int? = null,
     initialForm: EventForm? = null,
     initialFormSource: ImportSource = ImportSource.File,
+    onManageCalendars: (() -> Unit)? = null,
     viewModel: EventEditViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(initialDateIso, editKey, initialForm) {
@@ -309,6 +312,7 @@ fun EventEditScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
+                onManageCalendars = onManageCalendars,
             )
         }
     }
@@ -500,6 +504,7 @@ private fun EventEditContent(
     state: EventEditUiState,
     viewModel: EventEditViewModel,
     modifier: Modifier = Modifier,
+    onManageCalendars: (() -> Unit)? = null,
 ) {
     val form = state.form
     val locale = currentLocale()
@@ -509,6 +514,10 @@ private fun EventEditContent(
     // they're locked here; everything else (reminders, location, notes) is the
     // user's to edit.
     val locked = state.isManaged
+    // Read in the form's own window, not the picker's: the field holding focus
+    // lives here, so this is the controller that can put its keyboard away.
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     var picker by remember { mutableStateOf<PickerTarget?>(null) }
     var showCalendarPicker by rememberSaveable { mutableStateOf(false) }
     var showReminderPicker by rememberSaveable { mutableStateOf(false) }
@@ -1114,6 +1123,17 @@ private fun EventEditContent(
         null -> Unit
     }
 
+    // A full-screen picker over the form is a change of place, so the form's
+    // keyboard has no business following it there — least of all onto the
+    // calendar manager, which the picker can hand off to. The form's own field
+    // keeps its text; only focus and the IME go.
+    LaunchedEffect(showCalendarPicker) {
+        if (showCalendarPicker) {
+            focusManager.clearFocus(force = true)
+            keyboardController?.hide()
+        }
+    }
+
     if (showCalendarPicker) {
         CalendarPicker(
             calendars = state.calendars,
@@ -1121,6 +1141,17 @@ private fun EventEditContent(
             onSelect = {
                 viewModel.setCalendar(it)
                 showCalendarPicker = false
+            },
+            // Close the picker on the way out. It is a Compose Dialog — its own
+            // window, always above the activity's content — so the manager would
+            // otherwise open behind it and the tap would look dead. The form
+            // stays standing underneath, its calendar row one tap from a picker
+            // that re-queries on open.
+            onManageCalendars = onManageCalendars?.let { openManager ->
+                {
+                    showCalendarPicker = false
+                    openManager()
+                }
             },
             onDismiss = { showCalendarPicker = false },
         )
@@ -2277,6 +2308,7 @@ private fun CalendarPicker(
     selectedId: Long?,
     onSelect: (Long) -> Unit,
     onDismiss: () -> Unit,
+    onManageCalendars: (() -> Unit)? = null,
 ) {
     FullScreenPicker(
         title = stringResource(R.string.event_detail_calendar),
@@ -2286,6 +2318,7 @@ private fun CalendarPicker(
             calendars = calendars,
             selectedId = selectedId,
             onSelect = onSelect,
+            onManageCalendars = onManageCalendars,
         )
     }
 }

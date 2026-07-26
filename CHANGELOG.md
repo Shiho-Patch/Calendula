@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Settings → Calendars now says what is different about a calendar instead of
+  leaving you to guess. Ones you can only view — a subscribed calendar, a
+  calendar shared with you read-only — are marked **Read-only** ([#76]).
+- Calendars your device isn't syncing are marked **Not synced**, moved to the
+  bottom of their account and left without a switch. None of their events are on
+  the device, so the switch they used to have could not have shown you anything
+  — the calendar simply looked broken. They are no longer offered when you pick
+  a calendar for a new or an imported event either: an event saved there would
+  never reach the account. Whether an account syncs a calendar stays that
+  account's own app's decision ([#78]).
+- The birthday and anniversary calendars Calendula fills from your contacts are
+  marked **Filled from your contacts**, which is why they can't be picked for a
+  new event: anything you put there would be removed again on the next sync.
+  Deleting one is held back while special dates are switched on — Calendula
+  would simply create it again — and the calendar's editor says so; turn the
+  feature off under Settings → Special dates and the delete works as usual
+  ([#76]).
+- The calendar picker in the event form and in the .ics import screen now ends
+  with a **"Missing a calendar?"** row that opens Settings → Calendars, where
+  those marks then explain why a calendar isn't offered ([#76]).
+
 ### Fixed
 - Reminders now arrive for every calendar you have switched on. A calendar that
   was hidden at system level — switched off in another calendar app, or never
@@ -1135,3 +1157,5 @@ automatically, with zero telemetry and no internet permission.
 [#44]: https://codeberg.org/jlmakiola/calendula/issues/44
 [#70]: https://codeberg.org/jlmakiola/calendula/issues/70
 [#75]: https://codeberg.org/jlmakiola/calendula/issues/75
+[#76]: https://codeberg.org/jlmakiola/calendula/issues/76
+[#78]: https://codeberg.org/jlmakiola/calendula/issues/78

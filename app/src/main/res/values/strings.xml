@@ -477,6 +477,13 @@
     <string name="calendars_visibility_a11y">Show \"%1$s\"</string>
     <string name="calendars_visibility_notice_title">Some calendars are switched off</string>
     <string name="calendars_visibility_notice_message">Calendula now shows the calendars that are switched on for this device, so what you see and what reminds you can no longer disagree. Some of yours are currently off — they were switched off here or in another calendar app. Turn any of them back on in Settings → Calendars.</string>
+    <!-- Footer row under the event-form and .ics import calendar pickers. -->
+    <string name="calendar_picker_missing_title">Missing a calendar?</string>
+    <string name="calendar_picker_missing_summary">It may be switched off, read-only, or filled from your contacts — manage your calendars here.</string>
+    <string name="calendars_state_read_only">Read-only</string>
+    <string name="calendars_state_not_synced">Not synced to this device</string>
+    <string name="calendars_state_managed">Filled from your contacts</string>
+    <string name="calendars_managed_delete_locked">This calendar is filled from your contacts, so Calendula would create it again on the next sync. Turn special dates off under Settings → Special dates to delete it.</string>
     <string name="calendars_synced_header">Synced calendars</string>
     <string name="calendars_synced_hint">These come from accounts on your device. Create and edit them in their own app.</string>
     <string name="calendars_manage_in_app">Manage in app</string>
