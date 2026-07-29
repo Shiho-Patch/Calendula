@@ -56,6 +56,7 @@ import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PrivacyTip
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.UploadFile
@@ -408,7 +409,9 @@ private fun LanguageRow(position: Position) {
 @Composable
 private fun AboutCard() {
     // The card layout lives in floret-kit (components.AboutCard); Calendula
-    // supplies its own logo, author and the source / licence / support links.
+    // supplies its own logo, author and the source / licence / privacy / support
+    // links. The privacy policy has to be reachable from inside the app, not just
+    // from the store listing, because Calendula touches calendar and contact data.
     AboutCard(
         logo = { AppLogo() },
         appName = stringResource(R.string.app_name),
@@ -423,6 +426,11 @@ private fun AboutCard() {
                 icon = Icons.Default.Gavel,
                 label = stringResource(R.string.settings_license),
                 url = stringResource(R.string.about_license_url),
+            ),
+            AboutLink(
+                icon = Icons.Default.PrivacyTip,
+                label = stringResource(R.string.settings_about_privacy),
+                url = stringResource(R.string.about_privacy_url),
             ),
         ),
         highlightLink = AboutLink(

@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -42,12 +44,19 @@ import de.jeanlucmakiola.floret.components.SelectedCheck
  * account — with the calendars beneath it as a connected card, a colour chip on
  * each and a check on the selected one. Emits into the caller's [ColumnScope]
  * (a scrolling column), so the caller owns the surrounding chrome.
+ *
+ * The list holds event *targets* only, so a calendar that is switched off,
+ * read-only or managed is silently absent — which reads as a missing calendar
+ * rather than an excluded one (#76). [onManageCalendars], when given, adds the
+ * footer row that names the possible reasons and opens the calendar manager,
+ * where each row then says which one applies.
  */
 @Composable
 fun ColumnScope.CalendarPickerGroups(
     calendars: List<CalendarSource>,
     selectedId: Long?,
     onSelect: (Long) -> Unit,
+    onManageCalendars: (() -> Unit)? = null,
 ) {
     val local = remember(calendars) { calendars.filter { it.isLocal } }
     val syncedGroups = remember(calendars) {
@@ -73,6 +82,23 @@ fun ColumnScope.CalendarPickerGroups(
             calendars = cals,
             selectedId = selectedId,
             onSelect = onSelect,
+        )
+    }
+    if (onManageCalendars != null) {
+        Spacer(Modifier.height(16.dp))
+        GroupedRow(
+            title = stringResource(R.string.calendar_picker_missing_title),
+            summary = stringResource(R.string.calendar_picker_missing_summary),
+            position = Position.Alone,
+            leading = { LeadingAvatar(Icons.Default.VisibilityOff) },
+            trailing = {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            onClick = onManageCalendars,
         )
     }
 }

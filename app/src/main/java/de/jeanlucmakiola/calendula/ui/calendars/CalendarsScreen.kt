@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.MoreVert
@@ -91,6 +92,12 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.data.prefs.BackupStatus
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.CalendarStateLabel
+import de.jeanlucmakiola.calendula.domain.hasVisibilitySwitch
+import de.jeanlucmakiola.calendula.domain.isEventTarget
+import de.jeanlucmakiola.calendula.domain.isNotSynced
+import de.jeanlucmakiola.calendula.domain.orderedForManager
+import de.jeanlucmakiola.calendula.domain.stateLabels
 import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
@@ -139,6 +146,7 @@ fun CalendarsScreen(
     viewModel: CalendarsViewModel = hiltViewModel(),
 ) {
     val calendars by viewModel.calendars.collectAsStateWithLifecycle()
+    val deleteLockedIds by viewModel.deleteLockedCalendarIds.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val backupResult by viewModel.backupResult.collectAsStateWithLifecycle()
     val autoBackup by viewModel.autoBackup.collectAsStateWithLifecycle()
@@ -157,6 +165,7 @@ fun CalendarsScreen(
             initialName = editing?.displayName.orEmpty(),
             initialColor = editing?.color ?: CalendarColorPalette.all.first(),
             initialDescription = editing?.description.orEmpty(),
+            deleteLocked = editing != null && editing.id in deleteLockedIds,
             onSave = { name, color, description ->
                 val id = editorId
                 if (id == null || id == NEW_CALENDAR_ID) {
@@ -305,7 +314,7 @@ private fun CalendarsList(
                     val disabled = !calendar.isVisibleInSystem
                     GroupedRow(
                         title = calendar.displayName,
-                        summary = calendar.description,
+                        summary = calendarRowSummary(calendar),
                         position = if (index == local.lastIndex) Position.Bottom else Position.Middle,
                         container = MaterialTheme.colorScheme.surfaceContainerHighest,
                         dimmed = disabled,
@@ -327,9 +336,9 @@ private fun CalendarsList(
         // safety net. Offered only when there is something exportable: the user's
         // own local calendars (managed special-dates mirrors don't count).
         val exportable = local.filter { it.canModifyContents && !it.isManaged }
-        // Restore/import can target any writable, non-managed calendar (local or
-        // synced), so its availability is broader than export's.
-        val canImport = (local + synced).any { it.canModifyContents && !it.isManaged }
+        // Restore/import can target any calendar the import picker would offer
+        // (local or synced), so its availability is broader than export's.
+        val canImport = (local + synced).any { it.isEventTarget }
         if (exportable.isNotEmpty()) {
             Spacer(Modifier.height(16.dp))
             SectionHeader(stringResource(R.string.calendars_backup_header))
@@ -412,7 +421,11 @@ private fun CalendarsList(
             .forEach { (account, cals) ->
                 val expanded = account !in collapsedAccounts
                 val accountType = cals.first().accountType
-                val accountDisabled = cals.none { it.isVisibleInSystem }
+                // A non-syncing calendar has no switch, so it neither counts
+                // towards "the whole account is off" nor moves with toggle-all.
+                val switchable = cals.filter { it.hasVisibilitySwitch }
+                val accountDisabled = switchable.isNotEmpty() &&
+                    switchable.none { it.isVisibleInSystem }
                 Spacer(Modifier.height(16.dp))
                 CalendarGroup(
                     title = account,
@@ -432,24 +445,36 @@ private fun CalendarsList(
                             collapsedAccounts - account
                         }
                     },
-                    showToggleAll = true,
-                    allEnabled = cals.all { it.isVisibleInSystem },
-                    onToggleAll = { enabled -> onSetAccountVisible(cals.map { it.id }, enabled) },
+                    showToggleAll = switchable.isNotEmpty(),
+                    allEnabled = switchable.all { it.isVisibleInSystem },
+                    onToggleAll = { enabled ->
+                        onSetAccountVisible(switchable.map { it.id }, enabled)
+                    },
                 ) {
-                    cals.forEachIndexed { index, calendar ->
-                        val disabled = !calendar.isVisibleInSystem
+                    // Calendars you can act on first; the ones this device isn't
+                    // syncing sit at the bottom, dimmed and switchless.
+                    val ordered = cals.orderedForManager()
+                    ordered.forEachIndexed { index, calendar ->
+                        val disabled = !calendar.isVisibleInSystem || calendar.isNotSynced
                         GroupedRow(
                             title = calendar.displayName,
-                            position = if (index == cals.lastIndex) Position.Bottom else Position.Middle,
+                            summary = calendarRowSummary(calendar),
+                            position = if (index == ordered.lastIndex) Position.Bottom else Position.Middle,
                             container = MaterialTheme.colorScheme.surfaceContainerHighest,
                             dimmed = disabled,
                             leading = { CalendarColorChip(calendar.color, dimIf(disabled)) },
-                            trailing = {
-                                EnableSwitch(
-                                    calendarName = calendar.displayName,
-                                    enabled = !disabled,
-                                    onToggle = { enabled -> onSetVisible(calendar.id, enabled) },
-                                )
+                            trailing = if (calendar.hasVisibilitySwitch) {
+                                {
+                                    EnableSwitch(
+                                        calendarName = calendar.displayName,
+                                        enabled = calendar.isVisibleInSystem,
+                                        onToggle = { enabled ->
+                                            onSetVisible(calendar.id, enabled)
+                                        },
+                                    )
+                                }
+                            } else {
+                                null
                             },
                         )
                     }
@@ -557,6 +582,7 @@ private fun CalendarEditor(
     onSave: (name: String, color: Int, description: String?) -> Unit,
     onDelete: () -> Unit,
     onClose: () -> Unit,
+    deleteLocked: Boolean = false,
 ) {
     var name by rememberSaveable(sessionKey) { mutableStateOf(initialName) }
     var color by rememberSaveable(sessionKey) { mutableStateOf(initialColor) }
@@ -590,11 +616,23 @@ private fun CalendarEditor(
                 },
                 actions = {
                     if (!isNew) {
-                        IconButton(onClick = { confirmDelete = true }) {
+                        // Kept in place while the special-dates sync owns this
+                        // calendar, rather than hidden: the button is where you
+                        // expect it, disabled, with the card below saying why —
+                        // and it comes back to life the moment the feature is
+                        // off, when the delete would actually stick.
+                        IconButton(
+                            onClick = { confirmDelete = true },
+                            enabled = !deleteLocked,
+                        ) {
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = stringResource(R.string.event_detail_delete),
-                                tint = MaterialTheme.colorScheme.error,
+                                tint = if (deleteLocked) {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                } else {
+                                    MaterialTheme.colorScheme.error
+                                },
                             )
                         }
                     }
@@ -623,6 +661,19 @@ private fun CalendarEditor(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (deleteLocked) {
+                EditorCard(
+                    icon = Icons.Default.Info,
+                    iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    iconAtTop = true,
+                ) {
+                    Text(
+                        text = stringResource(R.string.calendars_managed_delete_locked),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             EditorCard(icon = Icons.Default.CalendarMonth, iconTint = eventFill(color, dark, soften)) {
                 InlineTextField(
                     value = name,
@@ -692,6 +743,27 @@ private fun CalendarEditor(
             },
         )
     }
+}
+
+/**
+ * The row's supporting line: the states that make this calendar behave unlike a
+ * plain writable one (#76), then its own description. Text rather than badges —
+ * a row can carry several of these at once next to a switch, which is exactly
+ * what M3 supporting text composes and a row of static chips doesn't.
+ */
+@Composable
+private fun calendarRowSummary(calendar: CalendarSource): String? {
+    val states = calendar.stateLabels().map { label ->
+        stringResource(
+            when (label) {
+                CalendarStateLabel.MANAGED -> R.string.calendars_state_managed
+                CalendarStateLabel.READ_ONLY -> R.string.calendars_state_read_only
+                CalendarStateLabel.NOT_SYNCED -> R.string.calendars_state_not_synced
+            },
+        )
+    }
+    val parts = states + listOfNotNull(calendar.description?.takeIf { it.isNotBlank() })
+    return parts.joinToString(" · ").ifEmpty { null }
 }
 
 /**

@@ -29,14 +29,30 @@ jobs:
       - name: Run Renovate
         run: renovate
         env:
-          # Self-hosted Gitea, not github.com.
-          RENOVATE_PLATFORM: gitea
-          RENOVATE_ENDPOINT: https://gitea.jeanlucmakiola.de/api/v1
-          # Bot-account token (Gitea secret). Needs repo read/write + PR scope.
+          # Renovate targets Codeberg (canonical) while still RUNNING on the
+          # Gitea runner. Moving the job to Codeberg would put a repo-write
+          # token on the contributor-facing runner, which is exactly what the
+          # .forgejo/ vs .gitea/ split exists to prevent — so the token stays
+          # where the other secrets live and only the API calls cross over.
+          #
+          # Platform is `forgejo`, not `gitea`: Codeberg runs Forgejo, and the
+          # pinned image ships a distinct forgejo platform module.
+          RENOVATE_PLATFORM: forgejo
+          RENOVATE_ENDPOINT: https://codeberg.org/api/v1
+          # Codeberg bot-account token (Gitea secret). Needs repo read/write +
+          # PR scope on jlmakiola/calendula.
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
           # Scope to this repo only — no org-wide autodiscovery.
           RENOVATE_AUTODISCOVER: 'false'
-          RENOVATE_REPOSITORIES: '["makiolaj/calendula"]'
-          # Commits/PRs authored as the bot, not a real maintainer.
+          RENOVATE_REPOSITORIES: '["jlmakiola/calendula"]'
+          # Commits/PRs authored as the bot, not a real maintainer. This address
+          # must be a verified email on the Codeberg bot account, otherwise the
+          # commits show up unattributed there.
           RENOVATE_GIT_AUTHOR: 'Renovate Bot <renovate@jeanlucmakiola.de>'
+          # Read-only github.com PAT (no scopes needed). Unaffected by the forge
+          # move — nearly every dependency is *released* on GitHub, and without
+          # this,
+          # changelog/release-note lookups hit the 60/h anonymous rate limit
+          # and PRs arrive with an empty "Release Notes" section.
+          RENOVATE_GITHUB_COM_TOKEN: ${{ secrets.GITHUB_COM_TOKEN }}
           LOG_LEVEL: info

@@ -462,6 +462,7 @@
     <string name="settings_license_value">MIT</string>
     <string name="settings_about_author">by Jean-Luc Makiola</string>
     <string name="settings_about_source">Source</string>
+    <string name="settings_about_privacy">Privacy policy</string>
     <string name="settings_about_support">Support development</string>
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_logo_desc">Calendula app icon</string>
@@ -477,6 +478,13 @@
     <string name="calendars_visibility_a11y">Show \"%1$s\"</string>
     <string name="calendars_visibility_notice_title">Some calendars are switched off</string>
     <string name="calendars_visibility_notice_message">Calendula now shows the calendars that are switched on for this device, so what you see and what reminds you can no longer disagree. Some of yours are currently off — they were switched off here or in another calendar app. Turn any of them back on in Settings → Calendars.</string>
+    <!-- Footer row under the event-form and .ics import calendar pickers. -->
+    <string name="calendar_picker_missing_title">Missing a calendar?</string>
+    <string name="calendar_picker_missing_summary">It may be switched off, read-only, or filled from your contacts — manage your calendars here.</string>
+    <string name="calendars_state_read_only">Read-only</string>
+    <string name="calendars_state_not_synced">Not synced to this device</string>
+    <string name="calendars_state_managed">Filled from your contacts</string>
+    <string name="calendars_managed_delete_locked">This calendar is filled from your contacts, so Calendula would create it again on the next sync. Turn special dates off under Settings → Special dates to delete it.</string>
     <string name="calendars_synced_header">Synced calendars</string>
     <string name="calendars_synced_hint">These come from accounts on your device. Create and edit them in their own app.</string>
     <string name="calendars_manage_in_app">Manage in app</string>
@@ -572,8 +580,9 @@
     <string name="settings_qs_tile">Add Quick Settings tile</string>
     <string name="settings_qs_tile_hint">Add a “New event” tile to the Quick Settings panel.</string>
 
-    <string name="about_source_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula</string>
-    <string name="about_license_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula/src/branch/main/LICENSE</string>
+    <string name="about_source_url" translatable="false">https://codeberg.org/jlmakiola/calendula</string>
+    <string name="about_license_url" translatable="false">https://codeberg.org/jlmakiola/calendula/src/branch/main/LICENSE</string>
+    <string name="about_privacy_url" translatable="false">https://jeanlucmakiola.de/calendula/privacy</string>
     <string name="about_support_url" translatable="false">https://ko-fi.com/jeanlucmakiola</string>
     <string name="about_translate_url" translatable="false">https://weblate.dev.jeanlucmakiola.de/engage/calendula/</string>
 

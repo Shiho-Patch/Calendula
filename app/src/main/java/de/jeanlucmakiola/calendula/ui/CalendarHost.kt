@@ -415,6 +415,7 @@ fun CalendarHost(
                     initialStartMinutes = createStartMinutes ?: heldCreateMinutes,
                     onClose = { createDateIso = null },
                     onSaved = { createDateIso = null },
+                    onManageCalendars = { showCalendars = true },
                 )
             }
         }
@@ -434,6 +435,7 @@ fun CalendarHost(
                         editKey = null
                         detailKey = null
                     },
+                    onManageCalendars = { showCalendars = true },
                 )
             }
         }
@@ -450,18 +452,6 @@ fun CalendarHost(
             )
         }
 
-        // Calendar manager — slides over Settings.
-        AnimatedVisibility(
-            visible = showCalendars,
-            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
-        ) {
-            CalendarsScreen(
-                onBack = { showCalendars = false },
-                onImport = { importUri = it; importForceMany = true },
-            )
-        }
-
         // Import flow for an opened/received .ics file. A single event routes
         // into the create form (prefilled, for review); many open the picker.
         importUri?.let { uri ->
@@ -469,6 +459,7 @@ fun CalendarHost(
                 uri = uri,
                 forceMany = importForceMany,
                 onClose = { importUri = null },
+                onManageCalendars = { showCalendars = true },
                 onOpenSingle = { form ->
                     importUri = null
                     importFormSource = ImportSource.File
@@ -483,6 +474,27 @@ fun CalendarHost(
                 initialFormSource = importFormSource,
                 onClose = { importForm = null },
                 onSaved = { importForm = null },
+                onManageCalendars = { showCalendars = true },
+            )
+        }
+
+        // Calendar manager — declared last so it covers every overlay that can
+        // open it: Settings, both event forms, and the .ics import picker (#76).
+        // Coming back from it leaves the caller exactly as it was, with the
+        // calendar list already refreshed by the provider's notification.
+        AnimatedVisibility(
+            visible = showCalendars,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            CalendarsScreen(
+                onBack = { showCalendars = false },
+                // The manager opens the import too (restore from backup), and
+                // that way round it has to step aside: declared above the import
+                // overlays, it would otherwise cover the screen it just asked
+                // for. Closing it hands the user back to whatever opened the
+                // manager once the import is done.
+                onImport = { importUri = it; importForceMany = true; showCalendars = false },
             )
         }
     }
