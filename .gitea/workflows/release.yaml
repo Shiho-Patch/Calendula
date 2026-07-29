@@ -1,4 +1,4 @@
-name: Release — F-Droid repo + Gitea/Codeberg release
+name: Release — F-Droid repo + Gitea/Codeberg release + Play
 
 # A release is cut by merging a release branch into main with a bumped
 # versionName (see docs/RELEASING.md). This workflow reads that versionName and,
@@ -8,6 +8,12 @@ name: Release — F-Droid repo + Gitea/Codeberg release
 # direct-download channel — the tag is an output of the pipeline, not its
 # trigger. Ordinary merges (no version bump) fall through `detect` and do
 # nothing.
+#
+# A trailing `play` job then uploads the App Bundle to Google Play. It is last
+# and separate because Play is the only channel that can reject a good build for
+# reasons the pipeline can't see, and that must not endanger a release which has
+# already shipped to F-Droid and Codeberg. It skips cleanly until the
+# PLAY_SERVICE_ACCOUNT_JSON secret exists.
 #
 # A manual workflow_dispatch (from a branch) runs the re-sign-only recovery
 # path: it re-signs the existing F-Droid index with the repo key and re-uploads,
@@ -202,6 +208,33 @@ jobs:
       - name: Build release APK
         if: env.IS_RELEASE == 'true'
         run: ./gradlew assembleRelease
+
+      # Play takes an App Bundle, not the APK, so it is a second artifact from
+      # the same source and the same signing config — not a repackage of the
+      # APK. The release key signs it, but Play only ever treats that key as the
+      # *upload* key: Play App Signing re-signs with Google's own key before
+      # delivery. A Play install and an F-Droid install therefore carry
+      # different signatures and cannot update each other. That divergence is a
+      # deliberate, documented choice (docs/RELEASING.md), not an accident.
+      #
+      # Nothing here touches the F-Droid path: the AAB is never copied into the
+      # repo, never attached to a release, and its build cannot change the APK
+      # that was already produced above.
+      #
+      # AGP embeds the R8 mapping in the bundle's BUNDLE-METADATA, so Play gets
+      # deobfuscated stacktraces without a separate mapping upload.
+      - name: Build release AAB
+        if: env.IS_RELEASE == 'true'
+        run: ./gradlew bundleRelease
+
+      - name: Hand the AAB to the Play job
+        if: env.IS_RELEASE == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-aab-${{ needs.detect.outputs.version }}
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Setup F-Droid Server Tools
         run: |
@@ -477,3 +510,123 @@ jobs:
               "$API/releases/$ID/assets?name=$A" -o /dev/null -w "asset $A HTTP %{http_code}\n"
           done
           echo "Published $TAG to Codeberg."
+
+  # Google Play channel.
+  #
+  # A separate job, on purpose, running only AFTER the F-Droid publish and both
+  # forge releases have completed. Play is the one channel that can reject a
+  # perfectly good build for reasons outside the pipeline (listing rules, policy
+  # review, API outage, a track that needs manual promotion). Isolating it means
+  # such a rejection surfaces as one red job next to a release that already
+  # shipped everywhere else, instead of failing the workflow that publishes it.
+  #
+  # Not a `container:` job even though a fastlane image exists: act_runner does
+  # not provide node inside custom job containers, so JavaScript actions
+  # (checkout, download-artifact) can't run there. The Renovate job gets away
+  # with a container because its only step is a shell command. Ruby is installed
+  # the same way sshpass, jq and fdroidserver are in the job above.
+  play:
+    needs: [detect, release]
+    # workflow_dispatch is the F-Droid re-sign recovery path — it must never
+    # touch Play, so gate on a real release only.
+    if: needs.detect.outputs.is_release == 'true'
+    runs-on: docker
+    env:
+      VERSION: ${{ needs.detect.outputs.version }}
+      VERSION_CODE: ${{ needs.detect.outputs.version_code }}
+      # Where the bundle lands. `internal` by default so a release reaches
+      # testers rather than the public, and promotion to production stays a
+      # deliberate human action in the Play Console — the same posture as
+      # holding UI releases for on-device review. Override with the PLAY_TRACK
+      # repo variable once the flow is trusted.
+      PLAY_TRACK: ${{ vars.PLAY_TRACK || 'internal' }}
+      PLAY_RELEASE_STATUS: ${{ vars.PLAY_RELEASE_STATUS || 'completed' }}
+      # Set PLAY_DRY_RUN=true to validate the edit against the API and discard
+      # it instead of committing — used to rehearse the first upload.
+      PLAY_DRY_RUN: ${{ vars.PLAY_DRY_RUN || 'false' }}
+      BUNDLE_PATH: vendor/bundle
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Skip cleanly (not fatally) when Play isn't configured yet, so the rest
+      # of the release pipeline keeps working during setup — same contract as
+      # the Codeberg mirror step.
+      - name: Write the Play service-account key
+        id: key
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PLAY_SERVICE_ACCOUNT_JSON:-}" ]; then
+            echo "PLAY_SERVICE_ACCOUNT_JSON not set — skipping the Play upload."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > play-service-account.json
+          # Fail here, with a clear message, rather than inside fastlane: a
+          # mangled multi-line secret is the likeliest setup mistake.
+          python3 -c "import json,sys; d=json.load(open('play-service-account.json')); sys.exit(0 if d.get('type')=='service_account' else 1)" \
+            || { echo "PLAY_SERVICE_ACCOUNT_JSON is not a valid service-account JSON." >&2; exit 1; }
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Download the AAB
+        if: steps.key.outputs.configured == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: release-aab-${{ needs.detect.outputs.version }}
+          path: dist
+
+      - name: Install Ruby
+        if: steps.key.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          SUDO=""
+          if command -v sudo >/dev/null 2>&1; then SUDO="sudo"; fi
+          $SUDO apt-get update
+          # ruby-dev + build-essential: several of fastlane's dependencies build
+          # native extensions.
+          $SUDO apt-get install -y ruby-full ruby-dev build-essential
+          ruby -v
+
+      # Only the first release pays the full gem build; afterwards this restores.
+      - name: Cache bundled gems
+        if: steps.key.outputs.configured == 'true'
+        uses: actions/cache@v4
+        with:
+          path: vendor/bundle
+          key: ${{ runner.os }}-gems-${{ hashFiles('Gemfile') }}
+          restore-keys: |
+            ${{ runner.os }}-gems-
+
+      - name: Install fastlane
+        if: steps.key.outputs.configured == 'true'
+        run: |
+          set -euo pipefail
+          gem install bundler --no-document
+          bundle config set --local path vendor/bundle
+          bundle install --jobs 4
+          bundle exec fastlane --version
+
+      - name: Upload to Play
+        if: steps.key.outputs.configured == 'true'
+        env:
+          SUPPLY_JSON_KEY: play-service-account.json
+          # supply is chatty on a TTY-less runner otherwise.
+          FASTLANE_SKIP_UPDATE_CHECK: '1'
+          FASTLANE_HIDE_CHANGELOG: '1'
+        run: |
+          set -euo pipefail
+          test -f "dist/app-release.aab"
+          bundle exec fastlane deploy \
+            aab:"dist/app-release.aab" \
+            track:"$PLAY_TRACK" \
+            release_status:"$PLAY_RELEASE_STATUS" \
+            dry_run:"$PLAY_DRY_RUN"
+          echo "Uploaded $VERSION (code $VERSION_CODE) to the '$PLAY_TRACK' track."
+
+      # The workspace is reused between runs on a self-hosted runner, so the
+      # credential must not outlive the job.
+      - name: Shred the service-account key
+        if: always()
+        run: shred -u play-service-account.json 2>/dev/null || rm -f play-service-account.json
