@@ -8,7 +8,7 @@
 Reads, writes, and reminds — on top of the system calendar, with zero network access.</p>
 
 <p>
-<a href="https://gitea.jeanlucmakiola.de/makiolaj/calendula/actions"><img src="https://gitea.jeanlucmakiola.de/makiolaj/calendula/actions/workflows/ci.yaml/badge.svg?branch=main" alt="CI"></a>
+<a href="https://codeberg.org/jlmakiola/calendula/actions"><img src="https://codeberg.org/jlmakiola/calendula/actions/workflows/ci.yaml/badge.svg?branch=main" alt="CI"></a>
 <img src="https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white" alt="Android 10+">
 <img src="https://img.shields.io/badge/Kotlin-Compose-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin + Compose">
 <img src="https://img.shields.io/badge/Material%203-Expressive-4285F4" alt="Material 3 Expressive">

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Calendula's source code now lives on **Codeberg**, where its issues already
+  were. The **Source code** and **License** links in Settings → About point
+  there, so reporting a bug and reading the code no longer land on two different
+  sites. Nothing about the app itself changes, and the F-Droid repository is
+  unaffected.
+
 ## [2.16.0] — 2026-07-24
 
 ### Added
