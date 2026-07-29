@@ -27,6 +27,14 @@ jobs:
   # whether this push actually cuts a new release (no tag for it yet). Keeps the
   # heavy job from running on every merge to main.
   detect:
+    # Gitea only. The workflow directory split already keeps this file invisible
+    # to Codeberg — Forgejo's lookup is first-match-wins, and .forgejo/workflows
+    # exists — but that only holds while .forgejo/ is non-empty. Move the last
+    # file out of it and Codeberg would fall back to .gitea/workflows and start
+    # running the release pipeline on the contributor-facing runner, with no
+    # secrets. repository_owner differs between the two forges regardless of
+    # URL, proxy or instance rename, so this closes it permanently.
+    if: github.repository_owner == 'makiolaj'
     runs-on: docker
     outputs:
       is_release: ${{ steps.v.outputs.is_release }}
@@ -41,8 +49,16 @@ jobs:
       - name: Resolve version and whether it is a new release
         id: v
         env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          API: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}
+          # Tags are read from Codeberg, which is canonical — deliberately NOT
+          # from the Gitea API this workflow runs on. The Codeberg -> Gitea sync
+          # is a push mirror, i.e. `git push --mirror`, which deletes refs the
+          # source does not have. A tag minted here on Gitea is therefore wiped
+          # by the next sync (Codeberg does not have it yet) and only reappears
+          # once the tag push at the end of this workflow propagates back.
+          # Asking Gitea inside that window would report "no tag" for a release
+          # that already shipped, and cut it a second time.
+          # Public repo, so this read needs no token.
+          TAG_API: https://codeberg.org/api/v1/repos/jlmakiola/calendula
         run: |
           set -e
           VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
@@ -60,15 +76,28 @@ jobs:
           fi
           # A tag for this version already existing means the release shipped on
           # an earlier push; do nothing. Absent => this merge cuts the release.
-          STATUS=$(curl -s -o /dev/null -w '%{http_code}' \
-            -H "Authorization: token $TOKEN" "$API/git/refs/tags/v$VERSION")
-          if [ "$STATUS" = "200" ]; then
-            echo "Tag v$VERSION already exists — nothing to release."
-            echo "is_release=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "No tag for v$VERSION yet — cutting the release."
-            echo "is_release=true" >> "$GITHUB_OUTPUT"
-          fi
+          #
+          # Anything other than a clean 200/404 is treated as fatal rather than
+          # as "no tag". A Codeberg outage or a network blip would otherwise
+          # read as absent and re-cut a release that has already shipped —
+          # republishing to F-Droid and Play. Failing here is recoverable; a
+          # duplicate release is not.
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$TAG_API/git/refs/tags/v$VERSION" || echo 000)
+          case "$STATUS" in
+            200)
+              echo "Tag v$VERSION already exists on Codeberg — nothing to release."
+              echo "is_release=false" >> "$GITHUB_OUTPUT"
+              ;;
+            404)
+              echo "No tag for v$VERSION on Codeberg yet — cutting the release."
+              echo "is_release=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Codeberg tag lookup for v$VERSION returned HTTP $STATUS." >&2
+              echo "Refusing to guess: treating this as 'no tag' could re-cut a shipped release." >&2
+              exit 1
+              ;;
+          esac
 
   # Releases: build + sign + publish, then mint the tag and Gitea release.
   # Also runs on manual dispatch, where it skips the build and just re-signs and
