@@ -297,4 +297,14 @@
     <string name="settings_agenda_range">مدى الجدول</string>
     <string name="agenda_range_custom">مخصص…</string>
     <string name="agenda_range_custom_hint">أيام</string>
+    <string name="agenda_range_week">٧ أيام القادمة</string>
+    <string name="agenda_range_month">٣٠ يومًا القادمة</string>
+    <string name="settings_month_view_style">نمط عرض الشهر</string>
+    <string name="month_style_paged">صفحات</string>
+    <string name="month_style_paged_summary">الشهر الواحد يملأ الشاشة. اسحب لليسار أو لليمين لتغيير الشهر.</string>
+    <string name="month_style_split">تقسيم</string>
+    <string name="settings_color_unsupported">السماح بالألوان في التقويمات غير المدعومة</string>
+    <string name="settings_color_unsupported_hint">بعض التقويمات (مثل البعض من CalDAV) لا تنشر أي مجموعة ألوان؛ لون حدث مخصص قد يزال أو يستبدل في مزامنته التالية. هذا قيد على تلك التقويمات، وليس شيئًا يمكن لـ Calendula إصلاحه.</string>
+    <string name="settings_section_views">طُرق العرض</string>
+    <string name="agenda_range_showing_label">إظهار جميع الأحداث القادمة لـ</string>
 </resources>
