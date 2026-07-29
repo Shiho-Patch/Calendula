@@ -29,6 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with a **"Missing a calendar?"** row that opens Settings → Calendars, where
   those marks then explain why a calendar isn't offered ([#76]).
 
+### Changed
+- Calendula's source code now lives on **Codeberg**, where its issues already
+  were. The **Source code** and **License** links in Settings → About point
+  there, so reporting a bug and reading the code no longer land on two different
+  sites. Nothing about the app itself changes, and the F-Droid repository is
+  unaffected.
+
 ### Fixed
 - Reminders now arrive for every calendar you have switched on. A calendar that
   was hidden at system level — switched off in another calendar app, or never

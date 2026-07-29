@@ -73,7 +73,8 @@ Published version codes so far: `v0.1.0`→100 … `v1.0.0`→10000 … `v2.0.0`
 CI and release are split so a change is built once on its PR and only does
 release work when a merge actually cuts a release:
 
-- **`ci.yaml`** (on `pull_request`) — lint + unit tests + a debug assemble (and
+- **`ci.yaml`** (`.forgejo/workflows/`, on `pull_request`, **Codeberg**) — lint +
+  unit tests + a debug assemble (and
   a Trivy scan), once per PR. Docs/metadata-only PRs skip the Android build but
   still report a green `CI` check.
 - **`release.yaml`** (on push to `main`, plus `workflow_dispatch`) — a cheap
@@ -91,9 +92,9 @@ release work when a merge actually cuts a release:
 
 Alongside F-Droid, each release is mirrored to the Codeberg repo
 (`jlmakiola/calendula`) as a plain download for users who don't want F-Droid.
-Gitea already **push-mirrors** branches and tags to Codeberg, but releases
-aren't git objects and don't sync, so the pipeline creates the release over the
-Codeberg API and attaches `calendula_v<version>.apk` + its `.sha256`. It's the
+Codeberg **push-mirrors** branches and tags to Gitea, but releases aren't git
+objects and don't sync in either direction, so the pipeline creates the release
+over the Codeberg API and attaches `calendula_v<version>.apk` + its `.sha256`. It's the
 same APK the F-Droid repo serves (same **app key**), so it adds no trust
 surface. The step is best-effort: a Codeberg outage never fails an
 already-published F-Droid release, and it skips cleanly if `CODEBERG_RELEASE_TOKEN` is
@@ -108,6 +109,39 @@ path: `detect` reports it's not a release, so the `release` job skips the APK
 build, the version bump, and tag/release creation, and just re-signs the
 existing F-Droid index with the configured repo key and re-uploads. Use this
 for key rotation or repo recovery without publishing a new app version.
+
+## Two forges, one repo
+
+**Codeberg (`jlmakiola/calendula`) is canonical** — git, issues, PRs, tags and
+releases. The self-hosted Gitea instance is build infrastructure: it holds the
+signing key, publishes the F-Droid repo, and runs the release pipeline. Codeberg
+push-mirrors `main` and tags to Gitea, and a bumped `versionName` arriving there
+triggers `release.yaml` exactly as before.
+
+Workflows are separated by **directory**, not by conditionals. Forgejo looks in
+`.forgejo/workflows` → `.gitea/workflows` → `.github/workflows` and stops at the
+first that exists; Gitea doesn't know `.forgejo/` at all:
+
+| Directory | Runs on | Contains | Secrets |
+| --- | --- | --- | --- |
+| `.forgejo/workflows/` | Codeberg | `ci.yaml`, `translations.yaml` | **none** |
+| `.gitea/workflows/` | Gitea | `release.yaml`, `renovate.yml` | signing key, F-Droid, Play, bot tokens |
+
+The line is drawn at **secrets, not at CI-vs-release**. That's what makes fork
+PRs safe: everything a contributor can trigger lives in `.forgejo/` and can
+reference no secret. Renovate stays on the Gitea runner *even though it opens
+PRs on Codeberg* — it talks to Codeberg's API rather than moving its token onto
+the contributor-facing runner.
+
+Two consequences worth remembering:
+
+- **`detect` reads tags from Codeberg**, not from the Gitea instance it runs on.
+  Push mirroring is `git push --mirror`, so a tag minted on Gitea is deleted by
+  the next sync until the Codeberg tag push propagates back. Asking Gitea inside
+  that window would re-cut a shipped release.
+- **Any ref that exists only on Gitea gets deleted** by the mirror. That's
+  correct under Codeberg-canonical, but don't debug a "vanished" branch without
+  remembering it.
 
 ## Secrets (Gitea → repo Settings → Actions → Secrets)
 
