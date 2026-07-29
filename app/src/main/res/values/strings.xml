@@ -571,8 +571,8 @@
     <string name="settings_qs_tile">Add Quick Settings tile</string>
     <string name="settings_qs_tile_hint">Add a “New event” tile to the Quick Settings panel.</string>
 
-    <string name="about_source_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula</string>
-    <string name="about_license_url" translatable="false">https://gitea.jeanlucmakiola.de/makiolaj/calendula/src/branch/main/LICENSE</string>
+    <string name="about_source_url" translatable="false">https://codeberg.org/jlmakiola/calendula</string>
+    <string name="about_license_url" translatable="false">https://codeberg.org/jlmakiola/calendula/src/branch/main/LICENSE</string>
     <string name="about_privacy_url" translatable="false">https://jeanlucmakiola.de/calendula/privacy</string>
     <string name="about_support_url" translatable="false">https://ko-fi.com/jeanlucmakiola</string>
     <string name="about_translate_url" translatable="false">https://weblate.dev.jeanlucmakiola.de/engage/calendula/</string>

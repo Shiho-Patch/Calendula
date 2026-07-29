@@ -72,9 +72,14 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
+      # Fully qualified on purpose. Codeberg resolves bare `uses:` refs against
+      # data.forgejo.org, Forgejo's own action mirror — actions/checkout,
+      # setup-java and cache all exist there, but android-actions/setup-android
+      # does not, and the job dies with "repository not found". Gitea's instance
+      # defaults to GitHub, which is why this never surfaced before the split.
       - name: Setup Android SDK
         if: steps.scope.outputs.code == 'true'
-        uses: android-actions/setup-android@v3
+        uses: https://github.com/android-actions/setup-android@v3
         with:
           # Default ("tools platform-tools") drags in the Android Emulator
           # (~300 MB) which the build never uses.
