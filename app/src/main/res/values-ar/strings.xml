@@ -307,4 +307,6 @@
     <string name="settings_color_unsupported_hint">بعض التقويمات (مثل البعض من CalDAV) لا تنشر أي مجموعة ألوان؛ لون حدث مخصص قد يزال أو يستبدل في مزامنته التالية. هذا قيد على تلك التقويمات، وليس شيئًا يمكن لـ Calendula إصلاحه.</string>
     <string name="settings_section_views">طُرق العرض</string>
     <string name="agenda_range_showing_label">إظهار جميع الأحداث القادمة لـ</string>
+    <string name="settings_reminders">تذكيرات الحدث</string>
+    <string name="settings_default_reminder">التذكير الافتراضي</string>
 </resources>
