@@ -2,40 +2,13 @@ package de.jeanlucmakiola.calendula.ui.agenda
 
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
+import de.jeanlucmakiola.calendula.domain.spanFirstDay
+import de.jeanlucmakiola.calendula.domain.spanLastDay
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
-import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
-
-/**
- * The zone the event's calendar dates live in. Timed events are resolved in the
- * device [zone]; all-day events live at UTC midnights with an exclusive end, so
- * resolving them anywhere but UTC shifts the boundaries — east of UTC that leaks
- * a one-day event onto its next day. Matches the Week view and detail card.
- */
-private fun EventInstance.dateZone(zone: TimeZone): TimeZone =
-    if (isAllDay) TimeZone.UTC else zone
-
-/** The first calendar day this event occupies. */
-fun EventInstance.spanFirstDay(zone: TimeZone): LocalDate =
-    start.toLocalDateTime(dateZone(zone)).date
-
-/**
- * The last calendar day this event actually occupies. An event ending exactly at
- * midnight (all-day events end at the exclusive next-midnight) does not reach
- * into that boundary day, so resolve the instant just before [end].
- */
-fun EventInstance.spanLastDay(zone: TimeZone): LocalDate {
-    val lastInstant = if (end > start) end - 1.milliseconds else start
-    return lastInstant.toLocalDateTime(dateZone(zone)).date
-}
-
-/** Whether this event occupies more than one calendar day in [zone]. */
-fun EventInstance.spansMultipleDays(zone: TimeZone): Boolean =
-    spanFirstDay(zone) != spanLastDay(zone)
 
 /**
  * What an agenda row's time line should convey for an event on a given day —

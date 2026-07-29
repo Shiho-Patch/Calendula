@@ -1,5 +1,9 @@
 package de.jeanlucmakiola.calendula.domain
 
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 
 data class CalendarSource(
@@ -71,6 +75,35 @@ data class EventInstance(
  * so they only count as ended once their day is fully over.
  */
 fun EventInstance.hasEnded(now: Instant): Boolean = end <= now
+
+/**
+ * The zone this event's calendar dates live in. Timed events are resolved in the
+ * device [zone]; all-day events live at UTC midnights with an exclusive end, so
+ * resolving them anywhere else shifts the day boundaries — east of UTC the end
+ * leaks onto the following day (#65), west of UTC the start pulls back onto the
+ * previous one (#82). Every surface that has to name an all-day event's date
+ * goes through here, so grid, agenda, detail and search cannot disagree.
+ */
+fun EventInstance.dateZone(zone: TimeZone): TimeZone =
+    if (isAllDay) TimeZone.UTC else zone
+
+/** The first calendar day this event occupies. */
+fun EventInstance.spanFirstDay(zone: TimeZone): LocalDate =
+    start.toLocalDateTime(dateZone(zone)).date
+
+/**
+ * The last calendar day this event actually occupies. An event ending exactly at
+ * midnight (all-day events end at the exclusive next-midnight) does not reach
+ * into that boundary day, so resolve the instant just before [EventInstance.end].
+ */
+fun EventInstance.spanLastDay(zone: TimeZone): LocalDate {
+    val lastInstant = if (end > start) end - 1.milliseconds else start
+    return lastInstant.toLocalDateTime(dateZone(zone)).date
+}
+
+/** Whether this event occupies more than one calendar day in [zone]. */
+fun EventInstance.spansMultipleDays(zone: TimeZone): Boolean =
+    spanFirstDay(zone) != spanLastDay(zone)
 
 data class EventDetail(
     val instance: EventInstance,
