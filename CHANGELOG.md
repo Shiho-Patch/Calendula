@@ -28,12 +28,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The calendar picker in the event form and in the .ics import screen now ends
   with a **"Missing a calendar?"** row that opens Settings → Calendars, where
   those marks then explain why a calendar isn't offered ([#76]).
-- The agenda widget's text size is yours to set. **Settings → Agenda → Agenda
-  widget size** offers Small, Medium, Large and Extra large, replacing the guess
+- The agenda widget's text size is yours to set. **Settings → Widgets & tiles →
+  Agenda widget size** offers Small, Medium, Large and Extra large, replacing the guess
   the widget used to make from its own measurements. Small is what it looks like
   today, so nothing changes until you turn it up ([#51]).
+- A repeating event now shows you its next few dates, not just a description of
+  the rule. Both the preset list and the custom recurrence picker carry a
+  **Next:** line — "Next: 30 Jul, 6 Aug, 13 Aug" — under the rule they would
+  save. A phrase like "monthly" on the 31st, or "every 2 weeks on Mon & Fri",
+  can mean something other than it sounds like, and only the dates say so. A
+  rule that can never fire says that instead ([#69]).
+- The event visibility options now say who they affect. **Public**, **Private**
+  and **Confidential** each carry a line about what other people on a shared
+  calendar see — the part the four words on their own leave out ([#69]).
 
 ### Changed
+- **Settings has been reorganised so each setting sits where you would look for
+  it.** One long undifferentiated list is now three labelled groups — Look &
+  behaviour, Data, and App — whose rows open sub-screens and say what they do
+  rather than only naming themselves. Appearance, Views, New event form,
+  Notifications and the new Widgets & tiles are separate screens now, so the
+  settings for a calendar view are no longer mixed in with the ones for the
+  app's colours or for the home-screen widgets ([#69]).
+- Settings that are hard to picture from their name now show you what they do.
+  The week-start picker rearranges a real month grid as you choose, the
+  past-events setting previews a sample agenda day for Show, Dim and Hide, the
+  font pickers set a specimen line in the face you are choosing, and the Agenda
+  range options carry the dates each one actually covers. Options that follow
+  the system additionally name which way they currently fall ([#69]).
+- **Backup & restore** is now its own Settings entry instead of living inside
+  the calendar manager, where it was easy to miss — keeping a copy of your
+  calendars is a different question from which calendars you have. The calendar
+  manager keeps a row pointing to it, and nothing about how backup or automatic
+  backup works has changed ([#69]).
 - Calendula's source code now lives on **Codeberg**, where its issues already
   were. The **Source code** and **License** links in Settings → About point
   there, so reporting a bug and reading the code no longer land on two different
@@ -1223,3 +1250,4 @@ automatically, with zero telemetry and no internet permission.
 [#87]: https://codeberg.org/jlmakiola/calendula/issues/87
 [#89]: https://codeberg.org/jlmakiola/calendula/issues/89
 [#103]: https://codeberg.org/jlmakiola/calendula/issues/103
+[#69]: https://codeberg.org/jlmakiola/calendula/issues/69
