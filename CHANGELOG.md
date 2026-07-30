@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.17.0] — 2026-07-30
+
 ### Added
 - Settings → Calendars now says what is different about a calendar instead of
   leaving you to guess. Ones you can only view — a subscribed calendar, a

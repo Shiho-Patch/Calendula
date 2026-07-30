@@ -1,0 +1,128 @@
+### Added
+- Settings → Calendars now says what is different about a calendar instead of
+  leaving you to guess. Ones you can only view — a subscribed calendar, a
+  calendar shared with you read-only — are marked **Read-only** ([#76]).
+- Calendars your device isn't syncing are marked **Not synced**, moved to the
+  bottom of their account and left without a switch. None of their events are on
+  the device, so the switch they used to have could not have shown you anything
+  — the calendar simply looked broken. They are no longer offered when you pick
+  a calendar for a new or an imported event either: an event saved there would
+  never reach the account. Whether an account syncs a calendar stays that
+  account's own app's decision ([#78]).
+- The birthday and anniversary calendars Calendula fills from your contacts are
+  marked **Filled from your contacts**, which is why they can't be picked for a
+  new event: anything you put there would be removed again on the next sync.
+  Deleting one is held back while special dates are switched on — Calendula
+  would simply create it again — and the calendar's editor says so; turn the
+  feature off under Settings → Special dates and the delete works as usual
+  ([#76]).
+- The calendar picker in the event form and in the .ics import screen now ends
+  with a **"Missing a calendar?"** row that opens Settings → Calendars, where
+  those marks then explain why a calendar isn't offered ([#76]).
+- The agenda widget's text size is yours to set. **Settings → Widgets & tiles →
+  Agenda widget size** offers Small, Medium, Large and Extra large, replacing the guess
+  the widget used to make from its own measurements. Small is what it looks like
+  today, so nothing changes until you turn it up ([#51]).
+- A repeating event now shows you its next few dates, not just a description of
+  the rule. Both the preset list and the custom recurrence picker carry a
+  **Next:** line — "Next: 30 Jul, 6 Aug, 13 Aug" — under the rule they would
+  save. A phrase like "monthly" on the 31st, or "every 2 weeks on Mon & Fri",
+  can mean something other than it sounds like, and only the dates say so. A
+  rule that can never fire says that instead ([#69]).
+- The event visibility options now say who they affect. **Public**, **Private**
+  and **Confidential** each carry a line about what other people on a shared
+  calendar see — the part the four words on their own leave out ([#69]).
+
+### Changed
+- **Settings has been reorganised so each setting sits where you would look for
+  it.** One long undifferentiated list is now three labelled groups — Look &
+  behaviour, Data, and App — whose rows open sub-screens and say what they do
+  rather than only naming themselves. Appearance, Views, New event form,
+  Notifications and the new Widgets & tiles are separate screens now, so the
+  settings for a calendar view are no longer mixed in with the ones for the
+  app's colours or for the home-screen widgets ([#69]).
+- Settings that are hard to picture from their name now show you what they do.
+  The week-start picker rearranges a real month grid as you choose, the
+  past-events setting previews a sample agenda day for Show, Dim and Hide, the
+  font pickers set a specimen line in the face you are choosing, and the Agenda
+  range options carry the dates each one actually covers. Options that follow
+  the system additionally name which way they currently fall ([#69]).
+- **Backup & restore** is now its own Settings entry instead of living inside
+  the calendar manager, where it was easy to miss — keeping a copy of your
+  calendars is a different question from which calendars you have. The calendar
+  manager keeps a row pointing to it, and nothing about how backup or automatic
+  backup works has changed ([#69]).
+- Calendula's source code now lives on **Codeberg**, where its issues already
+  were. The **Source code** and **License** links in Settings → About point
+  there, so reporting a bug and reading the code no longer land on two different
+  sites. Nothing about the app itself changes, and the F-Droid repository is
+  unaffected.
+
+### Fixed
+- A month-grid widget stays a month grid, and draws all seven days again. Since
+  2.16.0 a placed month widget could redraw itself as the agenda widget a little
+  after any change to your events, and could draw only about four day columns
+  with the last one cut off part-way through. Both came from the release build
+  merging the two widgets into a single class, so Android could no longer tell
+  which of them a widget on your home screen was — and the month grid was handed
+  the wrong widget's measurements to lay its columns out against ([#89], [#103]).
+- The back gesture on **Settings → Views** returns to Settings instead of
+  leaving Settings altogether and dropping you on the calendar. Special dates
+  did the same ([#81]).
+- The dots standing in for the events that didn't fit a day in the month view
+  now dim with everything else when **Dim completed events** is on. A past day
+  with four or more events kept its last events at full strength while the rest
+  faded ([#79]).
+- Two accounts that happen to share a name — a Google account and a DAVx5
+  account for the same address, say — are no longer merged into one group.
+  They were listed together in Settings → Calendars and in the drawer's filter,
+  which also meant the group's source icon and its "manage in app" button could
+  send you to the wrong app, "toggle all" spanned both accounts at once, and
+  collapsing one collapsed the other. Where a name really is shared, each group
+  now names the app it comes from ([#77]).
+- In the month view's **Split** style, the new-event button now starts on the
+  day you have selected. It always started on today, whichever day was selected
+  and listed below the grid ([#87]).
+- Search results now show an all-day event's real date. West of UTC — anywhere in
+  the Americas, say — a search hit was dated one day early, disagreeing with the
+  day the month, week and agenda views file the same event under ([#82]).
+- Reminders no longer depend on Android telling Calendula when they are due.
+  Calendula now works out each reminder's time itself and sets its own alarm for
+  it. On some phones — Samsung's among them — the system's calendar storage never
+  sends the signal a calendar app is meant to wake up on, and no amount of
+  battery or notification settings helps: the reminder is simply never announced.
+  None of that is visible from inside an app that waits to be told, which is why
+  it took a second pass to find ([#75]).
+
+  Reminders also survive things that used to lose them quietly. After a restart
+  or an app update Calendula re-arms its alarms, and a reminder whose moment
+  passed while the phone was off still arrives, as long as the event has not
+  ended yet.
+
+- All-day reminders now arrive at the time you chose in **Settings →
+  Notifications**, on every occurrence. A yearly birthday could drift an hour
+  either way depending on daylight saving, and all-day reminders on calendars
+  from an account fired in the middle of the night instead of in the morning
+  ([#75]).
+
+- Reminders now arrive for every calendar you have switched on. A calendar that
+  was hidden at system level — switched off in another calendar app, or never
+  switched on after being added — still showed its events and listed their
+  reminders in Calendula, but never notified: Android only schedules reminder
+  alarms for calendars marked visible, and Calendula kept its own separate
+  on/off list that had no say in it. There is now one switch: **Settings →
+  Calendars** turns a calendar on or off for the whole device, so what you see
+  and what reminds you can no longer disagree ([#75]).
+
+  Calendars you had switched off in Calendula are switched off here too on first
+  launch. Calendars that were already off — hidden in another calendar app, or
+  never switched on after being added — stay off, and Calendula says so once
+  rather than quietly switching them on for every app on your device; you can
+  turn any of them back on in Settings → Calendars.
+
+  If you gave Calendula read-only access to your calendars, the switch still
+  works: your choice is kept in the app until it can be written.
+
+  The drawer's filter is unchanged and still app-only: hiding a calendar there
+  tidies your view without silencing its reminders.
+
