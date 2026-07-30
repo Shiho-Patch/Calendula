@@ -155,6 +155,9 @@
     <!-- Shown in place of the live rule read-out when an amount field holds a
          value outside 1–999 (i.e. 0), so the greyed-out OK button has a reason. -->
     <string name="event_edit_recurrence_incomplete">Enter a number from 1 to 999</string>
+    <!-- %1$s is a list of the next few dates, e.g. "30 Jul, 6 Aug and 13 Aug". -->
+    <string name="event_edit_recurrence_next">Next: %1$s</string>
+    <string name="event_edit_recurrence_next_none">This rule never repeats</string>
     <string name="event_edit_recurrence_ends">Ends</string>
     <string name="event_edit_recurrence_end_never">Never</string>
     <string name="event_edit_recurrence_end_until">On a date</string>
@@ -198,6 +201,12 @@
     <string name="event_availability_free">Free</string>
     <string name="event_access_private">Private</string>
     <string name="event_access_confidential">Confidential</string>
+    <!-- Second lines in the visibility picker: what each level means to people
+         the calendar is shared with. -->
+    <string name="event_access_default_summary">Whatever this calendar normally does</string>
+    <string name="event_access_public_summary">Everyone with access sees the full details</string>
+    <string name="event_access_private_summary">Others see only that you\'re busy</string>
+    <string name="event_access_confidential_summary">Marked confidential; what that means is up to the calendar account</string>
     <string name="event_attendee_organizer">Organizer</string>
     <string name="event_attendee_optional">Optional</string>
     <string name="event_attendee_resource">Resource</string>
@@ -315,6 +324,9 @@
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_hint">Whether the app is light or dark. The choice applies immediately.</string>
+    <!-- %1$s is the theme the system currently resolves to, e.g. "Dark". -->
+    <string name="settings_theme_system_summary">Currently %1$s</string>
     <string name="settings_default_view">Default view</string>
     <string name="settings_dynamic_color">Dynamic colour</string>
     <string name="settings_dynamic_color_unavailable">Requires Android 12 or newer</string>
@@ -329,8 +341,14 @@
     <string name="settings_font_choose_file">Choose file…</string>
     <string name="settings_font_custom_selected">Custom font</string>
     <string name="settings_font_import_failed">Couldn\'t read that file as a font</string>
+    <!-- Specimen line shown in the headings-font picker, set in the chosen face. -->
+    <string name="settings_font_specimen_heading">Thursday, 14 May</string>
+    <!-- Specimen paragraph shown in the body-font picker, set in the chosen face. -->
+    <string name="settings_font_specimen_body">Team review at 10:00, then lunch with Robin at the café on Marktplatz.</string>
     <string name="settings_week_start">Week starts on</string>
     <string name="settings_week_start_auto">Automatic</string>
+    <!-- %1$s is the weekday the automatic setting currently resolves to, e.g. "Monday". -->
+    <string name="settings_week_start_auto_summary">Currently %1$s</string>
     <string name="settings_week_numbers">Week numbers</string>
     <string name="settings_week_numbers_summary">Show calendar-week numbers in month view</string>
     <string name="settings_today_toolbar">Today button in toolbar</string>
@@ -341,6 +359,8 @@
     <string name="settings_time_format_auto">Automatic</string>
     <string name="settings_time_format_12h">12-hour (2:00 PM)</string>
     <string name="settings_time_format_24h">24-hour (14:00)</string>
+    <!-- %1$s is a sample time written the way the system currently writes it. -->
+    <string name="settings_time_format_auto_summary">Following the system: %1$s</string>
     <string name="settings_hour_lines">Hour lines</string>
     <string name="settings_hour_lines_summary">Show a separator line at each hour in week and day view</string>
     <string name="settings_dim_completed">Dim completed events</string>
@@ -349,6 +369,10 @@
     <string name="settings_past_events_show">Show</string>
     <string name="settings_past_events_dim">Dim</string>
     <string name="settings_past_events_hide">Hide</string>
+    <!-- Stand-in event titles in the past-events preview. Short, everyday entries. -->
+    <string name="settings_past_events_sample_morning">Team review</string>
+    <string name="settings_past_events_sample_midday">Lunch with Robin</string>
+    <string name="settings_past_events_sample_evening">Choir practice</string>
     <string name="settings_agenda_header">Agenda</string>
     <string name="settings_agenda_range">Agenda range</string>
     <string name="settings_agenda_range_hint">How far ahead the Agenda screen lists events.</string>
@@ -361,6 +385,8 @@
     <string name="settings_widget_size_medium">Medium</string>
     <string name="settings_widget_size_large">Large</string>
     <string name="settings_widget_size_extra_large">Extra large</string>
+    <!-- %1$d is the event text size as a percentage of the smallest step, e.g. 130. -->
+    <string name="settings_widget_size_summary">Event text %1$d%%</string>
     <string name="settings_agenda_show_today">Always show today</string>
     <string name="settings_agenda_show_today_hint">Keep today at the top of the agenda and its widget, even once nothing is left today.</string>
     <string name="settings_agenda_range_bar">Range bar</string>
@@ -411,6 +437,8 @@
     <string name="settings_default_reminder_allday">All-day events</string>
     <string name="settings_allday_reminder_time">All-day reminder time</string>
     <string name="settings_allday_reminder_time_hint">Reminders for all-day events fire at %1$s</string>
+    <!-- Second line on an all-day lead-time row. %1$s is a clock time, e.g. "09:00". -->
+    <string name="settings_allday_reminder_fires_at">Notifies at %1$s</string>
     <string name="reminder_none">None</string>
     <string name="reminder_use_default">Use default reminder</string>
     <string name="reminder_custom_amount">Amount</string>
@@ -430,12 +458,39 @@
     <string name="settings_language_auto">System default</string>
     <string name="settings_translate">Help translate</string>
     <string name="settings_translate_hint">Add or improve a language on Weblate</string>
+    <!-- Hub group headers (#69) -->
+    <string name="settings_group_look">Look &amp; behaviour</string>
+    <string name="settings_group_data">Data</string>
+    <string name="settings_group_app">App</string>
+    <!-- Group of reference links at the foot of the settings hub. -->
+    <string name="settings_group_about">About</string>
+
     <!-- Hub category subtitles -->
-    <string name="settings_appearance_subtitle">Theme, default view, week start</string>
-    <string name="settings_views_subtitle">Month layout, quick-switch button, menu order</string>
-    <string name="settings_event_form_subtitle">Default fields for new events</string>
-    <string name="settings_notifications_subtitle">Event reminders</string>
+    <string name="settings_appearance_subtitle">Theme, colours, fonts</string>
+    <string name="settings_views_subtitle">Default view, layout, order</string>
+    <string name="settings_event_form_subtitle">Default fields and behaviour</string>
+    <string name="settings_notifications_subtitle">Reminders and delivery</string>
     <string name="settings_special_dates_subtitle">Contact birthdays &amp; anniversaries</string>
+    <string name="settings_widgets_subtitle">Agenda widget, Quick Settings tile</string>
+    <string name="settings_backup_subtitle">Export, import, automatic backup</string>
+
+    <!-- Widgets &amp; tiles (#69) -->
+    <string name="settings_section_widgets">Widgets &amp; tiles</string>
+    <string name="settings_widgets_hint">Settings for the home-screen widgets and the Quick Settings tile. Add a widget by long-pressing your home screen.</string>
+
+    <!-- Backup &amp; restore (#69) — the rows themselves reuse the calendars_* strings -->
+    <string name="settings_section_backup">Backup &amp; restore</string>
+
+    <!-- Views sub-headers (#69) -->
+    <string name="settings_views_all_header">All views</string>
+    <string name="settings_week_day_header">Week &amp; day</string>
+
+    <!-- Picker descriptions (#69) -->
+    <string name="settings_default_view_hint">The view Calendula opens on when you start it.</string>
+    <string name="settings_week_start_hint">The day every week begins on, in all views and widgets.</string>
+    <string name="settings_time_format_hint">How times are written throughout the app. Automatic follows your system setting.</string>
+    <string name="settings_past_events_hint">What the agenda does with events that have already ended.</string>
+    <string name="settings_dynamic_color_summary">Take the app\'s colours from your wallpaper.</string>
 
     <!-- Contact special dates (issue #15) -->
     <string name="settings_section_special_dates">Contact special dates</string>

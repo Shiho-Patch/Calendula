@@ -48,8 +48,12 @@ class AgendaViewModel @Inject constructor(
         settingsPrefs.agendaShowRangeBar,
     ) { range, showBar -> AgendaSettings(range, showBar) }
 
-    // First day of the week, for the calendar-aligned "this week" range.
-    private val weekStartDay = settingsPrefs.firstDayOfWeek(viewModelScope)
+    /**
+     * First day of the week, for the calendar-aligned "this week" range. Public
+     * because the range picker resolves each option to real dates, which needs
+     * the same week start the window is built from.
+     */
+    val weekStart: StateFlow<DayOfWeek> = settingsPrefs.firstDayOfWeek(viewModelScope)
 
     /**
      * How to treat events that already ended today (show / dim / hide). A display
@@ -90,7 +94,7 @@ class AgendaViewModel @Inject constructor(
     private val _rangeOverride = MutableStateFlow<AgendaRange?>(null)
 
     val state: StateFlow<AgendaUiState> =
-        combine(_anchor, agendaSettings, _rangeOverride, weekStartDay) { anchor, settings, override, weekStart ->
+        combine(_anchor, agendaSettings, _rangeOverride, weekStart) { anchor, settings, override, weekStart ->
             AgendaParams(
                 anchor = anchor,
                 range = override ?: settings.range,

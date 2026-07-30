@@ -157,6 +157,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.reminderUnitLabel
+import de.jeanlucmakiola.calendula.ui.common.nextOccurrencesText
 import de.jeanlucmakiola.calendula.ui.common.recurrenceText
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -1172,7 +1173,7 @@ private fun EventEditContent(
     if (showRecurrencePicker) {
         RecurrencePickerDialog(
             current = form.rrule,
-            startDay = form.start.date.dayOfWeek,
+            startDate = form.start.date,
             firstDayOfWeek = firstDayOfWeek,
             onSelect = { rrule ->
                 viewModel.setRecurrence(rrule)
@@ -1340,15 +1341,23 @@ private enum class RecurrenceEndMode { Never, Until, Count }
  * and an end condition — only that step needs an OK button. A rule the
  * simple shape can't express (ordinal BYDAY etc.) stays untouched unless the
  * user picks something here.
+ *
+ * Both steps show the rule as *dates* as well as words: every preset row
+ * carries the next few occurrences it would produce from [startDate], and the
+ * custom step repeats that under its live read-out. It is where a rule most
+ * easily means something other than it sounds like — "monthly" on the 31st
+ * skips February, an every-other-week rule lands a fortnight from the start's
+ * own week — and only the dates say so.
  */
 @Composable
 private fun RecurrencePickerDialog(
     current: String?,
-    startDay: DayOfWeek,
+    startDate: LocalDate,
     firstDayOfWeek: DayOfWeek,
     onSelect: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val startDay = startDate.dayOfWeek
     val parsed = remember(current) { current?.let(::parseSimpleRecurrence) }
     val isPlainPreset = parsed != null && parsed.interval == 1 &&
         parsed.end == RecurrenceEnd.Never && parsed.byDays.isEmpty()
@@ -1400,16 +1409,20 @@ private fun RecurrencePickerDialog(
         RecurrenceEndMode.Until -> untilDate?.let { RecurrenceEnd.Until(it) }
         RecurrenceEndMode.Count -> count?.let { RecurrenceEnd.Count(it) }
     }
-    val customResult: String? = if (interval != null && customEnd != null) {
+    // Kept as the rule object, not just its RRULE text: the read-out renders the
+    // string, the date list expands the rule, and both must describe the one
+    // thing OK would save.
+    val customRule: SimpleRecurrence? = if (interval != null && customEnd != null) {
         SimpleRecurrence(
             freq = freq,
             interval = interval,
             end = customEnd,
             byDays = if (freq == RecurrenceFreq.Weekly) daysMask.toDaySet() else emptySet(),
-        ).toRRule()
+        )
     } else {
         null
     }
+    val customResult: String? = customRule?.toRRule()
 
     FullScreenPicker(
         title = stringResource(R.string.event_detail_recurrence),
@@ -1440,6 +1453,7 @@ private fun RecurrencePickerDialog(
             RecurrenceFreq.entries.forEachIndexed { index, entry ->
                 GroupedRow(
                     title = stringResource(recurrencePresetLabel(entry)),
+                    summary = nextOccurrencesText(SimpleRecurrence(entry), startDate, locale),
                     position = positionOf(index + 1, rowCount),
                     selected = isPlainPreset && parsed?.freq == entry,
                     trailing = if (isPlainPreset && parsed?.freq == entry) {
@@ -1489,6 +1503,18 @@ private fun RecurrencePickerDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
+                )
+
+                // The same rule as dates. Rendered even while the form is
+                // incomplete (as an empty line) so the controls below don't
+                // shift as it comes and goes.
+                Text(
+                    text = customRule?.let { nextOccurrencesText(it, startDate, locale) }.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                 )
 
                 // How often: an interval amount plus a frequency segmented row —
@@ -2007,6 +2033,11 @@ private fun readContactAddress(context: Context, uri: Uri): String? =
 /**
  * Visibility selector: one card per level, each with its own icon; the
  * current level is highlighted. Tap picks and closes.
+ *
+ * Every level carries a line saying who this affects, because the four words
+ * alone don't: visibility is about what *other people on a shared calendar*
+ * see, which is exactly the part the label leaves out — and "Confidential" has
+ * no meaning at all until you know the server decides what it does with it.
  */
 @Composable
 private fun VisibilityPickerDialog(
@@ -2019,6 +2050,7 @@ private fun VisibilityPickerDialog(
         options = AccessLevel.entries.toList(),
         selected = selected,
         label = { stringResource(accessLevelLabel(it)) },
+        summary = { stringResource(accessLevelSummary(it)) },
         onSelect = onSelect,
         onDismiss = onDismiss,
         leading = { Icon(imageVector = accessLevelIcon(it), contentDescription = null) },
@@ -2109,6 +2141,14 @@ private fun accessLevelLabel(level: AccessLevel): Int = when (level) {
     AccessLevel.Public -> R.string.event_access_public
     AccessLevel.Private -> R.string.event_access_private
     AccessLevel.Confidential -> R.string.event_access_confidential
+}
+
+/** What each level means for people the calendar is shared with. */
+private fun accessLevelSummary(level: AccessLevel): Int = when (level) {
+    AccessLevel.Default -> R.string.event_access_default_summary
+    AccessLevel.Public -> R.string.event_access_public_summary
+    AccessLevel.Private -> R.string.event_access_private_summary
+    AccessLevel.Confidential -> R.string.event_access_confidential_summary
 }
 
 /** Humanise a reminder lead time, mirroring the detail screen's rendering. */
