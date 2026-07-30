@@ -37,8 +37,7 @@ Architecture reference: [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)
 - Home-screen widget
 - Full-text search
 - Tablet/foldable-specific layouts
-- Locations & People ideas (contact picker, OSM autocomplete) — see
-  `ROADMAP.md` idea backlog, undecided
+- Locations & People ideas (contact picker, OSM autocomplete) — undecided
 - iOS support (Android-only by design)
 
 ## Constraints

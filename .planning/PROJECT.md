@@ -17,9 +17,10 @@ re-inventing the calendar sync stack — leave that to DAVx5 and the system.
 ## Current Milestone
 
 Milestones 1 (read, v1.0) and 2 (write support, v1.1–v2.0.0 incl. reminder
-delivery) are **complete** — v2.0.0 shipped 2026-06-11. Next is v3.0
-(power-user features) plus an undecided "Locations & People" idea backlog;
-see `ROADMAP.md`.
+delivery) are **complete** — v2.0.0 shipped 2026-06-11. Everything since is
+tracked as issues and milestones on Codeberg:
+<https://codeberg.org/jlmakiola/calendula/milestones>. A milestone maps to its
+`release/vX.Y.Z` branch.
 
 ## Stack
 

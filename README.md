@@ -108,7 +108,7 @@ without reinstalling. Or build from source — see below.
 - **[Contributing](CONTRIBUTING.md)** — how to report, propose, and patch
 - **[Building from source](docs/BUILDING.md)** — requirements and Gradle tasks
 - **[Architecture](docs/ARCHITECTURE.md)** — the layered design and key pipelines
-- **[Roadmap](.planning/ROADMAP.md)** — what's shipped and what's next
+- **[Milestones](https://codeberg.org/jlmakiola/calendula/milestones)** — what's shipped and what's next
 
 ## 🤝 Contributing
 

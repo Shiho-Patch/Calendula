@@ -20,7 +20,7 @@ the package list (recurring writes, save conflicts, reminder delivery).
    repository tests. Instrumented tests are a last resort.
 4. **No network.** The app declares no `INTERNET` permission. Anything that
    would need one is an explicit, documented product decision first
-   (see the roadmap's idea backlog).
+   (the crash reporter's web-issue path is the worked example).
 
 ## Layers
 
