@@ -4,14 +4,9 @@ import de.jeanlucmakiola.calendula.domain.reminders.PlannedReminder
 
 /**
  * One reminder as the notification layer needs it: what to show, and the stable
- * [key] that identifies it across a reboot, a re-scan and a reinstall.
- *
- * [key] used to be the `CalendarAlerts` row id. It is now derived from the
- * reminder itself (see [PlannedReminder.key]) because there is no row any more —
- * in-house delivery reads `Instances` and `Reminders` and owns the alarm (#75).
- * Everything downstream only ever needed it to be stable and unique, which it
- * still is: it keys the notification tag, so a reminder posted twice replaces
- * itself instead of stacking, and it keys the snooze/dismiss `PendingIntent`s.
+ * [key] identifying it across a reboot, a re-scan and a reinstall. Derived from
+ * the reminder itself (see [PlannedReminder.key]) — in-house delivery has no
+ * `CalendarAlerts` row to take an id from (#75).
  */
 data class ReminderAlert(
     val key: Long,

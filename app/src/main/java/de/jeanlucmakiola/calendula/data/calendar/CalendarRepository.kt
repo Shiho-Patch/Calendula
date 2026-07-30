@@ -39,16 +39,12 @@ interface CalendarRepository {
     suspend fun deleteCalendar(id: Long)
 
     /**
-     * Show or hide [ids] device-wide (`Calendars.VISIBLE`), which is also what
-     * turns the provider's reminder scheduling for them on or off — see
-     * [CalendarDataSource.setCalendarVisible]. Each calendar is written on its
-     * own, in order; a failure part-way leaves the earlier writes standing (the
-     * observer reports whatever actually landed).
+     * Show or hide [ids] device-wide (`Calendars.VISIBLE`), which also gates
+     * their reminders — see [CalendarDataSource.setCalendarVisible]. Written one
+     * at a time, in order; a failure part-way leaves the earlier writes standing.
      *
      * Without `WRITE_CALENDAR` the choice is kept app-side instead (see
-     * [de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs.pendingDisabledCalendarIds]),
-     * where it filters events and reminders just the same until it can be
-     * written.
+     * [de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs.pendingDisabledCalendarIds]).
      */
     suspend fun setCalendarsVisible(ids: Collection<Long>, visible: Boolean)
 

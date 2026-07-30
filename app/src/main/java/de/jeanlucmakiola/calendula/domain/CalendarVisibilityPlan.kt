@@ -12,22 +12,16 @@ data class CalendarVisibilityPlan(
 }
 
 /**
- * Reconcile [pendingDisabledIds] — calendars switched off in Settings →
- * Calendars while the app could not write `Calendars.VISIBLE`, plus whatever
- * the retired app-local visibility model left behind (#75) — against the
+ * Reconcile [pendingDisabledIds] — switch-offs the app could not write, plus
+ * what the retired app-local visibility model left behind (#75) — against the
  * calendars actually on the device.
  *
- * The plan only ever *hides*. Switching a calendar off is intent the user
- * expressed in Calendula, so carrying it into the provider is fair. The other
- * direction is deliberately absent: a calendar hidden at system level was hidden
- * somewhere else (another calendar app, the account's own settings), and
- * switching it back on would un-hide it there too *and* start firing reminders
- * nobody asked for. Calendula follows that flag instead and explains itself once
- * (see [hasSystemHiddenCalendars]).
+ * Only ever *hides*: switching a system-hidden calendar back on would un-hide it
+ * in every other calendar app too. Calendula follows the flag and explains
+ * itself once (see [hasSystemHiddenCalendars]).
  *
- * [CalendarVisibilityPlan.settled] carries the ids that need no write — already
- * hidden, or gone from the device. They leave the pending set exactly as a
- * successful write would.
+ * [CalendarVisibilityPlan.settled] carries the ids needing no write — already
+ * hidden, or gone from the device.
  */
 fun calendarVisibilityPlan(
     calendars: List<CalendarSource>,
@@ -38,8 +32,7 @@ fun calendarVisibilityPlan(
     val settled = mutableSetOf<Long>()
     for (id in pendingDisabledIds) {
         val calendar = byId[id]
-        // No row means the calendar is gone; already invisible means someone
-        // (us, on an earlier run) got there first. Either way: nothing to write.
+        // Gone from the device, or already invisible — nothing to write.
         if (calendar != null && calendar.isVisibleInSystem) hide += id else settled += id
     }
     return CalendarVisibilityPlan(hide = hide, settled = settled)
@@ -47,10 +40,7 @@ fun calendarVisibilityPlan(
 
 /**
  * Whether any calendar is switched off at system level without Calendula having
- * asked for it. Those calendars showed their events before the app adopted
- * `Calendars.VISIBLE` as its one visibility model and no longer do, which is
- * what the one-time notice explains — the alternative, switching them on, would
- * reach into every other calendar app on the device.
+ * asked for it — the condition the one-time notice explains.
  */
 fun hasSystemHiddenCalendars(
     calendars: List<CalendarSource>,

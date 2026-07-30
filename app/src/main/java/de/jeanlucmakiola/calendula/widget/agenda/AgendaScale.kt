@@ -8,10 +8,8 @@ import de.jeanlucmakiola.calendula.widget.WidgetSize
 
 /**
  * Horizontal layout constants for an agenda event row. These don't scale with the
- * size step — a wider stripe or gap would eat title width, which is the thing the
- * row is short of — but [TEXT_INDENT] is *derived* from them so the day header and
- * the "nothing left today" line can never drift out of alignment with the event
- * title column the way a hardcoded 19dp could.
+ * size step, since a wider stripe or gap would eat title width, but [TEXT_INDENT]
+ * is derived from them so non-event text can't drift out of alignment.
  */
 internal val ROW_H_PAD = 4.dp
 internal val STRIPE_WIDTH = 5.dp
@@ -39,34 +37,21 @@ internal data class AgendaMetrics(
     val dayHeaderTopPad: Dp,    // space above a day header
 ) {
     /**
-     * Resolves the stripe height against the user's system font scale.
-     *
-     * The stripe is a [Dp] but the two text lines it sits beside are `sp`, so
-     * they scale with the accessibility font setting and the stripe does not —
-     * at "Largest" the text outgrows the stripe and it visibly under-runs the row
-     * it is supposed to mark. Multiplying by the same factor keeps them locked,
-     * and at the default scale of 1.0 reproduces the step's value exactly.
+     * Resolves the stripe height against the user's system font scale: the stripe
+     * is a [Dp] while the lines beside it are `sp`, so without this the text
+     * outgrows it at large font settings.
      */
     fun scaledForFont(fontScale: Float): AgendaMetrics =
         if (fontScale == 1f) this else copy(stripeH = stripeH * fontScale)
 }
 
 /*
- * Type sizes are anchored to the Material 3 type scale (see the `material-3`
- * skill's typography reference) rather than invented: 16sp is Title Medium, 14sp
- * Body Medium / Title Small, 12sp Body Small, 16sp Body Large, 22sp Title Large.
+ * Type sizes are anchored to the Material 3 type scale, with two deviations:
  *
- * Two documented deviations:
- *
- *  ‡ SMALL's 13sp day header is off-scale. It is held there deliberately —
- *    SMALL reproduces the widget's original constants verbatim so a widget whose
- *    owner never touches the size setting looks exactly as it did (#51), and
- *    snapping it to Title Small (14sp) would break that promise for a 1sp gain.
- *
- *  † Above Title Medium the M3 scale jumps 16 → 22 → 24 with nothing in between,
- *    which is far too coarse for four size steps. Where a role would force a
- *    ≥1.4x step between adjacent steps we hold an interpolated value instead and
- *    mark it. The endpoints stay on real roles.
+ *  ‡ SMALL's 13sp day header is off-scale, held there so SMALL reproduces the
+ *    widget's original constants verbatim (#51).
+ *  † Above Title Medium the M3 scale jumps 16 → 22 → 24, too coarse for four
+ *    steps; interpolated values are used where a role would force a ≥1.4x jump.
  */
 
 private val SMALL_METRICS = AgendaMetrics(

@@ -51,8 +51,8 @@ fun RootScreen(
         )
     }
 
-    // Whether the app came up already holding it — a launch scan has covered
-    // that case, so only a grant made during this session owes a re-scan.
+    // A launch scan already covers the app coming up with the permission, so
+    // only a grant made during this session owes a re-scan.
     val grantedAtLaunch = remember { hasPermission }
 
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -86,12 +86,11 @@ fun RootScreen(
             val reminderOnboarding: ReminderOnboardingViewModel = hiltViewModel()
             val onboardingDone by reminderOnboarding.onboardingDone.collectAsStateWithLifecycle()
             // One-time explainer for the switch to the device's own calendar
-            // visibility (#75); armed by the reconciler, shown over the app.
+            // visibility (#75), armed by the reconciler.
             val visibilityNotice: CalendarVisibilityNoticeViewModel = hiltViewModel()
             val noticePending by visibilityNotice.pending.collectAsStateWithLifecycle()
-            // Runs on entry however the permission was granted — including from
-            // Android's app-settings screen, which only comes back through the
-            // ON_RESUME check above. Cheap once there is nothing left to do.
+            // Runs on entry however the permission was granted, including via
+            // Android's app-settings screen (caught by the ON_RESUME above).
             LaunchedEffect(Unit) {
                 visibilityNotice.reconcile()
                 if (!grantedAtLaunch) reminderOnboarding.rearmAfterGrant()

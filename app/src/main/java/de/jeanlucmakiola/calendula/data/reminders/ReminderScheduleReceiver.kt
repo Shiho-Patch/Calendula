@@ -11,22 +11,13 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Every reason to re-run a reminder scan that arrives from outside the process.
+ * Every out-of-process reason to re-run a reminder scan: our own [ACTION_SCAN]
+ * alarm, boot and package-replaced (both wipe pending alarms), and time or
+ * timezone changes (both move reminders relative to the armed alarm). All do the
+ * same thing, since [ReminderScanner.scan] is idempotent.
  *
- * All of them do the same thing, because [ReminderScanner.scan] is idempotent
- * and works out what is owed from its watermark rather than from why it was
- * called:
- *
- * - **our own alarm** ([ACTION_SCAN]) — the ordinary case, a reminder is due;
- * - **boot** and **package replaced** — both wipe pending alarms, so the app has
- *   to re-arm or reminders stop silently, which is the failure #75 is about;
- * - **time and timezone changes** — they move every reminder relative to the
- *   armed alarm, and an all-day reminder's fire hour is recomposed in the
- *   current zone, so both need a fresh plan.
- *
- * Exported because the system broadcasts arrive from outside. [ACTION_SCAN] is
- * ours and always sent as an explicit intent; another app triggering a scan
- * early would only make it re-read the provider and re-arm, which is harmless.
+ * Exported for the system broadcasts; an early scan triggered by another app is
+ * harmless.
  */
 @AndroidEntryPoint
 class ReminderScheduleReceiver : BroadcastReceiver() {
@@ -34,10 +25,9 @@ class ReminderScheduleReceiver : BroadcastReceiver() {
     @Inject lateinit var scanner: ReminderScanner
 
     override fun onReceive(context: Context, intent: Intent) {
-        // Every action here does the same thing, but the filter still has to be
-        // checked: the receiver is exported, and the system broadcasts it takes
-        // are protected, so an intent arriving with any other action did not
-        // come from where it claims to.
+        // Checked despite every action doing the same thing: the receiver is
+        // exported and the broadcasts it takes are protected, so any other
+        // action did not come from where it claims to.
         if (intent.action !in HANDLED_ACTIONS) return
         val pendingResult = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {

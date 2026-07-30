@@ -515,8 +515,8 @@ private fun EventEditContent(
     // they're locked here; everything else (reminders, location, notes) is the
     // user's to edit.
     val locked = state.isManaged
-    // Read in the form's own window, not the picker's: the field holding focus
-    // lives here, so this is the controller that can put its keyboard away.
+    // Read in the form's own window, not the picker's: the focused field lives
+    // here, so this is the controller that can put its keyboard away.
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     var picker by remember { mutableStateOf<PickerTarget?>(null) }
@@ -1124,10 +1124,8 @@ private fun EventEditContent(
         null -> Unit
     }
 
-    // A full-screen picker over the form is a change of place, so the form's
-    // keyboard has no business following it there — least of all onto the
-    // calendar manager, which the picker can hand off to. The form's own field
-    // keeps its text; only focus and the IME go.
+    // A full-screen picker is a change of place, so the keyboard shouldn't
+    // follow it. The field keeps its text; only focus and the IME go.
     LaunchedEffect(showCalendarPicker) {
         if (showCalendarPicker) {
             focusManager.clearFocus(force = true)
@@ -1143,11 +1141,9 @@ private fun EventEditContent(
                 viewModel.setCalendar(it)
                 showCalendarPicker = false
             },
-            // Close the picker on the way out. It is a Compose Dialog — its own
-            // window, always above the activity's content — so the manager would
-            // otherwise open behind it and the tap would look dead. The form
-            // stays standing underneath, its calendar row one tap from a picker
-            // that re-queries on open.
+            // Close the picker first: it is a Compose Dialog in its own window,
+            // always above the activity's content, so the manager would
+            // otherwise open behind it and the tap would look dead.
             onManageCalendars = onManageCalendars?.let { openManager ->
                 {
                     showCalendarPicker = false
@@ -1344,10 +1340,7 @@ private enum class RecurrenceEndMode { Never, Until, Count }
  *
  * Both steps show the rule as *dates* as well as words: every preset row
  * carries the next few occurrences it would produce from [startDate], and the
- * custom step repeats that under its live read-out. It is where a rule most
- * easily means something other than it sounds like — "monthly" on the 31st
- * skips February, an every-other-week rule lands a fortnight from the start's
- * own week — and only the dates say so.
+ * custom step repeats that under its live read-out.
  */
 @Composable
 private fun RecurrencePickerDialog(
@@ -1409,9 +1402,8 @@ private fun RecurrencePickerDialog(
         RecurrenceEndMode.Until -> untilDate?.let { RecurrenceEnd.Until(it) }
         RecurrenceEndMode.Count -> count?.let { RecurrenceEnd.Count(it) }
     }
-    // Kept as the rule object, not just its RRULE text: the read-out renders the
-    // string, the date list expands the rule, and both must describe the one
-    // thing OK would save.
+    // Kept as the rule object, not just its RRULE text: the read-out and the
+    // date list must describe the one thing OK would save.
     val customRule: SimpleRecurrence? = if (interval != null && customEnd != null) {
         SimpleRecurrence(
             freq = freq,
@@ -1505,9 +1497,8 @@ private fun RecurrencePickerDialog(
                         .padding(horizontal = 16.dp),
                 )
 
-                // The same rule as dates. Rendered even while the form is
-                // incomplete (as an empty line) so the controls below don't
-                // shift as it comes and goes.
+                // Rendered even while incomplete (as an empty line), so the
+                // controls below don't shift as it comes and goes.
                 Text(
                     text = customRule?.let { nextOccurrencesText(it, startDate, locale) }.orEmpty(),
                     style = MaterialTheme.typography.bodyMedium,
@@ -2034,10 +2025,8 @@ private fun readContactAddress(context: Context, uri: Uri): String? =
  * Visibility selector: one card per level, each with its own icon; the
  * current level is highlighted. Tap picks and closes.
  *
- * Every level carries a line saying who this affects, because the four words
- * alone don't: visibility is about what *other people on a shared calendar*
- * see, which is exactly the part the label leaves out — and "Confidential" has
- * no meaning at all until you know the server decides what it does with it.
+ * Every level carries a line saying who this affects — the labels alone don't
+ * say that visibility is about what others on a shared calendar see.
  */
 @Composable
 private fun VisibilityPickerDialog(

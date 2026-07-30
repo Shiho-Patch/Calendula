@@ -48,14 +48,10 @@ internal fun SpecialDatesScreen(
     onBack: () -> Unit,
 ) {
     val state by viewModel.specialDatesState.collectAsStateWithLifecycle()
-    // The all-day reminder hour lives in the general settings state; the reminder
-    // picker below names it, since that is when these reminders actually fire.
     val settings by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // READ_CONTACTS is requested only here, on enable — never at startup. On a
-    // grant we either enable (if turning on) or just re-sync (clearing a stalled
-    // banner after the permission was re-granted).
+    // READ_CONTACTS is requested only here, on enable — never at startup.
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -122,8 +118,6 @@ internal fun SpecialDatesScreen(
         )
 
         if (state.enabled) {
-            // Per-type card: the toggle, and while on, its title format and its
-            // calendar-wide reminder.
             SpecialDateType.entries.forEachIndexed { index, type ->
                 Spacer(Modifier.height(if (index == 0) 24.dp else 16.dp))
                 val on = type in state.types
@@ -222,8 +216,6 @@ internal fun SpecialDatesScreen(
             allowInherit = false,
             onSelect = { viewModel.setSpecialDatesReminders(type, it) },
             onDismiss = { reminderPickerType = null },
-            // Special dates are all-day events, so their reminders fire at the
-            // one global all-day hour like any other all-day reminder.
             leadTimeSummary = allDayFiringTimeSummary(settings.allDayReminderTimeMinutes),
         )
     }
@@ -268,8 +260,7 @@ private fun SpecialDatesTemplateDialog(
         title = { Text(stringResource(R.string.settings_special_dates_template)) },
         text = {
             Column {
-                // The app's borderless input over a tonal surface (the dialog
-                // convention — see DialogControls), not Material's outlined field.
+                // The dialog convention — see DialogControls.
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainerHighest,
                     shape = RoundedCornerShape(12.dp),

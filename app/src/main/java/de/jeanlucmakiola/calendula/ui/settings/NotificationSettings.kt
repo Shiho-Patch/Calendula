@@ -124,11 +124,8 @@ internal fun NotificationsScreen(
             onClick = { showAllDayReminderTime = true },
         )
 
-        // Delivery reliability + snooze: both are global reminder-delivery
-        // settings, so they sit with the defaults above rather than below the
-        // long per-calendar list. Reliability is a soft, optional battery-
-        // optimisation exemption (system-settings deep-link, no special
-        // permission); shown as live status, reversible at any time.
+        // Reliability is a soft, optional battery-optimisation exemption via
+        // a system-settings deep-link, shown as live status.
         Spacer(Modifier.height(24.dp))
         val batteryExempt = rememberBatteryOptimizationExempt()
         GroupedRow(
@@ -147,7 +144,6 @@ internal fun NotificationsScreen(
             onClick = { openBatteryOptimizationSettings(context) },
         )
 
-        // Snooze: how long the notification's "Snooze" action defers a reminder.
         GroupedRow(
             title = stringResource(R.string.settings_snooze_duration),
             summary = snoozeDurationLabel(state.snoozeMinutes),
@@ -155,10 +151,9 @@ internal fun NotificationsScreen(
             onClick = { showSnooze = true },
         )
 
-        // Per-calendar overrides: the whole section folds behind one header to
-        // keep the screen tidy. Expanded, each writable calendar gets its own
-        // expandable card that may keep, drop, or replace the global default —
-        // separately for timed and all-day events.
+        // Per-calendar overrides, folded behind one header. Each writable
+        // calendar may keep, drop or replace the global default, separately for
+        // timed and all-day events.
         if (state.writableCalendars.isNotEmpty()) {
             Spacer(Modifier.height(24.dp))
             GroupedRow(
@@ -182,8 +177,8 @@ internal fun NotificationsScreen(
                 Column {
                     state.writableCalendars.forEach { calendar ->
                         Spacer(Modifier.height(16.dp))
-                        // A contact special-dates calendar owns its reminders in
-                        // its own section — link there instead of an override.
+                        // Special-dates calendars own their reminders in their
+                        // own section — link there instead.
                         if (calendar.id in state.managedCalendarIds) {
                             GroupedRow(
                                 title = calendar.displayName,
@@ -202,8 +197,6 @@ internal fun NotificationsScreen(
                             return@forEach
                         }
                         val expanded = calendar.id in expandedCalendars
-                        // Calendar card; tapping expands it into a grouped list
-                        // of three (the card + the timed and all-day rows).
                         GroupedRow(
                             title = calendar.displayName,
                             position = if (expanded) Position.Top else Position.Alone,
@@ -366,8 +359,7 @@ private fun snoozeDurationLabel(minutes: Int): String =
 
 /**
  * Whether Calendula is exempt from battery optimisation, re-read on every
- * `ON_RESUME` so the row reflects a change the user just made in system
- * settings without needing to leave and re-enter the screen.
+ * `ON_RESUME` so a change made in system settings shows up at once.
  */
 @Composable
 private fun rememberBatteryOptimizationExempt(): Boolean {
@@ -392,10 +384,8 @@ private fun isIgnoringBatteryOptimizations(context: Context): Boolean {
 }
 
 /**
- * Take the user straight to Calendula's exemption: the direct
- * `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` dialog ("Allow Calendula to ignore
- * battery optimisation?") rather than the full app list they'd have to scroll.
- * Falls back to the optimisation list if the OS refuses the direct intent.
+ * Open the direct `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` dialog, falling back to
+ * the optimisation list if the OS refuses it.
  */
 private fun openBatteryOptimizationSettings(context: Context) {
     val direct = Intent(

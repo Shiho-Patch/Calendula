@@ -9,13 +9,8 @@ import de.jeanlucmakiola.calendula.domain.CalendarSource
 
 /**
  * One account's calendars, as every surface that lists calendars by account
- * shows them.
- *
- * An account is identified by name **and** type (#77). A Google account and a
- * DAVx5 account can carry the same address and still be two separate accounts,
- * from separate apps: merging them mixed their calendars into one group whose
- * header — source logo, "manage in app", toggle-all, collapsed state — was
- * derived from whichever calendar happened to sort first.
+ * shows them. An account is identified by name **and** type (#77): a Google and
+ * a DAVx5 account can share an address and still be two separate accounts.
  */
 data class CalendarAccountGroup(
     /** Stable identity: what makes two calendars belong to the same account. */
@@ -69,9 +64,8 @@ fun accountGroupTitle(group: CalendarAccountGroup): String =
     }
 
 /**
- * The human name of the app backing [accountType] — the same app whose icon
- * [SourceLogo] draws. Falls back to the raw account type, which is at least
- * unique, when no installed app resolves for it.
+ * The human name of the app backing [accountType], falling back to the raw
+ * account type when no installed app resolves for it.
  */
 @Composable
 fun sourceAppName(accountType: String): String {

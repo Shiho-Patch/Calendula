@@ -40,8 +40,7 @@ internal fun EventFormScreen(
             GroupedRow(
                 title = stringResource(eventFormFieldLabel(field)),
                 position = positionOf(index, fields.size),
-                // Same icon the field carries in the new-event form, so a toggle
-                // is easy to match to the field it controls.
+                // The same icon the field carries in the new-event form.
                 leading = {
                     Icon(
                         imageVector = eventFormFieldIcon(field),
@@ -59,9 +58,7 @@ internal fun EventFormScreen(
             )
         }
 
-        // Auto-focus the title on a new event (issue #10) — on by default, since
-        // most events get a title; raising the keyboard saves a tap. Off lets you
-        // set the time/calendar first without the keyboard in the way.
+        // Auto-focus the title on a new event (#10), on by default.
         Spacer(Modifier.height(24.dp))
         GroupedRow(
             title = stringResource(R.string.settings_autofocus_title),
@@ -84,8 +81,7 @@ internal fun EventFormScreen(
         )
 
         // Per-event colour on calendars that publish no colour set (some
-        // CalDAV) — off by default, with the honest caveat that the colour may
-        // not survive their next sync. Local and palette calendars ignore it.
+        // CalDAV); off by default, since it may not survive their next sync.
         Spacer(Modifier.height(24.dp))
         GroupedRow(
             title = stringResource(R.string.settings_color_unsupported),

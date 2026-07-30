@@ -408,11 +408,9 @@ class CalendarRepositoryImplTest {
     fun `a flushed switch-off never reads as on again before the provider ticks`(
         @TempDir tempDir: Path,
     ) = runTest {
-        // The reconciler's shape: write VISIBLE = 0 straight to the provider,
-        // then release the id app-side. The provider's notification only arrives
-        // afterwards (it is dispatched through the main looper), so the release
-        // must not be read against the snapshot from before the write — that
-        // would flash exactly the events being hidden back into every view.
+        // The reconciler's shape: write VISIBLE = 0, then release the id
+        // app-side. The provider's notification arrives afterwards, so the
+        // release must not be read against the pre-write snapshot.
         val prefs = newPrefs(tempDir)
         prefs.addPendingDisabledCalendarIds(setOf(2L))
         val fake = FakeCalendarDataSource().apply {

@@ -19,17 +19,10 @@ internal fun AlarmManager.canScheduleExactCompat(): Boolean =
     Build.VERSION.SDK_INT < Build.VERSION_CODES.S || canScheduleExactAlarms()
 
 /**
- * Holds the app's own wake-up for the next reminder — the half of delivery that
- * used to be the provider's (#75).
- *
- * Exactly **one** alarm exists at a time, for the earliest reminder still ahead.
- * Every firing re-scans and re-arms, so a reminder added, moved or deleted in
- * between is picked up on the next pass instead of needing an alarm per reminder
- * to be kept in sync with the provider's tables.
- *
- * A reminder that lands late is a broken reminder, hence an *exact* alarm; the
- * inexact allow-while-idle fallback only applies where the OS withholds the
- * capability (API 31–32 with the user's permission revoked).
+ * Holds the app's own wake-up for the next reminder (#75). Exactly one alarm
+ * exists at a time, for the earliest reminder ahead; every firing re-scans and
+ * re-arms. Exact, with an inexact allow-while-idle fallback where the OS
+ * withholds the capability (API 31–32 with the permission revoked).
  */
 @Singleton
 class ReminderAlarmScheduler @Inject constructor(

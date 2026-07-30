@@ -29,10 +29,8 @@ class CalendarPrefs @Inject constructor(
     private val store: DataStore<Preferences>,
 ) {
 
-    // Both id sets are deduped: the store is shared with SettingsPrefs, so every
-    // unrelated write (a settings toggle, the last-used calendar) re-emits an
-    // identical set otherwise — and a change to the pending set now costs a
-    // fresh provider read in CalendarRepositoryImpl.
+    // Both id sets are deduped: the store is shared with SettingsPrefs, so any
+    // unrelated write would otherwise re-emit an identical set.
     val hiddenCalendarIds: Flow<Set<Long>> = store.data
         .map { prefs -> prefs[HIDDEN_IDS_KEY].parseIds() }
         .distinctUntilChanged()
@@ -42,17 +40,13 @@ class CalendarPrefs @Inject constructor(
     }
 
     /**
-     * Calendars switched off in Settings → Calendars that the provider does not
-     * know about yet. That switch writes the system's `Calendars.VISIBLE` (#75),
-     * which needs `WRITE_CALENDAR` — a user who granted read-only keeps their
-     * choice here instead, and so does everyone upgrading from the retired
-     * app-local model, whose set is read straight back out of the same key.
+     * Switch-offs the provider does not know about yet, because writing
+     * `Calendars.VISIBLE` needs `WRITE_CALENDAR` (#75). Also inherits the
+     * retired app-local model's set, from the same key.
      *
-     * Honoured as a display and reminder filter for as long as it is non-empty,
-     * so an un-flushable switch still does what the user asked. Not a second
-     * visibility model: `CalendarVisibilityReconciler` drains it into the
-     * provider entry by entry the moment the app may write, and nothing ever
-     * adds to it while it may.
+     * Honoured as a display and reminder filter while non-empty, but not a
+     * second visibility model: `CalendarVisibilityReconciler` drains it entry by
+     * entry as soon as the app may write, and nothing adds to it while it may.
      */
     val pendingDisabledCalendarIds: Flow<Set<Long>> = store.data
         .map { prefs -> prefs[DISABLED_IDS_KEY].parseIds() }
@@ -62,9 +56,8 @@ class CalendarPrefs @Inject constructor(
         editPendingDisabled { it + ids }
 
     /**
-     * Drop [ids] from the pending set — one id at a time as the reconciler
-     * flushes it, so a run that fails part-way never re-applies what already
-     * landed (and can't undo a switch the user has since flipped by hand).
+     * Drop [ids] from the pending set, one at a time as the reconciler flushes
+     * them, so a run that fails part-way never re-applies what already landed.
      */
     suspend fun removePendingDisabledCalendarIds(ids: Collection<Long>) =
         editPendingDisabled { it - ids.toSet() }

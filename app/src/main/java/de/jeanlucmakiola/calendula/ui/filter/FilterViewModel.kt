@@ -32,9 +32,8 @@ class FilterViewModel @Inject constructor(
             repository.calendars(),
             prefs.hiddenCalendarIds,
         ) { calendars, hidden ->
-            // Calendars switched off in Settings → Calendars are off device-wide
-            // and don't belong in the drawer's hide/show list (you can't hide
-            // what is already off). They live only in Settings → Calendars.
+            // Calendars switched off device-wide don't belong in the drawer's
+            // hide/show list; they live only in Settings → Calendars.
             val enabled = calendars.filter { it.isVisibleInSystem }
             if (enabled.isEmpty()) {
                 FilterUiState.Failure(FailureReason.NoCalendarsConfigured)

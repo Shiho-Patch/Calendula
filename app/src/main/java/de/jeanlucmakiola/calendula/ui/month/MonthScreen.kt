@@ -365,10 +365,8 @@ fun MonthScreen(
                     todayText = stringResource(R.string.month_today_action),
                     onToday = jumpToToday,
                     onCreate = {
-                        // Split has a selected day and lists it below the grid, so
-                        // that is the day the new event belongs to. The other
-                        // styles have no selection: anchor on today when its month
-                        // is shown, else the 1st.
+                        // Split has a selected day; the other styles anchor on
+                        // today when its month is shown, else the 1st.
                         onCreateEvent(
                             when {
                                 viewStyle == MonthViewStyle.Split -> selectedDate
@@ -2075,10 +2073,9 @@ private fun MonthBar(
 }
 
 /**
- * Overflow row: a dot per hidden colour (up to three) plus "+N" for the rest.
- *
- * A dot stands for every hidden event sharing its colour, so it dims only once
- * all of them have ended; the "+N" dims once the whole overflow has (#79).
+ * Overflow row: a dot per hidden colour (up to three) plus "+N" for the rest. A
+ * dot dims once every event sharing its colour has ended, the "+N" once the
+ * whole overflow has (#79).
  */
 @Composable
 private fun OverflowDots(

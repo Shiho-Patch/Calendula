@@ -37,8 +37,7 @@ class ReminderOnboardingViewModel @Inject constructor(
             prefs.setRemindersEnabled(remindersEnabled)
             prefs.setReminderOnboardingDone()
             // Nothing else re-arms the scan: turning reminders off cancels the
-            // alarm, so a later "on" would sit without one until a provider
-            // change or the daily worker happened to run (#75).
+            // alarm (#75).
             scanner.scan()
         }
     }

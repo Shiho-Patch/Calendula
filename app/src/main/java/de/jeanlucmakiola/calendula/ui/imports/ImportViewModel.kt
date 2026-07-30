@@ -86,9 +86,7 @@ class ImportViewModel @Inject constructor(
                     warnings = parsed.warnings,
                 )
                 else -> {
-                    // The same targets the event form offers ([isEventTarget]):
-                    // an import is a bulk create, so a calendar that can't hold
-                    // one event can't hold thirty.
+                    // The same targets the event form offers ([isEventTarget]).
                     ImportUiState.Many(
                         events = parsed.events,
                         warnings = parsed.warnings,

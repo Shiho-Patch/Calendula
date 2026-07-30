@@ -9,16 +9,11 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * The read side of in-house reminder delivery: occurrences and the reminder
- * offsets hanging off them, straight out of the provider's own tables.
+ * The read side of in-house reminder delivery: occurrences and their reminder
+ * offsets, read from `Instances` and `Reminders` rather than `CalendarAlerts`,
+ * which cannot be assumed to be written (#75).
  *
- * Deliberately *not* `CalendarAlerts`. That table is the provider's own working
- * copy of this same information, and the whole point of #75's second round is
- * that we can no longer assume it gets written. `Instances` and `Reminders` are
- * plain data the app already reads everywhere else.
- *
- * An interface so [ReminderScanner] can be exercised on the JVM without a
- * ContentResolver, in the shape the rest of `data/calendar` uses.
+ * An interface so [ReminderScanner] can be exercised on the JVM.
  */
 interface ReminderInstanceSource {
 
@@ -46,11 +41,9 @@ class ProviderReminderInstanceSource @Inject constructor(
             ContentUris.appendId(this, fromMillis)
             ContentUris.appendId(this, toMillis)
         }.build()
-        // `visible` is the calendar's system flag, which the app's one visibility
-        // model writes (#75) — a switched-off calendar must not plan reminders.
-        // The status clause mirrors CalendarDataSource.instances: a cancelled
-        // single occurrence of a series is a real row, and NULL means "normal",
-        // so a bare `!= CANCELED` would drop every ordinary event.
+        // `visible` is the flag the app's one visibility model writes (#75).
+        // The status clause mirrors CalendarDataSource.instances: NULL means
+        // "normal", so a bare `!= CANCELED` would drop every ordinary event.
         val selection = "${CalendarContract.Calendars.VISIBLE} = 1 AND " +
             "(${CalendarContract.Instances.STATUS} IS NULL OR " +
             "${CalendarContract.Instances.STATUS} != ${CalendarContract.Events.STATUS_CANCELED})"
@@ -78,8 +71,8 @@ class ProviderReminderInstanceSource @Inject constructor(
     override fun reminderMinutes(eventIds: Collection<Long>): Map<Long, List<Int>> {
         if (eventIds.isEmpty()) return emptyMap()
         val out = mutableMapOf<Long, MutableList<Int>>()
-        // Batched because the ids go into the selection literally; an unbounded
-        // `IN (...)` on a busy calendar would grow the SQL past what SQLite takes.
+        // Batched: the ids go into the selection literally, and an unbounded
+        // `IN (...)` would grow the SQL past what SQLite takes.
         eventIds.distinct().chunked(EVENT_ID_BATCH).forEach { batch ->
             context.contentResolver.query(
                 CalendarContract.Reminders.CONTENT_URI,

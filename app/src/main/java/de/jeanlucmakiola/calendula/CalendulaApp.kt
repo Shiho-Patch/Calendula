@@ -47,12 +47,9 @@ class CalendulaApp : Application() {
     }
 
     /**
-     * Bring reminder delivery up with the process (#75). The app plans and arms
-     * its own reminder alarms now, so launch is one of the moments that has to
-     * re-check them: a scan re-arms whatever the system dropped, posts anything
-     * a missed alarm still owes, and starts watching the provider so an edit
-     * re-plans without waiting for the next pass. The daily worker is the
-     * backstop for a device that drops the alarm with no reboot to announce it.
+     * Bring reminder delivery up with the process (#75): a scan re-arms whatever
+     * the system dropped and posts what a missed alarm still owes, then the
+     * provider watch keeps edits re-planned. The daily worker is the backstop.
      */
     private fun startReminderDelivery() {
         val deps = EntryPointAccessors.fromApplication(
@@ -65,12 +62,9 @@ class CalendulaApp : Application() {
     }
 
     /**
-     * Flush any calendar switch-off the app hasn't been allowed to write into
-     * the system's `Calendars.VISIBLE` yet — including the retired app-local
-     * "disabled calendars" set the upgrade inherits (#75). A no-op on a fresh
-     * install and in the steady state; a launch without the calendar permission
-     * leaves the set pending, and `RootScreen` runs it again once the app comes
-     * up holding it — whichever way it was granted.
+     * Flush any calendar switch-off not yet written to `Calendars.VISIBLE`,
+     * including the set inherited from the retired app-local model (#75). A
+     * no-op in the steady state; `RootScreen` re-runs it after a later grant.
      */
     private fun reconcileCalendarVisibility() {
         val deps = EntryPointAccessors.fromApplication(
@@ -101,10 +95,8 @@ class CalendulaApp : Application() {
 
     /**
      * Re-arm (or cancel) the daily special-dates reconcile from the saved
-     * settings on every launch — like [reconcileAutoBackup], this cancels
-     * orphaned work after the feature is turned off and re-schedules after a
-     * reinstall. The foreground trigger (RootScreen ON_RESUME) does the on-open
-     * refresh, so no immediate run is needed here.
+     * settings, like [reconcileAutoBackup]. The on-open refresh is RootScreen's
+     * ON_RESUME trigger, so no immediate run is needed here.
      */
     private fun reconcileSpecialDates() {
         val deps = EntryPointAccessors.fromApplication(this, SpecialDatesSyncWorker.Deps::class.java)

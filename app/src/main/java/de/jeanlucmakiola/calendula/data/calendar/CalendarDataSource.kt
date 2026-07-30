@@ -117,19 +117,15 @@ interface CalendarDataSource {
 
     /**
      * Show or hide the calendar device-wide by writing `Calendars.VISIBLE` — the
-     * app's one visibility model (#75). `VISIBLE` also gates the provider's own
-     * reminder scheduling, so switching a calendar off here is what actually
-     * stops its notifications; switching it on is what brings them back.
-     * Writable by a plain app (one of the three columns the platform documents
-     * as such) and device-local — no sync adapter pushes it anywhere.
+     * app's one visibility model (#75), which also gates its reminders. One of
+     * the three columns the platform documents as app-writable, and device-local.
      */
     fun setCalendarVisible(id: Long, visible: Boolean)
 
     /**
-     * Whether one calendar is currently switched on at system level, without
-     * reading every row — for the reminder gate, which sees a calendar id and
-     * nothing else. Null when the answer can't be had: no row (the calendar was
-     * deleted) or no read permission.
+     * Whether one calendar is switched on at system level, without reading every
+     * row — for the reminder gate, which sees only a calendar id. Null when the
+     * answer can't be had: no row, or no read permission.
      */
     fun isCalendarVisible(id: Long): Boolean?
 
@@ -405,14 +401,11 @@ class AndroidCalendarDataSource @Inject constructor(
     }
 
     /**
-     * Addressed by appended id on the plain (non-sync-adapter) Calendars URI,
-     * one calendar per call. Both parts are load-bearing:
-     * `CalendarProvider2.updateInTransaction` short-circuits to a raw database
-     * update unless the selection is `_id=…`, skipping the dirty marking *and*
-     * the `checkNextAlarm()` reschedule — i.e. an `_id IN (…)` batch would write
-     * the flag but never re-arm the reminder alarms this write exists to
-     * trigger. The sync-adapter URI is avoided so the write also applies to
-     * synced calendars, which is where the bug bites.
+     * Addressed by appended id on the plain (non-sync-adapter) Calendars URI, one
+     * calendar per call. Both parts are load-bearing:
+     * `CalendarProvider2.updateInTransaction` skips the dirty marking and the
+     * `checkNextAlarm()` reschedule unless the selection is `_id=…`, and the
+     * plain URI is what makes the write apply to synced calendars too.
      */
     override fun setCalendarVisible(id: Long, visible: Boolean) {
         val values = ContentValues().apply {

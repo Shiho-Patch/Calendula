@@ -105,29 +105,19 @@ fun recurrenceText(rrule: String, locale: Locale): AnnotatedString {
 
 /**
  * The rule's first few dates as one line — "Next: 30 Jul, 6 Aug, 13 Aug" — for
- * the recurrence picker.
- *
- * The phrase [recurrenceText] renders says what the rule *is*; this says what
- * it *does*, which is the part a monthly rule on the 31st or an every-other-week
- * rule with weekday picks gets wrong in people's heads. It expands the rule
- * with [upcomingOccurrences], so it inherits that function's RFC reading — and
- * its limits: only the shapes the picker itself can build.
- *
- * A rule that yields nothing at all (an end date before the start) says so
- * rather than showing an empty list, since that is a mistake worth catching
- * before saving.
+ * the recurrence picker, where [recurrenceText]'s phrase says what the rule is
+ * and this says what it does. Expands via [upcomingOccurrences] and inherits its
+ * limits. A rule that yields nothing says so rather than showing an empty list.
  */
 @Composable
 fun nextOccurrencesText(
     rule: SimpleRecurrence,
-    // Spelled out: in this file, the bare LocalDate is java.time's.
     start: kotlinx.datetime.LocalDate,
     locale: Locale,
 ): String {
     val dates = rule.upcomingOccurrences(start, limit = NEXT_OCCURRENCE_COUNT)
     if (dates.isEmpty()) return stringResource(R.string.event_edit_recurrence_next_none)
-    // Years only once they carry information — a yearly rule is otherwise the
-    // same date repeated, and a monthly one crossing New Year hides that it did.
+    // Years only once they carry information (see [spansMultipleYears]).
     val pattern = if (occurrencesSpanYears(dates, start)) "dMMMy" else "dMMM"
     val formatter = localizedDateFormatter(locale, pattern)
     val formatted = dates.map { formatter.format(it.toJavaLocalDate()) }

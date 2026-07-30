@@ -70,15 +70,10 @@ import de.jeanlucmakiola.floret.locale.AppLanguage
 private enum class SettingsSection { Appearance, Views, EventForm, Notifications, SpecialDates, Widgets }
 
 /**
- * Settings (M4), restructured in v2.3 into a category hub with sub-screens and
- * re-sorted in v2.17 (#69) so every setting sits where it is looked for.
- *
- * The hub reads as three labelled groups — what the app looks like and how it
- * behaves, what it does with your data, and the app itself — and each sub-screen
- * lives in its own `*Settings.kt` file. Calendars and Backup open screens
- * hoisted in `CalendarHost` (they are driven by the calendar list, not by
- * preferences); Language opens a full-screen picker; About is a card at the top.
- * A full-screen destination; [onBack] pops it.
+ * Settings hub: three labelled groups of category rows, each opening a
+ * sub-screen from its own `*Settings.kt` file (#69). Calendars and Backup open
+ * screens hoisted in `CalendarHost`; Language opens a full-screen picker.
+ * [onBack] pops the destination.
  */
 @Composable
 fun SettingsScreen(
@@ -166,18 +161,14 @@ private fun SettingsHub(
     onOpenBackup: () -> Unit,
 ) {
     CollapsingScaffold(title = stringResource(R.string.settings_title), onBack = onBack, predictiveBack = true) {
-        // The card and the support row are one grouped block: the call to action
-        // is a row continuing the container rather than a tonal button sitting
-        // inside the card.
+        // Card and support row are one grouped block, so the call to action
+        // continues the container instead of sitting inside it as a button.
         Box(Modifier.padding(horizontal = GroupedListInset)) { AboutCard() }
         SupportRow()
         Spacer(Modifier.height(16.dp))
 
-        // Three labelled groups instead of one long undifferentiated list (#69):
-        // how the app presents itself, what it does with your data, and the app
-        // as an installed thing. Each group cycles its chip accents so no two
-        // rows in it look alike (see [ChipAccent]) — a uniformly coloured group
-        // is as unscannable as an uncoloured one.
+        // Each group cycles its chip accents so no two rows in it look alike
+        // (see [ChipAccent]).
         SectionHeader(stringResource(R.string.settings_group_look))
         GroupedRow(
             title = stringResource(R.string.settings_section_appearance),
@@ -224,9 +215,8 @@ private fun SettingsHub(
             leading = { CategoryIcon(Icons.Default.Cake, ChipAccent.Primary) },
             onClick = { onOpenSection(SettingsSection.SpecialDates) },
         )
-        // Export/import used to hide inside the calendar manager, where nobody
-        // looked for it (#69). It is a data-safety feature, so it gets its own
-        // top-level entry; the manager keeps a pointer row to here.
+        // Export/import gets its own top-level entry (#69); the calendar
+        // manager keeps a pointer row to here.
         GroupedRow(
             title = stringResource(R.string.settings_section_backup),
             summary = stringResource(R.string.settings_backup_subtitle),
@@ -247,10 +237,8 @@ private fun SettingsHub(
         LanguageRow(position = Position.Middle)
         ReportProblemRow(position = Position.Bottom)
 
-        // Source, licence and privacy sit at the very bottom rather than in the
-        // About card: they are reference material you look up once, not settings
-        // you come here to change, and the card at the top now leads with what
-        // the app *is* plus the one link worth offering (support).
+        // Source, licence and privacy sit at the bottom as reference material
+        // rather than inside the About card.
         Spacer(Modifier.height(8.dp))
         SectionHeader(stringResource(R.string.settings_group_about))
         AboutLinkRow(
@@ -364,11 +352,8 @@ private fun languageLabel(tag: String?): String =
 
 @Composable
 private fun AboutCard() {
-    // The card layout lives in floret-kit (components.AboutCard); Calendula
-    // supplies its own logo and author. Source, licence and privacy moved to
-    // rows at the foot of the page, and support is now the [SupportRow] joined
-    // to the bottom of this card — so the card itself carries nothing but what
-    // the app is and who made it.
+    // Layout lives in floret-kit (components.AboutCard); Calendula supplies
+    // its own logo and author. Support is the [SupportRow] joined below.
     AboutCard(
         logo = { AppLogo() },
         appName = stringResource(R.string.app_name),
@@ -378,11 +363,7 @@ private fun AboutCard() {
     )
 }
 
-/**
- * "Support development", as the closing row of the About card's group rather
- * than a tonal button inside it. Same weight as any other row you can tap, with
- * a primary chip to keep it the one accent in this block.
- */
+/** "Support development", as the closing row of the About card's group. */
 @Composable
 private fun SupportRow() {
     val context = LocalContext.current
@@ -396,10 +377,9 @@ private fun SupportRow() {
 }
 
 /**
- * One reference link at the foot of the hub (source, licence, privacy): a plain
- * grouped row that opens the URL in the browser. The privacy policy in
- * particular has to stay reachable from inside the app, not only from the store
- * listing, because Calendula touches calendar and contact data.
+ * One reference link at the foot of the hub (source, licence, privacy). The
+ * privacy policy has to stay reachable from inside the app, not only from the
+ * store listing.
  */
 @Composable
 private fun AboutLinkRow(label: String, url: String, icon: ImageVector, position: Position) {
@@ -433,15 +413,9 @@ private fun AppVersionText() {
 }
 
 /**
- * The app icon as a rounded chip: the off-white launcher mark over its slate
- * background colour, rendered oversized and clipped to fill the chip the way a
- * launcher mask would.
- *
- * Sized just past the two text lines beside it, so the card's height is set by
- * its content rather than by the mark towering over it. That also keeps it a
- * step above the 40dp category chips on the rows below — still the block's
- * anchor, no longer its outlier. The mark is a vector, so the size is purely a
- * layout choice; [MARK_OVERSCAN] holds the launcher-mask crop as it shrinks.
+ * The app icon as a rounded chip: the launcher mark over its background colour,
+ * oversized and clipped the way a launcher mask would. Sized just past the two
+ * text lines beside it; [MARK_OVERSCAN] holds the crop as it shrinks.
  */
 @Composable
 private fun AppLogo() {
@@ -464,8 +438,7 @@ private fun AppLogo() {
 private val LOGO_SIZE = 56.dp
 
 /**
- * How far the mark overruns its chip. An adaptive icon's foreground is drawn
- * with a wide safe margin, so at 1:1 the flower would sit small and lost inside
- * the chip; the launcher crops the same way.
+ * How far the mark overruns its chip. An adaptive icon's foreground carries a
+ * wide safe margin, so at 1:1 it would sit small and lost; launchers crop it too.
  */
 private const val MARK_OVERSCAN = 1.5f

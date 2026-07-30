@@ -116,14 +116,10 @@ class AgendaWidget : GlanceAppWidget() {
 
     override val stateDefinition = PreferencesGlanceStateDefinition
 
-    // Single: type and row metrics come from the user's chosen WidgetSize, not
-    // from the widget's measured size (#103, #51), so there is nothing to gain
-    // from Glance building one RemoteViews per host size bucket — and plenty to
-    // lose, since that roughly doubles the serialized payload. The row list is
-    // still capped below: an uncapped agenda (the range goes up to
-    // AgendaRange.MAX_CUSTOM_DAYS = 365) could push the RemoteViews past the
-    // binder transaction limit and the host would just show "Problem loading
-    // widget".
+    // Single: metrics come from the chosen WidgetSize, not the measured one
+    // (#103, #51), so a RemoteViews per host size bucket would only double the
+    // payload. The row list stays capped below — an uncapped agenda could push
+    // the RemoteViews past the binder transaction limit.
     override val sizeMode = SizeMode.Single
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -164,10 +160,8 @@ private sealed interface AgendaRow {
 
 @Composable
 private fun AgendaWidgetBody(data: AgendaWidgetData, dark: Boolean) {
-    // Type and row metrics come from the user's chosen size step, read reactively
-    // from per-instance Glance state and falling back to the saved pref for a
-    // freshly placed widget (#103, #51). The permission screen has no loaded prefs
-    // to fall back to, so it takes the default.
+    // Read reactively from per-instance Glance state, falling back to the saved
+    // pref for a freshly placed widget (#103, #51).
     // The stripe is then re-resolved against the system font scale so it tracks the
     // sp-sized text beside it instead of drifting at large accessibility settings.
     val savedSize = (data as? AgendaWidgetData.Ready)?.savedWidgetSize ?: WidgetSize.SMALL

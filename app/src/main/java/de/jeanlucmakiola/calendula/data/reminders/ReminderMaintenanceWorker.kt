@@ -15,13 +15,8 @@ import java.util.concurrent.TimeUnit
 
 /**
  * The backstop under the alarm: a daily scan that runs whether or not the alarm
- * survived.
- *
- * The scan alarm re-arms itself at most a day out, so in the steady state this
- * finds nothing to do. It exists for the case the whole feature is about — a
- * device that quietly drops the alarm without a reboot to announce it. The
- * scheduling half of reminder delivery must not have a single point of failure,
- * which is exactly what the provider's broadcast turned out to be.
+ * survived. Finds nothing to do in the steady state; it exists for the device
+ * that quietly drops the alarm without a reboot to announce it (#75).
  */
 object ReminderMaintenanceScheduler {
 
@@ -55,8 +50,8 @@ class ReminderMaintenanceWorker(
             .scan()
         Result.success()
     } catch (e: Exception) {
-        // The scan swallows its own failures; anything reaching here is the
-        // entry point itself, which a retry will not mend. Never fail the chain.
+        // The scan swallows its own failures, so anything reaching here is the
+        // entry point itself — a retry will not mend it.
         Log.w(TAG, "Reminder maintenance scan failed", e)
         Result.success()
     }

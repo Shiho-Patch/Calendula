@@ -233,11 +233,9 @@ class EventEditViewModel @Inject constructor(
         // off the calendar's durable marker, not a stored id, so it holds after a
         // backup restore too.
         val isManaged = local.editTarget != null && resolvedCalendar?.isManaged == true
-        // The picker offers writable calendars only; the event's own calendar is
-        // added back whenever it isn't among them — a managed special-dates one,
-        // or one switched off on this device — so the row keeps naming it instead
-        // of reading as the "no calendar" error, and saving can leave the event
-        // where it is. A calendar the app may not write to is still no target.
+        // The event's own calendar is added back whenever it isn't a target
+        // (managed, or switched off), so the row keeps naming it and saving can
+        // leave the event where it is. A read-only one is still no target.
         val ownCalendar = resolvedCalendar?.takeIf { own ->
             own.canModifyContents && external.writable.none { it.id == own.id }
         }

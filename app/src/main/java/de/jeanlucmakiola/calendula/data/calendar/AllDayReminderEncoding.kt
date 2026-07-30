@@ -73,9 +73,8 @@ internal fun nextYearlyOccurrence(month: Int, day: Int, today: LocalDate): Local
 /**
  * Recover the semantic whole-day lead time from a raw all-day reminder
  * [rawMinutes] — the inverse of [toProviderAllDayMinutes], for the form and the
- * detail screen. Delegates to [allDayLeadDays] so what is displayed is the day
- * the reminder actually fires on; see there for how an encoded row is told from
- * a plain one written by another calendar app.
+ * detail screen. Delegates to [allDayLeadDays], so the day displayed is the day
+ * the reminder actually fires on.
  */
 internal fun fromProviderAllDayMinutes(
     rawMinutes: Int,

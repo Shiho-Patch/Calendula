@@ -13,11 +13,9 @@ data class CalendarSource(
     val accountType: String,
     val color: Int,
     /**
-     * The system's per-calendar `Calendars.VISIBLE` flag — the single visibility
-     * model: it decides both what Calendula shows and whether the provider
-     * schedules this calendar's reminder alarms at all (#75). Settings →
-     * Calendars writes it; the drawer's filter sheet is a separate, purely
-     * in-app declutter that leaves reminders alone.
+     * The system's `Calendars.VISIBLE` flag — the single visibility model,
+     * deciding both what Calendula shows and whether this calendar plans
+     * reminders (#75). The drawer's filter sheet is a separate in-app declutter.
      */
     val isVisibleInSystem: Boolean,
     /**
@@ -47,10 +45,8 @@ data class CalendarSource(
     val isManaged: Boolean = false,
     /**
      * Whether the provider keeps this calendar's events on the device
-     * (`Calendars.SYNC_EVENTS`). Independent of [isVisibleInSystem]. For a
-     * synced account it means the events aren't stored locally at all, so the
-     * calendar reads as permanently empty; a device-local calendar another app
-     * created can hold events with the flag off, so it says nothing there.
+     * (`Calendars.SYNC_EVENTS`), independent of [isVisibleInSystem]. Says
+     * nothing about device-local calendars, which can hold events with it off.
      * Read for the "not synced" row label (#76).
      */
     val syncsEvents: Boolean = true,
@@ -77,12 +73,9 @@ data class EventInstance(
 fun EventInstance.hasEnded(now: Instant): Boolean = end <= now
 
 /**
- * The zone this event's calendar dates live in. Timed events are resolved in the
- * device [zone]; all-day events live at UTC midnights with an exclusive end, so
- * resolving them anywhere else shifts the day boundaries — east of UTC the end
- * leaks onto the following day (#65), west of UTC the start pulls back onto the
- * previous one (#82). Every surface that has to name an all-day event's date
- * goes through here, so grid, agenda, detail and search cannot disagree.
+ * The zone this event's calendar dates live in: the device [zone] for timed
+ * events, UTC for all-day ones, whose midnights would otherwise shift day
+ * boundaries (#65, #82). Every surface naming an all-day date goes through here.
  */
 fun EventInstance.dateZone(zone: TimeZone): TimeZone =
     if (isAllDay) TimeZone.UTC else zone
@@ -92,9 +85,8 @@ fun EventInstance.spanFirstDay(zone: TimeZone): LocalDate =
     start.toLocalDateTime(dateZone(zone)).date
 
 /**
- * The last calendar day this event actually occupies. An event ending exactly at
- * midnight (all-day events end at the exclusive next-midnight) does not reach
- * into that boundary day, so resolve the instant just before [EventInstance.end].
+ * The last calendar day this event occupies. An event ending exactly at midnight
+ * does not reach into that day, so resolve just before [EventInstance.end].
  */
 fun EventInstance.spanLastDay(zone: TimeZone): LocalDate {
     val lastInstant = if (end > start) end - 1.milliseconds else start

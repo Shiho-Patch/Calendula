@@ -54,12 +54,10 @@ class ReminderNotifier @Inject constructor(
     }
 
     /**
-     * The single choke point for "this calendar is switched off". The scan
-     * already filters on `Calendars.VISIBLE`, but two paths reach [post] around
-     * it: a snooze re-shown from its own alarm, armed before the calendar was
-     * switched off, and a read-only install whose switch lives app-side
-     * ([CalendarPrefs]) because it may not write the flag. Both are covered here
-     * rather than in either receiver.
+     * The single choke point for "this calendar is switched off", covering the
+     * two paths that reach [post] around the scan's own filter: a snooze armed
+     * before the switch-off, and a read-only install whose switch lives in
+     * [CalendarPrefs].
      */
     private suspend fun isSilenced(calendarId: Long): Boolean =
         calendarId in calendarPrefs.pendingDisabledCalendarIds.first() ||
@@ -123,7 +121,7 @@ class ReminderNotifier @Inject constructor(
             // POST_NOTIFICATIONS was revoked between canPost() and here.
             Log.w(TAG, "Could not post reminder for event ${alert.eventId}", e)
         }
-        // Handled either way: re-running it would hit the same revoked permission.
+        // Handled either way — a retry hits the same revoked permission.
         return true
     }
 
@@ -142,8 +140,7 @@ class ReminderNotifier @Inject constructor(
 
     private fun detailIntent(alert: ReminderAlert): PendingIntent = PendingIntent.getActivity(
         context,
-        // Shares the per-(alert, action) request-code scheme with the buttons, so
-        // the key's wider value range can't collide one notification's intents.
+        // Shares the per-(alert, action) request-code scheme with the buttons.
         /* requestCode = */ ReminderActionReceiver.requestCode(
             alert, ReminderActionReceiver.ACTION_OPEN,
         ),

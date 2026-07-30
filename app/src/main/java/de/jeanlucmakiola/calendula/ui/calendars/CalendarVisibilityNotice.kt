@@ -23,10 +23,8 @@ import javax.inject.Inject
 
 /**
  * The one-time notice that Calendula now follows the device's per-calendar
- * visibility (#75). Armed by `CalendarVisibilityReconciler` on the first launch
- * that finds a calendar switched off outside the app — those used to show their
- * events here and no longer do, and the app deliberately does not switch them
- * back on, because that would un-hide them in every other calendar app too.
+ * visibility (#75), armed by `CalendarVisibilityReconciler`. The app does not
+ * switch those calendars back on — that would un-hide them everywhere else too.
  */
 @HiltViewModel
 class CalendarVisibilityNoticeViewModel @Inject constructor(
@@ -35,12 +33,9 @@ class CalendarVisibilityNoticeViewModel @Inject constructor(
 ) : ViewModel() {
 
     /**
-     * Reconcile whenever the app comes up with the calendar permission held.
-     * The launch itself is covered by `CalendulaApp`, but a permission granted
-     * on Android's app-settings screen comes back through `RootScreen`'s
-     * ON_RESUME and never touches the permission screen's callback — so the
-     * trigger hangs off "we are showing the app", not off one grant route.
-     * Settled runs cost two DataStore reads and stop there.
+     * Reconcile whenever the app comes up with the calendar permission held,
+     * rather than off one grant route: a permission granted on Android's
+     * app-settings screen never reaches the permission screen's callback.
      */
     fun reconcile() {
         viewModelScope.launch { reconciler.run() }

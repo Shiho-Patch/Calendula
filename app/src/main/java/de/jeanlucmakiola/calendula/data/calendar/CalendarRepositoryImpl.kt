@@ -68,23 +68,17 @@ class CalendarRepositoryImpl @Inject constructor(
 
     /**
      * Re-query signal for everything filtered by visibility: the provider's own
-     * notifications, plus every change to the pending switch-off set (an id
-     * leaves it as its `VISIBLE` write lands, which changes what is shown).
-     * [calendarsSnapshot] keeps the two in step.
+     * notifications, plus every change to the pending switch-off set.
      */
     private fun visibilityTicks(): Flow<Unit> = merge(
         ticks.onStart { emit(Unit) },
-        // The current value is already covered by the tick above; only later
-        // changes re-query (the set is deduped, so an unrelated DataStore write
-        // doesn't).
+        // drop(1): the current value is already covered by the tick above.
         prefs.pendingDisabledCalendarIds.drop(1).map {},
     )
 
-    // A switch-off the app hasn't been allowed to write yet is folded into the
-    // flag itself, so every consumer — the Settings switch, the filter sheet,
-    // the form and import pickers, the widgets — reads one visibility and can't
-    // disagree with what the user just tapped. The reconciler reads the data
-    // source directly, because it needs the provider's own answer.
+    // A switch-off not yet written to the provider is folded into the flag
+    // itself, so every consumer reads one visibility (#75). The reconciler goes
+    // to the data source directly — it needs the provider's own answer.
     override fun calendars(): Flow<List<CalendarSource>> =
         visibilityTicks().reQuery {
             val calendars = calendarsSnapshot()
@@ -94,19 +88,13 @@ class CalendarRepositoryImpl @Inject constructor(
                 if (it.id in pendingDisabled) it.copy(isVisibleInSystem = false) else it
             }
         }
-            // Collapse re-emissions that carry an identical list (see
-            // [instances]).
             .distinctUntilChanged()
             .flowOn(io)
 
-    // Instances are filtered by the system's per-calendar VISIBLE flag ∪ the
-    // switch-offs still waiting to be written to it ∪ the app-side hidden set:
-    // an event is dropped when the user switched its calendar off in Settings →
-    // Calendars (which also stops the provider scheduling its reminders) *or*
-    // hid it in the filter sheet. Re-runs when the provider ticks — writing
-    // VISIBLE notifies, so switching a calendar updates every view — or when
-    // either set changes. [calendars] stays unfiltered so those screens can list
-    // and re-enable invisible calendars.
+    // Instances are filtered by the system's VISIBLE flag ∪ the switch-offs
+    // still waiting to be written to it ∪ the app-side hidden set from the
+    // filter sheet. [calendars] stays unfiltered so those screens can list and
+    // re-enable invisible calendars.
     override fun instances(range: ClosedRange<Instant>): Flow<List<EventInstance>> =
         combine(
             visibilityTicks().reQuery {
@@ -127,10 +115,8 @@ class CalendarRepositoryImpl @Inject constructor(
             if (excluded.isEmpty()) queried.instances
             else queried.instances.filterNot { it.calendarId in excluded }
         }
-            // Any DataStore edit re-emits the hidden set even when it is
-            // unchanged (e.g. writing the last-used calendar), which would
-            // re-surface an identical list — collapse those so views don't
-            // re-render for them.
+            // Any DataStore edit re-emits the hidden set even when unchanged;
+            // collapse those so views don't re-render for them.
             .distinctUntilChanged()
             .flowOn(io)
 
@@ -151,21 +137,14 @@ class CalendarRepositoryImpl @Inject constructor(
     private var cachedCalendars: List<CalendarSource> = emptyList()
 
     /**
-     * The calendar list for the current tick, queried once and shared. Every
-     * open view collects [calendars] *and* filters its instances by visibility,
-     * which used to cost one full `Calendars` query each per tick. Reusing a
-     * single read also keeps them consistent: within a tick, what a screen lists
-     * and what its events are filtered against can't come from two snapshots.
+     * The calendar list for the current tick, queried once and shared, so every
+     * open view doesn't pay for its own `Calendars` query and all of them see
+     * one snapshot.
      *
-     * An empty result is never cached — it is what a read without the calendar
-     * permission returns, and the grant itself doesn't notify the provider.
-     *
-     * The pending switch-off set keys the cache alongside the tick. An id leaves
-     * that set the moment its `VISIBLE` write lands, while the observer that
-     * would invalidate the snapshot is only dispatched through the main looper
-     * afterwards — so a snapshot taken while the id was still pending, read
-     * against the set that no longer holds it, would report the calendar as *on*
-     * again and re-admit exactly the events being hidden.
+     * An empty result is never cached — that is what a read without the calendar
+     * permission returns, and the grant itself doesn't notify the provider. The
+     * pending switch-off set keys the cache alongside the tick, because an id
+     * leaves it before the invalidating observer is dispatched.
      */
     private suspend fun calendarsSnapshot(): List<CalendarSource> = calendarsLock.withLock {
         val current = generation.get()

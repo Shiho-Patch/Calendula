@@ -93,13 +93,9 @@ class ReminderActionReceiver : BroadcastReceiver() {
         private const val EXTRA_ALL_DAY = "all_day"
 
         /**
-         * An explicit intent to this receiver carrying [alert] as extras.
-         *
-         * The data URI names the reminder and carries no information the extras
-         * don't. It is what actually keeps two reminders' `PendingIntent`s
-         * apart: `filterEquals` compares action, component, data, type and
-         * categories — never extras — so without it a request-code collision
-         * would have them share one alarm and one payload.
+         * An explicit intent to this receiver carrying [alert] as extras. The
+         * data URI duplicates no information but is what keeps two reminders'
+         * `PendingIntent`s apart — `filterEquals` never compares extras.
          */
         fun intent(context: Context, action: String, alert: ReminderAlert): Intent =
             Intent(context, ReminderActionReceiver::class.java).apply {
@@ -116,13 +112,9 @@ class ReminderActionReceiver : BroadcastReceiver() {
             }
 
         /**
-         * A stable request code per (alert, action) so one notification's
-         * PendingIntents stay distinct and don't clobber each other.
-         *
-         * The key is a hash now rather than a small row id, so the shift is what
-         * keeps the action slot intact; the top three bits it drops can make two
-         * *different* reminders share a code, which the per-reminder data URI in
-         * [intent] separates.
+         * A stable request code per (alert, action), so one notification's
+         * PendingIntents stay distinct. The shift keeps the action slot intact;
+         * the top bits it drops are separated by [intent]'s per-reminder URI.
          */
         fun requestCode(alert: ReminderAlert, action: String): Int {
             val actionOffset = when (action) {

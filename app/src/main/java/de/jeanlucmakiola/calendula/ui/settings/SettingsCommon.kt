@@ -31,23 +31,13 @@ import de.jeanlucmakiola.floret.locale.currentLocale
  */
 
 /**
- * Token-based accent for a leading icon chip (container / on-container pair).
- * Neutral chips stay grey; accents are drawn from the M3 scheme so they adapt
- * to theme, dark mode and dynamic colour.
- *
- * The chips are a scanning aid, so the rule is **no two rows in one group share
- * an accent** — a group in a single colour carries no more information than no
- * colour at all. [Neutral] is not a fourth colour to rotate through but a
- * deliberate step back, for rows that are reference or last-resort rather than
- * somewhere you routinely go.
+ * Accent for a leading icon chip. The chips are a scanning aid, so no two rows
+ * in one group share an accent; [Neutral] is a step back for reference rows
+ * rather than a fourth colour to rotate through.
  */
 internal enum class ChipAccent { Neutral, Primary, Secondary, Tertiary }
 
-/**
- * Leading circular icon chip. Colours come from the M3 scheme via a container /
- * on-container token pair, so each accent stays correctly paired across theme,
- * dark mode and dynamic colour.
- */
+/** Leading circular icon chip, coloured by an M3 container/on-container pair. */
 @Composable
 internal fun CategoryIcon(icon: ImageVector, accent: ChipAccent) {
     val scheme = MaterialTheme.colorScheme
@@ -75,9 +65,7 @@ internal fun CategoryIcon(icon: ImageVector, accent: ChipAccent) {
 
 /**
  * A small primary-coloured group label, matching the Calendars settings screen.
- *
- * Starts on [GroupedListInset] — the cards' own edge — so a header, the hint
- * under it and the group it names all share one left margin.
+ * Inset to [GroupedListInset] so it shares the cards' left margin.
  */
 @Composable
 internal fun SectionHeader(text: String) {
@@ -117,34 +105,18 @@ internal fun reminderChoiceLabel(minutes: List<Int>): String {
     return minutes.map { reminderLeadTimeLabel(it) }.joinToString(", ")
 }
 
-/**
- * Lead times offered for the all-day default — day-scale, since a "minutes
- * before midnight" reminder on an all-day event is rarely what's wanted. Shared
- * with the contact special-dates calendars, whose events are all all-day.
- */
+/** Day-scale lead times for all-day defaults and contact special dates. */
 internal val ALLDAY_REMINDER_PRESETS = listOf(0, 1_440, 2_880, 10_080)
 
-/**
- * A minute-of-day ("09:00") in the app's *own* 12/24-hour convention — the same
- * [LocalUse24HourFormat] the agenda and event rows read, so a time shown in
- * settings can't disagree with the times shown everywhere else.
- */
+/** A minute-of-day in the app's own 12/24-hour convention ([LocalUse24HourFormat]). */
 @Composable
 internal fun settingsTimeOfDay(minutesOfDay: Int): String =
     formatMinuteOfDay(minutesOfDay, LocalUse24HourFormat.current, currentLocale())
 
 /**
- * Second line for an all-day lead-time row: the clock time it fires at.
- *
- * An all-day occurrence has no time of its own, so a reminder's stored offset
- * only decides *which day* it belongs to — the hour always comes from the
- * global "show all-day reminders at" setting (see
- * [de.jeanlucmakiola.calendula.domain.reminders.planReminders]). Naming it on
- * every row is what makes "At time of event" readable on an all-day default at
- * all: it means that day at 09:00, not midnight.
- *
- * Shared by the notification defaults, the per-calendar overrides and the
- * contact special-dates calendars — all three read the same one setting.
+ * Second line for an all-day lead-time row: the clock time it fires at. The
+ * offset only decides which day; the hour comes from the global all-day setting
+ * (see [de.jeanlucmakiola.calendula.domain.reminders.planReminders]).
  */
 @Composable
 internal fun allDayFiringTimeSummary(allDayReminderTimeMinutes: Int): @Composable (Int) -> String? {

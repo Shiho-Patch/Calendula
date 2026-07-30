@@ -175,10 +175,8 @@ private fun ManyContent(
     onSelect: (Long) -> Unit,
     onManageCalendars: (() -> Unit)? = null,
 ) {
-    // No calendar to import into — tell the user honestly, and carry the same
-    // way out the picker's footer offers below. This is the state that footer
-    // exists for: every writable calendar being switched off, read-only or
-    // contact-filled is exactly what empties this list (#76).
+    // No calendar to import into; carries the same way out the picker's footer
+    // offers below (#76).
     if (state.calendars.isEmpty()) {
         CenteredMessage(
             message = stringResource(R.string.import_no_calendar),

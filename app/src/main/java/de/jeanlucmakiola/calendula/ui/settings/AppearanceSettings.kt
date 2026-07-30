@@ -84,7 +84,6 @@ internal fun AppearanceScreen(
 
     val fonts by viewModel.fontState.collectAsStateWithLifecycle()
     val launcherName by viewModel.launcherName.collectAsStateWithLifecycle()
-    // A picked file that didn't parse as a font: tell the user and keep the old choice.
     val context = LocalContext.current
     val importFailedMessage = stringResource(R.string.settings_font_import_failed)
     LaunchedEffect(Unit) {
@@ -107,8 +106,6 @@ internal fun AppearanceScreen(
         )
         GroupedRow(
             title = stringResource(R.string.settings_dynamic_color),
-            // Says what it does when on; below Android 12 that is replaced by
-            // the reason the switch is dead.
             summary = if (state.dynamicColorAvailable) {
                 stringResource(R.string.settings_dynamic_color_summary)
             } else {
@@ -143,9 +140,7 @@ internal fun AppearanceScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Fonts — the two Material typeface roles, each independently choosable
-        // (issue #19). Headings = brand (display/headline); body = plain
-        // (title/body/label). Both default to the system typeface.
+        // Fonts — the two Material typeface roles (#19).
         GroupedRow(
             title = stringResource(R.string.settings_font_headings),
             summary = fontLabel(fonts.brand),
@@ -161,10 +156,8 @@ internal fun AppearanceScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // App name — chooses the launcher label between "Calendula" and "Calendar"
-        // (issue #44). Own group: it's a launcher/system concern, not app styling.
-        // A sub-page chooser (not a switch), matching the app's other "choose one"
-        // settings and leaving room for more names later.
+        // App name — the launcher label (#44); its own group, being a
+        // launcher concern rather than app styling.
         GroupedRow(
             title = stringResource(R.string.settings_app_name),
             summary = launcherNameLabel(launcherName),
@@ -179,10 +172,8 @@ internal fun AppearanceScreen(
             onDismiss = { showAppName = false },
             predictiveBack = true,
         ) {
-            // Show both names as launcher-mark previews so the user sees what
-            // they'd switch to, not just the current state. Tapping applies
-            // immediately and highlights — the picker stays open so the change is
-            // visible; back exits.
+            // Both names shown as launcher-mark previews; tapping applies at
+            // once and the picker stays open so the change is visible.
             Text(
                 text = stringResource(R.string.settings_app_name_summary),
                 style = MaterialTheme.typography.bodyMedium,
@@ -211,10 +202,8 @@ internal fun AppearanceScreen(
         }
     }
     if (showTheme) {
-        // No preview here on purpose: picking a theme repaints the app itself,
-        // which is a better demonstration than any thumbnail. What the list
-        // *can't* show is which way "Follow the system" currently falls, so that
-        // one option says so.
+        // No thumbnails: picking a theme repaints the app itself. Only which
+        // way "Follow the system" currently falls needs spelling out.
         val systemDark = isSystemInDarkTheme()
         OptionPicker(
             title = stringResource(R.string.settings_theme),
@@ -307,19 +296,8 @@ private val FONT_PICKER_MIME_TYPES = arrayOf(
 
 /**
  * Full-screen font chooser for one [FontRole]: the system default, each bundled
- * font (previewed in its own face), and "Choose file…" which opens the system
- * picker to load a .ttf/.otf. Selecting a system/bundled option applies at once;
- * a file is validated and imported by the caller, switching to the custom font
- * on success.
- *
- * Above the rows sits a specimen of the *current* choice, set in the type role
- * this picker governs — headline for [FontRole.BRAND], body for
- * [FontRole.PLAIN]. The per-row "Ag" says what a face looks like; only a full
- * line at the real size says whether it works for the role, and it is the one
- * thing that makes the two font settings distinguishable from each other.
- *
- * Being a preview picker, it stays open on selection (see `FullScreenPicker`):
- * the specimen re-renders instead, which is the whole point of the screen.
+ * font, and "Choose file…" for a .ttf/.otf. A specimen of the current choice
+ * sits above the rows, so the picker stays open on selection and re-renders it.
  */
 @Composable
 private fun FontPicker(
@@ -335,22 +313,17 @@ private fun FontPicker(
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        // Stay open on a successful import too: the specimen switches to the
-        // imported face, which is the only look the user gets before committing.
         if (uri != null) onImport(uri)
     }
 
     // System default + the bundled fonts + the "Choose file…" row.
     val rowCount = BundledFont.entries.size + 2
     val isCustom = selected == FONT_CUSTOM_TOKEN
-    // Resolving the custom face stats the disk and builds a fresh FontFamily, so
-    // memoise it; re-keyed on [stamp] (bumped on re-import) so a replaced file
-    // refreshes the preview while plain recompositions reuse the cached family.
+    // Resolving the custom face stats the disk, so memoise it; [stamp] is bumped
+    // on re-import to refresh a replaced file.
     val customPreview = remember(role, isCustom, stamp) {
         if (isCustom) resolveFontFamily(FONT_CUSTOM_TOKEN, role, context) else null
     }
-    // The face the specimen is set in: the same resolution the theme performs,
-    // so what is shown here is what the app will use.
     val selectedFamily = remember(role, selected, stamp) {
         resolveFontFamily(selected, role, context)
     }
@@ -362,8 +335,6 @@ private fun FontPicker(
             preview = FontFamily.Default,
             selected = selected == FONT_SYSTEM_TOKEN,
             position = positionOf(0, rowCount),
-            // Applies straight away and stays open — the specimen above is the
-            // answer to "what does this one look like".
             onClick = { onSelect(FONT_SYSTEM_TOKEN) },
         )
         BundledFont.entries.forEachIndexed { index, font ->
@@ -381,7 +352,6 @@ private fun FontPicker(
             } else {
                 stringResource(R.string.settings_font_choose_file)
             },
-            // A loaded font previews in its own face; otherwise show an upload cue.
             preview = customPreview,
             leadingIcon = if (isCustom) null else Icons.Default.UploadFile,
             selected = isCustom,
@@ -392,11 +362,8 @@ private fun FontPicker(
 }
 
 /**
- * A specimen of [family] set in the type role [role] governs: a headline for
- * the brand role, a paragraph for the plain one — the same styles the app draws
- * with, only the family swapped, so nothing here can flatter a face the app
- * won't reproduce. A null [family] is the system typeface, i.e. the Material
- * default the styles already carry.
+ * A specimen of [family] in the type role [role] governs, using the app's own
+ * styles with only the family swapped. A null [family] is the system typeface.
  */
 @Composable
 private fun FontSpecimen(role: FontRole, family: FontFamily?) {
@@ -412,8 +379,8 @@ private fun FontSpecimen(role: FontRole, family: FontFamily?) {
         ),
         style = style.copy(fontFamily = family ?: style.fontFamily),
         color = MaterialTheme.colorScheme.onSurface,
-        // Two lines up front so switching between a wide and a narrow face
-        // doesn't shuffle the option list up and down under it.
+        // Fixed height, so switching between a wide and a narrow face doesn't
+        // shuffle the option list under it.
         minLines = 2,
         modifier = Modifier
             .fillMaxWidth()
@@ -422,9 +389,8 @@ private fun FontSpecimen(role: FontRole, family: FontFamily?) {
 }
 
 /**
- * One row in the [FontPicker]: the font's name, a leading "Ag" sample rendered in
- * the option's own [preview] face (or an [leadingIcon] cue when there's nothing
- * to preview), and a check when it's the current selection.
+ * One row in the [FontPicker]: the font's name, an "Ag" sample in its own
+ * [preview] face (or an [leadingIcon] cue), and a check when selected.
  */
 @Composable
 private fun FontOptionRow(
@@ -460,11 +426,8 @@ private fun FontOptionRow(
 }
 
 /**
- * One selectable launcher-name preview in the App name picker (issue #44): the
- * app's launcher mark over the name, framed as a card. The active one carries a
- * primary border, a tinted container and a check; tapping selects it. The mark
- * is the same for both — only the label changes — so the card previews exactly
- * what the home screen will read.
+ * One selectable launcher-name preview in the App name picker (#44): the app's
+ * launcher mark over the name, framed as a card.
  */
 @Composable
 private fun AppNameOptionCard(
@@ -494,8 +457,8 @@ private fun AppNameOptionCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // The adaptive launcher mark, reconstructed as a squircle (as in the
-        // onboarding BrandHero) so it renders identically everywhere.
+        // The adaptive mark rebuilt as a squircle, as in the onboarding
+        // BrandHero, so it renders identically everywhere.
         Box(
             modifier = Modifier
                 .size(64.dp)
@@ -515,7 +478,6 @@ private fun AppNameOptionCard(
             textAlign = TextAlign.Center,
             maxLines = 1,
         )
-        // Selection indicator: a filled check when active, an empty ring otherwise.
         Box(
             modifier = Modifier
                 .size(24.dp)

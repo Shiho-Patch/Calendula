@@ -223,10 +223,9 @@ private fun searchSummary(event: EventInstance): String {
     val start = remember(event.start, zone) {
         JavaInstant.ofEpochMilli(event.start.toEpochMilliseconds()).atZone(zone)
     }
-    // The date comes from the shared span rule, not from [start]: an all-day
-    // event sits at UTC midnight, so reading its date in the device zone names
-    // the day before west of UTC (#82). The clock time below stays in the device
-    // zone — it is only ever rendered for timed events.
+    // From the shared span rule, not [start]: an all-day event sits at UTC
+    // midnight and would name the day before west of UTC (#82). The clock time
+    // below stays device-zone — it is only rendered for timed events.
     val dateText = remember(event.start, event.end, event.isAllDay, locale) {
         DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
             .format(event.spanFirstDay(TimeZone.currentSystemDefault()).toJavaLocalDate())

@@ -52,15 +52,9 @@ import java.time.format.TextStyle as JavaTextStyle
  * Views: everything that changes how a calendar view reads, grouped by the view
  * it belongs to, plus the two cross-view ordering lists (#24, #69).
  *
- * The first group holds what applies everywhere (default view, week start, time
- * format); the rest are per-view. Anything that styles the *app* rather than a
- * view (theme, fonts) is in [AppearanceScreen]; the widget's own copies of the
- * agenda settings are in [WidgetsScreen].
- *
- * The quick-switch cycle and the navigation-drawer list are two independent
- * orders — a view disabled in the quick-switch cycle is still reachable from the
- * drawer, which always lists every view. The switch needs at least two targets,
- * so the last [QuickSwitchConfig.MIN_ENABLED] enabled views can't be turned off.
+ * The quick-switch cycle and the drawer list are independent orders — a view
+ * off in the cycle is still reachable from the drawer. The cycle needs at least
+ * [QuickSwitchConfig.MIN_ENABLED] targets.
  */
 @Composable
 internal fun ViewsScreen(
@@ -266,8 +260,6 @@ internal fun ViewsScreen(
             options = IMPLEMENTED_VIEWS,
             selected = state.defaultView,
             label = { stringResource(it.labelRes) },
-            // The same icon each view carries in the drawer and the switcher
-            // pill, so the row is matched to the view by eye, not by reading.
             leading = {
                 Icon(
                     imageVector = it.icon,
@@ -299,9 +291,8 @@ internal fun ViewsScreen(
             options = TimeFormatPref.entries,
             selected = state.timeFormat,
             label = { timeFormatLabel(it) },
-            // Each option renders the same sample time the way it would write
-            // it — an afternoon one, since that is where 12h and 24h diverge.
-            // "Automatic" additionally says which of the two it resolves to now.
+            // Each option renders the same sample time its own way;
+            // "Automatic" also names which of the two it resolves to.
             summary = { pref ->
                 val sample = formatTimeOfDay(
                     hour = SAMPLE_HOUR,
@@ -335,8 +326,6 @@ internal fun ViewsScreen(
             title = stringResource(R.string.settings_agenda_range),
             description = stringResource(R.string.settings_agenda_range_hint),
             selected = state.agendaScreenRange,
-            // Resolving each option to real dates needs the same week start the
-            // agenda itself windows by.
             weekStart = state.weekStart.resolveFirstDay(currentLocale()),
             onSelect = viewModel::setAgendaScreenRange,
             onDismiss = { showAgendaScreenRange = false },
@@ -400,8 +389,7 @@ private val WEEK_START_OPTIONS: List<WeekStartPref> =
 @Composable
 internal fun weekStartLabel(pref: WeekStartPref): String = when (pref) {
     WeekStartPref.Auto -> stringResource(R.string.settings_week_start_auto)
-    // Localised full weekday name, so any of the seven days reads naturally
-    // without a per-day string resource.
+    // Localised weekday name, so no per-day string resource is needed.
     is WeekStartPref.Day -> java.time.DayOfWeek.of(pref.day.ordinal + 1)
         .getDisplayName(JavaTextStyle.FULL, currentLocale())
 }

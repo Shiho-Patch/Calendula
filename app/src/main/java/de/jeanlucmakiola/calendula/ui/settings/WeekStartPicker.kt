@@ -31,20 +31,11 @@ import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.floret.locale.currentLocale
 
 /**
- * The week-start chooser, with the grid it rearranges shown above it.
+ * The week-start chooser, with the grid it rearranges above it — the same
+ * [MonthStylePreview] the Month style picker uses, drawn in the user's own month
+ * style. "Follow the system" carries the day it resolves to as its summary.
  *
- * Which column a week opens on is the most visual setting in the app, and the
- * one hardest to hold in your head from a weekday name alone. The preview is
- * the same [MonthStylePreview] the Month style picker uses, drawn in the user's
- * *own* month style, so what moves is exactly what will move on the real
- * screen. It is short here (the option list runs to eight rows), which the
- * preview supports natively by scaling.
- *
- * "Follow the system" carries the day it currently resolves to as its summary —
- * otherwise the one automatic option is the only one whose effect is invisible.
- *
- * A preview picker, so selecting applies at once and keeps the picker open;
- * back exits (see `FullScreenPicker`).
+ * A preview picker, so selecting applies at once and keeps the picker open.
  */
 @Composable
 internal fun WeekStartPicker(
@@ -93,8 +84,6 @@ internal fun WeekStartPicker(
             val isSelected = option == selected
             GroupedRow(
                 title = weekStartLabel(option),
-                // Only the automatic option needs a second line: it is the one
-                // whose effect the label doesn't name.
                 summary = if (option == WeekStartPref.Auto) {
                     stringResource(
                         R.string.settings_week_start_auto_summary,

@@ -45,11 +45,9 @@ import de.jeanlucmakiola.floret.components.SelectedCheck
  * each and a check on the selected one. Emits into the caller's [ColumnScope]
  * (a scrolling column), so the caller owns the surrounding chrome.
  *
- * The list holds event *targets* only, so a calendar that is switched off,
- * read-only or managed is silently absent — which reads as a missing calendar
- * rather than an excluded one (#76). [onManageCalendars], when given, adds the
- * footer row that names the possible reasons and opens the calendar manager,
- * where each row then says which one applies.
+ * The list holds event *targets* only, so a switched-off, read-only or managed
+ * calendar is absent (#76). [onManageCalendars], when given, adds the footer row
+ * naming the possible reasons and opening the calendar manager.
  */
 @Composable
 fun ColumnScope.CalendarPickerGroups(

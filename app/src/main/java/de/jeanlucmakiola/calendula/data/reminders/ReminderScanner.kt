@@ -33,13 +33,9 @@ import javax.inject.Singleton
 
 /**
  * One pass of in-house reminder delivery: read what is planned, post what has
- * come due, and arm the next wake-up.
- *
- * This is the whole loop. Every trigger — the alarm firing, boot, a clock or
- * timezone change, an edit landing in the provider, the app starting, the daily
- * safety net — runs the same [scan], so there is a single path to reason about
- * and no ordering between triggers to get wrong. Re-running it is always safe:
- * the watermark in [ReminderStatePrefs] decides what is owed, not the trigger.
+ * come due, and arm the next wake-up. Every trigger runs the same [scan], and
+ * re-running is always safe — the watermark in [ReminderStatePrefs] decides what
+ * is owed, not the trigger.
  */
 @Singleton
 class ReminderScanner @Inject constructor(
@@ -68,8 +64,7 @@ class ReminderScanner @Inject constructor(
             try {
                 runScan()
             } catch (e: SecurityException) {
-                // The calendar permission was revoked mid-flight. Nothing to
-                // re-arm and nothing to recover from — the next grant re-scans.
+                // Permission revoked mid-flight; the next grant re-scans.
                 Log.w(TAG, "Reminder scan lacks the calendar permission", e)
             } catch (e: Exception) {
                 Log.w(TAG, "Reminder scan failed", e)
@@ -82,18 +77,16 @@ class ReminderScanner @Inject constructor(
         if (!hasReadCalendar()) return
 
         if (!settingsPrefs.remindersEnabled.first()) {
-            // Reminders off: drop the wake-up, but keep the watermark moving so
-            // switching them back on doesn't replay everything missed meanwhile.
+            // Reminders off: drop the wake-up, but keep the watermark moving
+            // so switching them back on doesn't replay the backlog.
             alarms.cancelScan()
             state.setLastScanMillis(now)
             return
         }
 
         val lookahead = reminderQueryHorizon(LOOKAHEAD_MILLIS, source.longestReminderMinutes())
-        // Reach a little into the past as well: an event already under way can
-        // still owe a reminder (an all-day "at time of event" encodes to a
-        // negative offset, which fires after begin), and a catch-up pass needs
-        // to see the occurrences whose moment it missed.
+        // Reach into the past too: an all-day "at time of event" encodes to a
+        // negative offset, and a catch-up pass needs the occurrences it missed.
         val occurrences = source.occurrences(now - PAST_WINDOW_MILLIS, now + lookahead)
         val planned = planReminders(
             instances = occurrences,
@@ -112,8 +105,8 @@ class ReminderScanner @Inject constructor(
         if (notifier.canPost()) {
             schedule.due.forEach { notifier.post(it.toAlert()) }
         }
-        // Advance regardless of whether anything could be posted: a user who
-        // muted notifications is not owed a backlog when they unmute.
+        // Advance even when nothing could be posted, so muting notifications
+        // doesn't build a backlog.
         state.setLastScanMillis(now)
         alarms.scheduleScan(schedule.nextAlarmMillis)
     }
@@ -123,13 +116,9 @@ class ReminderScanner @Inject constructor(
     ) == PackageManager.PERMISSION_GRANTED
 
     /**
-     * Re-scan when the provider changes, so an event saved or deleted in the app
-     * re-arms the alarm immediately rather than waiting for the next pass.
-     *
-     * Debounced: a single save writes the event, its reminders and its
-     * attendees, and each lands as its own notification. Only useful while the
-     * process is alive — every other trigger covers the rest, which is why
-     * nothing here needs to survive it.
+     * Re-scan when the provider changes, so a saved or deleted event re-arms the
+     * alarm at once. Debounced, since a single save lands as several
+     * notifications. Process-lifetime only; other triggers cover the rest.
      */
     fun startWatchingProvider() {
         if (watching) return
@@ -159,9 +148,8 @@ class ReminderScanner @Inject constructor(
         const val PAST_WINDOW_MILLIS = 24L * 60 * 60 * 1000
 
         /**
-         * Never wait longer than a day for the next pass, even with nothing
-         * pending: it rolls the lookahead window forward and re-arms an alarm
-         * the system may have dropped.
+         * Never wait longer than a day for the next pass: it rolls the lookahead
+         * window forward and re-arms an alarm the system may have dropped.
          */
         const val MAX_ALARM_INTERVAL_MILLIS = 24L * 60 * 60 * 1000
 

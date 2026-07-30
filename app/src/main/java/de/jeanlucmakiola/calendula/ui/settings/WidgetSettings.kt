@@ -33,13 +33,9 @@ import de.jeanlucmakiola.floret.locale.currentLocale
 import kotlin.math.roundToInt
 
 /**
- * Widgets & tiles (#69): the home-screen widgets' own settings and the Quick
- * Settings tile shortcut — the app's system surfaces, collected in one place.
- *
- * The agenda widget keeps its own range and text size, deliberately separate
- * from the Agenda *screen*'s range in [ViewsScreen]: a widget is glanced at, a
- * screen is browsed, and having the two rows sit next to each other (as they did
- * before) made them easy to mistake for one another.
+ * Widgets & tiles (#69): the home-screen widgets' settings and the Quick
+ * Settings tile shortcut. The agenda widget keeps its own range and text size,
+ * separate from the Agenda screen's range in [ViewsScreen].
  */
 @Composable
 internal fun WidgetsScreen(
@@ -71,9 +67,8 @@ internal fun WidgetsScreen(
             onClick = { showWidgetSize = true },
         )
 
-        // One-tap add of the "New event" Quick Settings tile. The system prompt
-        // is API 33+; on older versions the tile is still addable manually from
-        // the QS editor, so the row simply doesn't appear here.
+        // The add-tile prompt is API 33+; below that the tile is still
+        // addable from the QS editor, so the row just doesn't appear.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Spacer(Modifier.height(24.dp))
             QuickSettingsTileRow()
@@ -98,10 +93,8 @@ internal fun WidgetsScreen(
             options = WidgetSize.entries,
             selected = state.widgetSize,
             label = { widgetSizeLabel(it) },
-            // A size name says nothing about what you get; the text scale it
-            // draws at does. No live preview here on purpose: the widget is
-            // Glance/RemoteViews, so a Compose mock-up would be a second
-            // implementation free to drift from the real thing.
+            // No live preview: the widget is Glance/RemoteViews, so a Compose
+            // mock-up would be a second implementation free to drift.
             summary = { widgetSizeSummary(it) },
             onSelect = viewModel::setWidgetSize,
             onDismiss = { showWidgetSize = false },
@@ -138,9 +131,8 @@ private fun requestAddQsTile(context: Context) {
 }
 
 /**
- * What a size step actually does, as a percentage of the smallest one's event
- * text. Derived from the widget's own [metricsFor] table rather than written
- * out here, so a retuned step can't leave this line claiming the old number.
+ * What a size step does, as a percentage of the smallest one's event text.
+ * Derived from the widget's own [metricsFor] table rather than hardcoded.
  */
 @Composable
 private fun widgetSizeSummary(size: WidgetSize): String {

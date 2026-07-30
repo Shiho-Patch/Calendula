@@ -59,10 +59,8 @@ import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.floret.components.positionOf
 import java.time.LocalDate
 
-// SAF mime filter for the restore picker. `.ics` files reach us under several
-// mimes depending on the source app (our own export uses text/calendar; others
-// hand them out as octet-stream or text/plain), so accept the common set rather
-// than hide valid backups behind an over-tight filter.
+// SAF mime filter for the restore picker. Source apps hand `.ics` files out
+// under several mimes, so accept the common set.
 private val RESTORE_MIME_TYPES = arrayOf(
     "text/calendar",
     "application/octet-stream",
@@ -70,11 +68,8 @@ private val RESTORE_MIME_TYPES = arrayOf(
 )
 
 /**
- * Backup & restore (#69). Local calendars aren't synced anywhere, so a `.ics`
- * export is their only safety net — that made it a data-safety feature hiding in
- * the calendar manager, where nobody went looking. It now has its own Settings
- * entry, sharing [CalendarsViewModel] with the manager (both are driven by the
- * same calendar list).
+ * Backup & restore (#69): `.ics` export and restore for local calendars, with
+ * optional automatic backup. Shares [CalendarsViewModel] with the manager.
  *
  * A full-screen destination hoisted in `CalendarHost`; [onBack] pops it,
  * [onImport] hands a picked file to the app's normal .ics import flow.
@@ -92,29 +87,24 @@ fun BackupScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Export covers the user's own local calendars (managed special-dates
-    // mirrors don't count — they are rebuilt from contacts). Restore can target
-    // any calendar the import picker would offer, so its availability is broader.
+    // Export covers local calendars only; managed special-dates mirrors are
+    // rebuilt from contacts. Restore can target anything the import picker offers.
     val exportable = calendars.filter { it.isLocal && it.canModifyContents && !it.isManaged }
     val canImport = calendars.any { it.isEventTarget }
 
-    // SAF "create document" target for the backup file. The picked Uri is handed
-    // to the VM to stream the .ics into. This launcher exports everything
-    // eligible (null); the per-calendar selector owns its own launcher.
+    // Exports everything eligible (null); the per-calendar selector owns its
+    // own launcher.
     val createBackup = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/calendar"),
     ) { uri -> uri?.let { viewModel.exportBackup(it, null) } }
     var showExportPicker by rememberSaveable { mutableStateOf(false) }
 
-    // SAF "open document" picker for restoring events from a .ics file. The
-    // picked Uri is handed up to the host, which runs it through the same import
-    // flow as an externally opened .ics (parse, dedup by UID, target picker).
+    // Restore runs the picked file through the normal .ics import flow.
     val openBackup = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri -> uri?.let(onImport) }
 
-    // SAF folder picker for the automatic-backup destination; the VM persists the
-    // write grant so background runs can keep writing to it.
+    // The VM persists the write grant so background runs can keep writing.
     val pickFolder = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree(),
     ) { uri -> uri?.let(viewModel::setAutoBackupFolder) }
@@ -148,15 +138,12 @@ fun BackupScreen(
         HintText(stringResource(R.string.calendars_backup_hint))
 
         if (exportable.isNotEmpty()) {
-            // One connected card: the one-time export on top, restore under it,
-            // then automatic backup (and its folder/interval rows when on).
             GroupedRow(
                 title = stringResource(R.string.calendars_backup_action),
                 position = Position.Top,
                 leading = { LeadingAvatar(Icons.Default.FileDownload) },
                 onClick = {
-                    // With more than one exportable calendar, let the user choose
-                    // which to include; a single one exports straight away.
+                    // A single exportable calendar skips the selector.
                     if (exportable.size == 1) {
                         runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
                     } else {
@@ -198,9 +185,8 @@ fun BackupScreen(
                 HintText(backupStatusText(autoBackup.status))
             }
         } else if (canImport) {
-            // Nothing to back up (no writable local calendar), but events can
-            // still be restored into a writable calendar — offer restore on its
-            // own so it isn't hidden behind export eligibility.
+            // Nothing to back up, but restore is still possible — don't hide
+            // it behind export eligibility.
             SectionHeader(stringResource(R.string.calendars_restore_header))
             HintText(stringResource(R.string.calendars_restore_hint))
             GroupedRow(
@@ -239,11 +225,8 @@ private fun ExportCalendarPicker(
     onExport: (Uri, Set<Long>?) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    // Seed once with everything selected and hold it across recomposition and
-    // rotation. NOT keyed on [calendars]: the list is observer-driven, so keying
-    // it would silently reset the user's de-selections whenever the provider
-    // re-emits (a background sync, a recolor). Ids that later vanish are harmless
-    // — the data layer intersects the chosen set with the eligible calendars.
+    // Deliberately not keyed on [calendars]: that list is observer-driven, so
+    // keying it would reset the user's de-selections on every provider re-emit.
     var selected by rememberSaveable(
         stateSaver = listSaver(
             save = { it.toList() },
@@ -348,7 +331,7 @@ private fun BackupIntervalDialog(
     onConfirm: (Long) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    // minutes-per-unit for each entry; pick the largest unit the current value divides into.
+    // Pick the largest unit the current value divides into.
     val unitMinutes = remember { listOf(1L, 60L, MINUTES_PER_DAY, MINUTES_PER_WEEK) }
     val units = stringArrayResource(R.array.backup_interval_units).toList()
     val initialUnit = unitMinutes.indexOfLast { currentMinutes % it == 0L }.coerceAtLeast(0)

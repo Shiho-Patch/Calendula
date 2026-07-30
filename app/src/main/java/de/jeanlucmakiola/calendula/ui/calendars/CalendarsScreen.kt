@@ -107,14 +107,11 @@ private const val NEW_CALENDAR_ID = Long.MIN_VALUE
 
 /**
  * Calendar manager (reached from Settings). Lists the app's own device-only
- * calendars with create / rename / recolor / delete (via a full-screen editor),
- * and lists synced calendars read-only with a per-account "manage in the source
- * app" deep-link — the app never touches a synced calendar's server.
+ * calendars with create / rename / recolor / delete, and synced calendars
+ * read-only with a per-account "manage in the source app" deep-link.
  *
  * Export/import lives in its own Settings entry ([BackupScreen], #69); this
- * screen only points at it, because the two are looked for separately: "which
- * calendars do I have" versus "keep a copy of them". A full-screen destination;
- * [onBack] pops it.
+ * screen only points at it. [onBack] pops the destination.
  */
 @Composable
 fun CalendarsScreen(
@@ -252,9 +249,7 @@ private fun CalendarsList(
             }
         }
 
-        // Backup lives in its own Settings entry now (#69) — this row is the
-        // pointer, so someone looking at their local calendars still finds the
-        // way to keep a copy of them.
+        // Pointer to the Backup entry (#69), so it stays findable from here.
         Spacer(Modifier.height(16.dp))
         GroupedRow(
             title = stringResource(R.string.settings_section_backup),
@@ -314,8 +309,8 @@ private fun CalendarsList(
                         onSetAccountVisible(switchable.map { it.id }, enabled)
                     },
                 ) {
-                    // Calendars you can act on first; the ones this device isn't
-                    // syncing sit at the bottom, dimmed and switchless.
+                    // Actionable calendars first; non-syncing ones at the
+                    // bottom, dimmed and switchless.
                     val ordered = cals.orderedForManager()
                     ordered.forEachIndexed { index, calendar ->
                         val disabled = !calendar.isVisibleInSystem || calendar.isNotSynced
@@ -392,11 +387,8 @@ private fun CalendarEditor(
                 },
                 actions = {
                     if (!isNew) {
-                        // Kept in place while the special-dates sync owns this
-                        // calendar, rather than hidden: the button is where you
-                        // expect it, disabled, with the card below saying why —
-                        // and it comes back to life the moment the feature is
-                        // off, when the delete would actually stick.
+                        // Disabled rather than hidden while the special-dates
+                        // sync owns this calendar; the card below says why.
                         IconButton(
                             onClick = { confirmDelete = true },
                             enabled = !deleteLocked,
@@ -523,9 +515,7 @@ private fun CalendarEditor(
 
 /**
  * The row's supporting line: the states that make this calendar behave unlike a
- * plain writable one (#76), then its own description. Text rather than badges —
- * a row can carry several of these at once next to a switch, which is exactly
- * what M3 supporting text composes and a row of static chips doesn't.
+ * plain writable one (#76), then its own description.
  */
 @Composable
 private fun calendarRowSummary(calendar: CalendarSource): String? {
@@ -543,12 +533,9 @@ private fun calendarRowSummary(calendar: CalendarSource): String? {
 }
 
 /**
- * The per-row on/off control, writing the system's `Calendars.VISIBLE`: checked
- * = the calendar is shown, unchecked = it drops out of every surface (events,
- * filters, pickers) and the provider stops scheduling its reminders. The flag is
- * device-local — nothing is deleted and nothing is synced anywhere. Carries its
- * own content description so the toggle is self-describing to screen readers
- * even on a dimmed row.
+ * The per-row on/off control, writing the system's device-local
+ * `Calendars.VISIBLE`. Unchecked drops the calendar out of every surface and
+ * stops its reminders. Carries its own content description.
  */
 @Composable
 private fun EnableSwitch(

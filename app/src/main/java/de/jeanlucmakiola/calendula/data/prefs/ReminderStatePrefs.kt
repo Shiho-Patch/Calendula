@@ -10,19 +10,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * How far reminder delivery has got. One number, and it replaces everything the
- * provider's `CalendarAlerts.STATE` used to do for us (#75).
+ * How far reminder delivery has got — the one number replacing the provider's
+ * `CalendarAlerts.STATE` (#75). A scan posts the reminders falling after this
+ * watermark and up to now, then moves it to now, so a scan running twice cannot
+ * post twice while a late one still catches up.
  *
- * A scan posts the reminders whose moment falls after this watermark and up to
- * now, then moves it to now. That single rule gives both halves of what the
- * retired path got from the provider: a scan that runs twice cannot post the
- * same reminder again, and a scan that runs *late* — after a reboot, an app
- * update or a doze window swallowed the alarm — still posts everything the
- * missed alarm would have.
- *
- * Unset means "never scanned". It is deliberately not treated as zero: the first
- * scan after an install or an upgrade would otherwise consider every reminder
- * since the epoch overdue and bury the user in notifications.
+ * Unset means "never scanned", not zero: the first scan after an install would
+ * otherwise treat every reminder since the epoch as overdue.
  */
 @Singleton
 class ReminderStatePrefs @Inject constructor(

@@ -73,18 +73,10 @@ class CalendarsViewModel @Inject constructor(
         )
 
     /**
-     * Managed special-dates calendars whose deletion would not stick. While the
-     * feature is on, the sync owns every mirror: it recreates a missing one for
-     * an enabled type on the next pass and deletes the leftover of a disabled
-     * one (`SpecialDatesSyncEngine.reconcileCalendars`), so either way the
-     * delete would appear to work and then undo itself. Turning special dates
-     * off empties this set, and deleting a leftover mirror is a real delete from
-     * then on.
-     *
-     * Read off each calendar's own durable marker ([CalendarSource.isManaged],
-     * the `CAL_SYNC2` one the editor lock already trusts) rather than the stored
-     * ids, which are only rewritten on the next sync pass — a preferences loss
-     * would otherwise unlock a live mirror until then.
+     * Managed special-dates calendars whose deletion would not stick: while the
+     * feature is on, `SpecialDatesSyncEngine.reconcileCalendars` undoes it on
+     * the next pass. Read off each calendar's durable [CalendarSource.isManaged]
+     * marker rather than the stored ids, which lag a sync pass behind.
      */
     val deleteLockedCalendarIds: StateFlow<Set<Long>> = combine(
         calendars,
@@ -147,27 +139,18 @@ class CalendarsViewModel @Inject constructor(
     }
 
     /**
-     * Switch a calendar on or off. This is the app's one visibility model: it
-     * writes the system's `Calendars.VISIBLE`, so the calendar disappears from
-     * every surface *and* the provider stops (or resumes) scheduling its
-     * reminders. Nothing is patched by hand — the provider notifies and the
-     * observer re-queries.
-     *
-     * A reminder that came due while the calendar was off stays gone when it is
-     * switched back on. Delivery plans from `Instances` and `Reminders` on every
-     * scan (#75), but the watermark has already moved past that moment, so no
-     * scan returns it again — and on a read-only install the switch never
-     * reaches the provider at all, so nothing even triggers one. Deliberate: the
-     * reminder was silenced on purpose, and the event itself is back in view.
+     * Switch a calendar on or off — the app's one visibility model, writing the
+     * system's `Calendars.VISIBLE`. A reminder that came due while the calendar
+     * was off stays gone when it is switched back on: the watermark has already
+     * moved past it (#75).
      */
     fun setCalendarVisible(id: Long, visible: Boolean) = write {
         repository.setCalendarsVisible(listOf(id), visible)
     }
 
     /**
-     * Switch every calendar of one account on or off — the "toggle all"
-     * affordance on an account header. Each row is written on its own, in one
-     * coroutine so the writes can't race each other.
+     * Switch every calendar of one account on or off. Each row is written on its
+     * own, in one coroutine so the writes can't race.
      */
     fun setAccountVisible(ids: Collection<Long>, visible: Boolean) = write {
         repository.setCalendarsVisible(ids, visible)
