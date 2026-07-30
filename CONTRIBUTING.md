@@ -182,7 +182,6 @@ issue.
 
 Saving you the effort:
 
-- **Drag-and-drop event rescheduling.** Considered repeatedly, settled as a no.
 - **Anything requiring `INTERNET`**, including a sync stack of our own.
 - **An app-side event database.**
 
