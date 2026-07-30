@@ -209,33 +209,6 @@ jobs:
         if: env.IS_RELEASE == 'true'
         run: ./gradlew assembleRelease
 
-      # Play takes an App Bundle, not the APK, so it is a second artifact from
-      # the same source and the same signing config — not a repackage of the
-      # APK. The release key signs it, but Play only ever treats that key as the
-      # *upload* key: Play App Signing re-signs with Google's own key before
-      # delivery. A Play install and an F-Droid install therefore carry
-      # different signatures and cannot update each other. That divergence is a
-      # deliberate, documented choice (docs/RELEASING.md), not an accident.
-      #
-      # Nothing here touches the F-Droid path: the AAB is never copied into the
-      # repo, never attached to a release, and its build cannot change the APK
-      # that was already produced above.
-      #
-      # AGP embeds the R8 mapping in the bundle's BUNDLE-METADATA, so Play gets
-      # deobfuscated stacktraces without a separate mapping upload.
-      - name: Build release AAB
-        if: env.IS_RELEASE == 'true'
-        run: ./gradlew bundleRelease
-
-      - name: Hand the AAB to the Play job
-        if: env.IS_RELEASE == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-aab-${{ needs.detect.outputs.version }}
-          path: app/build/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
-          retention-days: 14
-
       - name: Setup F-Droid Server Tools
         run: |
           SUDO=""
@@ -511,6 +484,49 @@ jobs:
           done
           echo "Published $TAG to Codeberg."
 
+      # Play takes an App Bundle, not the APK, so it is a second artifact from
+      # the same source and the same signing config — not a repackage of the
+      # APK. The release key signs it, but Play only ever treats that key as the
+      # *upload* key: Play App Signing re-signs with Google's own key before
+      # delivery. A Play install and an F-Droid install therefore carry
+      # different signatures and cannot update each other. That divergence is a
+      # deliberate, documented choice (docs/RELEASING.md), not an accident.
+      #
+      # Built LAST and `continue-on-error`, both deliberately: everything above
+      # has already shipped by this point, and nothing Play-related may put that
+      # at risk. Sitting mid-job without continue-on-error, this block took the
+      # whole 2.17.0 release down with it — no F-Droid publish, no tag, no
+      # Codeberg mirror — over an artifact upload. A failure here now costs the
+      # Play upload and nothing else.
+      #
+      # Nothing here touches the F-Droid path: the AAB is never copied into the
+      # repo, never attached to a release, and its build cannot change the APK
+      # published above.
+      #
+      # AGP embeds the R8 mapping in the bundle's BUNDLE-METADATA, so Play gets
+      # deobfuscated stacktraces without a separate mapping upload.
+      - name: Build release AAB
+        if: env.IS_RELEASE == 'true'
+        continue-on-error: true
+        run: ./gradlew bundleRelease
+
+      # NOT actions/upload-artifact@v4: it runs @actions/artifact v2, which
+      # refuses to start whenever GITHUB_SERVER_URL is not github.com — it reads
+      # any other forge as an unsupported GHES instance and fails before it ever
+      # talks to the server (go-gitea/gitea#36024). Gitea 1.25 serves the v4
+      # artifact API fine; only the client-side check is wrong. This fork is that
+      # client with the check removed. Pinned to a commit, not the v4 branch: a
+      # third-party action in the signing pipeline must not change under us.
+      - name: Hand the AAB to the Play job
+        if: env.IS_RELEASE == 'true'
+        continue-on-error: true
+        uses: https://github.com/ChristopherHX/gitea-upload-artifact@81f940d004763f986ba3582c007fd842dd5cb0d7 # v4
+        with:
+          name: release-aab-${{ needs.detect.outputs.version }}
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 14
+
   # Google Play channel.
   #
   # A separate job, on purpose, running only AFTER the F-Droid publish and both
@@ -570,9 +586,11 @@ jobs:
             || { echo "PLAY_SERVICE_ACCOUNT_JSON is not a valid service-account JSON." >&2; exit 1; }
           echo "configured=true" >> "$GITHUB_OUTPUT"
 
+      # Same GHES-detection problem as the upload side, same fix — see the
+      # handoff step in the release job.
       - name: Download the AAB
         if: steps.key.outputs.configured == 'true'
-        uses: actions/download-artifact@v4
+        uses: https://github.com/ChristopherHX/gitea-download-artifact@75635f32b4c1c41c4b3d64e8f85210112ed4c9c7 # v4
         with:
           name: release-aab-${{ needs.detect.outputs.version }}
           path: dist

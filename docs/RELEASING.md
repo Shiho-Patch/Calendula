@@ -113,7 +113,13 @@ the only one that gets a different artifact and a different signature.
 **Artifact.** Play takes an **App Bundle** (`bundleRelease`), not the APK. It is
 a second output of the same source and the same signing config — never a
 repackage of the published APK, which stays untouched so the F-Droid
-reproducibility guarantee is unaffected. `dependenciesInfo` stays disabled for
+reproducibility guarantee is unaffected. The bundle is built at the very **end**
+of the `release` job, after everything else has shipped, and both it and the
+handoff to the `play` job are `continue-on-error` — nothing Play-related may
+take down a release that is already published. The handoff uses a patched
+`upload-artifact`/`download-artifact` fork pinned to a commit: the official v4
+actions read any non-github.com forge as an unsupported GHES instance and refuse
+to run on Gitea (go-gitea/gitea#36024). `dependenciesInfo` stays disabled for
 the bundle too; Play's "app dependencies" report is optional and re-enabling it
 would break reproducibility.
 
