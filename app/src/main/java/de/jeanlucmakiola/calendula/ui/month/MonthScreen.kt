@@ -365,10 +365,16 @@ fun MonthScreen(
                     todayText = stringResource(R.string.month_today_action),
                     onToday = jumpToToday,
                     onCreate = {
-                        // Anchor on today when its month is shown, else the 1st.
+                        // Split has a selected day and lists it below the grid, so
+                        // that is the day the new event belongs to. The other
+                        // styles have no selection: anchor on today when its month
+                        // is shown, else the 1st.
                         onCreateEvent(
-                            if (isOnCurrentMonth) today
-                            else LocalDate(titleMonth.year, titleMonth.month, 1),
+                            when {
+                                viewStyle == MonthViewStyle.Split -> selectedDate
+                                isOnCurrentMonth -> today
+                                else -> LocalDate(titleMonth.year, titleMonth.month, 1)
+                            },
                             null,
                         )
                     },
