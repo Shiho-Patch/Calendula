@@ -140,6 +140,12 @@ yet — this section gets a link once it is. Play builds will be signed with
 Google's key rather than mine, so switching between Play and any other channel
 will require an uninstall.
 
+> **Testers wanted.** Play requires a round of closed testing before the app can
+> go public, and I'm still looking for testers. If you'd like to help, email
+> **[business@jeanlucmakiola.de](mailto:business@jeanlucmakiola.de)** with the
+> Google account address you want to use — that address is what I need to add you
+> to the closed test.
+
 ### Build from source
 
 The build is a plain Gradle build with no proprietary dependencies — see
