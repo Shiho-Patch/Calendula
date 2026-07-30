@@ -55,8 +55,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.floret.components.AboutCard
-import de.jeanlucmakiola.floret.components.AboutLink
 import de.jeanlucmakiola.floret.components.CollapsingScaffold
+import de.jeanlucmakiola.floret.components.GroupedListInset
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.OptionPicker
 import de.jeanlucmakiola.floret.components.Position
@@ -166,25 +166,31 @@ private fun SettingsHub(
     onOpenBackup: () -> Unit,
 ) {
     CollapsingScaffold(title = stringResource(R.string.settings_title), onBack = onBack, predictiveBack = true) {
-        Box(Modifier.padding(horizontal = 16.dp)) { AboutCard() }
+        // The card and the support row are one grouped block: the call to action
+        // is a row continuing the container rather than a tonal button sitting
+        // inside the card.
+        Box(Modifier.padding(horizontal = GroupedListInset)) { AboutCard() }
+        SupportRow()
         Spacer(Modifier.height(16.dp))
 
         // Three labelled groups instead of one long undifferentiated list (#69):
         // how the app presents itself, what it does with your data, and the app
-        // as an installed thing.
+        // as an installed thing. Each group cycles its chip accents so no two
+        // rows in it look alike (see [ChipAccent]) — a uniformly coloured group
+        // is as unscannable as an uncoloured one.
         SectionHeader(stringResource(R.string.settings_group_look))
         GroupedRow(
             title = stringResource(R.string.settings_section_appearance),
             summary = stringResource(R.string.settings_appearance_subtitle),
             position = Position.Top,
-            leading = { CategoryIcon(Icons.Default.Palette, ChipAccent.Neutral) },
+            leading = { CategoryIcon(Icons.Default.Palette, ChipAccent.Secondary) },
             onClick = { onOpenSection(SettingsSection.Appearance) },
         )
         GroupedRow(
             title = stringResource(R.string.settings_section_views),
             summary = stringResource(R.string.settings_views_subtitle),
             position = Position.Middle,
-            leading = { CategoryIcon(Icons.Default.SwapVert, ChipAccent.Neutral) },
+            leading = { CategoryIcon(Icons.Default.SwapVert, ChipAccent.Tertiary) },
             onClick = { onOpenSection(SettingsSection.Views) },
         )
         GroupedRow(
@@ -215,7 +221,7 @@ private fun SettingsHub(
             title = stringResource(R.string.settings_section_special_dates),
             summary = stringResource(R.string.settings_special_dates_subtitle),
             position = Position.Middle,
-            leading = { CategoryIcon(Icons.Default.Cake, ChipAccent.Tertiary) },
+            leading = { CategoryIcon(Icons.Default.Cake, ChipAccent.Primary) },
             onClick = { onOpenSection(SettingsSection.SpecialDates) },
         )
         // Export/import used to hide inside the calendar manager, where nobody
@@ -225,7 +231,7 @@ private fun SettingsHub(
             title = stringResource(R.string.settings_section_backup),
             summary = stringResource(R.string.settings_backup_subtitle),
             position = Position.Bottom,
-            leading = { CategoryIcon(Icons.Default.Backup, ChipAccent.Tertiary) },
+            leading = { CategoryIcon(Icons.Default.Backup, ChipAccent.Secondary) },
             onClick = onOpenBackup,
         )
 
@@ -235,11 +241,36 @@ private fun SettingsHub(
             title = stringResource(R.string.settings_section_widgets),
             summary = stringResource(R.string.settings_widgets_subtitle),
             position = Position.Top,
-            leading = { CategoryIcon(Icons.Default.Widgets, ChipAccent.Neutral) },
+            leading = { CategoryIcon(Icons.Default.Widgets, ChipAccent.Tertiary) },
             onClick = { onOpenSection(SettingsSection.Widgets) },
         )
         LanguageRow(position = Position.Middle)
         ReportProblemRow(position = Position.Bottom)
+
+        // Source, licence and privacy sit at the very bottom rather than in the
+        // About card: they are reference material you look up once, not settings
+        // you come here to change, and the card at the top now leads with what
+        // the app *is* plus the one link worth offering (support).
+        Spacer(Modifier.height(8.dp))
+        SectionHeader(stringResource(R.string.settings_group_about))
+        AboutLinkRow(
+            label = stringResource(R.string.settings_about_source),
+            url = stringResource(R.string.about_source_url),
+            icon = ImageVector.vectorResource(R.drawable.ic_gitea),
+            position = Position.Top,
+        )
+        AboutLinkRow(
+            label = stringResource(R.string.settings_license),
+            url = stringResource(R.string.about_license_url),
+            icon = Icons.Default.Gavel,
+            position = Position.Middle,
+        )
+        AboutLinkRow(
+            label = stringResource(R.string.settings_about_privacy),
+            url = stringResource(R.string.about_privacy_url),
+            icon = Icons.Default.PrivacyTip,
+            position = Position.Bottom,
+        )
 
         AppVersionText()
     }
@@ -295,7 +326,7 @@ private fun LanguageRow(position: Position) {
         title = stringResource(R.string.settings_language),
         summary = languageLabel(current),
         position = position,
-        leading = { CategoryIcon(Icons.Default.Language, ChipAccent.Neutral) },
+        leading = { CategoryIcon(Icons.Default.Language, ChipAccent.Secondary) },
         onClick = { showDialog = true },
     )
 
@@ -334,35 +365,50 @@ private fun languageLabel(tag: String?): String =
 @Composable
 private fun AboutCard() {
     // The card layout lives in floret-kit (components.AboutCard); Calendula
-    // supplies its own logo, author and the source / licence / privacy / support
-    // links. The privacy policy has to be reachable from inside the app, not just
-    // from the store listing, because Calendula touches calendar and contact data.
+    // supplies its own logo and author. Source, licence and privacy moved to
+    // rows at the foot of the page, and support is now the [SupportRow] joined
+    // to the bottom of this card — so the card itself carries nothing but what
+    // the app is and who made it.
     AboutCard(
         logo = { AppLogo() },
         appName = stringResource(R.string.app_name),
         author = stringResource(R.string.settings_about_author),
-        primaryLinks = listOf(
-            AboutLink(
-                icon = ImageVector.vectorResource(R.drawable.ic_gitea),
-                label = stringResource(R.string.settings_about_source),
-                url = stringResource(R.string.about_source_url),
-            ),
-            AboutLink(
-                icon = Icons.Default.Gavel,
-                label = stringResource(R.string.settings_license),
-                url = stringResource(R.string.about_license_url),
-            ),
-            AboutLink(
-                icon = Icons.Default.PrivacyTip,
-                label = stringResource(R.string.settings_about_privacy),
-                url = stringResource(R.string.about_privacy_url),
-            ),
-        ),
-        highlightLink = AboutLink(
-            icon = Icons.Default.Favorite,
-            label = stringResource(R.string.settings_about_support),
-            url = stringResource(R.string.about_support_url),
-        ),
+        primaryLinks = emptyList(),
+        position = Position.Top,
+    )
+}
+
+/**
+ * "Support development", as the closing row of the About card's group rather
+ * than a tonal button inside it. Same weight as any other row you can tap, with
+ * a primary chip to keep it the one accent in this block.
+ */
+@Composable
+private fun SupportRow() {
+    val context = LocalContext.current
+    val url = stringResource(R.string.about_support_url)
+    GroupedRow(
+        title = stringResource(R.string.settings_about_support),
+        position = Position.Bottom,
+        leading = { CategoryIcon(Icons.Default.Favorite, ChipAccent.Primary) },
+        onClick = { openUrl(context, url) },
+    )
+}
+
+/**
+ * One reference link at the foot of the hub (source, licence, privacy): a plain
+ * grouped row that opens the URL in the browser. The privacy policy in
+ * particular has to stay reachable from inside the app, not only from the store
+ * listing, because Calendula touches calendar and contact data.
+ */
+@Composable
+private fun AboutLinkRow(label: String, url: String, icon: ImageVector, position: Position) {
+    val context = LocalContext.current
+    GroupedRow(
+        title = label,
+        position = position,
+        leading = { CategoryIcon(icon, ChipAccent.Neutral) },
+        onClick = { openUrl(context, url) },
     )
 }
 

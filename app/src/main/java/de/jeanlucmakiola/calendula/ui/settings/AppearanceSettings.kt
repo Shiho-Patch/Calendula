@@ -8,6 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,12 +51,14 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.data.appname.LauncherName
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.domain.FontRole
+import de.jeanlucmakiola.calendula.ui.common.PickerDescription
 import de.jeanlucmakiola.calendula.ui.theme.BundledFont
 import de.jeanlucmakiola.calendula.ui.theme.FONT_CUSTOM_TOKEN
 import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
 import de.jeanlucmakiola.calendula.ui.theme.resolveFontFamily
 import de.jeanlucmakiola.floret.components.CollapsingScaffold
 import de.jeanlucmakiola.floret.components.FullScreenPicker
+import de.jeanlucmakiola.floret.components.GroupedListInset
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.OptionPicker
 import de.jeanlucmakiola.floret.components.Position
@@ -208,12 +211,28 @@ internal fun AppearanceScreen(
         }
     }
     if (showTheme) {
+        // No preview here on purpose: picking a theme repaints the app itself,
+        // which is a better demonstration than any thumbnail. What the list
+        // *can't* show is which way "Follow the system" currently falls, so that
+        // one option says so.
+        val systemDark = isSystemInDarkTheme()
         OptionPicker(
             title = stringResource(R.string.settings_theme),
+            header = { PickerDescription(stringResource(R.string.settings_theme_hint)) },
             predictiveBack = true,
             options = ThemeMode.entries,
             selected = state.themeMode,
             label = { themeLabel(it) },
+            summary = { mode ->
+                if (mode == ThemeMode.SYSTEM) {
+                    stringResource(
+                        R.string.settings_theme_system_summary,
+                        themeLabel(if (systemDark) ThemeMode.DARK else ThemeMode.LIGHT),
+                    )
+                } else {
+                    null
+                }
+            },
             onSelect = viewModel::setThemeMode,
             onDismiss = { showTheme = false },
         )
@@ -292,6 +311,15 @@ private val FONT_PICKER_MIME_TYPES = arrayOf(
  * picker to load a .ttf/.otf. Selecting a system/bundled option applies at once;
  * a file is validated and imported by the caller, switching to the custom font
  * on success.
+ *
+ * Above the rows sits a specimen of the *current* choice, set in the type role
+ * this picker governs — headline for [FontRole.BRAND], body for
+ * [FontRole.PLAIN]. The per-row "Ag" says what a face looks like; only a full
+ * line at the real size says whether it works for the role, and it is the one
+ * thing that makes the two font settings distinguishable from each other.
+ *
+ * Being a preview picker, it stays open on selection (see `FullScreenPicker`):
+ * the specimen re-renders instead, which is the whole point of the screen.
  */
 @Composable
 private fun FontPicker(
@@ -307,10 +335,9 @@ private fun FontPicker(
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        if (uri != null) {
-            onImport(uri)
-            onDismiss()
-        }
+        // Stay open on a successful import too: the specimen switches to the
+        // imported face, which is the only look the user gets before committing.
+        if (uri != null) onImport(uri)
     }
 
     // System default + the bundled fonts + the "Choose file…" row.
@@ -322,17 +349,22 @@ private fun FontPicker(
     val customPreview = remember(role, isCustom, stamp) {
         if (isCustom) resolveFontFamily(FONT_CUSTOM_TOKEN, role, context) else null
     }
+    // The face the specimen is set in: the same resolution the theme performs,
+    // so what is shown here is what the app will use.
+    val selectedFamily = remember(role, selected, stamp) {
+        resolveFontFamily(selected, role, context)
+    }
 
-    FullScreenPicker(title = title, onDismiss = onDismiss) {
+    FullScreenPicker(title = title, onDismiss = onDismiss, predictiveBack = true) {
+        FontSpecimen(role = role, family = selectedFamily)
         FontOptionRow(
             label = stringResource(R.string.settings_font_system),
             preview = FontFamily.Default,
             selected = selected == FONT_SYSTEM_TOKEN,
             position = positionOf(0, rowCount),
-            onClick = {
-                onSelect(FONT_SYSTEM_TOKEN)
-                onDismiss()
-            },
+            // Applies straight away and stays open — the specimen above is the
+            // answer to "what does this one look like".
+            onClick = { onSelect(FONT_SYSTEM_TOKEN) },
         )
         BundledFont.entries.forEachIndexed { index, font ->
             FontOptionRow(
@@ -340,10 +372,7 @@ private fun FontPicker(
                 preview = font.family,
                 selected = selected == font.token,
                 position = positionOf(index + 1, rowCount),
-                onClick = {
-                    onSelect(font.token)
-                    onDismiss()
-                },
+                onClick = { onSelect(font.token) },
             )
         }
         FontOptionRow(
@@ -360,6 +389,36 @@ private fun FontPicker(
             onClick = { launcher.launch(FONT_PICKER_MIME_TYPES) },
         )
     }
+}
+
+/**
+ * A specimen of [family] set in the type role [role] governs: a headline for
+ * the brand role, a paragraph for the plain one — the same styles the app draws
+ * with, only the family swapped, so nothing here can flatter a face the app
+ * won't reproduce. A null [family] is the system typeface, i.e. the Material
+ * default the styles already carry.
+ */
+@Composable
+private fun FontSpecimen(role: FontRole, family: FontFamily?) {
+    val isBrand = role == FontRole.BRAND
+    val style = if (isBrand) {
+        MaterialTheme.typography.headlineMedium
+    } else {
+        MaterialTheme.typography.bodyLarge
+    }
+    Text(
+        text = stringResource(
+            if (isBrand) R.string.settings_font_specimen_heading else R.string.settings_font_specimen_body,
+        ),
+        style = style.copy(fontFamily = family ?: style.fontFamily),
+        color = MaterialTheme.colorScheme.onSurface,
+        // Two lines up front so switching between a wide and a narrow face
+        // doesn't shuffle the option list up and down under it.
+        minLines = 2,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = GroupedListInset, vertical = 8.dp),
+    )
 }
 
 /**

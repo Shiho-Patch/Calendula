@@ -93,6 +93,7 @@ fun AgendaScreen(
     val anchor by viewModel.anchor.collectAsStateWithLifecycle()
     val pastDisplay by viewModel.pastEventDisplay.collectAsStateWithLifecycle()
     val showToday by viewModel.showToday.collectAsStateWithLifecycle()
+    val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -198,6 +199,7 @@ fun AgendaScreen(
             title = stringResource(R.string.settings_agenda_range),
             description = stringResource(R.string.agenda_range_override_hint),
             selected = successState?.range ?: AgendaRange.Month,
+            weekStart = weekStart,
             onSelect = viewModel::setRangeOverride,
             onDismiss = { showRangePicker = false },
         )

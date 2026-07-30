@@ -48,6 +48,9 @@ internal fun SpecialDatesScreen(
     onBack: () -> Unit,
 ) {
     val state by viewModel.specialDatesState.collectAsStateWithLifecycle()
+    // The all-day reminder hour lives in the general settings state; the reminder
+    // picker below names it, since that is when these reminders actually fire.
+    val settings by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     // READ_CONTACTS is requested only here, on enable — never at startup. On a
@@ -219,6 +222,9 @@ internal fun SpecialDatesScreen(
             allowInherit = false,
             onSelect = { viewModel.setSpecialDatesReminders(type, it) },
             onDismiss = { reminderPickerType = null },
+            // Special dates are all-day events, so their reminders fire at the
+            // one global all-day hour like any other all-day reminder.
+            leadTimeSummary = allDayFiringTimeSummary(settings.allDayReminderTimeMinutes),
         )
     }
 }

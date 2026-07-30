@@ -1,5 +1,7 @@
 package de.jeanlucmakiola.calendula.ui.settings
 
+import android.text.format.DateFormat
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
@@ -31,6 +34,7 @@ import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.PickerDescription
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
+import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
 import de.jeanlucmakiola.calendula.ui.common.icon
 import de.jeanlucmakiola.calendula.ui.common.labelRes
 import de.jeanlucmakiola.calendula.ui.month.labelRes
@@ -262,23 +266,32 @@ internal fun ViewsScreen(
             options = IMPLEMENTED_VIEWS,
             selected = state.defaultView,
             label = { stringResource(it.labelRes) },
+            // The same icon each view carries in the drawer and the switcher
+            // pill, so the row is matched to the view by eye, not by reading.
+            leading = {
+                Icon(
+                    imageVector = it.icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
             onSelect = viewModel::setDefaultView,
             onDismiss = { showDefaultView = false },
         )
     }
     if (showWeekStart) {
-        OptionPicker(
-            title = stringResource(R.string.settings_week_start),
-            header = { PickerDescription(stringResource(R.string.settings_week_start_hint)) },
-            predictiveBack = true,
-            options = WEEK_START_OPTIONS,
+        WeekStartPicker(
             selected = state.weekStart,
-            label = { weekStartLabel(it) },
+            // The preview is a real grid, so it uses the user's own month style.
+            monthStyle = state.monthViewStyle,
+            options = WEEK_START_OPTIONS,
             onSelect = viewModel::setWeekStart,
             onDismiss = { showWeekStart = false },
         )
     }
     if (showTimeFormat) {
+        val locale = currentLocale()
+        val systemIs24Hour = DateFormat.is24HourFormat(LocalContext.current)
         OptionPicker(
             title = stringResource(R.string.settings_time_format),
             header = { PickerDescription(stringResource(R.string.settings_time_format_hint)) },
@@ -286,18 +299,33 @@ internal fun ViewsScreen(
             options = TimeFormatPref.entries,
             selected = state.timeFormat,
             label = { timeFormatLabel(it) },
+            // Each option renders the same sample time the way it would write
+            // it — an afternoon one, since that is where 12h and 24h diverge.
+            // "Automatic" additionally says which of the two it resolves to now.
+            summary = { pref ->
+                val sample = formatTimeOfDay(
+                    hour = SAMPLE_HOUR,
+                    minute = SAMPLE_MINUTE,
+                    is24Hour = when (pref) {
+                        TimeFormatPref.AUTO -> systemIs24Hour
+                        TimeFormatPref.TWELVE_HOUR -> false
+                        TimeFormatPref.TWENTY_FOUR_HOUR -> true
+                    },
+                    locale = locale,
+                )
+                if (pref == TimeFormatPref.AUTO) {
+                    stringResource(R.string.settings_time_format_auto_summary, sample)
+                } else {
+                    sample
+                }
+            },
             onSelect = viewModel::setTimeFormat,
             onDismiss = { showTimeFormat = false },
         )
     }
     if (showPastEvents) {
-        OptionPicker(
-            title = stringResource(R.string.settings_past_events),
-            header = { PickerDescription(stringResource(R.string.settings_past_events_hint)) },
-            predictiveBack = true,
-            options = PastEventDisplay.entries,
+        PastEventsPicker(
             selected = state.pastEventDisplay,
-            label = { pastEventDisplayLabel(it) },
             onSelect = viewModel::setPastEventDisplay,
             onDismiss = { showPastEvents = false },
         )
@@ -307,11 +335,18 @@ internal fun ViewsScreen(
             title = stringResource(R.string.settings_agenda_range),
             description = stringResource(R.string.settings_agenda_range_hint),
             selected = state.agendaScreenRange,
+            // Resolving each option to real dates needs the same week start the
+            // agenda itself windows by.
+            weekStart = state.weekStart.resolveFirstDay(currentLocale()),
             onSelect = viewModel::setAgendaScreenRange,
             onDismiss = { showAgendaScreenRange = false },
         )
     }
 }
+
+/** Sample time the format options render: afternoon, where 12h and 24h differ. */
+private const val SAMPLE_HOUR = 14
+private const val SAMPLE_MINUTE = 30
 
 /** One reorderable view row: the view's icon and name, an optional [trailing]
  *  control, and a drag handle carrying the [dragHandle] gesture modifier. */
@@ -363,7 +398,7 @@ private val WEEK_START_OPTIONS: List<WeekStartPref> =
     listOf(WeekStartPref.Auto) + DayOfWeek.entries.map { WeekStartPref.Day(it) }
 
 @Composable
-private fun weekStartLabel(pref: WeekStartPref): String = when (pref) {
+internal fun weekStartLabel(pref: WeekStartPref): String = when (pref) {
     WeekStartPref.Auto -> stringResource(R.string.settings_week_start_auto)
     // Localised full weekday name, so any of the seven days reads naturally
     // without a per-day string resource.
@@ -381,10 +416,13 @@ private fun timeFormatLabel(pref: TimeFormatPref): String = stringResource(
 )
 
 @Composable
-private fun pastEventDisplayLabel(mode: PastEventDisplay): String = stringResource(
-    when (mode) {
-        PastEventDisplay.SHOW -> R.string.settings_past_events_show
-        PastEventDisplay.DIM -> R.string.settings_past_events_dim
-        PastEventDisplay.HIDE -> R.string.settings_past_events_hide
-    },
-)
+private fun pastEventDisplayLabel(mode: PastEventDisplay): String =
+    stringResource(pastEventDisplayLabelRes(mode))
+
+/** Shared with [PastEventsPicker], which needs the id rather than the string. */
+@StringRes
+internal fun pastEventDisplayLabelRes(mode: PastEventDisplay): Int = when (mode) {
+    PastEventDisplay.SHOW -> R.string.settings_past_events_show
+    PastEventDisplay.DIM -> R.string.settings_past_events_dim
+    PastEventDisplay.HIDE -> R.string.settings_past_events_hide
+}

@@ -97,6 +97,7 @@ import de.jeanlucmakiola.floret.identity.collapseExit
 import de.jeanlucmakiola.floret.identity.expandEnter
 import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
+import de.jeanlucmakiola.floret.components.GroupedListInset
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.Position
@@ -734,7 +735,13 @@ internal fun SectionHeader(text: String) {
         text = text,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 4.dp),
+        // The cards' own edge, so header and group share a left margin.
+        modifier = Modifier.padding(
+            start = GroupedListInset,
+            end = GroupedListInset,
+            top = 16.dp,
+            bottom = 4.dp,
+        ),
     )
 }
 
@@ -744,7 +751,7 @@ internal fun HintText(text: String) {
         text = text,
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+        modifier = Modifier.padding(horizontal = GroupedListInset, vertical = 4.dp),
     )
 }
 

@@ -18,15 +18,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.qs.NewEventTileService
 import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
 import de.jeanlucmakiola.calendula.ui.common.PickerDescription
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.calendula.widget.WidgetSize
+import de.jeanlucmakiola.calendula.widget.agenda.metricsFor
 import de.jeanlucmakiola.floret.components.CollapsingScaffold
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.OptionPicker
 import de.jeanlucmakiola.floret.components.Position
+import de.jeanlucmakiola.floret.locale.currentLocale
+import kotlin.math.roundToInt
 
 /**
  * Widgets & tiles (#69): the home-screen widgets' own settings and the Quick
@@ -81,6 +85,7 @@ internal fun WidgetsScreen(
             title = stringResource(R.string.settings_agenda_widget_range),
             description = stringResource(R.string.settings_agenda_widget_range_hint),
             selected = state.agendaWidgetRange,
+            weekStart = state.weekStart.resolveFirstDay(currentLocale()),
             onSelect = viewModel::setAgendaWidgetRange,
             onDismiss = { showAgendaWidgetRange = false },
         )
@@ -93,6 +98,11 @@ internal fun WidgetsScreen(
             options = WidgetSize.entries,
             selected = state.widgetSize,
             label = { widgetSizeLabel(it) },
+            // A size name says nothing about what you get; the text scale it
+            // draws at does. No live preview here on purpose: the widget is
+            // Glance/RemoteViews, so a Compose mock-up would be a second
+            // implementation free to drift from the real thing.
+            summary = { widgetSizeSummary(it) },
             onSelect = viewModel::setWidgetSize,
             onDismiss = { showWidgetSize = false },
         )
@@ -125,6 +135,18 @@ private fun requestAddQsTile(context: Context) {
         Icon.createWithResource(context, R.drawable.ic_qs_new_event),
         context.mainExecutor,
     ) { /* result code unused — the system surfaces its own feedback */ }
+}
+
+/**
+ * What a size step actually does, as a percentage of the smallest one's event
+ * text. Derived from the widget's own [metricsFor] table rather than written
+ * out here, so a retuned step can't leave this line claiming the old number.
+ */
+@Composable
+private fun widgetSizeSummary(size: WidgetSize): String {
+    val base = metricsFor(WidgetSize.SMALL).eventTitle.value
+    val percent = (metricsFor(size).eventTitle.value / base * 100f).roundToInt()
+    return stringResource(R.string.settings_widget_size_summary, percent)
 }
 
 @Composable

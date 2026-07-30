@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
-import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -52,7 +51,6 @@ import de.jeanlucmakiola.floret.identity.expandEnter
 import de.jeanlucmakiola.floret.reminders.ReminderOverride
 import de.jeanlucmakiola.floret.reminders.reminderOverrideFor
 import kotlinx.datetime.LocalTime
-import java.util.Calendar
 
 /**
  * Reminder-notifications toggle (v1.4), mirroring the onboarding step.
@@ -120,7 +118,7 @@ internal fun NotificationsScreen(
             title = stringResource(R.string.settings_allday_reminder_time),
             summary = stringResource(
                 R.string.settings_allday_reminder_time_hint,
-                formatTimeOfDay(context, state.allDayReminderTimeMinutes),
+                settingsTimeOfDay(state.allDayReminderTimeMinutes),
             ),
             position = Position.Bottom,
             onClick = { showAllDayReminderTime = true },
@@ -281,6 +279,7 @@ internal fun NotificationsScreen(
             allowInherit = false,
             onSelect = { viewModel.setDefaultAllDayReminderMinutes(it.toMinutesList()) },
             onDismiss = { showAllDayReminder = false },
+            leadTimeSummary = allDayFiringTimeSummary(state.allDayReminderTimeMinutes),
         )
     }
     if (showAllDayReminderTime) {
@@ -321,6 +320,11 @@ internal fun NotificationsScreen(
                 }
             },
             onDismiss = { overrideDialog = null },
+            leadTimeSummary = if (target.isAllDay) {
+                allDayFiringTimeSummary(state.allDayReminderTimeMinutes)
+            } else {
+                null
+            },
         )
     }
 }
@@ -359,15 +363,6 @@ private fun snoozeDurationLabel(minutes: Int): String =
     } else {
         pluralStringResource(R.plurals.duration_minutes, minutes, minutes)
     }
-
-/** A minute-of-day formatted in the device's 12/24-hour convention (e.g. "09:00"). */
-private fun formatTimeOfDay(context: Context, minutesOfDay: Int): String {
-    val time = Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, minutesOfDay / 60)
-        set(Calendar.MINUTE, minutesOfDay % 60)
-    }.time
-    return DateFormat.getTimeFormat(context).format(time)
-}
 
 /**
  * Whether Calendula is exempt from battery optimisation, re-read on every
