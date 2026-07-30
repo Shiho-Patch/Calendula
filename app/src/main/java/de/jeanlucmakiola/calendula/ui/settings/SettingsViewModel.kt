@@ -45,7 +45,6 @@ import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_RANGE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_SHOW_TODAY_STATE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_SIZE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AgendaWidget
-import de.jeanlucmakiola.calendula.widget.month.MONTH_SIZE_KEY
 import de.jeanlucmakiola.calendula.widget.month.MonthWidget
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -485,10 +484,13 @@ class SettingsViewModel @Inject constructor(
     }
 
     /**
-     * Set the size step both widgets draw at (#103, #51). Pushed into every
+     * Set the size the agenda widget draws its text at (#51). Pushed into every
      * instance's Glance state and recomposed — the same reliable-update path as
      * [setAgendaWidgetRange], since `updateAll` alone won't re-run the data
      * preamble a live session already ran.
+     *
+     * Agenda-only on purpose: the month widget sizes itself from the space it is
+     * given and always has, so it takes no size setting (#103).
      */
     fun setWidgetSize(size: WidgetSize) {
         viewModelScope.launch {
@@ -498,11 +500,7 @@ class SettingsViewModel @Inject constructor(
                 manager.getGlanceIds(AgendaWidget::class.java).forEach { id ->
                     updateAppWidgetState(appContext, id) { it[AGENDA_SIZE_KEY] = size.name }
                 }
-                manager.getGlanceIds(MonthWidget::class.java).forEach { id ->
-                    updateAppWidgetState(appContext, id) { it[MONTH_SIZE_KEY] = size.name }
-                }
                 AgendaWidget().updateAll(appContext)
-                MonthWidget().updateAll(appContext)
             }
         }
     }

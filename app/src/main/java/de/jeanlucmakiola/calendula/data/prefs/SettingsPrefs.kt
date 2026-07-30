@@ -308,13 +308,13 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
-     * The size step both home-screen widgets draw themselves at (#103, #51).
-     * Defaults to [WidgetSize.SMALL], which reproduces their original metrics, so
-     * an existing widget is unchanged until its owner turns the size up.
+     * The size step the agenda widget draws its text at (#51). Defaults to
+     * [WidgetSize.SMALL], which reproduces its original metrics, so an existing
+     * widget is unchanged until its owner turns the size up.
      *
-     * This replaced deriving a size tier from the widget's measured size: the
-     * width a launcher reports is not the width the widget is drawn into, and the
-     * month grid sized its seven columns from it and lost the last three.
+     * This replaced deriving a size tier from the widget's measured size, which
+     * the launcher does not report reliably. The month widget takes no size
+     * setting — it divides the width it is given by seven (#103).
      */
     val widgetSize: Flow<WidgetSize> = store.data.map { prefs ->
         prefs[WIDGET_SIZE_KEY].toEnum(WidgetSize.SMALL)

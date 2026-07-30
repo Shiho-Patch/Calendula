@@ -49,7 +49,7 @@ data class SettingsUiState(
     val agendaShowToday: Boolean = true,
     /** Whether the agenda shows its top range bar — header + switcher (v2.11). */
     val agendaShowRangeBar: Boolean = true,
-    /** The size step both home-screen widgets draw themselves at (#103, #51). */
+    /** The size step the agenda widget draws its text at (#51). */
     val widgetSize: WidgetSize = WidgetSize.SMALL,
     /** The calendar view the app opens on, and the home of the view back stack (M1). */
     val defaultView: CalendarView = CalendarView.Week,

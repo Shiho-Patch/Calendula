@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
@@ -14,6 +13,7 @@ import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
+import androidx.glance.LocalSize
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
@@ -56,7 +56,6 @@ import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.widget.CalendulaGlanceTheme
 import de.jeanlucmakiola.calendula.widget.MonthWidgetSource
-import de.jeanlucmakiola.calendula.widget.WidgetSize
 import de.jeanlucmakiola.calendula.widget.loadMonthWidgetSource
 import de.jeanlucmakiola.calendula.widget.systemZone
 import de.jeanlucmakiola.calendula.widget.today
@@ -74,13 +73,11 @@ import java.util.Locale
 /** Per-widget state: the displayed month as `year * 12 + monthOrdinal`. */
 private val MONTH_INDEX_KEY = intPreferencesKey("month_index")
 
-/**
- * Per-instance Glance state key holding the chosen [WidgetSize]. Read reactively
- * in the composition so changing the setting reflects on a live widget by plain
- * recomposition — `updateAll` does not reliably re-run the `provideGlance`
- * preamble for a live session (same reason as [MONTH_INDEX_KEY]).
- */
-internal val MONTH_SIZE_KEY = stringPreferencesKey("widget_size")
+/** Event rows (lanes) shown per week before the rest collapse into "+N". */
+private const val MAX_LANES = 3
+private val LANE_HEIGHT = 14.dp
+private val DAY_NUMBER_HEIGHT = 18.dp
+private val GRID_HPADDING = 8.dp
 
 private fun currentMonthIndex(zone: TimeZone): Int {
     val t = today(zone)
@@ -95,45 +92,27 @@ private fun yearMonthOf(index: Int): YearMonth =
  * event bars and titled single-day pills (the in-app lane layout via
  * [layoutMonthWeeks]), and prev/next/today navigation.
  *
- * Columns are a fixed [MonthMetrics.columnWidth] wide — the user's chosen
- * [WidgetSize], never a measured size — and the grid is centred in whatever space
- * the host gives it. Sizing the columns off the launcher-reported width is what
- * broke the grid (#103): the reported width overshot the width actually drawn
- * into, so `width / 7` came out too wide and only the first four columns fitted.
- * A fixed column also keeps a multi-day event one connected Box spanning its
- * columns — no inter-cell seam, rounded end caps — which weighted columns, the
- * other way to be measurement-free, could not express.
- *
- * The displayed month lives in Glance state and is read reactively in the
- * composition ([currentState]) so the arrows move it via plain recomposition, not
- * a (here-unreliable) widget session reload.
+ * Columns are sized explicitly from [LocalSize] (hence [SizeMode.Exact]) so a
+ * multi-day span renders as a single Box spanning its columns — connected, no
+ * inter-cell seam, with rounded end caps. The displayed month lives in Glance
+ * state and is read reactively in the composition ([currentState]) so the arrows
+ * move it via plain recomposition, not a (here-unreliable) widget session reload.
  */
 class MonthWidget : GlanceAppWidget() {
 
     override val stateDefinition = PreferencesGlanceStateDefinition
-
-    // Single, not Exact: nothing in the layout depends on the widget's measured
-    // size any more (#103), so there is no reason to pay for one RemoteViews per
-    // host size bucket.
-    override val sizeMode = SizeMode.Single
+    override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val source = context.loadMonthWidgetSource()
         val dark = (context.resources.configuration.uiMode and
             Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
-        // Read fresh (not through the cached source) so toggling the softener or
-        // the size redraws with the new choice; two cheap DataStore reads.
-        val prefs = context.widgetEntryPoint().settingsPrefs()
-        val soften = prefs.softenCalendarColors.first()
-        val savedSize = prefs.widgetSize.first()
+        // Read fresh (not through the cached source) so toggling the softener
+        // redraws with the new choice; it's one cheap DataStore read.
+        val soften = context.widgetEntryPoint().settingsPrefs().softenCalendarColors.first()
         provideContent {
             CalendulaGlanceTheme {
-                MonthWidgetBody(
-                    source = source,
-                    dark = dark,
-                    soften = soften,
-                    savedSize = savedSize,
-                )
+                MonthWidgetBody(source = source, dark = dark, soften = soften)
             }
         }
     }
@@ -164,35 +143,29 @@ class ResetMonthAction : ActionCallback {
 }
 
 @Composable
-private fun MonthWidgetBody(
-    source: MonthWidgetSource,
-    dark: Boolean,
-    soften: Boolean,
-    savedSize: WidgetSize,
-) {
-    // Size read reactively from per-instance Glance state (falling back to the
-    // saved pref for a freshly placed widget), never from the measured size.
-    val metrics = monthMetricsFor(currentState(MONTH_SIZE_KEY).toWidgetSize(savedSize))
+private fun MonthWidgetBody(source: MonthWidgetSource, dark: Boolean, soften: Boolean) {
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(GlanceTheme.colors.surface)
-            .padding(horizontal = metrics.gridPadding, vertical = 6.dp),
+            .padding(horizontal = GRID_HPADDING, vertical = 6.dp),
     ) {
         when (source) {
             MonthWidgetSource.NeedsPermission -> {
-                MonthHeader(label = "Calendula", metrics = metrics)
+                MonthHeader(label = "Calendula")
                 PermissionMessage()
             }
             is MonthWidgetSource.Ready -> {
                 val zone = systemZone()
                 val index = currentState(MONTH_INDEX_KEY) ?: currentMonthIndex(zone)
                 val ym = yearMonthOf(index)
+                // Column width from the live widget size, minus our H padding.
+                val colW = (LocalSize.current.width - GRID_HPADDING * 2) / 7
                 val weeks = layoutMonthWeeks(ym, source.weekStart, source.instances, zone)
 
-                MonthHeader(label = monthLabel(ym, source.today.year), metrics = metrics)
+                MonthHeader(label = monthLabel(ym, source.today.year))
                 Spacer(GlanceModifier.height(2.dp))
-                WeekdayHeader(weekStart = source.weekStart, metrics = metrics)
+                WeekdayHeader(weekStart = source.weekStart, colW = colW)
                 weeks.forEach { week ->
                     WeekRow(
                         week = week,
@@ -200,7 +173,7 @@ private fun MonthWidgetBody(
                         today = source.today,
                         dark = dark,
                         soften = soften,
-                        metrics = metrics,
+                        colW = colW,
                         modifier = GlanceModifier.defaultWeight(),
                     )
                 }
@@ -209,26 +182,8 @@ private fun MonthWidgetBody(
     }
 }
 
-/**
- * A grid row: the seven fixed-width columns, centred in the space the host gave
- * us. Every row of the grid goes through this so they can never drift out of
- * alignment, and centring means leftover width shows as an even margin either
- * side rather than a ragged edge (turn the size up to fill it).
- */
 @Composable
-private fun GridRow(content: @Composable androidx.glance.layout.RowScope.() -> Unit) {
-    Row(
-        modifier = GlanceModifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        content = content,
-    )
-}
-
-private fun String?.toWidgetSize(default: WidgetSize): WidgetSize =
-    this?.let { stored -> WidgetSize.entries.firstOrNull { it.name == stored } } ?: default
-
-@Composable
-private fun MonthHeader(label: String, metrics: MonthMetrics) {
+private fun MonthHeader(label: String) {
     val context = LocalContext.current
     Row(
         modifier = GlanceModifier.fillMaxWidth(),
@@ -237,7 +192,6 @@ private fun MonthHeader(label: String, metrics: MonthMetrics) {
         HeaderIcon(
             resId = R.drawable.ic_widget_chevron_left,
             contentDescription = context.getString(R.string.widget_prev_month),
-            metrics = metrics,
             onClick = GlanceModifier.clickable(
                 actionRunCallback<ShiftMonthAction>(
                     actionParametersOf(ShiftMonthAction.deltaKey to -1),
@@ -250,7 +204,7 @@ private fun MonthHeader(label: String, metrics: MonthMetrics) {
             text = label,
             style = TextStyle(
                 color = GlanceTheme.colors.primary,
-                fontSize = metrics.headerTitle,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 textAlign = TextAlign.Center,
             ),
@@ -266,13 +220,11 @@ private fun MonthHeader(label: String, metrics: MonthMetrics) {
         HeaderIcon(
             resId = R.drawable.ic_widget_today,
             contentDescription = context.getString(R.string.widget_today),
-            metrics = metrics,
             onClick = GlanceModifier.clickable(actionRunCallback<ResetMonthAction>()),
         )
         HeaderIcon(
             resId = R.drawable.ic_widget_chevron_right,
             contentDescription = context.getString(R.string.widget_next_month),
-            metrics = metrics,
             onClick = GlanceModifier.clickable(
                 actionRunCallback<ShiftMonthAction>(
                     actionParametersOf(ShiftMonthAction.deltaKey to 1),
@@ -283,37 +235,32 @@ private fun MonthHeader(label: String, metrics: MonthMetrics) {
 }
 
 @Composable
-private fun HeaderIcon(
-    resId: Int,
-    contentDescription: String,
-    metrics: MonthMetrics,
-    onClick: GlanceModifier,
-) {
+private fun HeaderIcon(resId: Int, contentDescription: String, onClick: GlanceModifier) {
     Box(
-        modifier = GlanceModifier.size(metrics.iconBox).then(onClick),
+        modifier = GlanceModifier.size(40.dp).then(onClick),
         contentAlignment = Alignment.Center,
     ) {
         Image(
             provider = ImageProvider(resId),
             contentDescription = contentDescription,
             colorFilter = ColorFilter.tint(GlanceTheme.colors.onSurfaceVariant),
-            modifier = GlanceModifier.size(metrics.iconImage),
+            modifier = GlanceModifier.size(20.dp),
         )
     }
 }
 
 @Composable
-private fun WeekdayHeader(weekStart: DayOfWeek, metrics: MonthMetrics) {
-    GridRow {
+private fun WeekdayHeader(weekStart: DayOfWeek, colW: Dp) {
+    Row(modifier = GlanceModifier.fillMaxWidth()) {
         weekdayNarrowNames(weekStart).forEach { name ->
             Text(
                 text = name,
                 style = TextStyle(
                     color = GlanceTheme.colors.onSurfaceVariant,
-                    fontSize = metrics.weekday,
+                    fontSize = 11.sp,
                     textAlign = TextAlign.Center,
                 ),
-                modifier = GlanceModifier.width(metrics.columnWidth),
+                modifier = GlanceModifier.width(colW),
             )
         }
     }
@@ -336,30 +283,29 @@ private fun WeekRow(
     today: LocalDate,
     dark: Boolean,
     soften: Boolean,
-    metrics: MonthMetrics,
+    colW: Dp,
     modifier: GlanceModifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         // Day numbers.
-        GridRow {
+        Row(modifier = GlanceModifier.fillMaxWidth()) {
             week.days.forEach { date ->
                 DayNumber(
                     date = date,
                     isToday = date == today,
                     inMonth = date.month == currentMonth,
-                    metrics = metrics,
+                    colW = colW,
                 )
             }
         }
         Spacer(GlanceModifier.height(2.dp))
         // One lane row per event row. A multi-day span is a single Box spanning
-        // its columns (columnWidth * n) so it's connected with no seam and
-        // rounded ends.
+        // its columns (colW * n) so it's connected with no seam and rounded ends.
         repeat(MAX_LANES) { lane ->
-            LaneRow(week = week, lane = lane, dark = dark, soften = soften, metrics = metrics)
+            LaneRow(week = week, lane = lane, dark = dark, soften = soften, colW = colW)
             Spacer(GlanceModifier.height(1.dp))
         }
-        OverflowRow(week = week, metrics = metrics)
+        OverflowRow(week = week, colW = colW)
     }
 }
 
@@ -373,20 +319,19 @@ private fun openDayAction(context: Context, date: LocalDate) =
     actionStartActivity(MainActivity.openDateIntent(context, date, CalendarView.Month))
 
 @Composable
-private fun DayNumber(date: LocalDate, isToday: Boolean, inMonth: Boolean, metrics: MonthMetrics) {
+private fun DayNumber(date: LocalDate, isToday: Boolean, inMonth: Boolean, colW: Dp) {
     val context = LocalContext.current
-    val diameter = metrics.dayNumberHeight
     Box(
         modifier = GlanceModifier
-            .width(metrics.columnWidth)
-            .height(diameter)
+            .width(colW)
+            .height(DAY_NUMBER_HEIGHT)
             .clickable(openDayAction(context, date)),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             modifier = GlanceModifier
-                .size(diameter)
-                .then(if (isToday) GlanceModifier.cornerRadius(diameter / 2).background(GlanceTheme.colors.primary) else GlanceModifier),
+                .size(DAY_NUMBER_HEIGHT)
+                .then(if (isToday) GlanceModifier.cornerRadius(DAY_NUMBER_HEIGHT / 2).background(GlanceTheme.colors.primary) else GlanceModifier),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -397,7 +342,7 @@ private fun DayNumber(date: LocalDate, isToday: Boolean, inMonth: Boolean, metri
                         inMonth -> GlanceTheme.colors.onSurface
                         else -> GlanceTheme.colors.onSurfaceVariant
                     },
-                    fontSize = metrics.dayNumber,
+                    fontSize = 11.sp,
                     fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
                 ),
             )
@@ -406,39 +351,27 @@ private fun DayNumber(date: LocalDate, isToday: Boolean, inMonth: Boolean, metri
 }
 
 @Composable
-private fun LaneRow(week: MonthWeek, lane: Int, dark: Boolean, soften: Boolean, metrics: MonthMetrics) {
+private fun LaneRow(week: MonthWeek, lane: Int, dark: Boolean, soften: Boolean, colW: Dp) {
     val context = LocalContext.current
-    GridRow {
+    Row(modifier = GlanceModifier.fillMaxWidth()) {
         var col = 0
         while (col < 7) {
             val span = week.spans.firstOrNull { it.lane == lane && col in it.startCol..it.endCol }
             if (span != null) {
                 val cols = span.endCol - col + 1
-                SpanBar(
-                    event = span.event,
-                    dark = dark,
-                    soften = soften,
-                    width = metrics.columnWidth * cols,
-                    metrics = metrics,
-                )
+                SpanBar(event = span.event, dark = dark, soften = soften, width = colW * cols)
                 col = span.endCol + 1
             } else {
                 val timed = timedEventAt(week, lane, col, week.days[col])
                 if (timed != null) {
-                    SpanBar(
-                        event = timed,
-                        dark = dark,
-                        soften = soften,
-                        width = metrics.columnWidth,
-                        metrics = metrics,
-                    )
+                    SpanBar(event = timed, dark = dark, soften = soften, width = colW)
                 } else {
                     // Empty lane cell: a tap opens that day, so blank space in a
                     // day column is a day-open target just like the number is.
                     Box(
                         GlanceModifier
-                            .width(metrics.columnWidth)
-                            .height(metrics.laneHeight)
+                            .width(colW)
+                            .height(LANE_HEIGHT)
                             .clickable(openDayAction(context, week.days[col])),
                     ) {}
                 }
@@ -450,19 +383,13 @@ private fun LaneRow(week: MonthWeek, lane: Int, dark: Boolean, soften: Boolean, 
 
 /** A single connected, rounded event bar [width] wide with its clipped title. */
 @Composable
-private fun SpanBar(
-    event: EventInstance,
-    dark: Boolean,
-    soften: Boolean,
-    width: Dp,
-    metrics: MonthMetrics,
-) {
+private fun SpanBar(event: EventInstance, dark: Boolean, soften: Boolean, width: Dp) {
     val context = LocalContext.current
     val fill = eventFill(event.color, dark, soften)
     Box(
         modifier = GlanceModifier
             .width(width)
-            .height(metrics.laneHeight)
+            .height(LANE_HEIGHT)
             .padding(horizontal = 1.dp)
             // Tap an event bar to open its detail, rooted in the month view.
             .clickable(
@@ -487,7 +414,7 @@ private fun SpanBar(
             Text(
                 text = event.title.ifBlank { context.getString(R.string.event_untitled) },
                 maxLines = 1,
-                style = TextStyle(color = ColorProvider(eventInk(fill)), fontSize = metrics.eventTitle),
+                style = TextStyle(color = ColorProvider(eventInk(fill)), fontSize = 9.sp),
                 modifier = GlanceModifier.padding(horizontal = 3.dp),
             )
         }
@@ -495,9 +422,9 @@ private fun SpanBar(
 }
 
 @Composable
-private fun OverflowRow(week: MonthWeek, metrics: MonthMetrics) {
+private fun OverflowRow(week: MonthWeek, colW: Dp) {
     val context = LocalContext.current
-    GridRow {
+    Row(modifier = GlanceModifier.fillMaxWidth()) {
         week.days.forEachIndexed { col, date ->
             val shownSpans = week.spans.count { col in it.startCol..it.endCol && it.lane < MAX_LANES }
             val freeSlots = (MAX_LANES - shownSpans).coerceAtLeast(0)
@@ -507,8 +434,8 @@ private fun OverflowRow(week: MonthWeek, metrics: MonthMetrics) {
             // it shows "+N" or is blank) opens that day, same as the app.
             Box(
                 modifier = GlanceModifier
-                    .width(metrics.columnWidth)
-                    .height(metrics.laneHeight)
+                    .width(colW)
+                    .height(LANE_HEIGHT)
                     .clickable(openDayAction(context, date)),
                 contentAlignment = Alignment.CenterStart,
             ) {
@@ -516,7 +443,7 @@ private fun OverflowRow(week: MonthWeek, metrics: MonthMetrics) {
                     Text(
                         text = "+$hidden",
                         maxLines = 1,
-                        style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = metrics.overflow),
+                        style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 9.sp),
                         modifier = GlanceModifier.padding(start = 3.dp),
                     )
                 }

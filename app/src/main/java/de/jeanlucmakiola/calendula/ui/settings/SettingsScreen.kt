@@ -688,6 +688,12 @@ private fun AppearanceScreen(
             onClick = { viewModel.setAgendaShowToday(!state.agendaShowToday) },
         )
         GroupedRow(
+            title = stringResource(R.string.settings_widget_size),
+            summary = widgetSizeLabel(state.widgetSize),
+            position = Position.Middle,
+            onClick = { showWidgetSize = true },
+        )
+        GroupedRow(
             title = stringResource(R.string.settings_agenda_range_bar),
             summary = stringResource(R.string.settings_agenda_range_bar_hint),
             position = Position.Bottom,
@@ -698,18 +704,6 @@ private fun AppearanceScreen(
                 )
             },
             onClick = { viewModel.setAgendaShowRangeBar(!state.agendaShowRangeBar) },
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        // Widgets — the size step applies to both home-screen widgets, so it sits
-        // in its own group rather than under Agenda.
-        SectionHeader(stringResource(R.string.settings_widgets_header))
-        GroupedRow(
-            title = stringResource(R.string.settings_widget_size),
-            summary = widgetSizeLabel(state.widgetSize),
-            position = Position.Alone,
-            onClick = { showWidgetSize = true },
         )
 
         Spacer(Modifier.height(16.dp))

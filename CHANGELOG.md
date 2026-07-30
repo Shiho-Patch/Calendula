@@ -28,11 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The calendar picker in the event form and in the .ics import screen now ends
   with a **"Missing a calendar?"** row that opens Settings → Calendars, where
   those marks then explain why a calendar isn't offered ([#76]).
-- Both home-screen widgets have a size you set yourself. **Settings → Widgets →
-  Widget size** offers Small, Medium, Large and Extra large: it sets how big the
-  agenda widget's text is, and how big the month widget's day columns and text
-  are. Small is what the widgets look like today, so nothing changes until you
-  turn it up ([#51], [#103]).
+- The agenda widget's text size is yours to set. **Settings → Agenda → Agenda
+  widget size** offers Small, Medium, Large and Extra large, replacing the guess
+  the widget used to make from its own measurements. Small is what it looks like
+  today, so nothing changes until you turn it up ([#51]).
 
 ### Changed
 - Calendula's source code now lives on **Codeberg**, where its issues already
@@ -42,19 +41,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unaffected.
 
 ### Fixed
-- The month widget shows all seven days again. Unless it happened to be resized
-  to just the right shape, it drew only about four columns and cut the last one
-  off part-way through — the rest of the week was simply missing. The widget was
-  sizing its columns from the width the launcher reported, which is not the width
-  it is actually drawn into, so the columns came out too wide to fit. Nothing in
-  either widget is measured any more: they draw at the size you pick under
-  Settings → Widgets. The month widget can no longer be resized narrower than its
-  grid needs, either ([#103], [#51]).
-- A month-grid widget stays a month grid. Since 2.16.0 a placed month widget
-  could redraw itself as the agenda widget a little after any change to your
-  events, because the release build merged the two widgets into a single class
-  and Android could no longer tell which of them a widget on your home screen
-  was ([#89]).
+- A month-grid widget stays a month grid, and draws all seven days again. Since
+  2.16.0 a placed month widget could redraw itself as the agenda widget a little
+  after any change to your events, and could draw only about four day columns
+  with the last one cut off part-way through. Both came from the release build
+  merging the two widgets into a single class, so Android could no longer tell
+  which of them a widget on your home screen was — and the month grid was handed
+  the wrong widget's measurements to lay its columns out against ([#89], [#103]).
 - The back gesture on **Settings → Views** returns to Settings instead of
   leaving Settings altogether and dropping you on the calendar. Special dates
   did the same ([#81]).
