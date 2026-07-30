@@ -55,9 +55,8 @@ after v0.6 (full event read) plus the onboarding-screen polish pass.
 
 ## v2.0 — Write Support (complete, shipped 2026-06-11)
 
-Delivered in four releasable slices (plan:
-`docs/superpowers/plans/2026-06-11-03-write-support.md`). The V1 spec is a
-guide here, not a contract — scope per slice is decided as we go.
+Delivered in four releasable slices. The V1 spec is a guide here, not a
+contract — scope per slice is decided as we go.
 
 | Version | Milestone | Status |
 |---|---|---|
@@ -244,8 +243,7 @@ pass on the existing controls; new toggles ride in with their own features.
     sequential branches: `feat/ics-export` (write side + UID-on-create precursor)
     then `feat/ics-import` (parser, restore, dedup by UID). Import is
     liberal-in/strict-out: skip-and-report foreign `VTIMEZONE` / `RECURRENCE-ID`
-    / guest lists it can't model. Plans:
-    `docs/superpowers/plans/2026-06-18-05-ics-export.md` + `…-06-ics-import.md`.
+    / guest lists it can't model.
 11. **Snooze / dismiss notification actions** *(merged into release/v2.8.0)* —
     followed the `.ics` work; inherits v2.6's deferred exact-alarm/WorkManager
     decision (snooze must re-fire an alarm).

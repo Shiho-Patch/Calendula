@@ -25,7 +25,7 @@ release-cut.
 
 ## Progress
 
-- [x] Design spec written and committed (`docs/superpowers/specs/2026-06-08-calendar-app-design.md`)
+- [x] Design spec written and committed (2026-06-08)
 - [x] V1 design decisions resolved (App name "Calendula", icon, seed color)
 - [x] Plan 01 written and executed — foundation lands (theme, icon, i18n, Hilt, DataStore, CI green)
 - [x] Plan 02 written and executed — data layer + permission flow + debug screen

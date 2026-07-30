@@ -1,6 +1,6 @@
 # Calendula — Requirements
 
-See full design spec: `docs/superpowers/specs/2026-06-08-calendar-app-design.md`
+Architecture reference: [`../docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md)
 
 ## V1 Scope (Variant "B") — shipped in full (v1.0.0, 2026-06-11)
 

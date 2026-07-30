@@ -40,5 +40,9 @@ shows a stylized "1" on a slate squircle.
 
 ## Source
 
-Hosted on self-hosted Gitea, released through self-hosted F-Droid repo on
-Hetzner. Same infrastructure as `HouseHoldKeaper`.
+**Codeberg (`jlmakiola/calendula`) is canonical** — git, issues, PRs, tags and
+releases, plus contributor CI. The self-hosted Gitea instance is build
+infrastructure only: it holds the signing key, runs the release pipeline, and
+publishes the self-hosted F-Droid repo on Hetzner. Codeberg push-mirrors `main`
+and tags to Gitea, where a bumped `versionName` triggers the release. Also
+published to the official F-Droid repo. See `docs/RELEASING.md`.

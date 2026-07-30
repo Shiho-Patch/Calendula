@@ -62,9 +62,15 @@ flowchart TD
 - **`data/prefs/`** — DataStore-backed settings (theme, week start, form
   field defaults, reminders toggle) and small state (last-used calendar).
 - **`ui/`** — one package per screen, each with Screen + ViewModel +
-  UiState. Shared pieces in `ui/common/` (OptionCard — the app's only
-  sanctioned selection-dialog style —, recurrence humanizer, FAB column,
-  drawer, transitions).
+  UiState. Shared pieces in `ui/common/` (recurrence humanizer, FAB column,
+  drawer, transitions). Selection pickers are full-screen and come from
+  floret-kit (`FullScreenPicker` / `OptionPicker`); `AlertDialog` is reserved
+  for plain confirmations and the compact recurring-scope choosers.
+- **`floret-kit/`** — the shared Material 3 Expressive kit for the Floret app
+  family, wired in as a git submodule *and* a Gradle composite build
+  (`includeBuild`), so it is compiled from source rather than resolved as a
+  dependency. Pickers, crash plumbing, and locale/time helpers live there;
+  changing them is a pull request against that repository plus a submodule bump.
 
 ## Navigation
 
@@ -81,7 +87,7 @@ exactly like an event tap.
 ## Recurring writes
 
 The provider's invariants drive the design (learned the hard way, verified
-on-device — see plan 03):
+on-device):
 
 - Recurring rows carry `RRULE` + `DURATION` (no `DTEND`); one-off rows
   carry `DTEND`.
@@ -167,6 +173,7 @@ JUnit 5 + Truth + Turbine on the JVM. The seams that make it work:
 `CalendarDataSource` is faked (`FakeCalendarDataSource` records writes),
 mappers parse `ColumnReader`/plain maps instead of cursors, domain logic
 (recurrence, validation, snapshots, write-value building) is pure. CI
-(Gitea Actions) runs `lint test assembleDebug` once per pull request; merging a
+(Forgejo Actions on Codeberg) runs `lint test assembleDebug` once per pull
+request; merging a
 bumped `versionName` to `main` builds, signs, and publishes to the self-hosted
 F-Droid repo and then mints the `vX.Y.Z` tag + release. See docs/RELEASING.md.
