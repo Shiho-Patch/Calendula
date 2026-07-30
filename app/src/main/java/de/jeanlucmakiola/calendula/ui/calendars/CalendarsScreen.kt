@@ -99,7 +99,10 @@ import de.jeanlucmakiola.calendula.domain.isNotSynced
 import de.jeanlucmakiola.calendula.domain.orderedForManager
 import de.jeanlucmakiola.calendula.domain.stateLabels
 import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
+import de.jeanlucmakiola.calendula.ui.common.AccountKey
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.accountGroupTitle
+import de.jeanlucmakiola.calendula.ui.common.groupByAccount
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.LeadingAvatar
@@ -228,7 +231,7 @@ private fun CalendarsList(
     val snackbarHostState = remember { SnackbarHostState() }
     // Accounts the user has folded shut; empty = all expanded (keeps every
     // calendar visible by default, the section is collapsible for tidiness).
-    var collapsedAccounts by remember { mutableStateOf(emptySet<String>()) }
+    var collapsedAccounts by remember { mutableStateOf(emptySet<AccountKey>()) }
     var localExpanded by remember { mutableStateOf(true) }
     val writeErrorText = stringResource(R.string.calendars_write_error)
 
@@ -417,10 +420,11 @@ private fun CalendarsList(
         SectionHeader(stringResource(R.string.calendars_synced_header))
         HintText(stringResource(R.string.calendars_synced_hint))
         synced
-            .groupBy { it.accountName.ifBlank { it.accountType } }
-            .forEach { (account, cals) ->
-                val expanded = account !in collapsedAccounts
-                val accountType = cals.first().accountType
+            .groupByAccount()
+            .forEach { group ->
+                val cals = group.calendars
+                val expanded = group.key !in collapsedAccounts
+                val accountType = group.accountType
                 // A non-syncing calendar has no switch, so it neither counts
                 // towards "the whole account is off" nor moves with toggle-all.
                 val switchable = cals.filter { it.hasVisibilitySwitch }
@@ -428,7 +432,7 @@ private fun CalendarsList(
                     switchable.none { it.isVisibleInSystem }
                 Spacer(Modifier.height(16.dp))
                 CalendarGroup(
-                    title = account,
+                    title = accountGroupTitle(group),
                     expanded = expanded,
                     bodyHasRows = true,
                     headerDisabled = accountDisabled,
@@ -440,9 +444,9 @@ private fun CalendarsList(
                     },
                     onToggleExpand = {
                         collapsedAccounts = if (expanded) {
-                            collapsedAccounts + account
+                            collapsedAccounts + group.key
                         } else {
-                            collapsedAccounts - account
+                            collapsedAccounts - group.key
                         }
                     },
                     showToggleAll = switchable.isNotEmpty(),

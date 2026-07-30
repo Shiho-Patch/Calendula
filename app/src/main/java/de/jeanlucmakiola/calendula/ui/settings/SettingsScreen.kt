@@ -862,6 +862,7 @@ private fun ViewsScreen(
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_views),
         onBack = onBack,
+        predictiveBack = true,
     ) {
         val config = state.quickSwitchConfig
 
@@ -1403,6 +1404,7 @@ private fun SpecialDatesScreen(
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_special_dates),
         onBack = onBack,
+        predictiveBack = true,
     ) {
         // Paused banner: the permission was revoked after enabling.
         if (state.enabled && state.stalledPermission) {
