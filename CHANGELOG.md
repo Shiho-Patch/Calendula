@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   send you to the wrong app, "toggle all" spanned both accounts at once, and
   collapsing one collapsed the other. Where a name really is shared, each group
   now names the app it comes from ([#77]).
+- In the month view's **Split** style, the new-event button now starts on the
+  day you have selected. It always started on today, whichever day was selected
+  and listed below the grid ([#87]).
 - Search results now show an all-day event's real date. West of UTC — anywhere in
   the Americas, say — a search hit was dated one day early, disagreeing with the
   day the month, week and agenda views file the same event under ([#82]).
@@ -1211,4 +1214,5 @@ automatically, with zero telemetry and no internet permission.
 [#79]: https://codeberg.org/jlmakiola/calendula/issues/79
 [#81]: https://codeberg.org/jlmakiola/calendula/issues/81
 [#82]: https://codeberg.org/jlmakiola/calendula/issues/82
+[#87]: https://codeberg.org/jlmakiola/calendula/issues/87
 [#89]: https://codeberg.org/jlmakiola/calendula/issues/89
