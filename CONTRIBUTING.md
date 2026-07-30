@@ -178,13 +178,6 @@ Please don't commit planning or design documents. Code, tests, architecture note
 and the changelog land; the reasoning belongs in the commit message and the
 issue.
 
-## Not going to happen
-
-Saving you the effort:
-
-- **Anything requiring `INTERNET`**, including a sync stack of our own.
-- **An app-side event database.**
-
 ## Licence
 
 Calendula is [MIT](LICENSE). By contributing you agree your changes ship under
