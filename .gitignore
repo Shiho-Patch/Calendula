@@ -61,5 +61,16 @@ Thumbs.db
 # KSP
 .ksp/
 
+# Google Play Developer API service-account key. Reconstructed in CI from the
+# PLAY_SERVICE_ACCOUNT_JSON secret and shredded afterwards — never committed.
+/play-service-account.json
+
+# fastlane (Play uploader only — see fastlane/Fastfile)
+/fastlane/report.xml
+/fastlane/README.md
+/vendor/bundle/
+/.bundle/
+Gemfile.lock
+
 # Claude Code
 /CLAUDE.md
