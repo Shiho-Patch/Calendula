@@ -436,20 +436,36 @@ private fun AppVersionText() {
  * The app icon as a rounded chip: the off-white launcher mark over its slate
  * background colour, rendered oversized and clipped to fill the chip the way a
  * launcher mask would.
+ *
+ * Sized just past the two text lines beside it, so the card's height is set by
+ * its content rather than by the mark towering over it. That also keeps it a
+ * step above the 40dp category chips on the rows below — still the block's
+ * anchor, no longer its outlier. The mark is a vector, so the size is purely a
+ * layout choice; [MARK_OVERSCAN] holds the launcher-mask crop as it shrinks.
  */
 @Composable
 private fun AppLogo() {
     Box(
         modifier = Modifier
-            .size(72.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .size(LOGO_SIZE)
+            .clip(RoundedCornerShape(16.dp))
             .background(colorResource(R.color.ic_launcher_background)),
         contentAlignment = Alignment.Center,
     ) {
         Image(
             painter = painterResource(R.drawable.ic_launcher_foreground),
             contentDescription = stringResource(R.string.settings_about_logo_desc),
-            modifier = Modifier.requiredSize(108.dp),
+            modifier = Modifier.requiredSize(LOGO_SIZE * MARK_OVERSCAN),
         )
     }
 }
+
+/** Roughly the height of the app name and author lines it sits beside. */
+private val LOGO_SIZE = 56.dp
+
+/**
+ * How far the mark overruns its chip. An adaptive icon's foreground is drawn
+ * with a wide safe margin, so at 1:1 the flower would sit small and lost inside
+ * the chip; the launcher crops the same way.
+ */
+private const val MARK_OVERSCAN = 1.5f
