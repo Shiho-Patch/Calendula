@@ -1,0 +1,18 @@
+# Kept enabled so anything that doesn't fit the four templates still has a way
+# in (the `ToDo` label exists for exactly those).
+blank_issues_enabled: true
+
+contact_links:
+  - name: Translate Calendula
+    url: https://weblate.dev.jeanlucmakiola.de/engage/calendula/
+    about: >-
+      Translations are managed on Weblate, not here — it owns every values-*
+      file, so a hand-edited translation gets overwritten on the next sync.
+      No coding needed: pick or request a language and translate in the browser.
+
+  - name: Contributing guide
+    url: https://codeberg.org/jlmakiola/calendula/src/branch/main/CONTRIBUTING.md
+    about: >-
+      Before opening a pull request: the issue-first workflow, which release
+      branch to target, how to build (there's a submodule), and the
+      architectural rules a change is reviewed against.
