@@ -28,10 +28,26 @@ Kotlin 2.3.21 (paired with KSP 2.3.9 — Kotlin 2.4.0 has no KSP release
 yet, do not upgrade until one ships). Jetpack Compose + Material 3
 Expressive 1.5.0-alpha21 (alpha is intentional — Expressive APIs only
 live in the 1.5 alpha line). Hilt 2.59.2, DataStore. Gradle Kotlin DSL
-with Version Catalog. AGP 9.1.1, Gradle 9.5.1. JVM target 17.
+with Version Catalog. AGP 9.2.1, Gradle 9.5.1. JVM target 17 (exactly — AGP
+requires it).
 
-Android-only (minSdk 29, targetSdk 36). No iOS. No `INTERNET` permission —
-any feature that would need one is an explicit product decision first.
+The shared Material 3 Expressive kit, **floret-kit**, is a git submodule wired
+in as a Gradle composite build, so it compiles from source rather than resolving
+as a dependency.
+
+## Constraints
+
+- **Platform:** Android-only, Android 10+ (minSdk 29), targetSdk 36. No iOS.
+- **Offline-first:** all data lives in `CalendarContract` — no app database, no
+  sync stack. No `INTERNET` permission; any feature needing one is an explicit
+  product decision first.
+- **Privacy:** zero telemetry, zero analytics.
+- **i18n:** German + English from day one; further languages come from community
+  translators via the self-hosted Weblate, which owns every `values-*` file.
+- **Tests + CI from day one**, JVM-first.
+- **Reproducible release builds**, so the official F-Droid repo can verify the
+  published binary against a from-source rebuild.
+- **Licence:** MIT.
 
 ## Naming
 
