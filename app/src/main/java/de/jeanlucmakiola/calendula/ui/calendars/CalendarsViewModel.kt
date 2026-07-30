@@ -153,9 +153,12 @@ class CalendarsViewModel @Inject constructor(
      * reminders. Nothing is patched by hand — the provider notifies and the
      * observer re-queries.
      *
-     * Nothing has to be re-posted on the way back on: reminder delivery plans
-     * from `Instances` and `Reminders` on every scan (#75), and the provider
-     * change this write makes triggers one.
+     * A reminder that came due while the calendar was off stays gone when it is
+     * switched back on. Delivery plans from `Instances` and `Reminders` on every
+     * scan (#75), but the watermark has already moved past that moment, so no
+     * scan returns it again — and on a read-only install the switch never
+     * reaches the provider at all, so nothing even triggers one. Deliberate: the
+     * reminder was silenced on purpose, and the event itself is back in view.
      */
     fun setCalendarVisible(id: Long, visible: Boolean) = write {
         repository.setCalendarsVisible(listOf(id), visible)

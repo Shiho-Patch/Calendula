@@ -184,8 +184,58 @@ class ReminderPlanTest {
 
     @Test
     fun `a zero-day row fires on the event's own date`() {
-        assertThat(allDayLeadDays(rawMinutes = 0, beginMillis = allDayBegin("2026-07-15"), zone = berlin))
-            .isEqualTo(0L)
+        assertThat(
+            allDayLeadDays(
+                rawMinutes = 0,
+                startDate = LocalDate.parse("2026-07-15"),
+                zone = berlin,
+                allDayTimeMinutes = nineAm,
+            ),
+        ).isEqualTo(0L)
+    }
+
+    @Test
+    fun `our own row that encodes to a multiple is not read at face value`() {
+        // New York with the all-day hour at 20:00: "1 day before" encodes to a
+        // plain 0, because 20:00 EDT *is* UTC midnight. Read at face value it
+        // fired at 20:00 on the day of the event instead of the evening before.
+        val newYork = ZoneId.of("America/New_York")
+        val eightPm = 20 * 60
+        val row = encodedAllDayMinutes("2026-07-15", days = 1, timeOfDayMinutes = eightPm, zone = newYork)
+        assertThat(row % 1_440).isEqualTo(0)
+
+        val alarm = plan(
+            instances = listOf(
+                instance(1L, beginMillis = allDayBegin("2026-07-15"), isAllDay = true),
+            ),
+            minutesByEvent = mapOf(1L to listOf(row)),
+            zone = newYork,
+            allDayTimeMinutes = eightPm,
+        ).single().alarmMillis
+
+        assertThat(firedAt(alarm, newYork).toLocalDateTime())
+            .isEqualTo(LocalDate.parse("2026-07-14").atTime(20, 0))
+    }
+
+    @Test
+    fun `such a row keeps its lead time across the DST boundary that wrote it`() {
+        // Same row, sampled in EDT, on a winter occurrence: its instant lands an
+        // hour off the named hour, which still has to read as "one of ours".
+        val newYork = ZoneId.of("America/New_York")
+        val eightPm = 20 * 60
+        val summerRow = encodedAllDayMinutes("2026-07-15", days = 1, timeOfDayMinutes = eightPm, zone = newYork)
+
+        val alarm = plan(
+            instances = listOf(
+                instance(1L, beginMillis = allDayBegin("2027-01-15"), isAllDay = true),
+            ),
+            minutesByEvent = mapOf(1L to listOf(summerRow)),
+            zone = newYork,
+            allDayTimeMinutes = eightPm,
+        ).single().alarmMillis
+
+        assertThat(firedAt(alarm, newYork).toLocalDateTime())
+            .isEqualTo(LocalDate.parse("2027-01-14").atTime(20, 0))
     }
 
     @Test
@@ -435,6 +485,17 @@ class ReminderPlanTest {
         // outside the plain lookahead, or it fires late.
         assertThat(reminderQueryHorizon(lookaheadMillis = 7 * day, maxReminderMinutes = 20_160))
             .isEqualTo(7 * day + 14 * day)
+    }
+
+    @Test
+    fun `the query horizon is capped against an outlier row`() {
+        // The longest offset comes from any row in the provider — an imported
+        // TRIGGER:-P100W would otherwise expand every series over two years, on
+        // every scan.
+        val hundredWeeks = 100 * 7 * 24 * 60
+
+        assertThat(reminderQueryHorizon(lookaheadMillis = 7 * day, maxReminderMinutes = hundredWeeks))
+            .isEqualTo(7 * day + MAX_REMINDER_LEAD_MILLIS)
     }
 
     @Test

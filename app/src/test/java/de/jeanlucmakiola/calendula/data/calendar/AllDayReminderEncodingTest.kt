@@ -54,7 +54,8 @@ class AllDayReminderEncodingTest {
             for (time in listOf(0, nineAm, 20 * 60)) {
                 for (semantic in listOf(0, 1_440, 2_880, 10_080)) {
                     val raw = toProviderAllDayMinutes(semantic, date, berlin, time)
-                    assertThat(fromProviderAllDayMinutes(raw, date, berlin)).isEqualTo(semantic)
+                    assertThat(fromProviderAllDayMinutes(raw, date, berlin, time))
+                        .isEqualTo(semantic)
                 }
             }
         }
@@ -64,9 +65,31 @@ class AllDayReminderEncodingTest {
     fun `pre-feature rows (raw multiple of 1440) still decode to whole days`() {
         // Reminders written before this feature stored raw N*1440 (fired at UTC
         // midnight). They must still read back as "N days before".
-        assertThat(fromProviderAllDayMinutes(1_440, summer, berlin)).isEqualTo(1_440)
-        assertThat(fromProviderAllDayMinutes(1_440, winter, berlin)).isEqualTo(1_440)
-        assertThat(fromProviderAllDayMinutes(2_880, summer, berlin)).isEqualTo(2_880)
+        assertThat(fromProviderAllDayMinutes(1_440, summer, berlin, nineAm)).isEqualTo(1_440)
+        assertThat(fromProviderAllDayMinutes(1_440, winter, berlin, nineAm)).isEqualTo(1_440)
+        assertThat(fromProviderAllDayMinutes(2_880, summer, berlin, nineAm)).isEqualTo(2_880)
+    }
+
+    @Test
+    fun `an offset that encodes to a multiple still decodes to its own lead time`() {
+        // New York at 20:00 is the collision: "1 day before" encodes to a plain 0,
+        // which read at face value would say "at time of event". The screen has to
+        // show what the reminder does, which is fire the evening before.
+        val newYork = ZoneId.of("America/New_York")
+        val eightPm = 20 * 60
+        val raw = toProviderAllDayMinutes(1_440, summer, newYork, eightPm)
+
+        assertThat(raw).isEqualTo(0)
+        assertThat(fromProviderAllDayMinutes(raw, summer, newYork, eightPm)).isEqualTo(1_440)
+    }
+
+    @Test
+    fun `a foreign multiple west of UTC keeps its face-value lead time`() {
+        // No encoded hour in this row, and its instant lands on the evening two
+        // days out in New York — the local-date reading would say "2 days before".
+        val newYork = ZoneId.of("America/New_York")
+
+        assertThat(fromProviderAllDayMinutes(1_440, summer, newYork, nineAm)).isEqualTo(1_440)
     }
 
     @Test
@@ -74,8 +97,8 @@ class AllDayReminderEncodingTest {
         val atNine = toProviderAllDayMinutes(1_440, summer, berlin, nineAm)
         val atEight = toProviderAllDayMinutes(1_440, summer, berlin, 8 * 60)
         assertThat(atNine).isNotEqualTo(atEight)
-        assertThat(fromProviderAllDayMinutes(atNine, summer, berlin)).isEqualTo(1_440)
-        assertThat(fromProviderAllDayMinutes(atEight, summer, berlin)).isEqualTo(1_440)
+        assertThat(fromProviderAllDayMinutes(atNine, summer, berlin, nineAm)).isEqualTo(1_440)
+        assertThat(fromProviderAllDayMinutes(atEight, summer, berlin, nineAm)).isEqualTo(1_440)
     }
 
     @Test

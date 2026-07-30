@@ -54,7 +54,12 @@ import javax.inject.Singleton
 interface CalendarDataSource {
     fun calendars(): List<CalendarSource>
     fun instances(beginMillis: Long, endMillis: Long): List<EventInstance>
-    fun eventDetail(eventId: Long): EventDetail?
+    /**
+     * [allDayReminderTimeMinutes]: the hour all-day reminders fire at, needed to
+     * decode their stored offsets back to whole-day lead times (see
+     * [fromProviderAllDayMinutes]).
+     */
+    fun eventDetail(eventId: Long, allDayReminderTimeMinutes: Int): EventDetail?
 
     /**
      * Master/one-off events whose title, description or location contains
@@ -670,7 +675,7 @@ class AndroidCalendarDataSource @Inject constructor(
         }
     }
 
-    override fun eventDetail(eventId: Long): EventDetail? {
+    override fun eventDetail(eventId: Long, allDayReminderTimeMinutes: Int): EventDetail? {
         val attendees = queryAttendees(eventId)
         val reminders = queryReminders(eventId)
         return resolver.query(
@@ -679,7 +684,9 @@ class AndroidCalendarDataSource @Inject constructor(
             null, null, null,
         )?.use { c ->
             if (!c.moveToFirst()) null
-            else CursorColumnReader(c).toEventDetailCore(attendees, reminders)
+            else CursorColumnReader(c).toEventDetailCore(
+                attendees, reminders, allDayReminderTimeMinutes,
+            )
         }
     }
 

@@ -124,22 +124,51 @@ private fun allDayDate(beginMillis: Long): LocalDate =
 /**
  * How many whole days before its occurrence a raw all-day offset means.
  *
- * A plain multiple of 1440 is read at face value. That covers rows from other
- * calendar apps, which carry no encoded hour — and it stays right for our own
- * rows that happen to land on a multiple, because those encode a wall-clock hour
- * equal to the sampled UTC offset, so the day count is the same either way.
+ * Normally the local date of the encoded fire instant answers it: our own rows
+ * fold the wanted hour into the offset, so that date *is* the day the reminder
+ * belongs to, whatever the offset was when it was written.
  *
- * Anything else is one of ours, with an hour folded in: recover the day count the
- * way [de.jeanlucmakiola.calendula.data.calendar.fromProviderAllDayMinutes]
- * does for display, by asking which local date the encoded instant falls on.
- * Keeping the two in step is what makes the notification arrive on the day the
- * event screen says it will.
+ * A plain multiple of 1440 is the exception. Those come from calendar apps that
+ * store a bare lead time against UTC midnight, and east of UTC both readings
+ * agree anyway — but west of UTC the instant falls on the previous local date,
+ * so the day count has to be taken at face value or it comes out one too many.
+ *
+ * Except when the row is one of ours after all: our offset lands on a multiple
+ * whenever the all-day hour equals the zone's UTC offset (20:00 in New York,
+ * 19:00 an hour further west, and so on), and reading those at face value fired
+ * them a day late — a "1 day before" arriving on the morning of the event. So
+ * the hour decides, not the shape of the number: an instant landing on the hour
+ * the setting names is ours. Within an hour or so of it counts, because a fixed
+ * offset written in one DST phase drifts by the offset delta in the other.
+ *
+ * The two are genuinely indistinguishable in that band — the encodings collide
+ * exactly there — so the tie goes to the reading that honours the lead time the
+ * user chose in this app.
+ *
+ * [de.jeanlucmakiola.calendula.data.calendar.fromProviderAllDayMinutes] calls
+ * this for display, so the notification arrives on the day the event screen says
+ * it will.
  */
-internal fun allDayLeadDays(rawMinutes: Int, beginMillis: Long, zone: ZoneId): Long {
-    if (rawMinutes % MINUTES_PER_DAY == 0) return (rawMinutes / MINUTES_PER_DAY).toLong()
-    val encoded = Instant.ofEpochMilli(beginMillis - rawMinutes * MILLIS_PER_MINUTE)
-    return ChronoUnit.DAYS.between(encoded.atZone(zone).toLocalDate(), allDayDate(beginMillis))
+internal fun allDayLeadDays(
+    rawMinutes: Int,
+    startDate: LocalDate,
+    zone: ZoneId,
+    allDayTimeMinutes: Int,
+): Long {
+    val utcMidnight = startDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    val encoded = Instant.ofEpochMilli(utcMidnight - rawMinutes * MILLIS_PER_MINUTE).atZone(zone)
+    val minutesFromNamedHour = encoded.toLocalTime().let {
+        val delta = (it.hour * 60 + it.minute - allDayTimeMinutes).mod(MINUTES_PER_DAY)
+        minOf(delta, MINUTES_PER_DAY - delta)
+    }
+    if (rawMinutes % MINUTES_PER_DAY == 0 && minutesFromNamedHour > NAMED_HOUR_TOLERANCE_MINUTES) {
+        return (rawMinutes / MINUTES_PER_DAY).toLong()
+    }
+    return ChronoUnit.DAYS.between(encoded.toLocalDate(), startDate)
 }
+
+/** DST drift a row written in the other phase carries, rounded up past Lord Howe's half hour. */
+private const val NAMED_HOUR_TOLERANCE_MINUTES = 90
 
 private fun allDayAlarmMillis(
     beginMillis: Long,
@@ -147,7 +176,7 @@ private fun allDayAlarmMillis(
     zone: ZoneId,
     allDayTimeMinutes: Int,
 ): Long = allDayDate(beginMillis)
-    .minusDays(allDayLeadDays(rawMinutes, beginMillis, zone))
+    .minusDays(allDayLeadDays(rawMinutes, allDayDate(beginMillis), zone, allDayTimeMinutes))
     .atTime(LocalTime.of(allDayTimeMinutes / 60, allDayTimeMinutes % 60))
     .atZone(zone)
     .toInstant()
@@ -214,6 +243,16 @@ fun reminderWatermark(lastScanMillis: Long?, nowMillis: Long): Long =
  * reminder in time: the plain lookahead plus the longest offset any reminder row
  * carries, so a "two weeks before" reminder is planned before it comes due
  * instead of firing late (the limitation Etar's equivalent documents).
+ *
+ * The stretch is capped at [MAX_REMINDER_LEAD_MILLIS]. `maxReminderMinutes` is
+ * whatever the largest row in the whole provider says, across every calendar and
+ * whoever wrote it — an imported `TRIGGER:-P100W`, or a sync adapter writing
+ * nonsense, would otherwise make every scan (launch, every provider change, every
+ * alarm) expand every recurring series over years. A lead beyond the cap is not
+ * delivered; a year is far past anything the picker composes.
  */
 fun reminderQueryHorizon(lookaheadMillis: Long, maxReminderMinutes: Int): Long =
-    lookaheadMillis + maxOf(0L, maxReminderMinutes * MILLIS_PER_MINUTE)
+    lookaheadMillis + (maxReminderMinutes * MILLIS_PER_MINUTE).coerceIn(0L, MAX_REMINDER_LEAD_MILLIS)
+
+/** Longest reminder offset a scan stretches its query window for — one year. */
+const val MAX_REMINDER_LEAD_MILLIS = 365L * 24 * 60 * 60 * 1000
