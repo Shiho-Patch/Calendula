@@ -1,0 +1,7 @@
+# fastlane is used in this repo ONLY as a Google Play Developer API client
+# (see fastlane/Fastfile). It never builds and never signs.
+
+# Reconstructed in CI from the PLAY_SERVICE_ACCOUNT_JSON secret; gitignored.
+json_key_file(ENV["SUPPLY_JSON_KEY"] || "play-service-account.json")
+
+package_name("de.jeanlucmakiola.calendula")

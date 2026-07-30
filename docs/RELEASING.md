@@ -87,6 +87,9 @@ release work when a merge actually cuts a release:
   mirror the release to **Codeberg** with the signed APK + a SHA-256 checksum
   (both best-effort). Ordinary merges with no version bump fall through `detect`
   and do nothing.
+- **`play` job** (same workflow, after `release`) — uploads the App Bundle to
+  Google Play. Runs last and separately so a Play rejection can't endanger a
+  release that already shipped; skips cleanly until Play is configured.
 
 ### Codeberg direct-download channel
 
@@ -101,6 +104,58 @@ already-published F-Droid release, and it skips cleanly if `CODEBERG_RELEASE_TOK
 unset. One-time setup: the repo's **Releases** unit must be enabled and a
 `CODEBERG_RELEASE_TOKEN` secret (Codeberg access token, `write:repository` scope) added
 to Gitea Actions.
+
+### Google Play channel
+
+Play is a third channel alongside F-Droid and the Codeberg download, and it is
+the only one that gets a different artifact and a different signature.
+
+**Artifact.** Play takes an **App Bundle** (`bundleRelease`), not the APK. It is
+a second output of the same source and the same signing config — never a
+repackage of the published APK, which stays untouched so the F-Droid
+reproducibility guarantee is unaffected. `dependenciesInfo` stays disabled for
+the bundle too; Play's "app dependencies" report is optional and re-enabling it
+would break reproducibility.
+
+**Signature — read this before assuming an update path exists.** Play App
+Signing is mandatory for new apps, and Google generates and holds the app
+signing key. The release keystore in CI is registered only as the **upload
+key**: Play verifies uploads with it, then re-signs with Google's key before
+delivery. Consequences, accepted deliberately:
+
+- A Play install and an F-Droid install have **different signatures** and
+  **cannot update each other**. Switching channels requires uninstall +
+  reinstall, which loses nothing (all data lives in the system calendar
+  provider) but must be stated wherever both channels are advertised.
+- Losing the upload key is **recoverable** — request an upload-key reset in the
+  Play Console. Losing the app key still is not, for F-Droid.
+
+**Build and signing are not fastlane's job.** Gradle does both, exactly as
+before. fastlane appears only as the Play Developer API client (`supply`),
+because the store listing already lives in `fastlane/metadata/android/` — the
+same tree the official F-Droid repo harvests. One metadata source, two stores.
+
+**What gets uploaded per release:** the AAB, plus the per-version "What's New"
+from `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` (generated
+from `CHANGELOG.md` by `scripts/sync_changelog_to_fastlane.sh`). Listing text is
+**not** touched — an accidental overwrite of a live listing triggers a Play
+policy review. Sync it deliberately with `bundle exec fastlane listing`.
+
+**Screenshots and graphics are skipped**, because the committed assets satisfy
+F-Droid but not Play:
+
+| Asset | Committed | Play requires |
+| --- | --- | --- |
+| `phoneScreenshots/*.png` | 1280×2856, 32-bit RGBA | long edge ≤ 2× short edge (so ≤ 2560), 24-bit PNG, no alpha |
+| `icon.png` | 512×512, 24-bit RGB | 512×512, 32-bit PNG |
+| `featureGraphic.png` | *missing* | required, exactly 1024×500 |
+
+Until those are fixed, Play's graphics are managed by hand in the console. Then
+pass `images:true` to the `listing` lane.
+
+**Track.** Uploads go to `internal` by default; promotion to production stays a
+manual action in the Play Console, matching the rule that UI releases wait for
+on-device review. Override with the `PLAY_TRACK` repo variable.
 
 ### Manual re-sign / recovery
 
@@ -153,6 +208,15 @@ Two consequences worth remembering:
 | `HETZNER_HOST`, `HETZNER_USER`, `HETZNER_PASS` | Upload target for the F-Droid repo. |
 | `GITHUB_TOKEN` | Provided by Gitea Actions; used to create the release + attach assets. |
 | `CODEBERG_RELEASE_TOKEN` | Codeberg access token (`write:repository` scope) — creates the mirrored Codeberg release + uploads the APK/checksum. Best-effort; if unset the Codeberg step skips. |
+| `PLAY_SERVICE_ACCOUNT_JSON` | Google Cloud service-account key (full JSON) with Play Console access — uploads the AAB. If unset, the `play` job skips cleanly. |
+
+### Variables (Gitea → repo Settings → Actions → Variables)
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `PLAY_TRACK` | `internal` | Play track the bundle is uploaded to. |
+| `PLAY_RELEASE_STATUS` | `completed` | `completed`, `draft`, `inProgress` or `halted`. |
+| `PLAY_DRY_RUN` | `false` | `true` validates the Play edit against the API and discards it — use to rehearse. |
 
 The two keys are independent: the **app key** signs APKs; the **repo key**
 signs the index (its fingerprint is what users pin). Neither key nor the
