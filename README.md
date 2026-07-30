@@ -105,9 +105,25 @@ without reinstalling. Or build from source — see below.
 
 ## 📚 Documentation
 
+- **[Contributing](CONTRIBUTING.md)** — how to report, propose, and patch
 - **[Building from source](docs/BUILDING.md)** — requirements and Gradle tasks
 - **[Architecture](docs/ARCHITECTURE.md)** — the layered design and key pipelines
 - **[Roadmap](.planning/ROADMAP.md)** — what's shipped and what's next
+
+## 🤝 Contributing
+
+Bug reports, ideas, and patches are all welcome on
+**[Codeberg](https://codeberg.org/jlmakiola/calendula/issues)**.
+
+The short version: **start with an issue.** Features get a yes-or-no before they
+get code, and both features and bugs are assigned a milestone whose
+`release/vX.Y.Z` branch your pull request then targets. Typo and docs fixes can
+skip straight to a pull request. Translations don't go through pull requests at
+all — [Weblate owns them](#-translations).
+
+Read **[CONTRIBUTING.md](CONTRIBUTING.md)** before writing code: it covers the
+workflow, the build (note the `floret-kit` submodule), and the architectural
+rules a change is reviewed against.
 
 ## 🌍 Translations
 
