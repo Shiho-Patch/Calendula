@@ -13,7 +13,6 @@ import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.ics.IcsExporter
 import de.jeanlucmakiola.calendula.data.prefs.BackupStatus
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
-import de.jeanlucmakiola.calendula.data.reminders.ReminderRecovery
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.ics.IcsWriter
 import kotlinx.coroutines.CoroutineDispatcher
@@ -44,7 +43,6 @@ class CalendarsViewModel @Inject constructor(
     private val repository: CalendarRepository,
     private val icsExporter: IcsExporter,
     private val settingsPrefs: SettingsPrefs,
-    private val reminderRecovery: ReminderRecovery,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -155,24 +153,21 @@ class CalendarsViewModel @Inject constructor(
      * reminders. Nothing is patched by hand — the provider notifies and the
      * observer re-queries.
      *
-     * Switching one back on also re-posts the reminders it silenced while it was
-     * off and that are still relevant — those the app kept app-side because it
-     * may not write the flag ([ReminderRecovery]).
+     * Nothing has to be re-posted on the way back on: reminder delivery plans
+     * from `Instances` and `Reminders` on every scan (#75), and the provider
+     * change this write makes triggers one.
      */
     fun setCalendarVisible(id: Long, visible: Boolean) = write {
         repository.setCalendarsVisible(listOf(id), visible)
-        if (visible) reminderRecovery.rePostFor(listOf(id))
     }
 
     /**
      * Switch every calendar of one account on or off — the "toggle all"
-     * affordance on an account header. Each row is written on its own (the
-     * provider only re-arms reminder alarms for a single-id update), in one
+     * affordance on an account header. Each row is written on its own, in one
      * coroutine so the writes can't race each other.
      */
     fun setAccountVisible(ids: Collection<Long>, visible: Boolean) = write {
         repository.setCalendarsVisible(ids, visible)
-        if (visible) reminderRecovery.rePostFor(ids)
     }
 
     // --- Automatic backup (issue #8) ------------------------------------

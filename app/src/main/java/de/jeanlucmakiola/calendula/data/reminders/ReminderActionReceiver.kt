@@ -18,14 +18,14 @@ import javax.inject.Inject
  * intents (notification action buttons and our own [ReminderSnoozeScheduler]
  * alarm), so the receiver is not exported.
  *
- * - **Dismiss** just cancels the notification — the `CalendarAlerts` row is
- *   already fired, so nothing re-posts it.
+ * - **Dismiss** just cancels the notification — the scan's watermark has moved
+ *   past this reminder, so nothing re-posts it.
  * - **Snooze** cancels the notification and schedules an exact alarm to re-show
  *   it after the user's snooze delay.
  * - **Show** (the alarm) re-posts the same notification, so the user can snooze
  *   or dismiss it again — unless the calendar was switched off during the
- *   snooze, which [ReminderNotifier.post] catches (this alarm is ours, so no
- *   provider alert row stands between it and the notification).
+ *   snooze, which [ReminderNotifier.post] catches — this alarm is its own
+ *   trigger, outside the ordinary scan.
  */
 @AndroidEntryPoint
 class ReminderActionReceiver : BroadcastReceiver() {
@@ -75,7 +75,14 @@ class ReminderActionReceiver : BroadcastReceiver() {
         const val ACTION_DISMISS = "de.jeanlucmakiola.calendula.reminders.DISMISS"
         const val ACTION_SHOW = "de.jeanlucmakiola.calendula.reminders.SHOW"
 
-        private const val EXTRA_ALERT_ID = "alert_id"
+        /**
+         * Not handled here — the notification body opens the detail screen
+         * directly. It only claims a slot in [requestCode] so that intent stays
+         * distinct from the three this receiver does handle.
+         */
+        const val ACTION_OPEN = "de.jeanlucmakiola.calendula.reminders.OPEN"
+
+        private const val EXTRA_ALERT_KEY = "alert_key"
         private const val EXTRA_EVENT_ID = "event_id"
         private const val EXTRA_CALENDAR_ID = "calendar_id"
         private const val EXTRA_BEGIN = "begin"
@@ -88,7 +95,7 @@ class ReminderActionReceiver : BroadcastReceiver() {
         fun intent(context: Context, action: String, alert: ReminderAlert): Intent =
             Intent(context, ReminderActionReceiver::class.java).apply {
                 this.action = action
-                putExtra(EXTRA_ALERT_ID, alert.alertId)
+                putExtra(EXTRA_ALERT_KEY, alert.key)
                 putExtra(EXTRA_EVENT_ID, alert.eventId)
                 putExtra(EXTRA_CALENDAR_ID, alert.calendarId)
                 putExtra(EXTRA_BEGIN, alert.beginMillis)
@@ -99,23 +106,29 @@ class ReminderActionReceiver : BroadcastReceiver() {
             }
 
         /**
-         * A stable request code per (alert, action) so the three PendingIntents
-         * of one notification stay distinct and don't clobber each other.
+         * A stable request code per (alert, action) so one notification's
+         * PendingIntents stay distinct and don't clobber each other.
+         *
+         * The key is a hash now rather than a small row id, so the shift is what
+         * keeps the action slot intact; the top three bits it drops only make two
+         * *different* reminders collide, which the intent extras then separate
+         * (PendingIntents compare their intents too, not just the request code).
          */
         fun requestCode(alert: ReminderAlert, action: String): Int {
             val actionOffset = when (action) {
                 ACTION_SNOOZE -> 1
                 ACTION_DISMISS -> 2
                 ACTION_SHOW -> 3
+                ACTION_OPEN -> 4
                 else -> 0
             }
-            return alert.alertId.toInt() * 8 + actionOffset
+            return (alert.key.toInt() shl 3) + actionOffset
         }
 
         private fun alertFrom(intent: Intent): ReminderAlert? {
-            if (!intent.hasExtra(EXTRA_ALERT_ID)) return null
+            if (!intent.hasExtra(EXTRA_ALERT_KEY)) return null
             return ReminderAlert(
-                alertId = intent.getLongExtra(EXTRA_ALERT_ID, 0L),
+                key = intent.getLongExtra(EXTRA_ALERT_KEY, 0L),
                 eventId = intent.getLongExtra(EXTRA_EVENT_ID, 0L),
                 calendarId = intent.getLongExtra(EXTRA_CALENDAR_ID, 0L),
                 beginMillis = intent.getLongExtra(EXTRA_BEGIN, 0L),

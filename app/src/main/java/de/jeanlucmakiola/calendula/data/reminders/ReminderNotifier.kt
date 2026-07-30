@@ -29,11 +29,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Posts one notification per due reminder alert on a dedicated channel.
- * Tapping opens the event's detail screen; the tag is the alert id, so a
- * re-broadcast of an alert we couldn't mark fired replaces its notification
- * silently ([NotificationCompat.Builder.setOnlyAlertOnce]) instead of
- * duplicating it.
+ * Posts one notification per due reminder on a dedicated channel. Tapping opens
+ * the event's detail screen.
+ *
+ * The tag is the reminder's stable key, so a scan that posts the same reminder
+ * again — a catch-up pass overlapping the alarm that already fired — replaces
+ * its notification silently ([NotificationCompat.Builder.setOnlyAlertOnce])
+ * instead of stacking a second one.
  */
 @Singleton
 class ReminderNotifier @Inject constructor(
@@ -52,13 +54,12 @@ class ReminderNotifier @Inject constructor(
     }
 
     /**
-     * The single choke point for "this calendar is switched off". The provider
-     * side needs no help — with `VISIBLE = 0` it creates no alert rows at all —
-     * but two paths reach [post] without one: a snooze we re-show from our own
-     * exact alarm, scheduled before the calendar was switched off, and a
-     * read-only install whose switch lives app-side ([CalendarPrefs]) because it
-     * may not write the flag. Both are covered here rather than in either
-     * receiver.
+     * The single choke point for "this calendar is switched off". The scan
+     * already filters on `Calendars.VISIBLE`, but two paths reach [post] around
+     * it: a snooze re-shown from its own alarm, armed before the calendar was
+     * switched off, and a read-only install whose switch lives app-side
+     * ([CalendarPrefs]) because it may not write the flag. Both are covered here
+     * rather than in either receiver.
      */
     private suspend fun isSilenced(calendarId: Long): Boolean =
         calendarId in calendarPrefs.pendingDisabledCalendarIds.first() ||
@@ -66,8 +67,8 @@ class ReminderNotifier @Inject constructor(
 
     /**
      * Post [alert], unless its calendar is switched off. Returns whether the
-     * notification was put up: a silenced alert must stay unhandled so that
-     * switching the calendar back on can still surface it (see [handledAlertIds]).
+     * notification was put up, which the snooze re-show path uses to tell a
+     * silenced reminder from a delivered one.
      */
     suspend fun post(alert: ReminderAlert): Boolean {
         if (isSilenced(alert.calendarId)) return false
@@ -117,7 +118,7 @@ class ReminderNotifier @Inject constructor(
             .build()
         try {
             NotificationManagerCompat.from(context)
-                .notify(alert.alertId.toString(), NOTIFICATION_ID, notification)
+                .notify(alert.key.toString(), NOTIFICATION_ID, notification)
         } catch (e: SecurityException) {
             // POST_NOTIFICATIONS was revoked between canPost() and here.
             Log.w(TAG, "Could not post reminder for event ${alert.eventId}", e)
@@ -128,7 +129,7 @@ class ReminderNotifier @Inject constructor(
 
     /** Remove a posted reminder (snooze re-shows it later; dismiss is final). */
     fun cancel(alert: ReminderAlert) {
-        NotificationManagerCompat.from(context).cancel(alert.alertId.toString(), NOTIFICATION_ID)
+        NotificationManagerCompat.from(context).cancel(alert.key.toString(), NOTIFICATION_ID)
     }
 
     private fun actionIntent(alert: ReminderAlert, action: String): PendingIntent =
@@ -141,7 +142,11 @@ class ReminderNotifier @Inject constructor(
 
     private fun detailIntent(alert: ReminderAlert): PendingIntent = PendingIntent.getActivity(
         context,
-        /* requestCode = */ alert.alertId.toInt(),
+        // Shares the per-(alert, action) request-code scheme with the buttons, so
+        // the key's wider value range can't collide one notification's intents.
+        /* requestCode = */ ReminderActionReceiver.requestCode(
+            alert, ReminderActionReceiver.ACTION_OPEN,
+        ),
         MainActivity.eventDetailIntent(context, alert.eventId, alert.beginMillis, alert.endMillis),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
