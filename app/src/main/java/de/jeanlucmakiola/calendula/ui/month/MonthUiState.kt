@@ -68,6 +68,24 @@ fun MonthWeek.laneEvents(col: Int, day: LocalDate, laneCap: Int): List<EventInst
 }
 
 /**
+ * The events on [day] that [laneEvents] had no lane left for — the exact
+ * complement of what it seats, in the same bars-then-pills order. Together the
+ * two partition the day, so their sizes add up to [countByDay].
+ *
+ * The "+N" marker needs the events themselves, not just how many there are:
+ * dimming a completed event is a per-event question (#79).
+ */
+fun MonthWeek.overflowEvents(col: Int, day: LocalDate, laneCap: Int): List<EventInstance> {
+    val seatedLanes = spans.count { it.lane < laneCap && col in it.startCol..it.endCol }
+    return buildList {
+        spans.forEach { span ->
+            if (span.lane >= laneCap && col in span.startCol..span.endCol) add(span.event)
+        }
+        addAll(timedByDay[day].orEmpty().drop(laneCap - seatedLanes))
+    }
+}
+
+/**
  * State for the continuous style (#38): a vertical stream of *self-contained*
  * months rather than one undifferentiated run of weeks. Each month is keyed by
  * absolute month index and carries only its own days — the boundary week keeps
