@@ -39,9 +39,11 @@ import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import de.jeanlucmakiola.calendula.ui.theme.AppFontSettings
 import de.jeanlucmakiola.calendula.ui.theme.FONT_CUSTOM_TOKEN
+import de.jeanlucmakiola.calendula.widget.WidgetSize
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_PAST_DISPLAY_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_RANGE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_SHOW_TODAY_STATE_KEY
+import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_SIZE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AgendaWidget
 import de.jeanlucmakiola.calendula.widget.month.MonthWidget
 import kotlinx.coroutines.CoroutineDispatcher
@@ -162,8 +164,9 @@ class SettingsViewModel @Inject constructor(
                     prefs.quickSwitchConfig,
                     prefs.drawerViewOrder,
                     prefs.monthViewStyle,
-                ) { quickSwitch, drawer, monthStyle ->
-                    ViewCustomization(quickSwitch, drawer, monthStyle)
+                    prefs.widgetSize,
+                ) { quickSwitch, drawer, monthStyle, widgetSize ->
+                    ViewCustomization(quickSwitch, drawer, monthStyle, widgetSize)
                 },
             ) { showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization ->
                 MiscSettings(showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization)
@@ -186,6 +189,7 @@ class SettingsViewModel @Inject constructor(
                 quickSwitchConfig = misc.viewCustomization.quickSwitch,
                 drawerViewOrder = misc.viewCustomization.drawerOrder,
                 monthViewStyle = misc.viewCustomization.monthViewStyle,
+                widgetSize = misc.viewCustomization.widgetSize,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -300,6 +304,7 @@ class SettingsViewModel @Inject constructor(
         val quickSwitch: QuickSwitchConfig,
         val drawerOrder: List<CalendarView>,
         val monthViewStyle: MonthViewStyle,
+        val widgetSize: WidgetSize,
     )
 
     /** Contact special-dates sub-page (issue #15); its own flow — the main state is full. */
@@ -476,6 +481,28 @@ class SettingsViewModel @Inject constructor(
 
     fun setAgendaShowRangeBar(enabled: Boolean) {
         viewModelScope.launch { prefs.setAgendaShowRangeBar(enabled) }
+    }
+
+    /**
+     * Set the size the agenda widget draws its text at (#51). Pushed into every
+     * instance's Glance state and recomposed — the same reliable-update path as
+     * [setAgendaWidgetRange], since `updateAll` alone won't re-run the data
+     * preamble a live session already ran.
+     *
+     * Agenda-only on purpose: the month widget sizes itself from the space it is
+     * given and always has, so it takes no size setting (#103).
+     */
+    fun setWidgetSize(size: WidgetSize) {
+        viewModelScope.launch {
+            prefs.setWidgetSize(size)
+            widgetRefreshMutex.withLock {
+                val manager = GlanceAppWidgetManager(appContext)
+                manager.getGlanceIds(AgendaWidget::class.java).forEach { id ->
+                    updateAppWidgetState(appContext, id) { it[AGENDA_SIZE_KEY] = size.name }
+                }
+                AgendaWidget().updateAll(appContext)
+            }
+        }
     }
 
     fun setAgendaShowToday(enabled: Boolean) {

@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The calendar picker in the event form and in the .ics import screen now ends
   with a **"Missing a calendar?"** row that opens Settings → Calendars, where
   those marks then explain why a calendar isn't offered ([#76]).
+- The agenda widget's text size is yours to set. **Settings → Agenda → Agenda
+  widget size** offers Small, Medium, Large and Extra large, replacing the guess
+  the widget used to make from its own measurements. Small is what it looks like
+  today, so nothing changes until you turn it up ([#51]).
 
 ### Changed
 - Calendula's source code now lives on **Codeberg**, where its issues already
@@ -37,11 +41,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unaffected.
 
 ### Fixed
-- A month-grid widget stays a month grid. Since 2.16.0 a placed month widget
-  could redraw itself as the agenda widget a little after any change to your
-  events, because the release build merged the two widgets into a single class
-  and Android could no longer tell which of them a widget on your home screen
-  was ([#89]).
+- A month-grid widget stays a month grid, and draws all seven days again. Since
+  2.16.0 a placed month widget could redraw itself as the agenda widget a little
+  after any change to your events, and could draw only about four day columns
+  with the last one cut off part-way through. Both came from the release build
+  merging the two widgets into a single class, so Android could no longer tell
+  which of them a widget on your home screen was — and the month grid was handed
+  the wrong widget's measurements to lay its columns out against ([#89], [#103]).
 - The back gesture on **Settings → Views** returns to Settings instead of
   leaving Settings altogether and dropping you on the calendar. Special dates
   did the same ([#81]).
@@ -1216,3 +1222,4 @@ automatically, with zero telemetry and no internet permission.
 [#82]: https://codeberg.org/jlmakiola/calendula/issues/82
 [#87]: https://codeberg.org/jlmakiola/calendula/issues/87
 [#89]: https://codeberg.org/jlmakiola/calendula/issues/89
+[#103]: https://codeberg.org/jlmakiola/calendula/issues/103

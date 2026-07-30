@@ -354,6 +354,13 @@
     <string name="settings_agenda_range_hint">How far ahead the Agenda screen lists events.</string>
     <string name="settings_agenda_widget_range">Agenda widget range</string>
     <string name="settings_agenda_widget_range_hint">How far ahead the agenda home-screen widget lists events.</string>
+
+    <string name="settings_widget_size">Agenda widget size</string>
+    <string name="settings_widget_size_hint">How large the agenda home-screen widget draws its text. The month widget has no setting — its grid always fits itself to the space you give it.</string>
+    <string name="settings_widget_size_small">Small</string>
+    <string name="settings_widget_size_medium">Medium</string>
+    <string name="settings_widget_size_large">Large</string>
+    <string name="settings_widget_size_extra_large">Extra large</string>
     <string name="settings_agenda_show_today">Always show today</string>
     <string name="settings_agenda_show_today_hint">Keep today at the top of the agenda and its widget, even once nothing is left today.</string>
     <string name="settings_agenda_range_bar">Range bar</string>
