@@ -14,6 +14,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
+import de.jeanlucmakiola.calendula.widget.WidgetSize
 
 /**
  * Settings screen state (M4). Persisted preferences are instant to read, so
@@ -48,6 +49,8 @@ data class SettingsUiState(
     val agendaShowToday: Boolean = true,
     /** Whether the agenda shows its top range bar — header + switcher (v2.11). */
     val agendaShowRangeBar: Boolean = true,
+    /** The size step both home-screen widgets draw themselves at (#103, #51). */
+    val widgetSize: WidgetSize = WidgetSize.SMALL,
     /** The calendar view the app opens on, and the home of the view back stack (M1). */
     val defaultView: CalendarView = CalendarView.Week,
     /** Which views the top-bar quick-switch button cycles through, and their order (#24). */

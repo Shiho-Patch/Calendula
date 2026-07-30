@@ -117,6 +117,7 @@ import de.jeanlucmakiola.calendula.domain.FontRole
 import de.jeanlucmakiola.floret.identity.collapseExit
 import de.jeanlucmakiola.floret.identity.expandEnter
 import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
+import de.jeanlucmakiola.calendula.ui.common.PickerDescription
 import de.jeanlucmakiola.floret.components.FullScreenPicker
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
@@ -150,6 +151,7 @@ import de.jeanlucmakiola.calendula.ui.theme.BundledFont
 import de.jeanlucmakiola.calendula.ui.theme.FONT_CUSTOM_TOKEN
 import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
 import de.jeanlucmakiola.calendula.ui.theme.resolveFontFamily
+import de.jeanlucmakiola.calendula.widget.WidgetSize
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalTime
 import java.time.format.TextStyle as JavaTextStyle
@@ -499,6 +501,7 @@ private fun AppearanceScreen(
     var showDefaultView by remember { mutableStateOf(false) }
     var showAgendaScreenRange by remember { mutableStateOf(false) }
     var showAgendaWidgetRange by remember { mutableStateOf(false) }
+    var showWidgetSize by remember { mutableStateOf(false) }
     var showPastEvents by remember { mutableStateOf(false) }
     var showBrandFont by remember { mutableStateOf(false) }
     var showPlainFont by remember { mutableStateOf(false) }
@@ -699,6 +702,18 @@ private fun AppearanceScreen(
 
         Spacer(Modifier.height(16.dp))
 
+        // Widgets — the size step applies to both home-screen widgets, so it sits
+        // in its own group rather than under Agenda.
+        SectionHeader(stringResource(R.string.settings_widgets_header))
+        GroupedRow(
+            title = stringResource(R.string.settings_widget_size),
+            summary = widgetSizeLabel(state.widgetSize),
+            position = Position.Alone,
+            onClick = { showWidgetSize = true },
+        )
+
+        Spacer(Modifier.height(16.dp))
+
         // App name — chooses the launcher label between "Calendula" and "Calendar"
         // (issue #44). Own group: it's a launcher/system concern, not calendar
         // formatting. A sub-page chooser (not a switch), matching the app's other
@@ -808,6 +823,18 @@ private fun AppearanceScreen(
             selected = state.agendaWidgetRange,
             onSelect = viewModel::setAgendaWidgetRange,
             onDismiss = { showAgendaWidgetRange = false },
+        )
+    }
+    if (showWidgetSize) {
+        OptionPicker(
+            title = stringResource(R.string.settings_widget_size),
+            header = { PickerDescription(stringResource(R.string.settings_widget_size_hint)) },
+            predictiveBack = true,
+            options = WidgetSize.entries,
+            selected = state.widgetSize,
+            label = { widgetSizeLabel(it) },
+            onSelect = viewModel::setWidgetSize,
+            onDismiss = { showWidgetSize = false },
         )
     }
     if (showTimeFormat) {
@@ -2067,6 +2094,16 @@ private fun pastEventDisplayLabel(mode: PastEventDisplay): String = stringResour
         PastEventDisplay.SHOW -> R.string.settings_past_events_show
         PastEventDisplay.DIM -> R.string.settings_past_events_dim
         PastEventDisplay.HIDE -> R.string.settings_past_events_hide
+    },
+)
+
+@Composable
+private fun widgetSizeLabel(size: WidgetSize): String = stringResource(
+    when (size) {
+        WidgetSize.SMALL -> R.string.settings_widget_size_small
+        WidgetSize.MEDIUM -> R.string.settings_widget_size_medium
+        WidgetSize.LARGE -> R.string.settings_widget_size_large
+        WidgetSize.EXTRA_LARGE -> R.string.settings_widget_size_extra_large
     },
 )
 
