@@ -149,9 +149,8 @@ fun CalendarHost(
     // over Settings and survives view switches.
     var showCalendars by rememberSaveable { mutableStateOf(false) }
 
-    // Backup & restore (#69) — like the manager, driven by the calendar list
-    // rather than by preferences, so it is hoisted here instead of living as a
-    // Settings sub-section. Reached from Settings and from the manager.
+    // Backup & restore (#69) — hoisted like the manager, being driven by the
+    // calendar list rather than by preferences. Reached from both.
     var showBackup by rememberSaveable { mutableStateOf(false) }
 
     // Event form (v1.2 create) — same held-key pattern as the detail screen:
@@ -486,10 +485,8 @@ fun CalendarHost(
             )
         }
 
-        // Calendar manager — declared last so it covers every overlay that can
-        // open it: Settings, both event forms, and the .ics import picker (#76).
-        // Coming back from it leaves the caller exactly as it was, with the
-        // calendar list already refreshed by the provider's notification.
+        // Declared last so it covers every overlay that can open it: Settings,
+        // both event forms, and the .ics import picker (#76).
         AnimatedVisibility(
             visible = showCalendars,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
@@ -509,12 +506,15 @@ fun CalendarHost(
         ) {
             BackupScreen(
                 onBack = { showBackup = false },
-                // Restoring runs the normal .ics import, and that way round this
-                // screen has to step aside: declared above the import overlays,
-                // it would otherwise cover the screen it just asked for. Closing
-                // it hands the user back to whatever opened Backup once the
-                // import is done.
-                onImport = { importUri = it; importForceMany = true; showBackup = false },
+                // Restore runs the normal .ics import, and both this screen and
+                // the manager that can have opened it are declared above the
+                // import overlays — so both have to step aside.
+                onImport = {
+                    importUri = it
+                    importForceMany = true
+                    showBackup = false
+                    showCalendars = false
+                },
             )
         }
     }

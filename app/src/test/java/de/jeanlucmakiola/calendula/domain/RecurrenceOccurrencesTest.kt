@@ -53,13 +53,29 @@ class RecurrenceOccurrencesTest {
             byDays = setOf(DayOfWeek.FRIDAY, DayOfWeek.MONDAY),
         ).upcomingOccurrences(date(2026, 7, 30), limit = 4)
 
-        // Thursday start: the Monday of that week is already past, so the first
-        // hit is Friday 31 Jul, then Mon/Fri of the following weeks.
+        // The Thursday start is an occurrence in its own right (RFC 5545 puts
+        // DTSTART in the set), then Friday 31 Jul and Mon/Fri of the next week.
         assertThat(occurrences).containsExactly(
+            date(2026, 7, 30),
             date(2026, 7, 31),
             date(2026, 8, 3),
             date(2026, 8, 7),
-            date(2026, 8, 10),
+        ).inOrder()
+    }
+
+    @Test
+    fun `the start counts once even when it is also one of the picks`() {
+        // Thursday start with Thursday picked: the seeded DTSTART and the rule's
+        // own hit are the same date and must not both be listed.
+        val occurrences = SimpleRecurrence(
+            RecurrenceFreq.Weekly,
+            byDays = setOf(DayOfWeek.THURSDAY),
+        ).upcomingOccurrences(date(2026, 7, 30), limit = 3)
+
+        assertThat(occurrences).containsExactly(
+            date(2026, 7, 30),
+            date(2026, 8, 6),
+            date(2026, 8, 13),
         ).inOrder()
     }
 

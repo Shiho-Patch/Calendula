@@ -59,10 +59,9 @@ import kotlin.time.Clock
  * lead time to the set. Changes apply live via [onSelect]; the user leaves via
  * back.
  *
- * [leadTimeSummary] adds a second line to each lead-time row. It exists for the
- * all-day pickers, where the lead time alone doesn't say when anything happens:
- * the hour comes from the separate "show all-day reminders at" setting, so
- * "1 day before" is only half the answer until the row spells out the time.
+ * [leadTimeSummary] adds a second line to each lead-time row, for the all-day
+ * pickers: the hour comes from the separate "show all-day reminders at" setting,
+ * so the lead time alone doesn't say when anything happens.
  */
 @Composable
 fun ReminderDefaultPicker(
@@ -233,10 +232,8 @@ internal fun PickerDescription(text: String) {
  * Mirrors [ReminderDefaultPicker]'s custom-expand pattern.
  *
  * Every option carries the dates it resolves to today as its summary, computed
- * through the same [dayCount] the agenda windows by (hence [weekStart], which
- * "This week" depends on). Without it the two groups are near-indistinguishable
- * — "This week" and "Next 7 days" name different windows in the same words, and
- * only the concrete span tells them apart.
+ * through the same [dayCount] the agenda windows by (hence [weekStart]) — only
+ * the concrete span tells "This week" and "Next 7 days" apart.
  */
 @Composable
 fun AgendaRangePicker(
@@ -260,11 +257,11 @@ fun AgendaRangePicker(
     val locale = currentLocale()
     val zone = remember { TimeZone.currentSystemDefault() }
     val today = remember(zone) { Clock.System.now().toLocalDateTime(zone).date }
-    // The window each option would open right now — the agenda's own end-day
-    // arithmetic (anchor + dayCount - 1), so the dates match what it will show.
+    // The agenda's own end-day arithmetic (anchor + dayCount - 1), so the dates
+    // match what it will show.
     val windowSummary: (AgendaRange) -> String = { range ->
         val end = today.plus(range.dayCount(today, weekStart) - 1, DateTimeUnit.DAY)
-        agendaRangeWindowSummary(range, today, end, locale)
+        agendaRangeWindowSummary(range, today, end, locale, monthAsSpan = true)
     }
 
     val rangeRow: @Composable (AgendaRange, Position) -> Unit = { option, position ->
@@ -306,8 +303,8 @@ fun AgendaRangePicker(
             } else {
                 stringResource(R.string.agenda_range_custom)
             },
-            // Only a chosen custom window has dates to show; an unset one has no
-            // day count yet, so the row stays single-line until it does.
+            // An unset custom window has no day count yet, so the row stays
+            // single-line until it does.
             summary = if (customSelected) windowSummary(selected) else null,
             position = if (customExpanded) Position.Top else positionOf(rolling.size, rollingRowCount),
             selected = customSelected,

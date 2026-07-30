@@ -92,20 +92,27 @@ fun parseAgendaRange(stored: String?, default: AgendaRange): AgendaRange = when 
  * - [AgendaRange.ThisMonth] → month and year ("June 2026")
  * - everything else → "start – end" ("27 Jun – 3 Jul 2026"), with the start's
  *   year shown too only when it differs from the end's.
+ *
+ * [monthAsSpan] puts [AgendaRange.ThisMonth] on the "start – end" form as well.
+ * The agenda's own header browses the whole month, so the month name is right
+ * there; the range picker previews the window an option opens *today*, which for
+ * "This month" is only the rest of it.
  */
 fun agendaRangeWindowSummary(
     range: AgendaRange,
     start: LocalDate,
     end: LocalDate,
     locale: Locale,
+    monthAsSpan: Boolean = false,
 ): String {
     val javaStart = java.time.LocalDate.of(start.year, start.month.ordinal + 1, start.day)
     val javaEnd = java.time.LocalDate.of(end.year, end.month.ordinal + 1, end.day)
     val dayMonth = localizedDateFormatter(locale, "dMMM")
     val dayMonthYear = localizedDateFormatter(locale, "dMMMy")
-    return when (range) {
-        AgendaRange.Day -> dayMonthYear.format(javaStart)
-        AgendaRange.ThisMonth -> localizedDateFormatter(locale, "LLLLy").format(javaStart)
+    return when {
+        range == AgendaRange.Day -> dayMonthYear.format(javaStart)
+        range == AgendaRange.ThisMonth && !monthAsSpan ->
+            localizedDateFormatter(locale, "LLLLy").format(javaStart)
         else -> {
             val startFmt = if (start.year == end.year) dayMonth else dayMonthYear
             "${startFmt.format(javaStart)} – ${dayMonthYear.format(javaEnd)}"
