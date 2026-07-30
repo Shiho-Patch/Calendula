@@ -430,12 +430,37 @@
     <string name="settings_language_auto">System default</string>
     <string name="settings_translate">Help translate</string>
     <string name="settings_translate_hint">Add or improve a language on Weblate</string>
+    <!-- Hub group headers (#69) -->
+    <string name="settings_group_look">Look &amp; behaviour</string>
+    <string name="settings_group_data">Data</string>
+    <string name="settings_group_app">App</string>
+
     <!-- Hub category subtitles -->
-    <string name="settings_appearance_subtitle">Theme, default view, week start</string>
-    <string name="settings_views_subtitle">Month layout, quick-switch button, menu order</string>
-    <string name="settings_event_form_subtitle">Default fields for new events</string>
-    <string name="settings_notifications_subtitle">Event reminders</string>
+    <string name="settings_appearance_subtitle">Theme, colours, fonts</string>
+    <string name="settings_views_subtitle">Default view, layout, order</string>
+    <string name="settings_event_form_subtitle">Default fields and behaviour</string>
+    <string name="settings_notifications_subtitle">Reminders and delivery</string>
     <string name="settings_special_dates_subtitle">Contact birthdays &amp; anniversaries</string>
+    <string name="settings_widgets_subtitle">Agenda widget, Quick Settings tile</string>
+    <string name="settings_backup_subtitle">Export, import, automatic backup</string>
+
+    <!-- Widgets &amp; tiles (#69) -->
+    <string name="settings_section_widgets">Widgets &amp; tiles</string>
+    <string name="settings_widgets_hint">Settings for the home-screen widgets and the Quick Settings tile. Add a widget by long-pressing your home screen.</string>
+
+    <!-- Backup &amp; restore (#69) — the rows themselves reuse the calendars_* strings -->
+    <string name="settings_section_backup">Backup &amp; restore</string>
+
+    <!-- Views sub-headers (#69) -->
+    <string name="settings_views_all_header">All views</string>
+    <string name="settings_week_day_header">Week &amp; day</string>
+
+    <!-- Picker descriptions (#69) -->
+    <string name="settings_default_view_hint">The view Calendula opens on when you start it.</string>
+    <string name="settings_week_start_hint">The day every week begins on, in all views and widgets.</string>
+    <string name="settings_time_format_hint">How times are written throughout the app. Automatic follows your system setting.</string>
+    <string name="settings_past_events_hint">What the agenda does with events that have already ended.</string>
+    <string name="settings_dynamic_color_summary">Take the app\'s colours from your wallpaper.</string>
 
     <!-- Contact special dates (issue #15) -->
     <string name="settings_section_special_dates">Contact special dates</string>

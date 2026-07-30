@@ -64,7 +64,9 @@ flowchart TD
 - **`ui/`** — one package per screen, each with Screen + ViewModel +
   UiState. Shared pieces in `ui/common/` (OptionCard — the app's only
   sanctioned selection-dialog style —, recurrence humanizer, FAB column,
-  drawer, transitions).
+  drawer, transitions). `ui/settings/` is the exception to "one file per
+  screen": one `SettingsViewModel` feeds a hub (`SettingsScreen.kt`) plus a
+  sub-screen per category, each in its own `*Settings.kt`.
 
 ## Navigation
 
