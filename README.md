@@ -18,7 +18,7 @@ Reads, writes, and reminds — on top of the system calendar, with zero network 
 <p>
 <a href="https://f-droid.org/packages/de.jeanlucmakiola.calendula/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="56"></a>
 &nbsp;
-<a href="https://codeberg.org/jlmakiola/calendula/releases"><img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png?raw=true" alt="Get it on Obtainium" height="56"></a>
+<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://codeberg.org/jlmakiola/calendula"><img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png?raw=true" alt="Get it on Obtainium" height="56"></a>
 &nbsp;
 <a href="https://ko-fi.com/jeanlucmakiola"><img src="https://storage.ko-fi.com/cdn/brandasset/v2/support_me_on_kofi_badge_beige.png" alt="Support me on Ko-fi" height="56"></a>
 </p>
@@ -125,13 +125,11 @@ signed APK (`calendula_vX.Y.Z.apk`) and a `.sha256` checksum attached — downlo
 and install it directly.
 
 For automatic updates from that channel, use
-**[Obtainium](https://github.com/ImranR98/Obtainium)**: *Add App* → paste
-
-```
-https://codeberg.org/jlmakiola/calendula
-```
-
-→ *Add*. Obtainium tracks the releases and prompts you when a new one appears.
+**[Obtainium](https://github.com/ImranR98/Obtainium)** — on the phone,
+**[add Calendula in one tap](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://codeberg.org/jlmakiola/calendula)**,
+or do it by hand: *Add App* → paste `https://codeberg.org/jlmakiola/calendula`
+→ *Add*. Either way, Obtainium tracks the releases and prompts you when a new
+one appears.
 
 ### Google Play (coming soon)
 
