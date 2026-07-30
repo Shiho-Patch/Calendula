@@ -31,5 +31,8 @@ internal fun ColumnReader.toCalendarSource(): CalendarSource {
         isManaged = isLocal &&
             getString(CalendarProjection.IDX_MANAGED_MARKER)
                 ?.startsWith(CalendarProjection.MANAGED_MARKER_PREFIX) == true,
+        // NULL is treated as syncing — the harmless default.
+        syncsEvents = isNull(CalendarProjection.IDX_SYNC_EVENTS) ||
+            getInt(CalendarProjection.IDX_SYNC_EVENTS) != 0,
     )
 }

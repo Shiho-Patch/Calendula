@@ -89,6 +89,8 @@ import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
@@ -155,6 +157,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.calendula.ui.common.reminderLeadTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.reminderUnitLabel
+import de.jeanlucmakiola.calendula.ui.common.nextOccurrencesText
 import de.jeanlucmakiola.calendula.ui.common.recurrenceText
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -193,6 +196,7 @@ fun EventEditScreen(
     initialStartMinutes: Int? = null,
     initialForm: EventForm? = null,
     initialFormSource: ImportSource = ImportSource.File,
+    onManageCalendars: (() -> Unit)? = null,
     viewModel: EventEditViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(initialDateIso, editKey, initialForm) {
@@ -309,6 +313,7 @@ fun EventEditScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
+                onManageCalendars = onManageCalendars,
             )
         }
     }
@@ -500,6 +505,7 @@ private fun EventEditContent(
     state: EventEditUiState,
     viewModel: EventEditViewModel,
     modifier: Modifier = Modifier,
+    onManageCalendars: (() -> Unit)? = null,
 ) {
     val form = state.form
     val locale = currentLocale()
@@ -509,6 +515,10 @@ private fun EventEditContent(
     // they're locked here; everything else (reminders, location, notes) is the
     // user's to edit.
     val locked = state.isManaged
+    // Read in the form's own window, not the picker's: the focused field lives
+    // here, so this is the controller that can put its keyboard away.
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     var picker by remember { mutableStateOf<PickerTarget?>(null) }
     var showCalendarPicker by rememberSaveable { mutableStateOf(false) }
     var showReminderPicker by rememberSaveable { mutableStateOf(false) }
@@ -1114,6 +1124,15 @@ private fun EventEditContent(
         null -> Unit
     }
 
+    // A full-screen picker is a change of place, so the keyboard shouldn't
+    // follow it. The field keeps its text; only focus and the IME go.
+    LaunchedEffect(showCalendarPicker) {
+        if (showCalendarPicker) {
+            focusManager.clearFocus(force = true)
+            keyboardController?.hide()
+        }
+    }
+
     if (showCalendarPicker) {
         CalendarPicker(
             calendars = state.calendars,
@@ -1121,6 +1140,15 @@ private fun EventEditContent(
             onSelect = {
                 viewModel.setCalendar(it)
                 showCalendarPicker = false
+            },
+            // Close the picker first: it is a Compose Dialog in its own window,
+            // always above the activity's content, so the manager would
+            // otherwise open behind it and the tap would look dead.
+            onManageCalendars = onManageCalendars?.let { openManager ->
+                {
+                    showCalendarPicker = false
+                    openManager()
+                }
             },
             onDismiss = { showCalendarPicker = false },
         )
@@ -1141,7 +1169,7 @@ private fun EventEditContent(
     if (showRecurrencePicker) {
         RecurrencePickerDialog(
             current = form.rrule,
-            startDay = form.start.date.dayOfWeek,
+            startDate = form.start.date,
             firstDayOfWeek = firstDayOfWeek,
             onSelect = { rrule ->
                 viewModel.setRecurrence(rrule)
@@ -1309,15 +1337,20 @@ private enum class RecurrenceEndMode { Never, Until, Count }
  * and an end condition — only that step needs an OK button. A rule the
  * simple shape can't express (ordinal BYDAY etc.) stays untouched unless the
  * user picks something here.
+ *
+ * Both steps show the rule as *dates* as well as words: every preset row
+ * carries the next few occurrences it would produce from [startDate], and the
+ * custom step repeats that under its live read-out.
  */
 @Composable
 private fun RecurrencePickerDialog(
     current: String?,
-    startDay: DayOfWeek,
+    startDate: LocalDate,
     firstDayOfWeek: DayOfWeek,
     onSelect: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val startDay = startDate.dayOfWeek
     val parsed = remember(current) { current?.let(::parseSimpleRecurrence) }
     val isPlainPreset = parsed != null && parsed.interval == 1 &&
         parsed.end == RecurrenceEnd.Never && parsed.byDays.isEmpty()
@@ -1369,16 +1402,19 @@ private fun RecurrencePickerDialog(
         RecurrenceEndMode.Until -> untilDate?.let { RecurrenceEnd.Until(it) }
         RecurrenceEndMode.Count -> count?.let { RecurrenceEnd.Count(it) }
     }
-    val customResult: String? = if (interval != null && customEnd != null) {
+    // Kept as the rule object, not just its RRULE text: the read-out and the
+    // date list must describe the one thing OK would save.
+    val customRule: SimpleRecurrence? = if (interval != null && customEnd != null) {
         SimpleRecurrence(
             freq = freq,
             interval = interval,
             end = customEnd,
             byDays = if (freq == RecurrenceFreq.Weekly) daysMask.toDaySet() else emptySet(),
-        ).toRRule()
+        )
     } else {
         null
     }
+    val customResult: String? = customRule?.toRRule()
 
     FullScreenPicker(
         title = stringResource(R.string.event_detail_recurrence),
@@ -1409,6 +1445,7 @@ private fun RecurrencePickerDialog(
             RecurrenceFreq.entries.forEachIndexed { index, entry ->
                 GroupedRow(
                     title = stringResource(recurrencePresetLabel(entry)),
+                    summary = nextOccurrencesText(SimpleRecurrence(entry), startDate, locale),
                     position = positionOf(index + 1, rowCount),
                     selected = isPlainPreset && parsed?.freq == entry,
                     trailing = if (isPlainPreset && parsed?.freq == entry) {
@@ -1458,6 +1495,17 @@ private fun RecurrencePickerDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
+                )
+
+                // Rendered even while incomplete (as an empty line), so the
+                // controls below don't shift as it comes and goes.
+                Text(
+                    text = customRule?.let { nextOccurrencesText(it, startDate, locale) }.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                 )
 
                 // How often: an interval amount plus a frequency segmented row —
@@ -1976,6 +2024,9 @@ private fun readContactAddress(context: Context, uri: Uri): String? =
 /**
  * Visibility selector: one card per level, each with its own icon; the
  * current level is highlighted. Tap picks and closes.
+ *
+ * Every level carries a line saying who this affects — the labels alone don't
+ * say that visibility is about what others on a shared calendar see.
  */
 @Composable
 private fun VisibilityPickerDialog(
@@ -1988,6 +2039,7 @@ private fun VisibilityPickerDialog(
         options = AccessLevel.entries.toList(),
         selected = selected,
         label = { stringResource(accessLevelLabel(it)) },
+        summary = { stringResource(accessLevelSummary(it)) },
         onSelect = onSelect,
         onDismiss = onDismiss,
         leading = { Icon(imageVector = accessLevelIcon(it), contentDescription = null) },
@@ -2078,6 +2130,14 @@ private fun accessLevelLabel(level: AccessLevel): Int = when (level) {
     AccessLevel.Public -> R.string.event_access_public
     AccessLevel.Private -> R.string.event_access_private
     AccessLevel.Confidential -> R.string.event_access_confidential
+}
+
+/** What each level means for people the calendar is shared with. */
+private fun accessLevelSummary(level: AccessLevel): Int = when (level) {
+    AccessLevel.Default -> R.string.event_access_default_summary
+    AccessLevel.Public -> R.string.event_access_public_summary
+    AccessLevel.Private -> R.string.event_access_private_summary
+    AccessLevel.Confidential -> R.string.event_access_confidential_summary
 }
 
 /** Humanise a reminder lead time, mirroring the detail screen's rendering. */
@@ -2277,6 +2337,7 @@ private fun CalendarPicker(
     selectedId: Long?,
     onSelect: (Long) -> Unit,
     onDismiss: () -> Unit,
+    onManageCalendars: (() -> Unit)? = null,
 ) {
     FullScreenPicker(
         title = stringResource(R.string.event_detail_calendar),
@@ -2286,6 +2347,7 @@ private fun CalendarPicker(
             calendars = calendars,
             selectedId = selectedId,
             onSelect = onSelect,
+            onManageCalendars = onManageCalendars,
         )
     }
 }

@@ -8,6 +8,7 @@ import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.FailureReason
+import de.jeanlucmakiola.calendula.ui.common.groupByAccount
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,16 +31,14 @@ class FilterViewModel @Inject constructor(
         combine(
             repository.calendars(),
             prefs.hiddenCalendarIds,
-            prefs.disabledCalendarIds,
-        ) { calendars, hidden, disabled ->
-            // Disabled calendars are gone from the app entirely — they don't
-            // belong in the drawer's hide/show list (you can't hide what's
-            // already disabled). They live only in Settings → Calendars.
-            val enabled = calendars.filterNot { it.id in disabled }
+        ) { calendars, hidden ->
+            // Calendars switched off device-wide don't belong in the drawer's
+            // hide/show list; they live only in Settings → Calendars.
+            val enabled = calendars.filter { it.isVisibleInSystem }
             if (enabled.isEmpty()) {
                 FilterUiState.Failure(FailureReason.NoCalendarsConfigured)
             } else {
-                FilterUiState.Success(groupByAccount(enabled, hidden))
+                FilterUiState.Success(groupCalendarsForFilter(enabled, hidden))
             }
         }
             .catch { emit(FilterUiState.Failure(FailureReason.ProviderUnavailable)) }
@@ -61,30 +60,27 @@ class FilterViewModel @Inject constructor(
 }
 
 /**
- * Group calendars under their owning account, preserving the provider's order
- * within each group and ordering groups by first appearance. A calendar is
- * "visible" when its id is *not* in [hidden].
+ * Group calendars under their owning account — by name *and* type, so two
+ * accounts that merely share a name stay apart (#77) — preserving the
+ * provider's order within each group and ordering groups by first appearance.
+ * A calendar is "visible" when its id is *not* in [hidden].
  */
-internal fun groupByAccount(
+internal fun groupCalendarsForFilter(
     calendars: List<CalendarSource>,
     hidden: Set<Long>,
 ): List<AccountGroup> =
-    calendars
-        .groupBy { it.accountLabel() }
-        .map { (account, cals) ->
-            AccountGroup(
-                account = account,
-                calendars = cals.map { c ->
-                    CalendarRow(
-                        id = c.id,
-                        displayName = c.displayName,
-                        color = c.color,
-                        visible = c.id !in hidden,
-                    )
-                },
-            )
-        }
-
-/** Account header text: the account name, falling back to its type. */
-private fun CalendarSource.accountLabel(): String =
-    accountName.takeIf { it.isNotBlank() } ?: accountType.takeIf { it.isNotBlank() } ?: displayName
+    calendars.groupByAccount().map { group ->
+        AccountGroup(
+            account = group.label,
+            accountType = group.accountType,
+            ambiguous = group.ambiguous,
+            calendars = group.calendars.map { c ->
+                CalendarRow(
+                    id = c.id,
+                    displayName = c.displayName,
+                    color = c.color,
+                    visible = c.id !in hidden,
+                )
+            },
+        )
+    }

@@ -52,32 +52,65 @@ class CalendarPrefsTest {
     }
 
     @Test
-    fun `disabledCalendarIds defaults to empty when unset`(@TempDir tempDir: Path) = runTest {
-        val prefs = CalendarPrefs(newDataStore(tempDir))
-        assertThat(prefs.disabledCalendarIds.first()).isEmpty()
+    fun `the pending disabled set reads back what an older version stored`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        // Same key as the retired app-local "disabled calendars" model: an
+        // upgrade inherits that set as switch-offs still owed to the provider.
+        val store = newDataStore(tempDir)
+        val prefs = CalendarPrefs(store)
+        store.updateData { p ->
+            p.toMutablePreferences().apply { this[CalendarPrefs.DISABLED_IDS_KEY] = "2,9" }
+        }
+        assertThat(prefs.pendingDisabledCalendarIds.first()).isEqualTo(setOf(2L, 9L))
     }
 
     @Test
-    fun `setDisabledCalendarIds round-trips through DataStore`(@TempDir tempDir: Path) = runTest {
+    fun `the pending disabled set is empty when nothing was ever stored`(
+        @TempDir tempDir: Path,
+    ) = runTest {
         val prefs = CalendarPrefs(newDataStore(tempDir))
-        prefs.setDisabledCalendarIds(setOf(1L, 42L, 7L))
-        assertThat(prefs.disabledCalendarIds.first()).isEqualTo(setOf(1L, 42L, 7L))
+        assertThat(prefs.pendingDisabledCalendarIds.first()).isEmpty()
     }
 
     @Test
-    fun `setting empty disabled set clears storage`(@TempDir tempDir: Path) = runTest {
+    fun `pending ids are added and dropped one at a time`(@TempDir tempDir: Path) = runTest {
         val prefs = CalendarPrefs(newDataStore(tempDir))
-        prefs.setDisabledCalendarIds(setOf(1L))
-        prefs.setDisabledCalendarIds(emptySet())
-        assertThat(prefs.disabledCalendarIds.first()).isEmpty()
+        prefs.addPendingDisabledCalendarIds(listOf(2L, 9L))
+        prefs.addPendingDisabledCalendarIds(listOf(4L))
+
+        prefs.removePendingDisabledCalendarIds(setOf(9L))
+
+        assertThat(prefs.pendingDisabledCalendarIds.first()).isEqualTo(setOf(2L, 4L))
     }
 
     @Test
-    fun `hidden and disabled sets are stored independently`(@TempDir tempDir: Path) = runTest {
+    fun `draining the pending set leaves the hidden set alone`(
+        @TempDir tempDir: Path,
+    ) = runTest {
         val prefs = CalendarPrefs(newDataStore(tempDir))
         prefs.setHiddenCalendarIds(setOf(1L))
-        prefs.setDisabledCalendarIds(setOf(2L))
+        prefs.addPendingDisabledCalendarIds(setOf(2L))
+
+        prefs.removePendingDisabledCalendarIds(setOf(2L))
+
+        assertThat(prefs.pendingDisabledCalendarIds.first()).isEmpty()
         assertThat(prefs.hiddenCalendarIds.first()).isEqualTo(setOf(1L))
-        assertThat(prefs.disabledCalendarIds.first()).isEqualTo(setOf(2L))
+    }
+
+    @Test
+    fun `the visibility notice is unevaluated until it is written`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        // Null is what makes the evaluation one-shot: "no" is stored just as
+        // firmly as "yes", so the notice can't resurface on a later launch.
+        val prefs = CalendarPrefs(newDataStore(tempDir))
+        assertThat(prefs.visibilityNoticePending.first()).isNull()
+
+        prefs.setVisibilityNoticePending(true)
+        assertThat(prefs.visibilityNoticePending.first()).isTrue()
+
+        prefs.setVisibilityNoticePending(false)
+        assertThat(prefs.visibilityNoticePending.first()).isFalse()
     }
 }

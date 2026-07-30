@@ -4,9 +4,12 @@ import android.app.Application
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
 import de.jeanlucmakiola.calendula.data.backup.BackupScheduler
+import de.jeanlucmakiola.calendula.data.calendar.CalendarVisibilityReconciler
 import de.jeanlucmakiola.calendula.data.backup.BackupWorker
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesSyncWorker
+import de.jeanlucmakiola.calendula.data.reminders.ReminderMaintenanceScheduler
+import de.jeanlucmakiola.calendula.data.reminders.ReminderMaintenanceWorker
 import de.jeanlucmakiola.floret.crash.CrashConfig
 import de.jeanlucmakiola.floret.crash.CrashReporter
 import kotlinx.coroutines.CoroutineScope
@@ -39,6 +42,37 @@ class CalendulaApp : Application() {
         )
         reconcileAutoBackup()
         reconcileSpecialDates()
+        reconcileCalendarVisibility()
+        startReminderDelivery()
+    }
+
+    /**
+     * Bring reminder delivery up with the process (#75): a scan re-arms whatever
+     * the system dropped and posts what a missed alarm still owes, then the
+     * provider watch keeps edits re-planned. The daily worker is the backstop.
+     */
+    private fun startReminderDelivery() {
+        val deps = EntryPointAccessors.fromApplication(
+            this, ReminderMaintenanceWorker.Deps::class.java,
+        )
+        val scanner = deps.reminderScanner()
+        scanner.startWatchingProvider()
+        scanner.scanInBackground()
+        ReminderMaintenanceScheduler.apply(this)
+    }
+
+    /**
+     * Flush any calendar switch-off not yet written to `Calendars.VISIBLE`,
+     * including the set inherited from the retired app-local model (#75). A
+     * no-op in the steady state; `RootScreen` re-runs it after a later grant.
+     */
+    private fun reconcileCalendarVisibility() {
+        val deps = EntryPointAccessors.fromApplication(
+            this, CalendarVisibilityReconciler.Deps::class.java,
+        )
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            deps.calendarVisibilityReconciler().run()
+        }
     }
 
     /**
@@ -61,10 +95,8 @@ class CalendulaApp : Application() {
 
     /**
      * Re-arm (or cancel) the daily special-dates reconcile from the saved
-     * settings on every launch — like [reconcileAutoBackup], this cancels
-     * orphaned work after the feature is turned off and re-schedules after a
-     * reinstall. The foreground trigger (RootScreen ON_RESUME) does the on-open
-     * refresh, so no immediate run is needed here.
+     * settings, like [reconcileAutoBackup]. The on-open refresh is RootScreen's
+     * ON_RESUME trigger, so no immediate run is needed here.
      */
     private fun reconcileSpecialDates() {
         val deps = EntryPointAccessors.fromApplication(this, SpecialDatesSyncWorker.Deps::class.java)

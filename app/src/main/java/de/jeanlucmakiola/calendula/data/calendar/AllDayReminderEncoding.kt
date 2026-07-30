@@ -1,11 +1,10 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
-import java.time.Instant
+import de.jeanlucmakiola.calendula.domain.reminders.allDayLeadDays
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.time.temporal.ChronoUnit
 
 /**
  * Translates an all-day reminder between the **semantic** lead time the UI
@@ -73,19 +72,13 @@ internal fun nextYearlyOccurrence(month: Int, day: Int, today: LocalDate): Local
 
 /**
  * Recover the semantic whole-day lead time from a raw all-day reminder
- * [rawMinutes]. Keys off the **local date** of the encoded fire instant, so it
- * returns the right day count regardless of which [timeOfDayMinutes] wrote the
- * row — including pre-feature rows (raw multiples of 1440, fired at UTC midnight)
- * and rows written under a different timezone. A negative [rawMinutes] (fire
- * after DTSTART) folds to day 0.
+ * [rawMinutes] — the inverse of [toProviderAllDayMinutes], for the form and the
+ * detail screen. Delegates to [allDayLeadDays], so the day displayed is the day
+ * the reminder actually fires on.
  */
 internal fun fromProviderAllDayMinutes(
     rawMinutes: Int,
     startDate: LocalDate,
     zone: ZoneId,
-): Int {
-    val utcMidnight = startDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-    val fireLocalDate = Instant.ofEpochMilli(utcMidnight - rawMinutes * MILLIS_PER_MINUTE)
-        .atZone(zone).toLocalDate()
-    return ChronoUnit.DAYS.between(fireLocalDate, startDate).toInt() * MINUTES_PER_DAY
-}
+    timeOfDayMinutes: Int,
+): Int = allDayLeadDays(rawMinutes, startDate, zone, timeOfDayMinutes).toInt() * MINUTES_PER_DAY

@@ -27,6 +27,7 @@ import de.jeanlucmakiola.calendula.data.prefs.SpecialDatesStalledReason
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
+import de.jeanlucmakiola.calendula.data.reminders.ReminderScanner
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.FontRole
@@ -38,9 +39,11 @@ import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import de.jeanlucmakiola.calendula.ui.theme.AppFontSettings
 import de.jeanlucmakiola.calendula.ui.theme.FONT_CUSTOM_TOKEN
+import de.jeanlucmakiola.calendula.widget.WidgetSize
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_PAST_DISPLAY_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_RANGE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_SHOW_TODAY_STATE_KEY
+import de.jeanlucmakiola.calendula.widget.agenda.AGENDA_SIZE_KEY
 import de.jeanlucmakiola.calendula.widget.agenda.AgendaWidget
 import de.jeanlucmakiola.calendula.widget.month.MonthWidget
 import kotlinx.coroutines.CoroutineDispatcher
@@ -68,15 +71,20 @@ class SettingsViewModel @Inject constructor(
     private val specialDatesEngine: SpecialDatesSyncEngine,
     specialDatesSpec: SpecialDatesCalendarSpec,
     private val launcherNameManager: LauncherNameManager,
+    private val reminderScanner: ReminderScanner,
     @IoDispatcher private val io: CoroutineDispatcher,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
 
     private val dynamicColorAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
-    /** Writable calendars — the only ones that take a per-calendar reminder override. */
+    /**
+     * Writable calendars that are switched on — the only ones that take a
+     * per-calendar reminder override, since a switched-off one plans no
+     * reminders at all (#75).
+     */
     private val writableCalendars: Flow<List<CalendarSource>> = repository.calendars()
-        .map { calendars -> calendars.filter { it.canModifyContents } }
+        .map { calendars -> calendars.filter { it.canModifyContents && it.isVisibleInSystem } }
         .catch { emit(emptyList()) }
 
     val state: StateFlow<SettingsUiState> =
@@ -155,8 +163,9 @@ class SettingsViewModel @Inject constructor(
                     prefs.quickSwitchConfig,
                     prefs.drawerViewOrder,
                     prefs.monthViewStyle,
-                ) { quickSwitch, drawer, monthStyle ->
-                    ViewCustomization(quickSwitch, drawer, monthStyle)
+                    prefs.widgetSize,
+                ) { quickSwitch, drawer, monthStyle, widgetSize ->
+                    ViewCustomization(quickSwitch, drawer, monthStyle, widgetSize)
                 },
             ) { showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization ->
                 MiscSettings(showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization)
@@ -179,6 +188,7 @@ class SettingsViewModel @Inject constructor(
                 quickSwitchConfig = misc.viewCustomization.quickSwitch,
                 drawerViewOrder = misc.viewCustomization.drawerOrder,
                 monthViewStyle = misc.viewCustomization.monthViewStyle,
+                widgetSize = misc.viewCustomization.widgetSize,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -214,17 +224,10 @@ class SettingsViewModel @Inject constructor(
     )
 
     /**
-     * The launcher-label choice (issue #44). Backed by the manifest aliases'
-     * component-enabled state rather than a stored preference, so it's read
-     * imperatively via [LauncherNameManager] and held here in its own flow — the
-     * main settings combine is already at its arity limit and this isn't a
-     * DataStore flow anyway.
-     *
-     * Seeded with the manifest default and corrected off-thread rather than read
-     * in the initializer: `getComponentEnabledSetting` is a binder round-trip to
-     * system_server, and this ViewModel is constructed on the main thread while
-     * Settings is opening. The row it feeds is well below the fold, so the
-     * one-frame correction is never visible.
+     * The launcher-label choice (#44), backed by the manifest aliases'
+     * component-enabled state rather than a preference. Seeded with the manifest
+     * default and corrected off-thread — `getComponentEnabledSetting` is a
+     * binder round-trip and this ViewModel is built on the main thread.
      */
     private val _launcherName = MutableStateFlow(LauncherName.CALENDULA)
     val launcherName: StateFlow<LauncherName> = _launcherName.asStateFlow()
@@ -240,10 +243,8 @@ class SettingsViewModel @Inject constructor(
     private val _fontImportFailed = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val fontImportFailed: SharedFlow<Unit> = _fontImportFailed
 
-    // Serialises widget redraws so a rapid flip-and-flip-back can't run two
-    // updateAll calls at once — concurrent calls coalesce around a stale read
-    // and can leave the widget on the intermediate value. Held sequentially,
-    // the last call reads the final committed pref and renders it.
+    // Serialises widget redraws: concurrent updateAll calls coalesce around a
+    // stale read and can leave the widget on an intermediate value.
     private val widgetRefreshMutex = Mutex()
 
     private data class ReminderDefaults(
@@ -293,6 +294,7 @@ class SettingsViewModel @Inject constructor(
         val quickSwitch: QuickSwitchConfig,
         val drawerOrder: List<CalendarView>,
         val monthViewStyle: MonthViewStyle,
+        val widgetSize: WidgetSize,
     )
 
     /** Contact special-dates sub-page (issue #15); its own flow — the main state is full. */
@@ -395,9 +397,7 @@ class SettingsViewModel @Inject constructor(
     fun setSoftenColors(enabled: Boolean) {
         viewModelScope.launch {
             prefs.setSoftenCalendarColors(enabled)
-            // Both widgets paint event colours through the same softener, so a
-            // change has to redraw them too (they read the flag in their data
-            // preamble, like is24Hour).
+            // Both widgets paint event colours through the same softener.
             widgetRefreshMutex.withLock {
                 AgendaWidget().updateAll(appContext)
                 MonthWidget().updateAll(appContext)
@@ -423,9 +423,8 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val ok = withContext(io) { CustomFontStore.import(appContext, role, uri) }
             if (ok) {
-                // Bump the stamp so replacing an already-active custom font (same
-                // file, same "custom" token) still breaks font-settings equality
-                // and refreshes the resolved typeface.
+                // Bump the stamp so replacing an already-active custom font
+                // still breaks equality and refreshes the resolved typeface.
                 prefs.bumpCustomFontStamp(role)
                 setFont(role, FONT_CUSTOM_TOKEN)
             } else {
@@ -454,10 +453,8 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             prefs.setAgendaWidgetRange(range)
             widgetRefreshMutex.withLock {
-                // Push the range into each instance's Glance state and recompose.
-                // The widget reads it via currentState, so this reflects reliably
-                // even when updateAll only recomposes a live session (it does not
-                // re-run provideGlance's data preamble).
+                // Push into each instance's Glance state and recompose:
+                // updateAll alone won't re-run provideGlance's data preamble.
                 val manager = GlanceAppWidgetManager(appContext)
                 manager.getGlanceIds(AgendaWidget::class.java).forEach { id ->
                     updateAppWidgetState(appContext, id) { it[AGENDA_RANGE_KEY] = range.storageValue() }
@@ -471,12 +468,28 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setAgendaShowRangeBar(enabled) }
     }
 
+    /**
+     * Set the size the agenda widget draws its text at (#51), via the same
+     * Glance-state path as [setAgendaWidgetRange]. Agenda-only: the month widget
+     * sizes itself from the space it is given (#103).
+     */
+    fun setWidgetSize(size: WidgetSize) {
+        viewModelScope.launch {
+            prefs.setWidgetSize(size)
+            widgetRefreshMutex.withLock {
+                val manager = GlanceAppWidgetManager(appContext)
+                manager.getGlanceIds(AgendaWidget::class.java).forEach { id ->
+                    updateAppWidgetState(appContext, id) { it[AGENDA_SIZE_KEY] = size.name }
+                }
+                AgendaWidget().updateAll(appContext)
+            }
+        }
+    }
+
     fun setAgendaShowToday(enabled: Boolean) {
         viewModelScope.launch {
             prefs.setAgendaShowToday(enabled)
-            // The agenda widget reads this reactively, so push it into each
-            // instance's Glance state and recompose — same reliable-update path as
-            // setPastEventDisplay (updateAll alone won't re-run the data preamble).
+            // Same Glance-state path as setPastEventDisplay.
             widgetRefreshMutex.withLock {
                 val manager = GlanceAppWidgetManager(appContext)
                 manager.getGlanceIds(AgendaWidget::class.java).forEach { id ->
@@ -504,10 +517,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     /**
-     * Switch the launcher label between "Calendula" and "Calendar" (issue #44).
-     * The card highlights immediately, then settles on whatever the component
-     * state actually reports — the two `setComponentEnabledSetting` calls are
-     * binder round-trips, so they don't belong on the main thread either.
+     * Switch the launcher label (#44). The card highlights at once, then settles
+     * on what the component state reports; the writes are binder round-trips and
+     * run off the main thread.
      */
     fun setLauncherName(name: LauncherName) {
         _launcherName.value = name
@@ -522,9 +534,7 @@ class SettingsViewModel @Inject constructor(
     fun setPastEventDisplay(mode: PastEventDisplay) {
         viewModelScope.launch {
             prefs.setPastEventDisplay(mode)
-            // The agenda widget honours this setting too, so push it into each
-            // instance's Glance state and recompose — same reliable-update path as
-            // setAgendaWidgetRange (updateAll alone won't re-run the data preamble).
+            // Same Glance-state path as setAgendaWidgetRange.
             widgetRefreshMutex.withLock {
                 val manager = GlanceAppWidgetManager(appContext)
                 manager.getGlanceIds(AgendaWidget::class.java).forEach { id ->
@@ -548,12 +558,10 @@ class SettingsViewModel @Inject constructor(
     }
 
     /**
-     * Enable or disable [view] in the quick-switch cycle. Goes through an atomic
-     * read-modify-write so a concurrent reorder can't clobber this toggle (and
-     * vice versa) by re-serialising a stale snapshot. The MIN_ENABLED floor is
-     * re-checked inside the transform: the screen's own guard reads the
-     * async-echoed snapshot, so two quick disable-taps could both look allowed
-     * yet compose to a below-minimum cycle.
+     * Enable or disable [view] in the quick-switch cycle, via an atomic
+     * read-modify-write so a concurrent reorder can't clobber it. The
+     * MIN_ENABLED floor is re-checked inside the transform, because the screen's
+     * own guard reads an async-echoed snapshot.
      */
     fun setQuickSwitchViewEnabled(view: CalendarView, enabled: Boolean) {
         viewModelScope.launch {
@@ -577,8 +585,15 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setDrawerViewOrder(order) }
     }
 
+    /**
+     * A scan follows the write: switching reminders off cancels the scan alarm,
+     * so switching them back on has to arm a new one (#75).
+     */
     fun setRemindersEnabled(enabled: Boolean) {
-        viewModelScope.launch { prefs.setRemindersEnabled(enabled) }
+        viewModelScope.launch {
+            prefs.setRemindersEnabled(enabled)
+            reminderScanner.scan()
+        }
     }
 
     fun setAutofocusEventTitle(enabled: Boolean) {
@@ -593,8 +608,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setDefaultAllDayReminderMinutes(minutes) }
     }
 
+    /** The armed alarm was planned for the old hour, so re-plan against the new one. */
     fun setAllDayReminderTimeMinutes(minutesOfDay: Int) {
-        viewModelScope.launch { prefs.setAllDayReminderTimeMinutes(minutesOfDay) }
+        viewModelScope.launch {
+            prefs.setAllDayReminderTimeMinutes(minutesOfDay)
+            reminderScanner.scan()
+        }
     }
 
     fun setSnoozeMinutes(minutes: Int) {

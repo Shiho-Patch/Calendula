@@ -23,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaScreen
+import de.jeanlucmakiola.calendula.ui.calendars.BackupScreen
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarsScreen
 import de.jeanlucmakiola.floret.identity.fadeThrough
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
@@ -148,6 +149,10 @@ fun CalendarHost(
     // over Settings and survives view switches.
     var showCalendars by rememberSaveable { mutableStateOf(false) }
 
+    // Backup & restore (#69) — hoisted like the manager, being driven by the
+    // calendar list rather than by preferences. Reached from both.
+    var showBackup by rememberSaveable { mutableStateOf(false) }
+
     // Event form (v1.2 create) — same held-key pattern as the detail screen:
     // [heldCreateIso] keeps the prefill date alive through the slide-out.
     // [createStartMinutes] is the tapped slot's start (minutes from midnight)
@@ -210,6 +215,7 @@ fun CalendarHost(
     fun dismissCoveringOverlays() {
         showSettings = false
         showCalendars = false
+        showBackup = false
         detailKey = null
         editKey = null
         importUri = null
@@ -293,8 +299,8 @@ fun CalendarHost(
     // owns its own BackHandler and takes precedence). Disabled at the home view,
     // so back there falls through to the system and exits the app.
     val anyOverlayVisible = showSearch || detailKey != null || createDateIso != null ||
-        editKey != null || showSettings || showCalendars || importUri != null ||
-        importForm != null
+        editKey != null || showSettings || showCalendars || showBackup ||
+        importUri != null || importForm != null
     BackHandler(enabled = !anyOverlayVisible && viewStack.size > 1) {
         viewStack = viewStack.dropLast(1)
     }
@@ -415,6 +421,7 @@ fun CalendarHost(
                     initialStartMinutes = createStartMinutes ?: heldCreateMinutes,
                     onClose = { createDateIso = null },
                     onSaved = { createDateIso = null },
+                    onManageCalendars = { showCalendars = true },
                 )
             }
         }
@@ -434,6 +441,7 @@ fun CalendarHost(
                         editKey = null
                         detailKey = null
                     },
+                    onManageCalendars = { showCalendars = true },
                 )
             }
         }
@@ -447,18 +455,7 @@ fun CalendarHost(
             SettingsScreen(
                 onBack = { showSettings = false },
                 onManageCalendars = { showCalendars = true },
-            )
-        }
-
-        // Calendar manager — slides over Settings.
-        AnimatedVisibility(
-            visible = showCalendars,
-            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
-        ) {
-            CalendarsScreen(
-                onBack = { showCalendars = false },
-                onImport = { importUri = it; importForceMany = true },
+                onOpenBackup = { showBackup = true },
             )
         }
 
@@ -469,6 +466,7 @@ fun CalendarHost(
                 uri = uri,
                 forceMany = importForceMany,
                 onClose = { importUri = null },
+                onManageCalendars = { showCalendars = true },
                 onOpenSingle = { form ->
                     importUri = null
                     importFormSource = ImportSource.File
@@ -483,6 +481,40 @@ fun CalendarHost(
                 initialFormSource = importFormSource,
                 onClose = { importForm = null },
                 onSaved = { importForm = null },
+                onManageCalendars = { showCalendars = true },
+            )
+        }
+
+        // Declared last so it covers every overlay that can open it: Settings,
+        // both event forms, and the .ics import picker (#76).
+        AnimatedVisibility(
+            visible = showCalendars,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            CalendarsScreen(
+                onBack = { showCalendars = false },
+                onOpenBackup = { showBackup = true },
+            )
+        }
+
+        // Backup & restore — over the manager, since the manager links into it.
+        AnimatedVisibility(
+            visible = showBackup,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            BackupScreen(
+                onBack = { showBackup = false },
+                // Restore runs the normal .ics import, and both this screen and
+                // the manager that can have opened it are declared above the
+                // import overlays — so both have to step aside.
+                onImport = {
+                    importUri = it
+                    importForceMany = true
+                    showBackup = false
+                    showCalendars = false
+                },
             )
         }
     }

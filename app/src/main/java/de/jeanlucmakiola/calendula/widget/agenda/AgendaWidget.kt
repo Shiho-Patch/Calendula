@@ -13,7 +13,6 @@ import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
-import androidx.glance.LocalSize
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -62,7 +61,7 @@ import de.jeanlucmakiola.floret.locale.localizedDateFormatter
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.widget.AgendaWidgetData
 import de.jeanlucmakiola.calendula.widget.CalendulaGlanceTheme
-import de.jeanlucmakiola.calendula.widget.scaleFor
+import de.jeanlucmakiola.calendula.widget.WidgetSize
 import de.jeanlucmakiola.calendula.widget.loadAgendaWidgetData
 import de.jeanlucmakiola.calendula.widget.systemZone
 import de.jeanlucmakiola.calendula.widget.today
@@ -105,22 +104,23 @@ internal val AGENDA_PAST_DISPLAY_KEY = stringPreferencesKey("agenda_past_display
  */
 internal val AGENDA_SHOW_TODAY_STATE_KEY = booleanPreferencesKey("agenda_show_today")
 
+/**
+ * Per-instance Glance state key holding the chosen [WidgetSize]. Read reactively
+ * in the composition for the same reason as [AGENDA_RANGE_KEY] — so changing the
+ * setting reflects on the live widget without depending on the `provideGlance`
+ * preamble re-running.
+ */
+internal val AGENDA_SIZE_KEY = stringPreferencesKey("widget_size")
+
 class AgendaWidget : GlanceAppWidget() {
 
     override val stateDefinition = PreferencesGlanceStateDefinition
 
-    // Exact so the composition sees the widget's live size and can scale type/rows
-    // from it ([scaleFor]/[metricsFor]); at the default size that resolves to
-    // COMPACT, i.e. the layout is unchanged (#51). MonthWidget already does the
-    // same.
-    //
-    // Note Exact still asks Glance for one RemoteViews per host size (typically
-    // portrait + landscape) where the old SizeMode.Single produced exactly one —
-    // so the serialized payload roughly doubles. That is why the row list below is
-    // capped: an uncapped agenda (the range goes up to AgendaRange.MAX_CUSTOM_DAYS
-    // = 365) could otherwise push the RemoteViews past the binder transaction
-    // limit and the host would just show "Problem loading widget".
-    override val sizeMode = SizeMode.Exact
+    // Single: metrics come from the chosen WidgetSize, not the measured one
+    // (#103, #51), so a RemoteViews per host size bucket would only double the
+    // payload. The row list stays capped below — an uncapped agenda could push
+    // the RemoteViews past the binder transaction limit.
+    override val sizeMode = SizeMode.Single
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val data = context.loadAgendaWidgetData()
@@ -160,12 +160,16 @@ private sealed interface AgendaRow {
 
 @Composable
 private fun AgendaWidgetBody(data: AgendaWidgetData, dark: Boolean) {
-    // Type and row metrics scale with the widget's live size (SizeMode.Exact); a
-    // short/compact widget resolves to COMPACT, leaving the layout unchanged (#51).
+    // Read reactively from per-instance Glance state, falling back to the saved
+    // pref for a freshly placed widget (#103, #51).
     // The stripe is then re-resolved against the system font scale so it tracks the
     // sp-sized text beside it instead of drifting at large accessibility settings.
+    val savedSize = (data as? AgendaWidgetData.Ready)?.savedWidgetSize ?: WidgetSize.SMALL
+    val size = currentState(AGENDA_SIZE_KEY)
+        ?.let { stored -> WidgetSize.entries.firstOrNull { it.name == stored } }
+        ?: savedSize
     val fontScale = androidx.glance.LocalContext.current.resources.configuration.fontScale
-    val metrics = metricsFor(scaleFor(LocalSize.current)).scaledForFont(fontScale)
+    val metrics = metricsFor(size).scaledForFont(fontScale)
     Column(
         modifier = GlanceModifier
             .fillMaxSize()

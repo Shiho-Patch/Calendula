@@ -8,6 +8,11 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.domain.SimpleRecurrence
+import de.jeanlucmakiola.calendula.domain.occurrencesSpanYears
+import de.jeanlucmakiola.calendula.domain.upcomingOccurrences
+import de.jeanlucmakiola.floret.locale.localizedDateFormatter
+import kotlinx.datetime.toJavaLocalDate
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -97,6 +102,33 @@ fun recurrenceText(rrule: String, locale: Locale): AnnotatedString {
         }
     }
 }
+
+/**
+ * The rule's first few dates as one line — "Next: 30 Jul, 6 Aug, 13 Aug" — for
+ * the recurrence picker, where [recurrenceText]'s phrase says what the rule is
+ * and this says what it does. Expands via [upcomingOccurrences] and inherits its
+ * limits. A rule that yields nothing says so rather than showing an empty list.
+ */
+@Composable
+fun nextOccurrencesText(
+    rule: SimpleRecurrence,
+    start: kotlinx.datetime.LocalDate,
+    locale: Locale,
+): String {
+    val dates = rule.upcomingOccurrences(start, limit = NEXT_OCCURRENCE_COUNT)
+    if (dates.isEmpty()) return stringResource(R.string.event_edit_recurrence_next_none)
+    // Years only once they carry information (see [spansMultipleYears]).
+    val pattern = if (occurrencesSpanYears(dates, start)) "dMMMy" else "dMMM"
+    val formatter = localizedDateFormatter(locale, pattern)
+    val formatted = dates.map { formatter.format(it.toJavaLocalDate()) }
+    return stringResource(
+        R.string.event_edit_recurrence_next,
+        ListFormatter.getInstance(locale).format(formatted),
+    )
+}
+
+/** Enough dates to show a rhythm (and a skipped month), few enough for one line. */
+private const val NEXT_OCCURRENCE_COUNT = 3
 
 /** Map an RRULE BYDAY token (e.g. "TU" or "2TH") to a localized short weekday name. */
 private fun rruleDayName(token: String, locale: Locale): String? {

@@ -23,16 +23,26 @@ import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.floret.components.CustomAmountEditor
 import de.jeanlucmakiola.floret.components.FullScreenPicker
+import de.jeanlucmakiola.floret.components.GroupedListInset
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.floret.components.SelectedCheck
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.floret.identity.collapseExit
 import de.jeanlucmakiola.floret.identity.expandEnter
+import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.floret.reminders.ReminderOverride
 import de.jeanlucmakiola.floret.reminders.ReminderUnit
 import de.jeanlucmakiola.floret.reminders.reminderOverrideForMinutes
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
+import de.jeanlucmakiola.calendula.ui.agenda.agendaRangeWindowSummary
+import de.jeanlucmakiola.calendula.ui.agenda.dayCount
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 
 /**
  * Reminder-default picker, full-screen and **multi-select**: each [presets]
@@ -48,6 +58,10 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
  * row expands an inline number field plus a unit selector to add an arbitrary
  * lead time to the set. Changes apply live via [onSelect]; the user leaves via
  * back.
+ *
+ * [leadTimeSummary] adds a second line to each lead-time row, for the all-day
+ * pickers: the hour comes from the separate "show all-day reminders at" setting,
+ * so the lead time alone doesn't say when anything happens.
  */
 @Composable
 fun ReminderDefaultPicker(
@@ -57,6 +71,7 @@ fun ReminderDefaultPicker(
     allowInherit: Boolean,
     onSelect: (ReminderOverride) -> Unit,
     onDismiss: () -> Unit,
+    leadTimeSummary: (@Composable (Int) -> String?)? = null,
 ) {
     // Optimistic local state: once the user edits, the chosen override is
     // authoritative while the picker is open, so quick successive toggles compose
@@ -132,6 +147,7 @@ fun ReminderDefaultPicker(
             val checked = minute in selectedMinutes
             GroupedRow(
                 title = reminderLeadTimeLabel(minute),
+                summary = leadTimeSummary?.invoke(minute),
                 position = positionOf(index, rowCount),
                 selected = checked,
                 trailing = { Checkbox(checked = checked, onCheckedChange = { toggle(minute) }) },
@@ -196,14 +212,15 @@ private fun CustomReminderEditor(
     )
 }
 
-/** A short explanatory paragraph shown under a picker's title, above the rows. */
+/** A short explanatory paragraph shown under a picker's title, above the rows,
+ *  on the same left margin as the rows themselves. */
 @Composable
 internal fun PickerDescription(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = Modifier.padding(horizontal = GroupedListInset, vertical = 8.dp),
     )
 }
 
@@ -213,12 +230,17 @@ internal fun PickerDescription(text: String) {
  * options (today / this week / this month) and the rolling windows (next 7 / 30
  * days), with a "Custom" row that expands an inline day-count editor (1–365).
  * Mirrors [ReminderDefaultPicker]'s custom-expand pattern.
+ *
+ * Every option carries the dates it resolves to today as its summary, computed
+ * through the same [dayCount] the agenda windows by (hence [weekStart]) — only
+ * the concrete span tells "This week" and "Next 7 days" apart.
  */
 @Composable
 fun AgendaRangePicker(
     title: String,
     description: String,
     selected: AgendaRange,
+    weekStart: DayOfWeek,
     onSelect: (AgendaRange) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -232,10 +254,21 @@ fun AgendaRangePicker(
         mutableStateOf((selected as? AgendaRange.Custom)?.days?.toString() ?: "")
     }
 
+    val locale = currentLocale()
+    val zone = remember { TimeZone.currentSystemDefault() }
+    val today = remember(zone) { Clock.System.now().toLocalDateTime(zone).date }
+    // The agenda's own end-day arithmetic (anchor + dayCount - 1), so the dates
+    // match what it will show.
+    val windowSummary: (AgendaRange) -> String = { range ->
+        val end = today.plus(range.dayCount(today, weekStart) - 1, DateTimeUnit.DAY)
+        agendaRangeWindowSummary(range, today, end, locale, monthAsSpan = true)
+    }
+
     val rangeRow: @Composable (AgendaRange, Position) -> Unit = { option, position ->
         val isSelected = option == selected
         GroupedRow(
             title = agendaRangeLabel(option),
+            summary = windowSummary(option),
             position = position,
             selected = isSelected,
             trailing = if (isSelected) {
@@ -270,6 +303,9 @@ fun AgendaRangePicker(
             } else {
                 stringResource(R.string.agenda_range_custom)
             },
+            // An unset custom window has no day count yet, so the row stays
+            // single-line until it does.
+            summary = if (customSelected) windowSummary(selected) else null,
             position = if (customExpanded) Position.Top else positionOf(rolling.size, rollingRowCount),
             selected = customSelected,
             trailing = if (customSelected) {

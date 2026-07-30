@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -42,18 +44,21 @@ import de.jeanlucmakiola.floret.components.SelectedCheck
  * account — with the calendars beneath it as a connected card, a colour chip on
  * each and a check on the selected one. Emits into the caller's [ColumnScope]
  * (a scrolling column), so the caller owns the surrounding chrome.
+ *
+ * The list holds event *targets* only, so a switched-off, read-only or managed
+ * calendar is absent (#76). [onManageCalendars], when given, adds the footer row
+ * naming the possible reasons and opening the calendar manager.
  */
 @Composable
 fun ColumnScope.CalendarPickerGroups(
     calendars: List<CalendarSource>,
     selectedId: Long?,
     onSelect: (Long) -> Unit,
+    onManageCalendars: (() -> Unit)? = null,
 ) {
     val local = remember(calendars) { calendars.filter { it.isLocal } }
     val syncedGroups = remember(calendars) {
-        calendars.filterNot { it.isLocal }
-            .groupBy { it.accountName.ifBlank { it.accountType }.ifBlank { it.displayName } }
-            .toList()
+        calendars.filterNot { it.isLocal }.groupByAccount()
     }
 
     if (local.isNotEmpty()) {
@@ -65,14 +70,31 @@ fun ColumnScope.CalendarPickerGroups(
             onSelect = onSelect,
         )
     }
-    syncedGroups.forEachIndexed { index, (account, cals) ->
+    syncedGroups.forEachIndexed { index, group ->
         if (local.isNotEmpty() || index > 0) Spacer(Modifier.height(16.dp))
         CalendarPickerGroup(
-            title = account,
-            leading = { SourceLogo(cals.first().accountType) },
-            calendars = cals,
+            title = accountGroupTitle(group),
+            leading = { SourceLogo(group.accountType) },
+            calendars = group.calendars,
             selectedId = selectedId,
             onSelect = onSelect,
+        )
+    }
+    if (onManageCalendars != null) {
+        Spacer(Modifier.height(16.dp))
+        GroupedRow(
+            title = stringResource(R.string.calendar_picker_missing_title),
+            summary = stringResource(R.string.calendar_picker_missing_summary),
+            position = Position.Alone,
+            leading = { LeadingAvatar(Icons.Default.VisibilityOff) },
+            trailing = {
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            onClick = onManageCalendars,
         )
     }
 }
@@ -155,18 +177,20 @@ fun LeadingAvatar(icon: ImageVector) {
 /** The launcher icon of the app backing [accountType], preferring the human-facing app. */
 private fun sourceAppLogo(context: Context, accountType: String): ImageBitmap? {
     val pm = context.packageManager
-    val candidates = buildList {
-        curatedSourcePackage(accountType)?.let { add(it) }
-        AccountManager.get(context).authenticatorTypes
-            .firstOrNull { it.type.equals(accountType, ignoreCase = true) }
-            ?.packageName
-            ?.let { add(it) }
-    }
-    for (pkg in candidates) {
+    for (pkg in sourceAppPackages(context, accountType)) {
         val bitmap = runCatching { pm.getApplicationIcon(pkg).toBitmap() }.getOrNull()
         if (bitmap != null) return bitmap.asImageBitmap()
     }
     return null
+}
+
+/** Apps that could stand for [accountType], best candidate first. */
+internal fun sourceAppPackages(context: Context, accountType: String): List<String> = buildList {
+    curatedSourcePackage(accountType)?.let { add(it) }
+    AccountManager.get(context).authenticatorTypes
+        .firstOrNull { it.type.equals(accountType, ignoreCase = true) }
+        ?.packageName
+        ?.let { add(it) }
 }
 
 /** Preferred app for account types whose authenticator isn't the app to open. */

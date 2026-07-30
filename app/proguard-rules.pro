@@ -38,3 +38,15 @@
 # SessionWorker never ran, and widgets were stuck on their loading layout
 # (a blank spinner) in release builds. Keep every InputMerger's name + ctor.
 -keep class * extends androidx.work.InputMerger { <init>(...); }
+
+# Glance identifies a widget by its GlanceAppWidget subclass's *canonical name*:
+# GlanceAppWidgetManager persists a providerName -> receivers map under that
+# string, and `updateAll` looks the widget's app-widget ids up through it. Under
+# R8 full mode (AGP 9 default) MonthWidget and AgendaWidget — same supertype,
+# same overrides, no distinguishing members — were horizontally merged into one
+# class, so both receivers registered under the *same* provider name and
+# `AgendaWidget().updateAll()` resolved the month widget's id too, redrawing a
+# placed month widget as the agenda one on the next data change (#89). Keeping
+# the real names also survives app updates, which would otherwise renumber the
+# obfuscated name and orphan the stored mapping.
+-keep class * extends androidx.glance.appwidget.GlanceAppWidget

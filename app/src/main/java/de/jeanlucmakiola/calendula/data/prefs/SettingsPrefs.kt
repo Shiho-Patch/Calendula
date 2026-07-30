@@ -23,6 +23,7 @@ import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
+import de.jeanlucmakiola.calendula.widget.WidgetSize
 import java.time.ZoneId
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -304,6 +305,23 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setAgendaWidgetRange(range: AgendaRange) {
         store.edit { it[AGENDA_WIDGET_RANGE_KEY] = range.storageValue() }
+    }
+
+    /**
+     * The size step the agenda widget draws its text at (#51). Defaults to
+     * [WidgetSize.SMALL], which reproduces its original metrics, so an existing
+     * widget is unchanged until its owner turns the size up.
+     *
+     * This replaced deriving a size tier from the widget's measured size, which
+     * the launcher does not report reliably. The month widget takes no size
+     * setting — it divides the width it is given by seven (#103).
+     */
+    val widgetSize: Flow<WidgetSize> = store.data.map { prefs ->
+        prefs[WIDGET_SIZE_KEY].toEnum(WidgetSize.SMALL)
+    }
+
+    suspend fun setWidgetSize(size: WidgetSize) {
+        store.edit { it[WIDGET_SIZE_KEY] = size.name }
     }
 
     /**
@@ -781,6 +799,7 @@ class SettingsPrefs @Inject constructor(
         internal val AGENDA_SCREEN_RANGE_KEY = stringPreferencesKey("agenda_screen_range")
         internal val AGENDA_WIDGET_RANGE_KEY = stringPreferencesKey("agenda_widget_range")
         internal val AGENDA_SHOW_RANGE_BAR_KEY = booleanPreferencesKey("agenda_show_range_bar")
+        internal val WIDGET_SIZE_KEY = stringPreferencesKey("widget_size")
         internal val AGENDA_SHOW_TODAY_KEY =
             booleanPreferencesKey("agenda_show_today")
         internal val TIME_FORMAT_KEY = stringPreferencesKey("time_format")

@@ -39,6 +39,7 @@ import de.jeanlucmakiola.calendula.domain.timeZoneOptionOf
 import de.jeanlucmakiola.calendula.domain.timeZoneOptions
 import de.jeanlucmakiola.calendula.domain.zoneDescriptor
 import de.jeanlucmakiola.floret.components.FullScreenPicker
+import de.jeanlucmakiola.floret.components.GroupedListInset
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.Position
@@ -240,7 +241,12 @@ private fun SectionHeader(text: String) {
         text = text,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 4.dp),
+        modifier = Modifier.padding(
+            start = GroupedListInset,
+            end = GroupedListInset,
+            top = 16.dp,
+            bottom = 4.dp,
+        ),
     )
 }
 

@@ -10,14 +10,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Schedules a one-off exact alarm that re-shows a snoozed reminder.
+ * Schedules a one-off exact alarm that re-shows a snoozed reminder. Separate
+ * from [ReminderAlarmScheduler]'s single moving scan alarm: a snooze is pinned
+ * to one reminder and has to outlive the watermark moving past it, so it carries
+ * the reminder in its own intent.
  *
- * The app otherwise relies entirely on the calendar provider's `EVENT_REMINDER`
- * broadcast (the Etar model), but a snoozed reminder has no provider backing —
- * its `CalendarAlerts` row is already fired — so we must re-fire it ourselves.
- * A snooze that lands late is a broken snooze, hence an *exact* alarm; we fall
- * back to an inexact allow-while-idle alarm only if the OS withholds the
- * exact-alarm capability (API 31–32 where the user revoked it).
+ * Falls back to an inexact allow-while-idle alarm where the OS withholds the
+ * exact-alarm capability (API 31–32 with the permission revoked).
  */
 @Singleton
 class ReminderSnoozeScheduler @Inject constructor(
@@ -37,8 +36,8 @@ class ReminderSnoozeScheduler @Inject constructor(
                 AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent,
             )
         } else {
-            // Exact alarms revoked (API 31–32): an inexact wake is the honest
-            // best we can do without nagging for SCHEDULE_EXACT_ALARM.
+            // Exact alarms revoked (API 31–32); an inexact wake is the best
+            // available without nagging for SCHEDULE_EXACT_ALARM.
             alarmManager.setAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent,
             )

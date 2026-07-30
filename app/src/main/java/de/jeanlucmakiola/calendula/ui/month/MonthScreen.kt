@@ -137,6 +137,7 @@ import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.abs
 import kotlin.time.Clock
+import kotlin.time.Instant
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
@@ -364,10 +365,14 @@ fun MonthScreen(
                     todayText = stringResource(R.string.month_today_action),
                     onToday = jumpToToday,
                     onCreate = {
-                        // Anchor on today when its month is shown, else the 1st.
+                        // Split has a selected day; the other styles anchor on
+                        // today when its month is shown, else the 1st.
                         onCreateEvent(
-                            if (isOnCurrentMonth) today
-                            else LocalDate(titleMonth.year, titleMonth.month, 1),
+                            when {
+                                viewStyle == MonthViewStyle.Split -> selectedDate
+                                isOnCurrentMonth -> today
+                                else -> LocalDate(titleMonth.year, titleMonth.month, 1)
+                            },
                             null,
                         )
                     },
@@ -1277,7 +1282,7 @@ internal fun SplitMonthGrid(
                     SplitDayCell(
                         date = day,
                         events = seated,
-                        hidden = (week.countByDay[day] ?: 0) - seated.size,
+                        hidden = week.overflowEvents(col, day, MAX_EVENT_ROWS),
                         isToday = day == state.today,
                         // A page marks only the days its own month owns. Paging
                         // moves the selection before this month's replacement
@@ -1318,7 +1323,7 @@ private fun SplitDayCell(
     date: LocalDate,
     events: List<EventInstance>,
     /** Events on this day that didn't fit a lane, shown as a "+N" beside the dots. */
-    hidden: Int,
+    hidden: List<EventInstance>,
     isToday: Boolean,
     isSelected: Boolean,
     inMonth: Boolean,
@@ -1436,9 +1441,15 @@ private fun SplitDayCell(
  * bar with no dot to grow out of.
  */
 @Composable
-private fun SplitDots(date: LocalDate, events: List<EventInstance>, hidden: Int, dark: Boolean) {
+private fun SplitDots(
+    date: LocalDate,
+    events: List<EventInstance>,
+    hidden: List<EventInstance>,
+    dark: Boolean,
+) {
     if (events.isEmpty()) return
     val soften = LocalSoftenColors.current
+    val dimCutoff = LocalDimCutoff.current
     Row(
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1461,18 +1472,21 @@ private fun SplitDots(date: LocalDate, events: List<EventInstance>, hidden: Int,
                 modifier = Modifier
                     .morphBounds(MonthMorphKey.Event(date, event.instanceId))
                     .size(SPLIT_DOT_SIZE)
+                    .alpha(if (dimCutoff != null && event.hasEnded(dimCutoff)) EventDimAlpha else 1f)
                     .background(eventFill(event.color, dark, soften), CircleShape),
             )
         }
-        if (hidden > 0) {
+        if (hidden.isNotEmpty()) {
             // Tagged, not lifted: this count and the expanded grid's dot row are
             // the same marker on the same day, so it travels with its cell like
             // everything else rather than riding above the grid on its own layer.
             Text(
-                text = "+$hidden",
+                text = "+${hidden.size}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.morphBounds(MonthMorphKey.Overflow(date)),
+                modifier = Modifier
+                    .morphBounds(MonthMorphKey.Overflow(date))
+                    .alpha(if (allEnded(hidden, dimCutoff)) EventDimAlpha else 1f),
             )
         }
     }
@@ -1870,15 +1884,15 @@ private fun MonthWeekRow(
                         }
                         val hidden = (week.countByDay[d] ?: 0) - occupied.size - pillsShown.size
                         if (hidden > 0) {
-                            val hiddenColors = buildList {
+                            val hiddenEvents = buildList {
                                 week.spans
                                     .filter { it.lane >= shownLanes && col in it.startCol..it.endCol }
-                                    .forEach { add(it.event.color) }
-                                timed.drop(pillsShown.size).forEach { add(it.color) }
-                            }.distinct().take(3)
+                                    .forEach { add(it.event) }
+                                addAll(timed.drop(pillsShown.size))
+                            }
                             OverflowDots(
-                                colors = hiddenColors,
-                                extra = hidden - hiddenColors.size,
+                                events = hiddenEvents,
+                                total = hidden,
                                 dark = dark,
                                 modifier = Modifier
                                     .offset(x = colW * col, y = EVENT_ROW_HEIGHT * MAX_EVENT_ROWS)
@@ -2058,36 +2072,50 @@ private fun MonthBar(
     }
 }
 
-/** Overflow row: a dot per hidden event (up to three) plus "+N" for the rest. */
+/**
+ * Overflow row: a dot per hidden colour (up to three) plus "+N" for the rest. A
+ * dot dims once every event sharing its colour has ended, the "+N" once the
+ * whole overflow has (#79).
+ */
 @Composable
 private fun OverflowDots(
-    colors: List<Int>,
-    extra: Int,
+    events: List<EventInstance>,
+    total: Int,
     dark: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val soften = LocalSoftenColors.current
+    val dimCutoff = LocalDimCutoff.current
+    val byColor = events.groupBy { it.color }
+    val dots = byColor.keys.take(3)
     Row(
         modifier = modifier.height(EVENT_ROW_HEIGHT),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        colors.forEach { argb ->
+        dots.forEach { argb ->
             Box(
                 modifier = Modifier
                     .size(6.dp)
+                    .alpha(if (allEnded(byColor.getValue(argb), dimCutoff)) EventDimAlpha else 1f)
                     .background(eventFill(argb, dark, soften), CircleShape),
             )
         }
+        val extra = total - dots.size
         if (extra > 0) {
             Text(
                 text = "+$extra",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.alpha(if (allEnded(events, dimCutoff)) EventDimAlpha else 1f),
             )
         }
     }
 }
+
+/** True when dimming is on and every one of [events] is already over. */
+private fun allEnded(events: List<EventInstance>, dimCutoff: Instant?): Boolean =
+    dimCutoff != null && events.isNotEmpty() && events.all { it.hasEnded(dimCutoff) }
 
 @Composable
 private fun MonthGridLoading() {

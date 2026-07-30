@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.MainActivity
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.calendar.CalendarDataSource
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.is24Hour
@@ -28,17 +29,20 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Posts one notification per due reminder alert on a dedicated channel.
- * Tapping opens the event's detail screen; the tag is the alert id, so a
- * re-broadcast of an alert we couldn't mark fired replaces its notification
- * silently ([NotificationCompat.Builder.setOnlyAlertOnce]) instead of
- * duplicating it.
+ * Posts one notification per due reminder on a dedicated channel. Tapping opens
+ * the event's detail screen.
+ *
+ * The tag is the reminder's stable key, so a scan that posts the same reminder
+ * again — a catch-up pass overlapping the alarm that already fired — replaces
+ * its notification silently ([NotificationCompat.Builder.setOnlyAlertOnce])
+ * instead of stacking a second one.
  */
 @Singleton
 class ReminderNotifier @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsPrefs: SettingsPrefs,
     private val calendarPrefs: CalendarPrefs,
+    private val calendarDataSource: CalendarDataSource,
 ) {
 
     /** False when the user declined `POST_NOTIFICATIONS` or muted the app. */
@@ -49,12 +53,23 @@ class ReminderNotifier @Inject constructor(
         return granted && NotificationManagerCompat.from(context).areNotificationsEnabled()
     }
 
-    suspend fun post(alert: ReminderAlert) {
-        // The single choke point for the disabled-calendar gate: it covers both
-        // the provider broadcast (EventReminderReceiver) and a snoozed re-show
-        // (ReminderActionReceiver), so a calendar disabled after a snooze no
-        // longer notifies — without either receiver duplicating the check.
-        if (alert.isForDisabledCalendar(calendarPrefs.disabledCalendarIds.first())) return
+    /**
+     * The single choke point for "this calendar is switched off", covering the
+     * two paths that reach [post] around the scan's own filter: a snooze armed
+     * before the switch-off, and a read-only install whose switch lives in
+     * [CalendarPrefs].
+     */
+    private suspend fun isSilenced(calendarId: Long): Boolean =
+        calendarId in calendarPrefs.pendingDisabledCalendarIds.first() ||
+            calendarDataSource.isCalendarVisible(calendarId) == false
+
+    /**
+     * Post [alert], unless its calendar is switched off. Returns whether the
+     * notification was put up, which the snooze re-show path uses to tell a
+     * silenced reminder from a delivered one.
+     */
+    suspend fun post(alert: ReminderAlert): Boolean {
+        if (isSilenced(alert.calendarId)) return false
         ensureChannel()
         val title = alert.title.ifBlank { context.getString(R.string.event_untitled) }
         val is24Hour = settingsPrefs.timeFormat.first()
@@ -101,16 +116,18 @@ class ReminderNotifier @Inject constructor(
             .build()
         try {
             NotificationManagerCompat.from(context)
-                .notify(alert.alertId.toString(), NOTIFICATION_ID, notification)
+                .notify(alert.key.toString(), NOTIFICATION_ID, notification)
         } catch (e: SecurityException) {
             // POST_NOTIFICATIONS was revoked between canPost() and here.
             Log.w(TAG, "Could not post reminder for event ${alert.eventId}", e)
         }
+        // Handled either way — a retry hits the same revoked permission.
+        return true
     }
 
     /** Remove a posted reminder (snooze re-shows it later; dismiss is final). */
     fun cancel(alert: ReminderAlert) {
-        NotificationManagerCompat.from(context).cancel(alert.alertId.toString(), NOTIFICATION_ID)
+        NotificationManagerCompat.from(context).cancel(alert.key.toString(), NOTIFICATION_ID)
     }
 
     private fun actionIntent(alert: ReminderAlert, action: String): PendingIntent =
@@ -123,7 +140,10 @@ class ReminderNotifier @Inject constructor(
 
     private fun detailIntent(alert: ReminderAlert): PendingIntent = PendingIntent.getActivity(
         context,
-        /* requestCode = */ alert.alertId.toInt(),
+        // Shares the per-(alert, action) request-code scheme with the buttons.
+        /* requestCode = */ ReminderActionReceiver.requestCode(
+            alert, ReminderActionReceiver.ACTION_OPEN,
+        ),
         MainActivity.eventDetailIntent(context, alert.eventId, alert.beginMillis, alert.endMillis),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )

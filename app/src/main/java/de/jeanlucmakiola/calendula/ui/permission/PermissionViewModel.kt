@@ -13,6 +13,8 @@ class PermissionViewModel @Inject constructor() : ViewModel() {
     private val _state = MutableStateFlow<PermissionUiState>(PermissionUiState.Rationale)
     val state: StateFlow<PermissionUiState> = _state.asStateFlow()
 
+    // The visibility reconcile a grant owes (#75) hangs off RootScreen, which
+    // also catches grants made outside the app.
     fun onGranted() {
         _state.value = PermissionUiState.Granted
     }

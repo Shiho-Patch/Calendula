@@ -45,9 +45,14 @@ class EventEditViewModelTest {
     private val beginMillis = 1_781_164_800_000L
     private val endMillis = beginMillis + 3_600_000L
 
-    private fun cal(id: Long): CalendarSource = CalendarSource(
+    private fun cal(
+        id: Long,
+        visible: Boolean = true,
+        syncsEvents: Boolean = true,
+    ): CalendarSource = CalendarSource(
         id = id, displayName = "Cal $id", accountName = "acc@local", accountType = "LOCAL",
-        color = 0xFF112233.toInt(), isVisibleInSystem = true, canModifyContents = true,
+        color = 0xFF112233.toInt(), isVisibleInSystem = visible, canModifyContents = true,
+        syncsEvents = syncsEvents,
     )
 
     private fun detail(calendarId: Long, rrule: String? = null): EventDetail = EventDetail(
@@ -89,6 +94,66 @@ class EventEditViewModelTest {
 
     /** Keep [EventEditViewModel.state] hot so it computes while the test drives it. */
     private fun CoroutineScope.activate(vm: EventEditViewModel): Job = launch { vm.state.collect {} }
+
+    @Test
+    fun `a calendar switched off in settings is not offered as a target`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply {
+            calendarsResult = listOf(cal(1L), cal(2L, visible = false))
+            eventDetailResult = { detail(calendarId = 1L) }
+        }
+        val vm = viewModel(tempDir, fake)
+        val job = activate(vm)
+
+        vm.openForEdit(eventId = 42L, beginMillis = beginMillis, endMillis = endMillis)
+        advanceUntilIdle()
+
+        assertThat(vm.state.value?.calendars?.map { it.id }).containsExactly(1L)
+        job.cancel()
+    }
+
+    @Test
+    fun `a calendar whose account is not synced to this device is not a target`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        // Writable and switched on, but the account keeps its events off the
+        // device: nothing saved here ever reaches it, and the provider drops the
+        // rows when the subscription comes back (#76).
+        val fake = FakeCalendarDataSource().apply {
+            calendarsResult = listOf(cal(1L), cal(2L, syncsEvents = false))
+            eventDetailResult = { detail(calendarId = 1L) }
+        }
+        val vm = viewModel(tempDir, fake)
+        val job = activate(vm)
+
+        vm.openForEdit(eventId = 42L, beginMillis = beginMillis, endMillis = endMillis)
+        advanceUntilIdle()
+
+        assertThat(vm.state.value?.calendars?.map { it.id }).containsExactly(1L)
+        job.cancel()
+    }
+
+    @Test
+    fun `editing an event in a switched-off calendar keeps it in the picker`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        // Otherwise the calendar row renders as the "no calendar" error and any
+        // pick routes the save through a move the user never asked for.
+        val fake = FakeCalendarDataSource().apply {
+            calendarsResult = listOf(cal(1L), cal(2L, visible = false))
+            eventDetailResult = { detail(calendarId = 2L) }
+        }
+        val vm = viewModel(tempDir, fake)
+        val job = activate(vm)
+
+        vm.openForEdit(eventId = 42L, beginMillis = beginMillis, endMillis = endMillis)
+        advanceUntilIdle()
+
+        assertThat(vm.state.value?.calendars?.map { it.id }).containsExactly(1L, 2L)
+        assertThat(vm.state.value?.form?.calendarId).isEqualTo(2L)
+        job.cancel()
+    }
 
     @Test
     fun `changing the calendar routes the save through a move, not an update`(

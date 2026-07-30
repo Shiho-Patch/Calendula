@@ -74,6 +74,8 @@ sealed interface AgendaWidgetData {
          * from Glance state before an instance has its own state set.
          */
         val savedShowToday: Boolean,
+        /** Saved widget size step (#103) — the fallback before Glance state is set. */
+        val savedWidgetSize: WidgetSize,
         /** Snapshot instant the data was read at, for "has this event ended?" tests. */
         val now: Instant,
     ) : AgendaWidgetData
@@ -145,6 +147,7 @@ internal suspend fun Context.loadAgendaWidgetData(): AgendaWidgetData {
         savedRange = savedRange,
         savedPastDisplay = savedPastDisplay,
         savedShowToday = showToday,
+        savedWidgetSize = prefs.widgetSize.first(),
         now = Clock.System.now(),
     )
 }

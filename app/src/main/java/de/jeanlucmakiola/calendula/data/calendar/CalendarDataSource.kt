@@ -54,7 +54,12 @@ import javax.inject.Singleton
 interface CalendarDataSource {
     fun calendars(): List<CalendarSource>
     fun instances(beginMillis: Long, endMillis: Long): List<EventInstance>
-    fun eventDetail(eventId: Long): EventDetail?
+    /**
+     * [allDayReminderTimeMinutes]: the hour all-day reminders fire at, needed to
+     * decode their stored offsets back to whole-day lead times (see
+     * [fromProviderAllDayMinutes]).
+     */
+    fun eventDetail(eventId: Long, allDayReminderTimeMinutes: Int): EventDetail?
 
     /**
      * Master/one-off events whose title, description or location contains
@@ -109,6 +114,28 @@ interface CalendarDataSource {
 
     /** Permanently delete a local calendar the app owns, with all its events. */
     fun deleteCalendar(id: Long)
+
+    /**
+     * Show or hide the calendar device-wide by writing `Calendars.VISIBLE` — the
+     * app's one visibility model (#75), which also gates its reminders. One of
+     * the three columns the platform documents as app-writable, and device-local.
+     */
+    fun setCalendarVisible(id: Long, visible: Boolean)
+
+    /**
+     * Whether one calendar is switched on at system level, without reading every
+     * row — for the reminder gate, which sees only a calendar id. Null when the
+     * answer can't be had: no row, or no read permission.
+     */
+    fun isCalendarVisible(id: Long): Boolean?
+
+    /**
+     * Whether the app holds `WRITE_CALENDAR`, i.e. may write
+     * [setCalendarVisible] at all. Read-only users (READ granted, WRITE denied)
+     * keep their calendar switches app-side instead — see
+     * [de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs.pendingDisabledCalendarIds].
+     */
+    fun canWriteCalendars(): Boolean
 
     /**
      * Create a local calendar tagged as the special-dates mirror for [type]
@@ -373,6 +400,37 @@ class AndroidCalendarDataSource @Inject constructor(
         if (deleted == 0) throw WriteFailedException("delete calendar id=$id")
     }
 
+    /**
+     * Addressed by appended id on the plain (non-sync-adapter) Calendars URI, one
+     * calendar per call. Both parts are load-bearing:
+     * `CalendarProvider2.updateInTransaction` skips the dirty marking and the
+     * `checkNextAlarm()` reschedule unless the selection is `_id=…`, and the
+     * plain URI is what makes the write apply to synced calendars too.
+     */
+    override fun setCalendarVisible(id: Long, visible: Boolean) {
+        val values = ContentValues().apply {
+            put(CalendarContract.Calendars.VISIBLE, if (visible) 1 else 0)
+        }
+        val rows = resolver.update(
+            ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, id),
+            values, null, null,
+        )
+        if (rows == 0) throw WriteFailedException("set calendar visibility id=$id")
+    }
+
+    override fun isCalendarVisible(id: Long): Boolean? {
+        if (!hasCalendarPermission()) return null
+        return resolver.query(
+            ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, id),
+            arrayOf(CalendarContract.Calendars.VISIBLE),
+            null, null, null,
+        )?.use { if (it.moveToFirst()) it.getInt(0) != 0 else null }
+    }
+
+    override fun canWriteCalendars(): Boolean =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALENDAR) ==
+            PackageManager.PERMISSION_GRANTED
+
     override fun createManagedCalendar(displayName: String, color: Int, type: SpecialDateType): Long {
         val name = displayName.trim().ifEmpty { Fallbacks.UNNAMED_CALENDAR }
         val values = ContentValues().apply {
@@ -610,7 +668,7 @@ class AndroidCalendarDataSource @Inject constructor(
         }
     }
 
-    override fun eventDetail(eventId: Long): EventDetail? {
+    override fun eventDetail(eventId: Long, allDayReminderTimeMinutes: Int): EventDetail? {
         val attendees = queryAttendees(eventId)
         val reminders = queryReminders(eventId)
         return resolver.query(
@@ -619,7 +677,9 @@ class AndroidCalendarDataSource @Inject constructor(
             null, null, null,
         )?.use { c ->
             if (!c.moveToFirst()) null
-            else CursorColumnReader(c).toEventDetailCore(attendees, reminders)
+            else CursorColumnReader(c).toEventDetailCore(
+                attendees, reminders, allDayReminderTimeMinutes,
+            )
         }
     }
 

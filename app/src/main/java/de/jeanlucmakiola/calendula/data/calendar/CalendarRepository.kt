@@ -39,6 +39,16 @@ interface CalendarRepository {
     suspend fun deleteCalendar(id: Long)
 
     /**
+     * Show or hide [ids] device-wide (`Calendars.VISIBLE`), which also gates
+     * their reminders — see [CalendarDataSource.setCalendarVisible]. Written one
+     * at a time, in order; a failure part-way leaves the earlier writes standing.
+     *
+     * Without `WRITE_CALENDAR` the choice is kept app-side instead (see
+     * [de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs.pendingDisabledCalendarIds]).
+     */
+    suspend fun setCalendarsVisible(ids: Collection<Long>, visible: Boolean)
+
+    /**
      * Every event of the writable local calendars, ready to serialise into a
      * whole-calendar `.ics` backup (see [CalendarDataSource.exportableEvents]).
      * [calendarIds] narrows the export to a chosen subset; `null` exports all.

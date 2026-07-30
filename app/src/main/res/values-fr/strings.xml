@@ -400,8 +400,6 @@
     <string name="calendars_local_header">Vos calendriers</string>
     <string name="calendars_local_empty">Pas encore de calendrier local. Créez-en un pour conserver les événements uniquement sur cet appareil.</string>
     <string name="calendars_add">Ajouter un calendrier</string>
-    <string name="calendars_disable_hint">Désactivez un calendrier pour le retirer de l’application, ses événements, ses filtres et ses sélecteurs. Rien n’est supprimé et vous pouvez le réactiver à tout moment ici.</string>
-    <string name="calendars_show_in_app_a11y">Afficher « %1$s » dans l’application</string>
     <string name="calendars_synced_header">Calendriers synchronisés</string>
     <string name="calendars_synced_hint">Ils proviennent de comptes sur votre appareil. Créez et modifiez-les dans leur propre application.</string>
     <string name="calendars_manage_in_app">Gérer dans l’application</string>

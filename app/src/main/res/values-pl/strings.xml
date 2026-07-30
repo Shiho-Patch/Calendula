@@ -396,8 +396,6 @@
     <string name="calendars_local_header">Twoje kalendarze</string>
     <string name="calendars_local_empty">Brak lokalnych kalendarzy. Utwórz kalendarz, aby zapisywać wydarzenia tylko na tym urządzeniu.</string>
     <string name="calendars_add">Dodaj kalendarz</string>
-    <string name="calendars_disable_hint">Wyłącz kalendarz, aby ukryć go w aplikacji — wraz z jego wydarzeniami, filtrami i selektorami. Nic nie zostanie usunięte, a w każdej chwili możesz go tutaj ponownie włączyć.</string>
-    <string name="calendars_show_in_app_a11y">Pokaż „%1$s” w aplikacji</string>
     <string name="calendars_synced_header">Synchronizowane kalendarze</string>
     <string name="calendars_synced_hint">Pochodzą z kont na Twoim urządzeniu. Możesz je tworzyć i edytować w powiązanych z nimi aplikacjach.</string>
     <string name="calendars_manage_in_app">Zarządzaj w aplikacji</string>

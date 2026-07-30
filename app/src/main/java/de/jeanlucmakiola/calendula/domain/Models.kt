@@ -1,5 +1,9 @@
 package de.jeanlucmakiola.calendula.domain
 
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 
 data class CalendarSource(
@@ -8,6 +12,11 @@ data class CalendarSource(
     val accountName: String,
     val accountType: String,
     val color: Int,
+    /**
+     * The system's `Calendars.VISIBLE` flag — the single visibility model,
+     * deciding both what Calendula shows and whether this calendar plans
+     * reminders (#75). The drawer's filter sheet is a separate in-app declutter.
+     */
     val isVisibleInSystem: Boolean,
     /**
      * Whether events in this calendar can be created/edited/deleted
@@ -34,6 +43,13 @@ data class CalendarSource(
      * even after a backup restore clears the app's stored ids.
      */
     val isManaged: Boolean = false,
+    /**
+     * Whether the provider keeps this calendar's events on the device
+     * (`Calendars.SYNC_EVENTS`), independent of [isVisibleInSystem]. Says
+     * nothing about device-local calendars, which can hold events with it off.
+     * Read for the "not synced" row label (#76).
+     */
+    val syncsEvents: Boolean = true,
 )
 
 data class EventInstance(
@@ -55,6 +71,31 @@ data class EventInstance(
  * so they only count as ended once their day is fully over.
  */
 fun EventInstance.hasEnded(now: Instant): Boolean = end <= now
+
+/**
+ * The zone this event's calendar dates live in: the device [zone] for timed
+ * events, UTC for all-day ones, whose midnights would otherwise shift day
+ * boundaries (#65, #82). Every surface naming an all-day date goes through here.
+ */
+fun EventInstance.dateZone(zone: TimeZone): TimeZone =
+    if (isAllDay) TimeZone.UTC else zone
+
+/** The first calendar day this event occupies. */
+fun EventInstance.spanFirstDay(zone: TimeZone): LocalDate =
+    start.toLocalDateTime(dateZone(zone)).date
+
+/**
+ * The last calendar day this event occupies. An event ending exactly at midnight
+ * does not reach into that day, so resolve just before [EventInstance.end].
+ */
+fun EventInstance.spanLastDay(zone: TimeZone): LocalDate {
+    val lastInstant = if (end > start) end - 1.milliseconds else start
+    return lastInstant.toLocalDateTime(dateZone(zone)).date
+}
+
+/** Whether this event occupies more than one calendar day in [zone]. */
+fun EventInstance.spansMultipleDays(zone: TimeZone): Boolean =
+    spanFirstDay(zone) != spanLastDay(zone)
 
 data class EventDetail(
     val instance: EventInstance,

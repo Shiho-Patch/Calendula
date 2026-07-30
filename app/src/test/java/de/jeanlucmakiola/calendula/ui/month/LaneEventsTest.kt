@@ -122,6 +122,42 @@ class LaneEventsTest {
             .containsNoneIn(seated)
     }
 
+    @Test
+    fun `overflow is exactly what seating left behind`() {
+        val events = (0 until 5).map { timed(LocalDate(2026, 7, 6), hour = 8 + it, id = it + 1L) }
+        val week = rowOfJuly6(events)
+        val day = LocalDate(2026, 7, 6)
+
+        val seated = week.laneEvents(col = 0, day = day, laneCap = 3)
+        val overflow = week.overflowEvents(col = 0, day = day, laneCap = 3)
+
+        assertThat(overflow).containsExactlyElementsIn(events.drop(3)).inOrder()
+        assertThat(seated + overflow).containsExactlyElementsIn(events)
+        assertThat(seated.size + overflow.size).isEqualTo(week.countByDay[day])
+    }
+
+    @Test
+    fun `a bar beyond the cap overflows on every day it covers`() {
+        val bars = (0 until 4).map {
+            allDay(LocalDate(2026, 7, 6), LocalDate(2026, 7, 8), id = it + 1L)
+        }
+        val week = rowOfJuly6(bars)
+        val parked = week.spans.filter { it.lane >= 3 }.map { it.event }
+
+        (0..2).forEach { col ->
+            val day = LocalDate(2026, 7, 6 + col)
+            assertThat(week.overflowEvents(col, day, laneCap = 3))
+                .containsExactlyElementsIn(parked)
+        }
+    }
+
+    @Test
+    fun `a day that fits has no overflow`() {
+        val week = rowOfJuly6(listOf(timed(LocalDate(2026, 7, 6), hour = 9, id = 1L)))
+
+        assertThat(week.overflowEvents(col = 0, day = LocalDate(2026, 7, 6), laneCap = 3)).isEmpty()
+    }
+
     private companion object {
         const val BLUE = 0xFF3366CC.toInt()
         const val RED = 0xFFCC3333.toInt()
