@@ -79,7 +79,8 @@ class EventDetailMapperTest {
     private fun MapColumnReader.toDetail(
         attendees: List<de.jeanlucmakiola.calendula.domain.Attendee> = emptyList(),
         reminders: List<Reminder> = emptyList(),
-    ) = toEventDetailCore(attendees, reminders)
+        allDayReminderTimeMinutes: Int = 9 * 60,
+    ) = toEventDetailCore(attendees, reminders, allDayReminderTimeMinutes)
 
     @Test
     fun `happy path detail maps all fields and embeds matching EventInstance`() {

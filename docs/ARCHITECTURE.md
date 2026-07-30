@@ -175,7 +175,12 @@ an app update or a doze window costs nothing. A first-ever scan claims the
 present rather than the epoch, and a watermark left in the future by a clock
 change is clamped. Every trigger runs the same idempotent `scan()`, so there is
 no ordering between them to get wrong; `BOOT_COMPLETED` and `MY_PACKAGE_REPLACED`
-matter because both wipe pending alarms.
+matter because both wipe pending alarms. Turning reminders off cancels the alarm
+and granting the calendar permission arms none, so those transitions scan too —
+without it, switching reminders back on would sit silent until the daily worker.
+The window a scan reads is the 7-day lookahead plus the longest reminder offset
+in the provider, capped at a year: that offset is whatever the largest row says,
+including one imported from a stray `TRIGGER:-P100W`.
 
 **All-day reminders fire at the hour the setting names.** The stored offset is
 not a plain lead time — `AllDayReminderEncoding` folds a wall-clock hour into it,
@@ -183,7 +188,13 @@ sampled against one date's UTC offset — so taking it at face value drifts by t
 offset delta across a DST boundary, and rows from other apps carry no hour at
 all. The offset is therefore read only for *which day* it means; the hour comes
 from the global all-day reminder setting, recomposed against each occurrence's
-own date. Timed reminders need none of this: `begin` is an absolute instant.
+own date. Which day that is comes from the local date the encoded instant falls
+on — except for a plain multiple of 1440, read at face value because a foreign
+row means literal days from UTC midnight. The two collide where the all-day hour
+equals the zone's UTC offset (20:00 in New York), and there the instant landing
+on the named hour decides it is ours; the display path decodes through the same
+function, so the screen and the notification agree. Timed reminders need none of
+this: `begin` is an absolute instant.
 
 **One visibility model.** The scan only plans occurrences of calendars with
 `Calendars.VISIBLE = 1`, and that flag *is* the app's on/off switch: Settings →

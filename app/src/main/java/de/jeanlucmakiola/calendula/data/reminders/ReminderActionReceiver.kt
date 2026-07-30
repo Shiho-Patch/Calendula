@@ -3,6 +3,7 @@ package de.jeanlucmakiola.calendula.data.reminders
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import androidx.core.net.toUri
 import dagger.hilt.android.AndroidEntryPoint
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import kotlinx.coroutines.CoroutineScope
@@ -91,10 +92,19 @@ class ReminderActionReceiver : BroadcastReceiver() {
         private const val EXTRA_LOCATION = "location"
         private const val EXTRA_ALL_DAY = "all_day"
 
-        /** An explicit intent to this receiver carrying [alert] as extras. */
+        /**
+         * An explicit intent to this receiver carrying [alert] as extras.
+         *
+         * The data URI names the reminder and carries no information the extras
+         * don't. It is what actually keeps two reminders' `PendingIntent`s
+         * apart: `filterEquals` compares action, component, data, type and
+         * categories — never extras — so without it a request-code collision
+         * would have them share one alarm and one payload.
+         */
         fun intent(context: Context, action: String, alert: ReminderAlert): Intent =
             Intent(context, ReminderActionReceiver::class.java).apply {
                 this.action = action
+                data = "calendula://reminder/${alert.key}".toUri()
                 putExtra(EXTRA_ALERT_KEY, alert.key)
                 putExtra(EXTRA_EVENT_ID, alert.eventId)
                 putExtra(EXTRA_CALENDAR_ID, alert.calendarId)
@@ -110,9 +120,9 @@ class ReminderActionReceiver : BroadcastReceiver() {
          * PendingIntents stay distinct and don't clobber each other.
          *
          * The key is a hash now rather than a small row id, so the shift is what
-         * keeps the action slot intact; the top three bits it drops only make two
-         * *different* reminders collide, which the intent extras then separate
-         * (PendingIntents compare their intents too, not just the request code).
+         * keeps the action slot intact; the top three bits it drops can make two
+         * *different* reminders share a code, which the per-reminder data URI in
+         * [intent] separates.
          */
         fun requestCode(alert: ReminderAlert, action: String): Int {
             val actionOffset = when (action) {

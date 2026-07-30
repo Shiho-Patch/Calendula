@@ -27,6 +27,7 @@ import de.jeanlucmakiola.calendula.data.prefs.SpecialDatesStalledReason
 import de.jeanlucmakiola.calendula.data.prefs.ThemeMode
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
+import de.jeanlucmakiola.calendula.data.reminders.ReminderScanner
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.FontRole
@@ -68,6 +69,7 @@ class SettingsViewModel @Inject constructor(
     private val specialDatesEngine: SpecialDatesSyncEngine,
     specialDatesSpec: SpecialDatesCalendarSpec,
     private val launcherNameManager: LauncherNameManager,
+    private val reminderScanner: ReminderScanner,
     @IoDispatcher private val io: CoroutineDispatcher,
     @ApplicationContext private val appContext: Context,
 ) : ViewModel() {
@@ -582,8 +584,16 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setDrawerViewOrder(order) }
     }
 
+    /**
+     * A scan follows the write, in that order. Switching reminders off cancels
+     * the scan alarm, so switching them back on has to arm a new one — nothing
+     * else would until a provider change or the daily worker came along (#75).
+     */
     fun setRemindersEnabled(enabled: Boolean) {
-        viewModelScope.launch { prefs.setRemindersEnabled(enabled) }
+        viewModelScope.launch {
+            prefs.setRemindersEnabled(enabled)
+            reminderScanner.scan()
+        }
     }
 
     fun setAutofocusEventTitle(enabled: Boolean) {
@@ -598,8 +608,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setDefaultAllDayReminderMinutes(minutes) }
     }
 
+    /** The armed alarm was planned for the old hour, so re-plan against the new one. */
     fun setAllDayReminderTimeMinutes(minutesOfDay: Int) {
-        viewModelScope.launch { prefs.setAllDayReminderTimeMinutes(minutesOfDay) }
+        viewModelScope.launch {
+            prefs.setAllDayReminderTimeMinutes(minutesOfDay)
+            reminderScanner.scan()
+        }
     }
 
     fun setSnoozeMinutes(minutes: Int) {
