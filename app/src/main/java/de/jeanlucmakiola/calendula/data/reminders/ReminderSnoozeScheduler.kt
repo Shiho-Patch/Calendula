@@ -12,9 +12,12 @@ import javax.inject.Singleton
 /**
  * Schedules a one-off exact alarm that re-shows a snoozed reminder.
  *
- * The app otherwise relies entirely on the calendar provider's `EVENT_REMINDER`
- * broadcast (the Etar model), but a snoozed reminder has no provider backing —
- * its `CalendarAlerts` row is already fired — so we must re-fire it ourselves.
+ * Separate from [ReminderAlarmScheduler]'s scan alarm, and deliberately so: a
+ * snooze is pinned to one reminder at a time the user chose, while the scan
+ * alarm is a single moving wake-up for whatever comes next. A re-show also has
+ * to outlive the scan's watermark moving past that reminder, so it carries the
+ * reminder in its own intent rather than re-deriving it.
+ *
  * A snooze that lands late is a broken snooze, hence an *exact* alarm; we fall
  * back to an inexact allow-while-idle alarm only if the OS withholds the
  * exact-alarm capability (API 31–32 where the user revoked it).

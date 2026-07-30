@@ -13,9 +13,17 @@ sealed interface FilterUiState {
     data class Success(val groups: List<AccountGroup>) : FilterUiState
 }
 
-/** Calendars grouped under the account that owns them (Nextcloud / Local / …). */
+/**
+ * Calendars grouped under the account that owns them (Nextcloud / Local / …).
+ *
+ * [accountType] and [ambiguous] carry what the header needs to tell two
+ * same-named accounts from different apps apart (#77); the label itself is
+ * built in the UI layer, which is where the source app's name can be looked up.
+ */
 data class AccountGroup(
     val account: String,
+    val accountType: String,
+    val ambiguous: Boolean,
     val calendars: List<CalendarRow>,
 )
 

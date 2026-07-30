@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
+import de.jeanlucmakiola.calendula.data.reminders.ReminderScanner
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -19,6 +20,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ReminderOnboardingViewModel @Inject constructor(
     private val prefs: SettingsPrefs,
+    private val scanner: ReminderScanner,
 ) : ViewModel() {
 
     val onboardingDone: StateFlow<Boolean?> = prefs.reminderOnboardingDone
@@ -34,6 +36,19 @@ class ReminderOnboardingViewModel @Inject constructor(
         viewModelScope.launch {
             prefs.setRemindersEnabled(remindersEnabled)
             prefs.setReminderOnboardingDone()
+            // Nothing else re-arms the scan: turning reminders off cancels the
+            // alarm, so a later "on" would sit without one until a provider
+            // change or the daily worker happened to run (#75).
+            scanner.scan()
         }
+    }
+
+    /**
+     * Re-scan after the calendar permission is granted. The launch scan runs
+     * before the grant and bails out without arming anything, so without this
+     * the first alarm waits on the daily worker.
+     */
+    fun rearmAfterGrant() {
+        scanner.scanInBackground()
     }
 }

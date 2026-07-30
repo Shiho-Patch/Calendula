@@ -50,9 +50,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   either widget is measured any more: they draw at the size you pick under
   Settings → Widgets. The month widget can no longer be resized narrower than its
   grid needs, either ([#103], [#51]).
+- A month-grid widget stays a month grid. Since 2.16.0 a placed month widget
+  could redraw itself as the agenda widget a little after any change to your
+  events, because the release build merged the two widgets into a single class
+  and Android could no longer tell which of them a widget on your home screen
+  was ([#89]).
+- The back gesture on **Settings → Views** returns to Settings instead of
+  leaving Settings altogether and dropping you on the calendar. Special dates
+  did the same ([#81]).
+- The dots standing in for the events that didn't fit a day in the month view
+  now dim with everything else when **Dim completed events** is on. A past day
+  with four or more events kept its last events at full strength while the rest
+  faded ([#79]).
+- Two accounts that happen to share a name — a Google account and a DAVx5
+  account for the same address, say — are no longer merged into one group.
+  They were listed together in Settings → Calendars and in the drawer's filter,
+  which also meant the group's source icon and its "manage in app" button could
+  send you to the wrong app, "toggle all" spanned both accounts at once, and
+  collapsing one collapsed the other. Where a name really is shared, each group
+  now names the app it comes from ([#77]).
 - Search results now show an all-day event's real date. West of UTC — anywhere in
   the Americas, say — a search hit was dated one day early, disagreeing with the
   day the month, week and agenda views file the same event under ([#82]).
+- Reminders no longer depend on Android telling Calendula when they are due.
+  Calendula now works out each reminder's time itself and sets its own alarm for
+  it. On some phones — Samsung's among them — the system's calendar storage never
+  sends the signal a calendar app is meant to wake up on, and no amount of
+  battery or notification settings helps: the reminder is simply never announced.
+  None of that is visible from inside an app that waits to be told, which is why
+  it took a second pass to find ([#75]).
+
+  Reminders also survive things that used to lose them quietly. After a restart
+  or an app update Calendula re-arms its alarms, and a reminder whose moment
+  passed while the phone was off still arrives, as long as the event has not
+  ended yet.
+
+- All-day reminders now arrive at the time you chose in **Settings →
+  Notifications**, on every occurrence. A yearly birthday could drift an hour
+  either way depending on daylight saving, and all-day reminders on calendars
+  from an account fired in the middle of the night instead of in the morning
+  ([#75]).
+
 - Reminders now arrive for every calendar you have switched on. A calendar that
   was hidden at system level — switched off in another calendar app, or never
   switched on after being added — still showed its events and listed their
@@ -1182,5 +1220,9 @@ automatically, with zero telemetry and no internet permission.
 [#75]: https://codeberg.org/jlmakiola/calendula/issues/75
 [#76]: https://codeberg.org/jlmakiola/calendula/issues/76
 [#78]: https://codeberg.org/jlmakiola/calendula/issues/78
+[#77]: https://codeberg.org/jlmakiola/calendula/issues/77
+[#79]: https://codeberg.org/jlmakiola/calendula/issues/79
+[#81]: https://codeberg.org/jlmakiola/calendula/issues/81
 [#82]: https://codeberg.org/jlmakiola/calendula/issues/82
+[#89]: https://codeberg.org/jlmakiola/calendula/issues/89
 [#103]: https://codeberg.org/jlmakiola/calendula/issues/103

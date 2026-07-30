@@ -18,8 +18,8 @@ import de.jeanlucmakiola.calendula.data.contacts.AndroidContactSpecialDatesDataS
 import de.jeanlucmakiola.calendula.data.contacts.AndroidSpecialDatesCalendarSpec
 import de.jeanlucmakiola.calendula.data.contacts.ContactSpecialDatesDataSource
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesCalendarSpec
-import de.jeanlucmakiola.calendula.data.reminders.AndroidReminderAlertStore
-import de.jeanlucmakiola.calendula.data.reminders.ReminderAlertStore
+import de.jeanlucmakiola.calendula.data.reminders.ProviderReminderInstanceSource
+import de.jeanlucmakiola.calendula.data.reminders.ReminderInstanceSource
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import javax.inject.Singleton
@@ -46,9 +46,9 @@ abstract class DataBindModule {
 
     @Binds
     @Singleton
-    abstract fun bindReminderAlertStore(
-        impl: AndroidReminderAlertStore,
-    ): ReminderAlertStore
+    abstract fun bindReminderInstanceSource(
+        impl: ProviderReminderInstanceSource,
+    ): ReminderInstanceSource
 
     @Binds
     @Singleton

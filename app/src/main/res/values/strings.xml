@@ -496,6 +496,8 @@
     <string name="calendars_synced_header">Synced calendars</string>
     <string name="calendars_synced_hint">These come from accounts on your device. Create and edit them in their own app.</string>
     <string name="calendars_manage_in_app">Manage in app</string>
+    <!-- Account header when two accounts share a name: %1$s is the account, %2$s the app it comes from. -->
+    <string name="calendars_account_from_source">%1$s (%2$s)</string>
     <string name="calendars_account_menu_a11y">More options for %1$s</string>
     <string name="calendars_enable_all">Enable all</string>
     <string name="calendars_disable_all">Disable all</string>

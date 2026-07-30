@@ -24,6 +24,7 @@ private const val TAG = "EventDetailMapper"
 internal fun ColumnReader.toEventDetailCore(
     attendees: List<Attendee>,
     reminders: List<Reminder>,
+    allDayReminderTimeMinutes: Int,
 ): EventDetail? {
     // DTSTART is epoch millis in UTC, so a series anchored before 1970 (common
     // for yearly birthdays/anniversaries synced over CalDAV) is legitimately
@@ -89,7 +90,13 @@ internal fun ColumnReader.toEventDetailCore(
     val displayReminders = if (isAllDay) {
         val startDate = Instant.ofEpochMilli(begin).atZone(ZoneOffset.UTC).toLocalDate()
         val zone = ZoneId.systemDefault()
-        reminders.map { it.copy(minutes = fromProviderAllDayMinutes(it.minutes, startDate, zone)) }
+        reminders.map {
+            it.copy(
+                minutes = fromProviderAllDayMinutes(
+                    it.minutes, startDate, zone, allDayReminderTimeMinutes,
+                ),
+            )
+        }
     } else {
         reminders
     }

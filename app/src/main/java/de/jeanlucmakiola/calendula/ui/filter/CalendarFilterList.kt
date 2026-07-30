@@ -21,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.sourceAppName
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.positionOf
 
@@ -61,7 +62,15 @@ private fun FilterList(
     Column(modifier = modifier.fillMaxWidth()) {
         groups.forEach { group ->
             Text(
-                text = group.account,
+                text = if (group.ambiguous) {
+                    stringResource(
+                        R.string.calendars_account_from_source,
+                        group.account,
+                        sourceAppName(group.accountType),
+                    )
+                } else {
+                    group.account
+                },
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 12.dp, bottom = 4.dp),

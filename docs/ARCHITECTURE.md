@@ -33,7 +33,7 @@ flowchart TD
         Repo["CalendarRepository\n(interface + impl, Flow-based, io-dispatched)"]
         DS["CalendarDataSource\n(interface + AndroidCalendarDataSource)"]
         Prefs["SettingsPrefs / CalendarPrefs\n(DataStore)"]
-        Rem["reminders/\nReminderAlertStore + ReminderNotifier"]
+        Rem["reminders/\nReminderScanner + ReminderNotifier"]
     end
     Provider[("CalendarContract\n(system calendar provider)")]
 
@@ -137,29 +137,67 @@ can't fake a conflict.
 
 ## Reminder delivery
 
-The provider schedules reminder alarms (for `METHOD_ALERT` rows only) and
-broadcasts `EVENT_REMINDER` — but posts no notification; a calendar app
-must (the Etar model):
+Calendula plans and fires its own reminders. It reads the offsets in
+`Reminders` as data, works out when each occurrence's reminder is due, and holds
+**one** exact alarm for the earliest one still ahead:
 
 ```mermaid
 sequenceDiagram
-    participant P as CalendarProvider
-    participant R as EventReminderReceiver
-    participant S as ReminderAlertStore
+    participant T as Trigger (alarm / boot / time change / edit / launch / daily worker)
+    participant Sc as ReminderScanner
+    participant Src as ReminderInstanceSource
+    participant P as ReminderPlan (pure)
     participant N as ReminderNotifier
-    P->>R: EVENT_REMINDER broadcast (manifest receiver, exported)
-    R->>S: dueAlerts(now) — CalendarAlerts: SCHEDULED, alarmTime ≤ now
-    S-->>R: due alerts
-    R->>N: post(alert) — one notification per alert, tag = alert id
-    R->>S: markFired(ids) — best effort, needs WRITE_CALENDAR
+    participant A as ReminderAlarmScheduler
+    T->>Sc: scan()
+    Sc->>Src: occurrences(window) + reminderMinutes(ids)
+    Src-->>Sc: Instances ⋈ Reminders
+    Sc->>P: planReminders / scheduleReminders(watermark, now)
+    P-->>Sc: due + next alarm
+    Sc->>N: post(alert) — tag = reminder key
+    Sc->>A: scheduleScan(next)
 ```
 
-Posting happens before marking: a crash in between re-posts silently (same
-tag + `setOnlyAlertOnce`) rather than losing a reminder. Swiped
-notifications never return because `FIRED` rows are never re-queried.
+**Why not the provider's broadcast.** It used to schedule the alarms, write the
+`CalendarAlerts` rows and broadcast `EVENT_REMINDER`, and the app only reacted.
+That chain holds on stock Android and demonstrably not everywhere: AOSP's own
+unbundled calendar carries three separate workarounds for OEM providers that
+retarget the broadcast or only write the alert row at alert time. A reacting app
+cannot tell "nothing was due" from "the broadcast never came" (#75) — and the
+reporter's silent events were in a calendar Calendula created itself, so
+`VISIBLE` was never the cause there.
 
-**One visibility model.** The provider only schedules alarms for calendars with
-`Calendars.VISIBLE = 1`, so that flag *is* the app's on/off switch: Settings →
+**The watermark replaces `CalendarAlerts.STATE`.** A scan posts the reminders
+whose moment falls in `(lastScan, now]`, then moves the mark
+(`ReminderStatePrefs`). Half-open, so a scan that runs twice cannot post twice,
+while a scan that runs *late* still posts what the missed alarm owed — a reboot,
+an app update or a doze window costs nothing. A first-ever scan claims the
+present rather than the epoch, and a watermark left in the future by a clock
+change is clamped. Every trigger runs the same idempotent `scan()`, so there is
+no ordering between them to get wrong; `BOOT_COMPLETED` and `MY_PACKAGE_REPLACED`
+matter because both wipe pending alarms. Turning reminders off cancels the alarm
+and granting the calendar permission arms none, so those transitions scan too —
+without it, switching reminders back on would sit silent until the daily worker.
+The window a scan reads is the 7-day lookahead plus the longest reminder offset
+in the provider, capped at a year: that offset is whatever the largest row says,
+including one imported from a stray `TRIGGER:-P100W`.
+
+**All-day reminders fire at the hour the setting names.** The stored offset is
+not a plain lead time — `AllDayReminderEncoding` folds a wall-clock hour into it,
+sampled against one date's UTC offset — so taking it at face value drifts by the
+offset delta across a DST boundary, and rows from other apps carry no hour at
+all. The offset is therefore read only for *which day* it means; the hour comes
+from the global all-day reminder setting, recomposed against each occurrence's
+own date. Which day that is comes from the local date the encoded instant falls
+on — except for a plain multiple of 1440, read at face value because a foreign
+row means literal days from UTC midnight. The two collide where the all-day hour
+equals the zone's UTC offset (20:00 in New York), and there the instant landing
+on the named hour decides it is ours; the display path decodes through the same
+function, so the screen and the notification agree. Timed reminders need none of
+this: `begin` is an absolute instant.
+
+**One visibility model.** The scan only plans occurrences of calendars with
+`Calendars.VISIBLE = 1`, and that flag *is* the app's on/off switch: Settings →
 Calendars writes it (one calendar per update — `CalendarProvider2` skips its own
 `checkNextAlarm()` reschedule for any selection that isn't `_id=`), and every
 display predicate reads `CalendarSource.isVisibleInSystem`. The reconciliation
@@ -171,16 +209,14 @@ the app has not been allowed to write yet (read-only permission grant, or a
 pre-permission launch); `CalendarVisibilityReconciler` drains it entry by entry,
 and until it does, the repository and `ReminderNotifier.post` honour it. That
 gate also covers a snooze re-shown from our own alarm after its calendar was
-switched off. Silencing is not handling: an alert the gate drops keeps its
-`SCHEDULED` state while its event is still ahead (`handledAlertIds`), so
-switching the calendar back on re-posts it (`ReminderRecovery`) instead of
-losing it — the provider's own table is the stash. The drawer's filter sheet
-(`CalendarPrefs.hiddenCalendarIds`) is a separate in-app declutter that never
-touches reminders.
+switched off. The drawer's filter sheet (`CalendarPrefs.hiddenCalendarIds`) is a
+separate in-app declutter that never touches reminders.
 
-Deliberately absent until real devices prove it necessary: own alarm
-scheduling, `BOOT_COMPLETED`, snooze/dismiss actions, battery-exemption
-prompts.
+Deliberately absent: a fallback to the provider's `EVENT_REMINDER` broadcast.
+Keeping both would double-post wherever the provider works, and Etar's way out —
+a latch that disables its own scheduling once a real broadcast arrives — cannot
+be copied, because our failure mode includes a broadcast that arrives with no
+alert row behind it.
 
 ## Testing
 

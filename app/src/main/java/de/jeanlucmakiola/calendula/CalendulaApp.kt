@@ -8,6 +8,8 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarVisibilityReconciler
 import de.jeanlucmakiola.calendula.data.backup.BackupWorker
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesSyncWorker
+import de.jeanlucmakiola.calendula.data.reminders.ReminderMaintenanceScheduler
+import de.jeanlucmakiola.calendula.data.reminders.ReminderMaintenanceWorker
 import de.jeanlucmakiola.floret.crash.CrashConfig
 import de.jeanlucmakiola.floret.crash.CrashReporter
 import kotlinx.coroutines.CoroutineScope
@@ -41,6 +43,25 @@ class CalendulaApp : Application() {
         reconcileAutoBackup()
         reconcileSpecialDates()
         reconcileCalendarVisibility()
+        startReminderDelivery()
+    }
+
+    /**
+     * Bring reminder delivery up with the process (#75). The app plans and arms
+     * its own reminder alarms now, so launch is one of the moments that has to
+     * re-check them: a scan re-arms whatever the system dropped, posts anything
+     * a missed alarm still owes, and starts watching the provider so an edit
+     * re-plans without waiting for the next pass. The daily worker is the
+     * backstop for a device that drops the alarm with no reboot to announce it.
+     */
+    private fun startReminderDelivery() {
+        val deps = EntryPointAccessors.fromApplication(
+            this, ReminderMaintenanceWorker.Deps::class.java,
+        )
+        val scanner = deps.reminderScanner()
+        scanner.startWatchingProvider()
+        scanner.scanInBackground()
+        ReminderMaintenanceScheduler.apply(this)
     }
 
     /**

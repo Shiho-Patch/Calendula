@@ -60,9 +60,7 @@ fun ColumnScope.CalendarPickerGroups(
 ) {
     val local = remember(calendars) { calendars.filter { it.isLocal } }
     val syncedGroups = remember(calendars) {
-        calendars.filterNot { it.isLocal }
-            .groupBy { it.accountName.ifBlank { it.accountType }.ifBlank { it.displayName } }
-            .toList()
+        calendars.filterNot { it.isLocal }.groupByAccount()
     }
 
     if (local.isNotEmpty()) {
@@ -74,12 +72,12 @@ fun ColumnScope.CalendarPickerGroups(
             onSelect = onSelect,
         )
     }
-    syncedGroups.forEachIndexed { index, (account, cals) ->
+    syncedGroups.forEachIndexed { index, group ->
         if (local.isNotEmpty() || index > 0) Spacer(Modifier.height(16.dp))
         CalendarPickerGroup(
-            title = account,
-            leading = { SourceLogo(cals.first().accountType) },
-            calendars = cals,
+            title = accountGroupTitle(group),
+            leading = { SourceLogo(group.accountType) },
+            calendars = group.calendars,
             selectedId = selectedId,
             onSelect = onSelect,
         )
@@ -181,18 +179,20 @@ fun LeadingAvatar(icon: ImageVector) {
 /** The launcher icon of the app backing [accountType], preferring the human-facing app. */
 private fun sourceAppLogo(context: Context, accountType: String): ImageBitmap? {
     val pm = context.packageManager
-    val candidates = buildList {
-        curatedSourcePackage(accountType)?.let { add(it) }
-        AccountManager.get(context).authenticatorTypes
-            .firstOrNull { it.type.equals(accountType, ignoreCase = true) }
-            ?.packageName
-            ?.let { add(it) }
-    }
-    for (pkg in candidates) {
+    for (pkg in sourceAppPackages(context, accountType)) {
         val bitmap = runCatching { pm.getApplicationIcon(pkg).toBitmap() }.getOrNull()
         if (bitmap != null) return bitmap.asImageBitmap()
     }
     return null
+}
+
+/** Apps that could stand for [accountType], best candidate first. */
+internal fun sourceAppPackages(context: Context, accountType: String): List<String> = buildList {
+    curatedSourcePackage(accountType)?.let { add(it) }
+    AccountManager.get(context).authenticatorTypes
+        .firstOrNull { it.type.equals(accountType, ignoreCase = true) }
+        ?.packageName
+        ?.let { add(it) }
 }
 
 /** Preferred app for account types whose authenticator isn't the app to open. */

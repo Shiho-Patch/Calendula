@@ -51,6 +51,10 @@ fun RootScreen(
         )
     }
 
+    // Whether the app came up already holding it — a launch scan has covered
+    // that case, so only a grant made during this session owes a re-scan.
+    val grantedAtLaunch = remember { hasPermission }
+
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val obs = LifecycleEventObserver { _, event ->
@@ -88,7 +92,10 @@ fun RootScreen(
             // Runs on entry however the permission was granted — including from
             // Android's app-settings screen, which only comes back through the
             // ON_RESUME check above. Cheap once there is nothing left to do.
-            LaunchedEffect(Unit) { visibilityNotice.reconcile() }
+            LaunchedEffect(Unit) {
+                visibilityNotice.reconcile()
+                if (!grantedAtLaunch) reminderOnboarding.rearmAfterGrant()
+            }
             if (onboardingDone == true && noticePending) {
                 CalendarVisibilityNoticeDialog(onDismiss = visibilityNotice::dismiss)
             }

@@ -179,7 +179,8 @@ class CalendarRepositoryImpl @Inject constructor(
     }
 
     override suspend fun eventDetail(eventId: Long): EventDetail = withContext(io) {
-        dataSource.eventDetail(eventId) ?: throw NoSuchEventException(eventId)
+        dataSource.eventDetail(eventId, allDayReminderTimeMinutes())
+            ?: throw NoSuchEventException(eventId)
     }
 
     override suspend fun searchEvents(query: String): List<EventInstance> = withContext(io) {
