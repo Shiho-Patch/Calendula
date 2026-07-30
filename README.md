@@ -18,15 +18,18 @@ Reads, writes, and reminds — on top of the system calendar, with zero network 
 <p>
 <a href="https://f-droid.org/packages/de.jeanlucmakiola.calendula/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="56"></a>
 &nbsp;
+<a href="https://codeberg.org/jlmakiola/calendula/releases"><img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png?raw=true" alt="Get it on Obtainium" height="56"></a>
+&nbsp;
 <a href="https://ko-fi.com/jeanlucmakiola"><img src="https://storage.ko-fi.com/cdn/brandasset/v2/support_me_on_kofi_badge_beige.png" alt="Support me on Ko-fi" height="56"></a>
 </p>
 
 <p>
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01-week.png" width="19%" alt="Week view">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02-month.png" width="19%" alt="Month view">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04-detail.png" width="19%" alt="Event detail">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05-edit.png" width="19%" alt="Event form">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/06-onboarding.png" width="19%" alt="Reminder onboarding">
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01-week.png" width="16%" alt="Week view">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02-month.png" width="16%" alt="Month view">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03-day.png" width="16%" alt="Day view">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04-detail.png" width="16%" alt="Event detail">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05-agenda.png" width="16%" alt="Agenda view">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/06-onboarding.png" width="16%" alt="Reminder onboarding">
 </p>
 
 </div>
@@ -68,12 +71,23 @@ database, no sync stack reinvented.
 
 - Real Material 3 Expressive throughout — dynamic color (Android 12+),
   expressive motion and shapes, light/dark theme
-- German and English UI, per-app language setting — and [open to community
-  translations](#-translations)
+- English and German UI plus community translations (Spanish, French, Italian,
+  Polish, and more in progress), per-app language setting — and [open to more
+  languages](#-translations)
 - **Zero telemetry, zero analytics, no internet permission** — your data
   never leaves the device
 
 ## 📦 Install
+
+Pick whichever channel you already use — they all install the same app:
+
+| Channel | Updates | Notes |
+| --- | --- | --- |
+| [Official F-Droid](#f-droid-recommended) | On F-Droid's build schedule | Recommended; no extra setup |
+| [Self-hosted F-Droid repo](#self-hosted-f-droid-repo-fastest-updates) | Minutes after a release | Fastest; needs the repo added once |
+| [Codeberg release / Obtainium](#codeberg-release--obtainium) | Per release | Plain APK download, or automated by Obtainium |
+| [Google Play](#google-play-coming-soon) | — | Coming soon |
+| [Build from source](#build-from-source) | Whenever you build | Full control |
 
 ### F-Droid (recommended)
 
@@ -81,11 +95,14 @@ Calendula is on the **official [F-Droid](https://f-droid.org) repository** —
 just search for **Calendula** in any F-Droid client, or
 [install it from f-droid.org](https://f-droid.org/packages/de.jeanlucmakiola.calendula/).
 
-### Self-hosted repo (latest builds)
+F-Droid rebuilds from source on its own schedule, so a new version usually
+shows up there a few days after release.
 
-New versions are built, signed, and published to a self-hosted repository the
-moment each tag lands — usually a few days ahead of the official repo, which
-rebuilds on F-Droid's own schedule. Add it for the freshest builds:
+### Self-hosted F-Droid repo (fastest updates)
+
+Every release is built, signed, and published to a self-hosted F-Droid
+repository as part of the release pipeline, so it lands there first. Add it once
+and your F-Droid client handles updates from then on:
 
 1. In your F-Droid client, open *Settings → Repositories → Add* (or open the
    link below on your phone):
@@ -100,8 +117,37 @@ rebuilds on F-Droid's own schedule. Add it for the freshest builds:
 
 2. Refresh, search for **Calendula**, install.
 
-Both channels share the same signing key, so you can switch between them
-without reinstalling. Or build from source — see below.
+### Codeberg release / Obtainium
+
+If you'd rather not use F-Droid at all, every release is also published on
+**[Codeberg](https://codeberg.org/jlmakiola/calendula/releases)** with the
+signed APK (`calendula_vX.Y.Z.apk`) and a `.sha256` checksum attached — download
+and install it directly.
+
+For automatic updates from that channel, use
+**[Obtainium](https://github.com/ImranR98/Obtainium)**: *Add App* → paste
+
+```
+https://codeberg.org/jlmakiola/calendula
+```
+
+→ *Add*. Obtainium tracks the releases and prompts you when a new one appears.
+
+### Google Play (coming soon)
+
+Calendula is on its way to Google Play as an additional channel. It isn't live
+yet — this section gets a link once it is. Play builds will be signed with
+Google's key rather than mine, so switching between Play and any other channel
+will require an uninstall.
+
+### Build from source
+
+The build is a plain Gradle build with no proprietary dependencies — see
+**[docs/BUILDING.md](docs/BUILDING.md)** (note the `floret-kit` submodule).
+
+<sub>Official F-Droid, the self-hosted repo, and the Codeberg releases all share
+the same signing key, so you can switch freely between them without
+reinstalling.</sub>
 
 ## 📚 Documentation
 
@@ -127,8 +173,11 @@ rules a change is reviewed against.
 
 ## 🌍 Translations
 
-Calendula ships in German and English, and you're warmly invited to add your
-language. Translations are managed on a self-hosted **Weblate**:
+Calendula ships in English and German, with community translations in Arabic,
+Chinese, French, Italian, Polish, Portuguese, Russian, and Spanish at varying
+degrees of completeness — partial is fine, untranslated strings simply fall back
+to English. You're warmly invited to add or finish your language. Translations
+are managed on a self-hosted **Weblate**:
 
 **→ [Help translate Calendula](https://weblate.dev.jeanlucmakiola.de/engage/calendula/)**
 
