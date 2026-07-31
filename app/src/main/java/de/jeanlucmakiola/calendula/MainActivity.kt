@@ -2,6 +2,7 @@ package de.jeanlucmakiola.calendula
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.provider.CalendarContract
@@ -52,12 +53,13 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Instant
 
-// The nav-bar scrims androidx's own enableEdgeToEdge() defaults to.
-private val LIGHT_NAV_SCRIM = android.graphics.Color.argb(0xe6, 0xFF, 0xFF, 0xFF)
-private val DARK_NAV_SCRIM = android.graphics.Color.argb(0x80, 0x1b, 0x1b, 0x1b)
-
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+
+    // Which of light/dark the system bars are drawn for. The styles installed
+    // in onCreate read this field live, so androidx's config-change replay
+    // picks up the in-app override instead of the night resource qualifier.
+    private var systemBarsDark = false
 
     // The occurrence a reminder notification was tapped for (eventId, begin,
     // end — the detail screen's key shape). singleTop + onNewIntent route a
@@ -102,7 +104,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        enableEdgeToEdge()
+        systemBarsDark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
+            Configuration.UI_MODE_NIGHT_YES
+        applyEdgeToEdge()
         requestedDetailKey = intent.detailKeyOrNull() ?: intent.viewEventKeyOrNull()
         requestedNav = intent.navRequestOrNull()
         requestedImportUri = intent.importUriOrNull()
@@ -119,20 +123,12 @@ class MainActivity : AppCompatActivity() {
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
             }
-            // The bare enableEdgeToEdge() in onCreate reads the night resource
-            // qualifier, not the in-app override — re-apply it from the resolved
-            // theme so the bar icons follow the app's light/dark choice.
+            // onCreate can only see the night resource qualifier, not the in-app
+            // override — re-apply from the resolved theme so the bar icons follow
+            // the app's light/dark choice.
             DisposableEffect(darkTheme) {
-                enableEdgeToEdge(
-                    statusBarStyle = SystemBarStyle.auto(
-                        android.graphics.Color.TRANSPARENT,
-                        android.graphics.Color.TRANSPARENT,
-                    ) { darkTheme },
-                    navigationBarStyle = SystemBarStyle.auto(
-                        LIGHT_NAV_SCRIM,
-                        DARK_NAV_SCRIM,
-                    ) { darkTheme },
-                )
+                systemBarsDark = darkTheme
+                applyEdgeToEdge()
                 onDispose {}
             }
             // The app-wide clock convention: the time-format preference resolved
@@ -201,6 +197,19 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * Applies the transparent edge-to-edge bars for the current [systemBarsDark].
+     * Both scrims are transparent because API 29+ enforces its own contrast and
+     * ignores them anyway.
+     */
+    private fun applyEdgeToEdge() {
+        val transparent = android.graphics.Color.TRANSPARENT
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(transparent, transparent) { systemBarsDark },
+            navigationBarStyle = SystemBarStyle.auto(transparent, transparent) { systemBarsDark },
+        )
     }
 
     override fun onResume() {
