@@ -14,10 +14,17 @@
 
 default_platform(:android)
 
+# fastlane runs a lane body with the working directory set to `fastlane/`, not
+# the project root, so a relative artifact path from the caller has to be
+# resolved explicitly. Absolute paths pass through untouched.
+def project_path(path)
+  File.expand_path(path, File.expand_path("..", FastlaneCore::FastlaneFolder.path || "."))
+end
+
 platform :android do
   desc "Upload an already-built, already-signed AAB to Play"
   lane :deploy do |options|
-    aab = options[:aab] || "app/build/outputs/bundle/release/app-release.aab"
+    aab = project_path(options[:aab] || "app/build/outputs/bundle/release/app-release.aab")
     UI.user_error!("AAB not found at #{aab}") unless File.exist?(aab)
 
     supply(

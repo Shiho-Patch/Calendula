@@ -635,9 +635,13 @@ jobs:
           FASTLANE_HIDE_CHANGELOG: '1'
         run: |
           set -euo pipefail
-          test -f "dist/app-release.aab"
+          AAB="$GITHUB_WORKSPACE/dist/app-release.aab"
+          # Absolute, because a lane body runs from fastlane/, not the
+          # workspace root — a relative path resolves against the wrong
+          # directory there and 2.17.1 died on exactly that.
+          test -f "$AAB" || { echo "No AAB at $AAB — the artifact handoff failed." >&2; ls -la dist || true; exit 1; }
           bundle exec fastlane deploy \
-            aab:"dist/app-release.aab" \
+            aab:"$AAB" \
             track:"$PLAY_TRACK" \
             release_status:"$PLAY_RELEASE_STATUS" \
             dry_run:"$PLAY_DRY_RUN"
