@@ -22,6 +22,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.Dispatchers
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -85,9 +88,11 @@ class EventEditViewModelTest {
     private fun viewModel(
         tempDir: Path,
         fake: FakeCalendarDataSource,
+        // Passed in by the tests that need to seed a setting first; a second
+        // DataStore on the same file would clash, so it is built only once.
+        s: SettingsPrefs = settings(tempDir),
     ): EventEditViewModel {
         val p = prefs(tempDir)
-        val s = settings(tempDir)
         val repo = CalendarRepositoryImpl(fake, p, s, dispatcher as CoroutineDispatcher)
         return EventEditViewModel(repo, p, s, dispatcher)
     }
@@ -197,6 +202,71 @@ class EventEditViewModelTest {
         // No AwaitingScope park: a move is inherently whole-series.
         assertThat(vm.state.value?.saveState).isEqualTo(SaveUiState.Saved)
         assertThat(fake.movedEvents).hasSize(1)
+        job.cancel()
+    }
+
+    @Test
+    fun `a new event takes its calendar's default duration, and follows a switch`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { calendarsResult = listOf(cal(1L), cal(2L)) }
+        val s = settings(tempDir)
+        s.setDefaultEventDurationMinutes(30)
+        s.setCalendarEventDuration(2L, 480)
+        val vm = viewModel(tempDir, fake, s)
+        val job = activate(vm)
+
+        vm.openNew(LocalDate(2030, 1, 15), startMinutes = 9 * 60)
+        advanceUntilIdle()
+
+        // Calendar 1 has no length of its own, so it inherits the global 30 min.
+        assertThat(vm.state.value?.form?.end).isEqualTo(LocalDateTime(2030, 1, 15, 9, 30))
+
+        vm.setCalendar(2L)
+        advanceUntilIdle()
+
+        assertThat(vm.state.value?.form?.end).isEqualTo(LocalDateTime(2030, 1, 15, 17, 0))
+        job.cancel()
+    }
+
+    @Test
+    fun `an end time set by hand survives a calendar switch`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { calendarsResult = listOf(cal(1L), cal(2L)) }
+        val s = settings(tempDir)
+        s.setCalendarEventDuration(2L, 480)
+        val vm = viewModel(tempDir, fake, s)
+        val job = activate(vm)
+
+        vm.openNew(LocalDate(2030, 1, 15), startMinutes = 9 * 60)
+        advanceUntilIdle()
+        vm.setEndTime(LocalTime(10, 15))
+        vm.setCalendar(2L)
+        advanceUntilIdle()
+
+        assertThat(vm.state.value?.form?.end).isEqualTo(LocalDateTime(2030, 1, 15, 10, 15))
+        job.cancel()
+    }
+
+    @Test
+    fun `an all-day event ignores the default duration`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { calendarsResult = listOf(cal(1L), cal(2L)) }
+        val s = settings(tempDir)
+        s.setCalendarEventDuration(2L, 480)
+        val vm = viewModel(tempDir, fake, s)
+        val job = activate(vm)
+
+        vm.openNew(LocalDate(2030, 1, 15), startMinutes = 9 * 60)
+        advanceUntilIdle()
+        vm.setAllDay(true)
+        vm.setCalendar(2L)
+        advanceUntilIdle()
+
+        // Dates carry no length: the times stay where the form put them.
+        assertThat(vm.state.value?.form?.end).isEqualTo(LocalDateTime(2030, 1, 15, 10, 0))
         job.cancel()
     }
 

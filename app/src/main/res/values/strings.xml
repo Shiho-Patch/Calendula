@@ -242,6 +242,8 @@
         <item quantity="one">%d day</item>
         <item quantity="other">%d days</item>
     </plurals>
+    <!-- A mixed duration: %1$s is the hours part, %2$s the minutes part. -->
+    <string name="duration_hours_minutes">%1$s %2$s</string>
     <plurals name="duration_weeks">
         <item quantity="one">%d week</item>
         <item quantity="other">%d weeks</item>
@@ -428,6 +430,14 @@
     <string name="settings_form_fields_hint">Fields shown by default — everything else sits behind \"More fields\"</string>
     <string name="settings_autofocus_title">Focus title on new event</string>
     <string name="settings_autofocus_title_hint">When you start a new event, place the cursor in the title field and open the keyboard right away.</string>
+    <string name="settings_event_duration">Default duration</string>
+    <string name="settings_event_duration_hint">How long a new event lasts until you change its end time. All-day events aren\'t affected.</string>
+    <string name="settings_calendar_durations_title">Per-calendar duration</string>
+    <string name="settings_calendar_durations_hint">Give a calendar its own default length — e.g. 8 hours for work shifts.</string>
+    <!-- Row summary for a calendar with no duration of its own. %1$s is the default length, e.g. "1 hour". -->
+    <string name="settings_calendar_duration_inherits">Default (%1$s)</string>
+    <!-- Picker row that drops a calendar\'s own length. %1$s is the default length. -->
+    <string name="settings_calendar_duration_use_default">Use default duration (%1$s)</string>
     <string name="settings_color_unsupported">Allow colors on unsupported calendars</string>
     <string name="settings_color_unsupported_hint">Some calendars (e.g. certain CalDAV) publish no color set; a custom event color may be dropped or overwritten on their next sync. That\'s a limitation of those calendars, not something Calendula can fix.</string>
     <string name="settings_section_notifications">Notifications</string>

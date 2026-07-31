@@ -123,8 +123,14 @@ class SettingsViewModel @Inject constructor(
                 prefs.perCalendarAllDayReminderOverride,
                 writableCalendars,
                 prefs.managedCalendarIds,
-            ) { overrides, allDayOverrides, calendars, managedIds ->
-                ReminderOverrides(overrides, allDayOverrides, calendars, managedIds)
+                // The new-event duration defaults (#54) fold into one flow so they
+                // fit this group — the outer combine is at its five-arg limit.
+                combine(
+                    prefs.defaultEventDurationMinutes,
+                    prefs.perCalendarEventDuration,
+                ) { duration, perCalendar -> EventDurations(duration, perCalendar) },
+            ) { overrides, allDayOverrides, calendars, managedIds, durations ->
+                ReminderOverrides(overrides, allDayOverrides, calendars, managedIds, durations)
             },
             combine(
                 prefs.defaultView,
@@ -198,6 +204,8 @@ class SettingsViewModel @Inject constructor(
                 perCalendarAllDayReminderOverride = overrides.allDay,
                 writableCalendars = overrides.calendars,
                 managedCalendarIds = overrides.managedIds,
+                defaultEventDurationMinutes = overrides.durations.default,
+                perCalendarEventDuration = overrides.durations.perCalendar,
             )
         }.stateIn(
             scope = viewModelScope,
@@ -260,6 +268,12 @@ class SettingsViewModel @Inject constructor(
         val allDay: Map<Long, List<Int>>,
         val calendars: List<CalendarSource>,
         val managedIds: Set<Long>,
+        val durations: EventDurations,
+    )
+
+    private data class EventDurations(
+        val default: Int,
+        val perCalendar: Map<Long, Int>,
     )
 
     private data class ViewSettings(
@@ -598,6 +612,15 @@ class SettingsViewModel @Inject constructor(
 
     fun setAutofocusEventTitle(enabled: Boolean) {
         viewModelScope.launch { prefs.setAutofocusEventTitle(enabled) }
+    }
+
+    fun setDefaultEventDuration(minutes: Int) {
+        viewModelScope.launch { prefs.setDefaultEventDurationMinutes(minutes) }
+    }
+
+    /** [minutes] null clears the override, so the calendar inherits the default. */
+    fun setCalendarEventDuration(calendarId: Long, minutes: Int?) {
+        viewModelScope.launch { prefs.setCalendarEventDuration(calendarId, minutes) }
     }
 
     fun setDefaultReminderMinutes(minutes: List<Int>) {

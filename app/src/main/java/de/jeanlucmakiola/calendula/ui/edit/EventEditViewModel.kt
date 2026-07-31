@@ -9,6 +9,7 @@ import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.firstDayOfWeek
+import de.jeanlucmakiola.calendula.data.prefs.resolveDefaultEventDuration
 import de.jeanlucmakiola.calendula.data.prefs.resolveDefaultReminder
 import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Availability
@@ -51,7 +52,7 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import javax.inject.Inject
 
@@ -113,6 +114,9 @@ class EventEditViewModel @Inject constructor(
     // freezes the auto-applied default: switching calendars no longer overwrites
     // their choice. Reset with the form.
     private val _remindersTouched = MutableStateFlow(false)
+    // Same freeze for the default duration (#54): once the user has set an end
+    // time by hand, switching calendars no longer stretches the event.
+    private val _durationTouched = MutableStateFlow(false)
     // A one-time offer, raised when a .ics import opens, to replace the file's
     // reminders with the settings default (#49). Null while there's nothing to ask.
     private val _importReminderPrompt = MutableStateFlow<ImportReminderPrompt?>(null)
@@ -282,8 +286,10 @@ class EventEditViewModel @Inject constructor(
      * Initialise a fresh form for a new event on [date]. [startMinutes] (minutes
      * from midnight) anchors the start when the form is opened by tapping a slot
      * in the day/week grid; without it the default is the next full hour (today)
-     * or 09:00 (any other day). No-op when a form is already open, so user input
-     * survives configuration changes; [reset] clears it when the screen closes.
+     * or 09:00 (any other day). The event opens an hour long and is stretched to
+     * the configured default by [applyDefaultDuration], like the reminders.
+     * No-op when a form is already open, so user input survives configuration
+     * changes; [reset] clears it when the screen closes.
      */
     fun openNew(date: LocalDate, startMinutes: Int? = null) {
         if (_form.value != null) return
@@ -300,9 +306,11 @@ class EventEditViewModel @Inject constructor(
             }
             else -> LocalDateTime(date, LocalTime(9, 0))
         }
-        val end = (start.toInstant(zone) + 1.hours).toLocalDateTime(zone)
+        val end = (start.toInstant(zone) + SettingsPrefs.DEFAULT_EVENT_DURATION.minutes)
+            .toLocalDateTime(zone)
         _form.value = EventForm(calendarId = null, start = start, end = end)
         applyDefaultReminder()
+        applyDefaultDuration()
     }
 
     /**
@@ -358,7 +366,9 @@ class EventEditViewModel @Inject constructor(
             val form = _form.value ?: return@launch
             if (_editTarget.value != null || _remindersTouched.value) return@launch
             val reminders = defaults.resolveFor(targetId, form.isAllDay)
-            _form.value = form.copy(reminders = reminders)
+            // Write through update(): the duration default resolves in parallel,
+            // so both must compose onto the current form, not a pre-suspend copy.
+            update { it.copy(reminders = reminders) }
             // Surface the section so an auto-applied default is visible and
             // removable, even when Reminders isn't a default-shown field.
             if (reminders.isNotEmpty()) {
@@ -376,6 +386,33 @@ class EventEditViewModel @Inject constructor(
     ) { timed, allDay, timedOv, allDayOv ->
         ReminderDefaults(timed, allDay, timedOv, allDayOv)
     }.first()
+
+    /**
+     * Stretch a new timed event to the configured default length (#54) — the
+     * resolved calendar's per-calendar duration, otherwise the global default —
+     * keeping its start put. No-op while editing an existing event, on an all-day
+     * event (which is date-anchored), or once the user has set an end time by
+     * hand. [calendarId] short-circuits the resolution after a calendar switch;
+     * null resolves it as the form does.
+     */
+    private fun applyDefaultDuration(calendarId: Long? = null) {
+        if (_editTarget.value != null || _durationTouched.value) return
+        viewModelScope.launch {
+            val global = settingsPrefs.defaultEventDurationMinutes.first()
+            val overrides = settingsPrefs.perCalendarEventDuration.first()
+            val targetId = calendarId ?: resolvedCalendarId.first()
+            // Re-check after suspending: bail if the form closed or the user edited.
+            if (_editTarget.value != null || _durationTouched.value) return@launch
+            if (_form.value?.isAllDay != false) return@launch
+            val duration = resolveDefaultEventDuration(global, overrides, targetId)
+            val zone = TimeZone.currentSystemDefault()
+            update { form ->
+                form.copy(
+                    end = (form.start.toInstant(zone) + duration.minutes).toLocalDateTime(zone),
+                )
+            }
+        }
+    }
 
     /**
      * A `.ics` import respects the file's reminders, but an event opened from a
@@ -455,6 +492,7 @@ class EventEditViewModel @Inject constructor(
         _editTarget.value = null
         _loadFailed.value = false
         _remindersTouched.value = false
+        _durationTouched.value = false
         _importReminderPrompt.value = null
     }
 
@@ -479,6 +517,9 @@ class EventEditViewModel @Inject constructor(
         // The default reminder differs for all-day vs timed; re-apply the
         // type-appropriate default unless the user has hand-edited it (guarded).
         applyDefaultReminder()
+        // Coming back out of all-day re-applies the default length (guarded);
+        // going all-day is a no-op, since dates carry no duration.
+        applyDefaultDuration()
     }
 
     /**
@@ -500,9 +541,10 @@ class EventEditViewModel @Inject constructor(
      */
     fun setCalendar(id: Long) {
         update { it.copy(calendarId = id, colorKey = null, color = null) }
-        // A fresh event re-inherits the new calendar's default reminder unless
-        // the user has already hand-edited it (guarded inside).
+        // A fresh event re-inherits the new calendar's default reminder and
+        // length unless the user has already hand-edited them (guarded inside).
         applyDefaultReminder(id)
+        applyDefaultDuration(id)
     }
     fun setAvailability(value: Availability) = update { it.copy(availability = value) }
     fun setAccessLevel(value: AccessLevel) = update { it.copy(accessLevel = value) }
@@ -559,8 +601,18 @@ class EventEditViewModel @Inject constructor(
     /** Moving the start drags the end along, preserving the duration. */
     fun setStartDate(date: LocalDate) = moveStart { LocalDateTime(date, it.time) }
     fun setStartTime(time: LocalTime) = moveStart { LocalDateTime(it.date, time) }
-    fun setEndDate(date: LocalDate) = update { it.copy(end = LocalDateTime(date, it.end.time)) }
-    fun setEndTime(time: LocalTime) = update { it.copy(end = LocalDateTime(it.end.date, time)) }
+
+    // Setting an end by hand is the user picking a length: it freezes the
+    // default duration, so a later calendar switch keeps their span (#54).
+    fun setEndDate(date: LocalDate) {
+        _durationTouched.value = true
+        update { it.copy(end = LocalDateTime(date, it.end.time)) }
+    }
+
+    fun setEndTime(time: LocalTime) {
+        _durationTouched.value = true
+        update { it.copy(end = LocalDateTime(it.end.date, time)) }
+    }
 
     /**
      * Validate and write. Saving a dirty recurring event pauses in

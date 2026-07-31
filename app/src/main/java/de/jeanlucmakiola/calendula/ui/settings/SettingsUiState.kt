@@ -63,6 +63,10 @@ data class SettingsUiState(
     val defaultFormFields: Set<EventFormField> = SettingsPrefs.DEFAULT_FORM_FIELDS,
     /** Whether the new-event form auto-focuses the title and shows the keyboard (#10). */
     val autofocusEventTitle: Boolean = true,
+    /** How long a new timed event lasts, in minutes (#54); all-day events ignore it. */
+    val defaultEventDurationMinutes: Int = SettingsPrefs.DEFAULT_EVENT_DURATION,
+    /** Per-calendar overrides of [defaultEventDurationMinutes]; absent = inherit. */
+    val perCalendarEventDuration: Map<Long, Int> = emptyMap(),
     /** Whether Calendula posts reminder notifications (v1.4). */
     val remindersEnabled: Boolean = true,
     /**
