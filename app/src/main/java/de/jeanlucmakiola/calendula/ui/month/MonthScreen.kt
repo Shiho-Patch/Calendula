@@ -110,6 +110,7 @@ import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
@@ -1473,7 +1474,7 @@ private fun SplitDots(
                     .morphBounds(MonthMorphKey.Event(date, event.instanceId))
                     .size(SPLIT_DOT_SIZE)
                     .alpha(if (dimCutoff != null && event.hasEnded(dimCutoff)) EventDimAlpha else 1f)
-                    .background(eventFill(event.color, dark, soften), CircleShape),
+                    .background(eventAccent(event.color, dark, soften), CircleShape),
             )
         }
         if (hidden.isNotEmpty()) {
@@ -2098,7 +2099,7 @@ private fun OverflowDots(
                 modifier = Modifier
                     .size(6.dp)
                     .alpha(if (allEnded(byColor.getValue(argb), dimCutoff)) EventDimAlpha else 1f)
-                    .background(eventFill(argb, dark, soften), CircleShape),
+                    .background(eventAccent(argb, dark, soften), CircleShape),
             )
         }
         val extra = total - dots.size

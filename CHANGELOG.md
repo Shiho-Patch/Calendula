@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Week and day view can be set to show more or less of the day at once, under
+  Settings → Views → Week & day → **Hour height**. **Fit whole day** sizes an
+  hour to your screen so all 24 hours are visible without scrolling — on a tall
+  phone the old fixed spacing showed only about half a day, so appointments
+  could sit below the fold all week. Compact and Comfortable are fixed steps
+  either side of the previous spacing, which stays the default. Both views share
+  the setting ([#56]).
+- Week and day view can be **pinched** with two fingers to set the hour height
+  directly, anywhere between and beyond the named steps. The time under your
+  fingers stays put as it zooms, so you keep your place in the day. A pinched
+  height is remembered and appears as **Custom** in the Hour height setting, so
+  tapping a named step there takes you back to it ([#56]).
+
+### Changed
+- Event blocks now only draw text they can draw whole. One too short for a full
+  line shows no title rather than a sliced one, a block that cannot fit both its
+  title and its time keeps the title, and a block too narrow to hold more than a
+  syllable stays on one ellipsised line instead of stacking letters down the
+  block. Tapping and the spoken description are unchanged ([#56]).
+- Calendar colours are reworked so text on an event is always readable. They
+  were shaped by a brightness setting that does not match what the eye sees, so
+  whether a block got dark or light text depended on which hue you happened to
+  pick — an orange calendar took dark text while a red one beside it took light
+  — and colours landing in between were hard to read either way. Each colour now
+  keeps its hue and is moved clear of that middle: most become deep blocks with
+  light text, while naturally pale colours such as yellow stay pale and take
+  dark text, rather than being forced into a muddy brown. Dots, stripes and
+  icons are tuned separately from blocks, so they stay visible against the
+  background instead of sharing a colour meant to sit behind text. The setting
+  is now called **Harmonise calendar colours**; turning it off still shows the
+  raw colours from your calendar source ([#21], [#36]).
+
 ## [2.17.1] — 2026-07-30
 
 ### Added
@@ -1253,3 +1286,4 @@ automatically, with zero telemetry and no internet permission.
 [#89]: https://codeberg.org/jlmakiola/calendula/issues/89
 [#103]: https://codeberg.org/jlmakiola/calendula/issues/103
 [#69]: https://codeberg.org/jlmakiola/calendula/issues/69
+[#56]: https://codeberg.org/jlmakiola/calendula/issues/56

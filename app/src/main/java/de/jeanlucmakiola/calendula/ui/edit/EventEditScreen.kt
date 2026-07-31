@@ -133,6 +133,7 @@ import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
 import de.jeanlucmakiola.calendula.ui.common.TimeZonePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.icuTimeZoneRegion
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.floret.components.DialogAmountField
 import de.jeanlucmakiola.floret.components.DialogUnitDropdown
@@ -563,7 +564,7 @@ private fun EventEditContent(
     // The accent ties the form to the detail screen's design language: the
     // bar under the title takes the target calendar's colour.
     val soften = LocalSoftenColors.current
-    val accent = selectedCalendar?.let { eventFill(it.color, dark, soften) }
+    val accent = selectedCalendar?.let { eventAccent(it.color, dark, soften) }
         ?: MaterialTheme.colorScheme.primary
     val gap = 12.dp
 

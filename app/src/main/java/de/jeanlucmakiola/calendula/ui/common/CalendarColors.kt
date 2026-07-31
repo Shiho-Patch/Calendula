@@ -35,7 +35,7 @@ fun CalendarColorChip(color: Int, modifier: Modifier = Modifier) {
         Icon(
             Icons.Filled.CalendarMonth,
             contentDescription = null,
-            tint = eventFill(color, dark, soften),
+            tint = eventAccent(color, dark, soften),
             modifier = Modifier.size(22.dp),
         )
     }

@@ -2,45 +2,53 @@ package de.jeanlucmakiola.calendula.ui.common
 
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
-import de.jeanlucmakiola.floret.components.pastelize
+import de.jeanlucmakiola.calendula.domain.color.eventTone
+import de.jeanlucmakiola.calendula.domain.color.inkFor
+import de.jeanlucmakiola.calendula.domain.color.oklchOf
 
 /**
- * Whether calendar/event colours are softened toward theme-fitting pastels
- * before display (issue #36). Provided app-wide from the "soften colours"
- * setting; the default `true` keeps the historical look. When off, the raw
- * provider colour is painted verbatim — matching the sync source (DAVx5/CalDAV)
- * and other calendar apps. Widgets live outside this composition and read the
- * preference directly, then pass the flag to [eventFill] / [eventInk].
+ * Whether calendar/event colours are harmonised — hue kept, lightness re-pinned
+ * per role — before display (issue #36). Provided app-wide from the setting; the
+ * default `true` is the app's own look. When off, the raw provider colour is
+ * painted verbatim, matching the sync source (DAVx5/CalDAV) and other calendar
+ * apps. Widgets live outside this composition and read the preference directly,
+ * then pass the flag through.
  */
 val LocalSoftenColors = staticCompositionLocalOf { true }
 
 /**
- * Display fill for an event chip/bar or a calendar tint: the [pastelize]d colour
- * when [soften] is on, else the raw provider ARGB verbatim (forced opaque, since
- * pastelize also returns an opaque colour).
+ * Fill for a surface that carries text on it — a week/day block, a month bar, a
+ * widget row, a picker swatch. Pair it with [eventInk].
  */
 fun eventFill(rawArgb: Int, dark: Boolean, soften: Boolean): Color =
-    if (soften) pastelize(rawArgb, dark) else Color(rawArgb or 0xFF000000.toInt())
+    Color(eventTone(rawArgb, dark, soften).container)
 
 /**
- * Contrast ink (title text / glyph) for a filled chip painted with [eventFill]:
- * white on a dark fill, near-black on a light one (issue #21). Applies to both
- * softened and raw fills — a saturated hue (deep blue, purple, red) is
- * perceptually dark even after softening pins its HSV value, so black text on it
- * reads poorly. The choice is objective, not a tuned threshold: white wins only
- * when it out-contrasts black against the fill, which (by the WCAG contrast
- * ratio) is at relative luminance ≈ 0.18 — so mid and light colours keep
- * near-black text. [alpha] carries the caller's soft emphasis.
+ * Colour for a mark on an ordinary app surface — a day dot, an agenda or search
+ * stripe, a calendar icon tint, the detail header. Same identity as [eventFill],
+ * pinned to contrast with the surface instead of with ink.
  */
-fun eventInk(fill: Color, alpha: Float = 0.8f): Color {
-    val useWhite = fill.luminance() < INK_LUMINANCE_CROSSOVER
-    return (if (useWhite) Color.White else Color.Black).copy(alpha = alpha)
-}
+fun eventAccent(rawArgb: Int, dark: Boolean, soften: Boolean): Color =
+    Color(eventTone(rawArgb, dark, soften).accent)
 
 /**
- * Relative-luminance crossover where white text starts to out-contrast black.
- * Solving `contrast(white, L) = contrast(black, L)` on the WCAG ratio gives
- * `L = sqrt(1.05 * 0.05) - 0.05 ≈ 0.179`.
+ * Ink for text drawn on an [eventFill]. [alpha] carries the caller's emphasis.
+ *
+ * Takes the fill rather than the raw colour so it stays correct for the raw
+ * (un-harmonised) path too, where the provider decides the lightness.
  */
-private const val INK_LUMINANCE_CROSSOVER = 0.179f
+fun eventInk(fill: Color, alpha: Float = 0.8f): Color =
+    Color(inkFor(oklchOf(fill.toArgbInt()).lightness)).copy(alpha = alpha)
+
+/**
+ * Ink alpha for a block's secondary line (the time under the title). Held above
+ * a fainter value because harmonised containers are deep: the small time text
+ * needs to stay clear of the 4.5:1 WCAG asks of body text.
+ */
+const val SECONDARY_INK_ALPHA = 0.8f
+
+private fun Color.toArgbInt(): Int =
+    (0xFF shl 24) or
+        ((red * 255f).toInt().coerceIn(0, 255) shl 16) or
+        ((green * 255f).toInt().coerceIn(0, 255) shl 8) or
+        (blue * 255f).toInt().coerceIn(0, 255)
