@@ -13,6 +13,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.common.TimelineScale
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -96,6 +97,16 @@ class SettingsPrefsTest {
         assertThat(prefs.showHourLines.first()).isFalse()
         prefs.setShowHourLines(true)
         assertThat(prefs.showHourLines.first()).isTrue()
+    }
+
+    @Test
+    fun `timeline scale defaults to regular and round-trips`(@TempDir tempDir: Path) = runTest {
+        // Regular is the historical 56dp scale — an existing install that never
+        // opened the setting must keep the timeline it had (#56).
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.timelineScale.first()).isEqualTo(TimelineScale.Regular)
+        prefs.setTimelineScale(TimelineScale.FitDay)
+        assertThat(prefs.timelineScale.first()).isEqualTo(TimelineScale.FitDay)
     }
 
     @Test

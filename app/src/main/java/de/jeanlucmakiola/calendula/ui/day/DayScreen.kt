@@ -87,6 +87,9 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
+import de.jeanlucmakiola.calendula.ui.common.LocalTimelineScale
+import de.jeanlucmakiola.calendula.ui.common.MIN_EVENT_FRACTION
+import de.jeanlucmakiola.calendula.ui.common.hourHeight
 import de.jeanlucmakiola.calendula.ui.common.formatHourLabel
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
@@ -100,13 +103,11 @@ import kotlin.time.Clock
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private val HOUR_HEIGHT = 56.dp
 private val GUTTER_WIDTH = 48.dp
 /** Start inset for the gutter's hour labels so they centre on the top bar's
  *  hamburger: with a 48dp gutter, 8dp lands the centre at 28dp (the app bar's
  *  4dp inset + 24dp half icon button), matching the week view. */
 private val GUTTER_CONTENT_START_INSET = 8.dp
-private val MIN_EVENT_HEIGHT = 24.dp
 private val ALL_DAY_ROW_HEIGHT = 24.dp
 private val ALL_DAY_VERTICAL_PADDING = 6.dp
 
@@ -264,7 +265,6 @@ private fun DayContent(
     onCreateAt: (LocalDate, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val density = LocalDensity.current
     val slideSpec = rememberCalendarSlideSpec()
     val fadeSpec = rememberCalendarFadeSpec()
     val reduceMotion = rememberReduceMotion()
@@ -275,11 +275,9 @@ private fun DayContent(
     val scrollState = rememberScrollState()
     LaunchedEffect(Unit) {
         snapshotFlow { scrollState.maxValue }.first { it > 0 }
-        val maxV = scrollState.maxValue
-        val target = with(density) {
-            (HOUR_HEIGHT.toPx() * 12 - (HOUR_HEIGHT.toPx() * 24 - maxV) / 2f).roundToInt()
-        }.coerceIn(0, maxV)
-        scrollState.scrollTo(target)
+        // Half the scroll range *is* noon: the content spans a full 24 hours, so
+        // centring the range centres midday at whatever hour height is in force.
+        scrollState.scrollTo(scrollState.maxValue / 2)
     }
 
     // Single, hoisted all-day strip height — shared by the outgoing and incoming
@@ -485,12 +483,17 @@ private fun Timeline(
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
 ) {
-    val totalHeight = HOUR_HEIGHT * 24
     val dark = isSystemInDarkTheme()
     val use24Hour = LocalUse24HourFormat.current
     val locale = currentLocale()
+    val scale = LocalTimelineScale.current
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    // BoxWithConstraints rather than Box: the fit-the-whole-day scale needs the
+    // timeline's own viewport height, which is only known here — below the top
+    // bar, date header and all-day strip.
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val hourHeight = scale.hourHeight(maxHeight)
+        val totalHeight = hourHeight * 24
         // Gutter and day column are two scroll viewports that SHARE one scroll
         // state, so they stay perfectly aligned. The day-column viewport is a
         // static, rounded-clipped window — the content scrolls inside it, so the
@@ -509,7 +512,7 @@ private fun Timeline(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(HOUR_HEIGHT),
+                            .height(hourHeight),
                     ) {
                         if (h > 0) {
                             Text(
@@ -537,6 +540,7 @@ private fun Timeline(
                     dark = dark,
                     date = state.date,
                     today = state.today,
+                    hourHeight = hourHeight,
                     onEventClick = onEventClick,
                     onCreateAt = onCreateAt,
                     modifier = Modifier
@@ -554,11 +558,12 @@ private fun DayColumnCard(
     dark: Boolean,
     date: LocalDate,
     today: LocalDate,
+    hourHeight: Dp,
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val hourPx = with(LocalDensity.current) { HOUR_HEIGHT.toPx() }
+    val hourPx = with(LocalDensity.current) { hourHeight.toPx() }
     val showHourLines = LocalShowHourLines.current
     val hourLineColor = MaterialTheme.colorScheme.outlineVariant
     Card(
@@ -587,14 +592,16 @@ private fun DayColumnCard(
                 },
         ) {
             val colWidth = maxWidth
+            val minEventHeight = hourHeight * MIN_EVENT_FRACTION
             blocks.forEach { block ->
                 val laneWidth = colWidth / block.laneCount
-                val top = HOUR_HEIGHT * (block.startMin / 60f)
-                val rawHeight = HOUR_HEIGHT * ((block.endMin - block.startMin) / 60f)
-                val height = if (rawHeight < MIN_EVENT_HEIGHT) MIN_EVENT_HEIGHT else rawHeight
+                val top = hourHeight * (block.startMin / 60f)
+                val rawHeight = hourHeight * ((block.endMin - block.startMin) / 60f)
+                val height = if (rawHeight < minEventHeight) minEventHeight else rawHeight
                 EventBlock(
                     block = block,
                     dark = dark,
+                    height = height,
                     onClick = { onEventClick(block.event) },
                     modifier = Modifier
                         .offset(x = laneWidth * block.lane, y = top)
@@ -605,7 +612,7 @@ private fun DayColumnCard(
             }
             // Current-time line, on top of the events, only on today's column.
             if (date == today) {
-                NowLine(date = date, hourHeight = HOUR_HEIGHT)
+                NowLine(date = date, hourHeight = hourHeight)
             }
         }
     }
@@ -615,6 +622,7 @@ private fun DayColumnCard(
 private fun EventBlock(
     block: TimedBlock,
     dark: Boolean,
+    height: Dp,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -623,7 +631,20 @@ private fun EventBlock(
     val locale = currentLocale()
     val timeLabel = "${minToHm(block.startMin, use24Hour, locale)}–" +
         minToHm(block.endMin, use24Hour, locale)
-    val showTime = block.endMin - block.startMin >= 45
+    val density = LocalDensity.current
+    val titleLineHeight = with(density) {
+        MaterialTheme.typography.labelMedium.lineHeight.toDp()
+    }
+    val timeLineHeight = with(density) {
+        MaterialTheme.typography.labelSmall.lineHeight.toDp()
+    }
+    // What's left for text once the 2.dp top/bottom padding is paid for. A block
+    // that cannot afford both lines spends its space on the title, and one too
+    // short even for that drops the title rather than serving a sliced one.
+    val available = height - 4.dp
+    val showTime = block.endMin - block.startMin >= 45 &&
+        available >= titleLineHeight + timeLineHeight
+    val showTitle = available >= titleLineHeight
     val soften = LocalSoftenColors.current
     val fill = eventFill(block.event.color, dark, soften)
     Box(
@@ -634,13 +655,15 @@ private fun EventBlock(
             .semantics { contentDescription = "$title, $timeLabel" },
     ) {
         Column {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = if (showTime) 1 else 2,
-                overflow = TextOverflow.Ellipsis,
-                color = eventInk(fill, alpha = 0.85f),
-            )
+            if (showTitle) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = if (showTime) 1 else 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = eventInk(fill, alpha = 0.85f),
+                )
+            }
             if (showTime) {
                 Text(
                     text = timeLabel,
@@ -656,17 +679,22 @@ private fun EventBlock(
 
 @Composable
 private fun DayLoading() {
-    val totalHeight = HOUR_HEIGHT * 24
+    val scale = LocalTimelineScale.current
     val scrollState = rememberScrollState()
-    Row(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
-        Spacer(Modifier.width(GUTTER_WIDTH))
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(totalHeight)
-                .padding(horizontal = 2.dp)
-                .background(MaterialTheme.colorScheme.surfaceContainer),
-        )
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        // Same scale resolution as the loaded timeline, so the skeleton's column
+        // doesn't resize the moment the real day arrives.
+        val totalHeight = scale.hourHeight(maxHeight) * 24
+        Row(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
+            Spacer(Modifier.width(GUTTER_WIDTH))
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(totalHeight)
+                    .padding(horizontal = 2.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
+            )
+        }
     }
 }
 

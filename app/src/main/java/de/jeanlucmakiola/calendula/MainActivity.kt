@@ -29,6 +29,7 @@ import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.buildInsertEventForm
 import de.jeanlucmakiola.calendula.ui.RootScreen
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
+import de.jeanlucmakiola.calendula.ui.common.LocalTimelineScale
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.WidgetNavRequest
@@ -141,6 +142,7 @@ class MainActivity : AppCompatActivity() {
                     CompositionLocalProvider(
                         LocalUse24HourFormat provides use24Hour,
                         LocalShowHourLines provides settings.showHourLines,
+                        LocalTimelineScale provides settings.timelineScale,
                         LocalSoftenColors provides settings.softenColors,
                     ) {
                         RootScreen(
