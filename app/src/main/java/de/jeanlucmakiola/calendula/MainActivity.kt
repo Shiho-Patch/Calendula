@@ -2,9 +2,11 @@ package de.jeanlucmakiola.calendula
 
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.provider.CalendarContract
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -12,6 +14,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +55,11 @@ import kotlin.time.Instant
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+
+    // Which of light/dark the system bars are drawn for. The styles installed
+    // in onCreate read this field live, so androidx's config-change replay
+    // picks up the in-app override instead of the night resource qualifier.
+    private var systemBarsDark = false
 
     // The occurrence a reminder notification was tapped for (eventId, begin,
     // end — the detail screen's key shape). singleTop + onNewIntent route a
@@ -96,7 +104,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        enableEdgeToEdge()
+        systemBarsDark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
+            Configuration.UI_MODE_NIGHT_YES
+        applyEdgeToEdge()
         requestedDetailKey = intent.detailKeyOrNull() ?: intent.viewEventKeyOrNull()
         requestedNav = intent.navRequestOrNull()
         requestedImportUri = intent.importUriOrNull()
@@ -112,6 +122,14 @@ class MainActivity : AppCompatActivity() {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
                 ThemeMode.LIGHT -> false
                 ThemeMode.DARK -> true
+            }
+            // onCreate can only see the night resource qualifier, not the in-app
+            // override — re-apply from the resolved theme so the bar icons follow
+            // the app's light/dark choice.
+            DisposableEffect(darkTheme) {
+                systemBarsDark = darkTheme
+                applyEdgeToEdge()
+                onDispose {}
             }
             // The app-wide clock convention: the time-format preference resolved
             // against the device's 24-hour system setting, provided once here so
@@ -179,6 +197,19 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    /**
+     * Applies the transparent edge-to-edge bars for the current [systemBarsDark].
+     * Both scrims are transparent because API 29+ enforces its own contrast and
+     * ignores them anyway.
+     */
+    private fun applyEdgeToEdge() {
+        val transparent = android.graphics.Color.TRANSPARENT
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(transparent, transparent) { systemBarsDark },
+            navigationBarStyle = SystemBarStyle.auto(transparent, transparent) { systemBarsDark },
+        )
     }
 
     override fun onResume() {
