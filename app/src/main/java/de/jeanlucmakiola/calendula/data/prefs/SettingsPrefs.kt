@@ -458,6 +458,46 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * How long a new **timed** event lasts, in minutes (#54). Defaults to
+     * [DEFAULT_EVENT_DURATION] — the historical fixed hour. Per-calendar
+     * overrides in [perCalendarEventDuration] take precedence; all-day events are
+     * date-anchored and ignore it. Resolve with [resolveDefaultEventDuration].
+     */
+    val defaultEventDurationMinutes: Flow<Int> = store.data.map { prefs ->
+        (prefs[DEFAULT_EVENT_DURATION_KEY] ?: DEFAULT_EVENT_DURATION)
+            .coerceIn(MIN_EVENT_DURATION, MAX_EVENT_DURATION)
+    }
+
+    suspend fun setDefaultEventDurationMinutes(minutes: Int) {
+        store.edit {
+            it[DEFAULT_EVENT_DURATION_KEY] = minutes.coerceIn(MIN_EVENT_DURATION, MAX_EVENT_DURATION)
+        }
+    }
+
+    /**
+     * Per-calendar overrides of [defaultEventDurationMinutes], keyed by calendar
+     * id: a calendar **present** in the map gives its new events that length, one
+     * **absent** inherits the global default (there is no "no duration", so this
+     * needs no `none` sentinel). Serialised as `id=minutes;id=minutes`.
+     */
+    val perCalendarEventDuration: Flow<Map<Long, Int>> = store.data.map { prefs ->
+        parseDurationOverrides(prefs[CALENDAR_EVENT_DURATION_KEY])
+    }
+
+    /** [minutes] null drops the override, so the calendar inherits the global default. */
+    suspend fun setCalendarEventDuration(calendarId: Long, minutes: Int?) {
+        store.edit { prefs ->
+            val current = parseDurationOverrides(prefs[CALENDAR_EVENT_DURATION_KEY]).toMutableMap()
+            if (minutes == null) {
+                current.remove(calendarId)
+            } else {
+                current[calendarId] = minutes.coerceIn(MIN_EVENT_DURATION, MAX_EVENT_DURATION)
+            }
+            prefs[CALENDAR_EVENT_DURATION_KEY] = current.toStoredDurations()
+        }
+    }
+
+    /**
      * Whether Calendula posts reminder notifications (v1.4). Defaults to ON —
      * for users whose only calendar app this is, reminders are essential; the
      * onboarding step and Settings warn about duplicates from a second app.
@@ -814,6 +854,15 @@ class SettingsPrefs @Inject constructor(
         internal val DRAWER_VIEW_ORDER_KEY = stringPreferencesKey("drawer_view_order")
         internal val FORM_FIELDS_KEY = stringPreferencesKey("event_form_default_fields")
         internal val AUTOFOCUS_EVENT_TITLE_KEY = booleanPreferencesKey("autofocus_event_title")
+        internal val DEFAULT_EVENT_DURATION_KEY = intPreferencesKey("default_event_duration_minutes")
+        internal val CALENDAR_EVENT_DURATION_KEY =
+            stringPreferencesKey("per_calendar_event_duration")
+
+        /** A new timed event's length until the user changes it: one hour. */
+        const val DEFAULT_EVENT_DURATION = 60
+        internal const val MIN_EVENT_DURATION = 1
+        /** A day — past that the form is describing a multi-day event, not a default. */
+        internal const val MAX_EVENT_DURATION = 1_440
         internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")
         internal val REMINDER_ONBOARDING_KEY = booleanPreferencesKey("reminder_onboarding_done")
         internal val ALLOW_COLOR_UNSUPPORTED_KEY =
@@ -905,6 +954,17 @@ fun resolveDefaultReminder(
     }
 }
 
+/**
+ * The length a new timed event on [calendarId] opens with: that calendar's
+ * override if it has one, otherwise the [global] default. Pure so it can be
+ * unit-tested.
+ */
+fun resolveDefaultEventDuration(
+    global: Int,
+    overrides: Map<Long, Int>,
+    calendarId: Long?,
+): Int = calendarId?.let { overrides[it] } ?: global
+
 /** Sentinel stored for [WeekStartPref.Auto]; days store their [DayOfWeek.name]. */
 private const val WEEK_START_AUTO = "AUTO"
 
@@ -951,6 +1011,27 @@ private fun String?.toReminderList(): List<Int> = when {
 /** Serialise lead times for storage: "none" when empty, else comma-joined. */
 private fun List<Int>.toStoredReminders(): String =
     if (isEmpty()) NONE else normalizeReminders().joinToString(LIST_SEP) { it.toString() }
+
+/**
+ * Parse the per-calendar duration map (`id=minutes` entries joined by `;`).
+ * Malformed entries and out-of-range lengths are dropped, so a garbled value
+ * degrades to "inherits the global default" instead of throwing.
+ */
+private fun parseDurationOverrides(stored: String?): Map<Long, Int> =
+    stored?.split(ENTRY_SEP).orEmpty().mapNotNull { entry ->
+        val parts = entry.split(KEY_VALUE_SEP)
+        if (parts.size != 2) return@mapNotNull null
+        val calendarId = parts[0].trim().toLongOrNull() ?: return@mapNotNull null
+        val minutes = parts[1].trim().toIntOrNull()
+            ?.takeIf { it in SettingsPrefs.MIN_EVENT_DURATION..SettingsPrefs.MAX_EVENT_DURATION }
+            ?: return@mapNotNull null
+        calendarId to minutes
+    }.toMap()
+
+private fun Map<Long, Int>.toStoredDurations(): String =
+    entries.sortedBy { it.key }.joinToString(ENTRY_SEP) { (id, minutes) ->
+        "$id$KEY_VALUE_SEP$minutes"
+    }
 
 
 private inline fun <reified E : Enum<E>> String?.toEnum(default: E): E =

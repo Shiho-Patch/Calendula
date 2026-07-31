@@ -28,7 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -38,10 +37,11 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.DurationPicker
 import de.jeanlucmakiola.calendula.ui.common.REMINDER_PRESETS
 import de.jeanlucmakiola.calendula.ui.common.ReminderDefaultPicker
-import de.jeanlucmakiola.calendula.ui.common.SnoozeDurationPicker
 import de.jeanlucmakiola.calendula.ui.common.TimePickerAlert
+import de.jeanlucmakiola.calendula.ui.common.durationLabel
 import de.jeanlucmakiola.floret.components.CollapsingScaffold
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.Position
@@ -146,7 +146,7 @@ internal fun NotificationsScreen(
 
         GroupedRow(
             title = stringResource(R.string.settings_snooze_duration),
-            summary = snoozeDurationLabel(state.snoozeMinutes),
+            summary = durationLabel(state.snoozeMinutes),
             position = Position.Bottom,
             onClick = { showSnooze = true },
         )
@@ -245,12 +245,13 @@ internal fun NotificationsScreen(
     }
 
     if (showSnooze) {
-        SnoozeDurationPicker(
+        DurationPicker(
             title = stringResource(R.string.settings_snooze_duration),
             presets = SNOOZE_PRESETS,
             selected = state.snoozeMinutes,
-            label = { snoozeDurationLabel(it) },
-            onSelect = { viewModel.setSnoozeMinutes(it) },
+            label = { durationLabel(it) },
+            // No inherit row here, so a pick is never null.
+            onSelect = { minutes -> minutes?.let { viewModel.setSnoozeMinutes(it) } },
             onDismiss = { showSnooze = false },
         )
     }
@@ -347,15 +348,6 @@ private fun calendarOverrideSummary(
 
 /** Snooze delays offered for the notification "Snooze" action, in minutes. */
 private val SNOOZE_PRESETS = listOf(5, 10, 15, 30, 60)
-
-/** A snooze delay as a plain duration ("10 minutes", "1 hour") — no "before". */
-@Composable
-private fun snoozeDurationLabel(minutes: Int): String =
-    if (minutes % 60 == 0) {
-        pluralStringResource(R.plurals.duration_hours, minutes / 60, minutes / 60)
-    } else {
-        pluralStringResource(R.plurals.duration_minutes, minutes, minutes)
-    }
 
 /**
  * Whether Calendula is exempt from battery optimisation, re-read on every

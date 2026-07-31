@@ -39,6 +39,8 @@ fun RootScreen(
     requestedImportUri: android.net.Uri? = null,
     onImportConsumed: () -> Unit = {},
     requestedInsertForm: de.jeanlucmakiola.calendula.domain.EventForm? = null,
+    requestedInsertSource: de.jeanlucmakiola.calendula.ui.edit.ImportSource =
+        de.jeanlucmakiola.calendula.ui.edit.ImportSource.Insert,
     onInsertConsumed: () -> Unit = {},
     requestedEditKey: LongArray? = null,
     onEditKeyConsumed: () -> Unit = {},
@@ -109,6 +111,7 @@ fun RootScreen(
                         requestedImportUri = requestedImportUri,
                         onImportConsumed = onImportConsumed,
                         requestedInsertForm = requestedInsertForm,
+                        requestedInsertSource = requestedInsertSource,
                         onInsertConsumed = onInsertConsumed,
                         requestedEditKey = requestedEditKey,
                         onEditKeyConsumed = onEditKeyConsumed,

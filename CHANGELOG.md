@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A new event no longer always lasts an hour. **Settings → New event form →
+  Default duration** sets how long one opens, and each calendar may keep its own
+  length underneath — 8 hours for the calendar you keep work shifts in, 30
+  minutes for the one you book calls in. A calendar without its own length
+  follows the default, switching calendars mid-form re-stretches the event, and
+  setting an end time by hand keeps it. An event another app hands over with only
+  a start gets the default too; one that names its own end — an `.ics` file, a
+  duplicate — keeps that length. All-day events are unaffected ([#54]).
+
 ## [2.17.1] — 2026-07-30
 
 ### Added
@@ -1253,3 +1263,4 @@ automatically, with zero telemetry and no internet permission.
 [#89]: https://codeberg.org/jlmakiola/calendula/issues/89
 [#103]: https://codeberg.org/jlmakiola/calendula/issues/103
 [#69]: https://codeberg.org/jlmakiola/calendula/issues/69
+[#54]: https://codeberg.org/jlmakiola/calendula/issues/54

@@ -34,6 +34,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.WidgetNavRequest
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.detail.EventDetailViewModel.Companion.NO_OCCURRENCE_TIME
+import de.jeanlucmakiola.calendula.ui.edit.ImportSource
 import de.jeanlucmakiola.floret.components.DebugRibbon
 import de.jeanlucmakiola.calendula.ui.crash.CrashReportActivity
 import de.jeanlucmakiola.calendula.domain.FontRole
@@ -49,6 +50,9 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Instant
+
+/** A prefilled create form from an external launch, with the source it came from. */
+private data class InsertRequest(val form: EventForm, val source: ImportSource)
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -69,7 +73,7 @@ class MainActivity : AppCompatActivity() {
     // A prefilled new-event form from an external ACTION_INSERT launch (another
     // app/widget asking us to create an event, issue #30). Consumed once by
     // CalendarHost, which opens it in the create form for review.
-    private var requestedInsertForm by mutableStateOf<EventForm?>(null)
+    private var requestedInsert by mutableStateOf<InsertRequest?>(null)
 
     // An external "edit this event" (ACTION_EDIT on content://.../events/<id>):
     // opens the occurrence in the edit form. Same occurrence-key shape as the
@@ -100,7 +104,7 @@ class MainActivity : AppCompatActivity() {
         requestedDetailKey = intent.detailKeyOrNull() ?: intent.viewEventKeyOrNull()
         requestedNav = intent.navRequestOrNull()
         requestedImportUri = intent.importUriOrNull()
-        requestedInsertForm = intent.insertFormOrNull()
+        requestedInsert = intent.insertRequestOrNull()
         requestedEditKey = intent.editEventKeyOrNull()
         if (CrashReporter.shouldPrompt(this)) pendingCrashReport = CrashReporter.pendingReport(this)
         setContent {
@@ -151,8 +155,9 @@ class MainActivity : AppCompatActivity() {
                             onWidgetNavConsumed = { requestedNav = null },
                             requestedImportUri = requestedImportUri,
                             onImportConsumed = { requestedImportUri = null },
-                            requestedInsertForm = requestedInsertForm,
-                            onInsertConsumed = { requestedInsertForm = null },
+                            requestedInsertForm = requestedInsert?.form,
+                            requestedInsertSource = requestedInsert?.source ?: ImportSource.Insert,
+                            onInsertConsumed = { requestedInsert = null },
                             requestedEditKey = requestedEditKey,
                             onEditKeyConsumed = { requestedEditKey = null },
                         )
@@ -192,7 +197,7 @@ class MainActivity : AppCompatActivity() {
         (intent.detailKeyOrNull() ?: intent.viewEventKeyOrNull())?.let { requestedDetailKey = it }
         intent.navRequestOrNull()?.let { requestedNav = it }
         intent.importUriOrNull()?.let { requestedImportUri = it }
-        intent.insertFormOrNull()?.let { requestedInsertForm = it }
+        intent.insertRequestOrNull()?.let { requestedInsert = it }
         intent.editEventKeyOrNull()?.let { requestedEditKey = it }
     }
 
@@ -219,9 +224,10 @@ class MainActivity : AppCompatActivity() {
      * (issue #30), or `ACTION_EDIT` with no concrete event id (AOSP's "edit a new
      * event", i.e. create). The new event's fields ride as CalendarContract
      * extras; anything omitted falls back to the in-app "new event" defaults in
-     * [buildInsertEventForm].
+     * [buildInsertEventForm]. An intent that names no end time leaves the length
+     * to the default-duration setting ([ImportSource.InsertOpenEnded], #54).
      */
-    private fun Intent.insertFormOrNull(): EventForm? {
+    private fun Intent.insertRequestOrNull(): InsertRequest? {
         // ACTION_EDIT / ACTION_INSERT_OR_EDIT on an existing event route to the
         // edit form instead ([editEventKeyOrNull]); an id-less one is a create,
         // as is any plain ACTION_INSERT.
@@ -229,9 +235,11 @@ class MainActivity : AppCompatActivity() {
             ((action == Intent.ACTION_EDIT || action == Intent.ACTION_INSERT_OR_EDIT) &&
                 editEventKeyOrNull() == null)
         if (!isCreate) return null
-        return buildInsertEventForm(
-            beginMillis = longExtraOrNull(CalendarContract.EXTRA_EVENT_BEGIN_TIME),
-            endMillis = longExtraOrNull(CalendarContract.EXTRA_EVENT_END_TIME),
+        val beginMillis = longExtraOrNull(CalendarContract.EXTRA_EVENT_BEGIN_TIME)
+        val endMillis = longExtraOrNull(CalendarContract.EXTRA_EVENT_END_TIME)
+        val form = buildInsertEventForm(
+            beginMillis = beginMillis,
+            endMillis = endMillis,
             isAllDay = getBooleanExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, false),
             title = getStringExtra(CalendarContract.Events.TITLE),
             description = getStringExtra(CalendarContract.Events.DESCRIPTION),
@@ -240,6 +248,10 @@ class MainActivity : AppCompatActivity() {
             zone = TimeZone.currentSystemDefault(),
             now = Clock.System.now(),
         )
+        // An end the intent didn't name — or one [buildInsertEventForm] drops for
+        // landing before the start — leaves the length to the setting.
+        val namesEnd = beginMillis != null && endMillis != null && endMillis >= beginMillis
+        return InsertRequest(form, if (namesEnd) ImportSource.Insert else ImportSource.InsertOpenEnded)
     }
 
     /** A Long extra's value, or null when the extra is absent. */
