@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   length underneath — 8 hours for the calendar you keep work shifts in, 30
   minutes for the one you book calls in. A calendar without its own length
   follows the default, switching calendars mid-form re-stretches the event, and
-  setting an end time by hand keeps it. All-day events are unaffected ([#54]).
+  setting an end time by hand keeps it. An event another app hands over with only
+  a start gets the default too; one that names its own end — an `.ics` file, a
+  duplicate — keeps that length. All-day events are unaffected ([#54]).
 
 ## [2.17.1] — 2026-07-30
 

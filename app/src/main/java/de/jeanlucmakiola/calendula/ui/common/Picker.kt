@@ -365,7 +365,9 @@ private fun CustomDaysEditor(
  * [inheritLabel] adds an exclusive "use the default" row on top, for the
  * per-calendar pickers; picking it reports null. [selected] is null exactly when
  * that row is the current choice. [description] explains the setting above the
- * rows when it needs it.
+ * rows when it needs it. [maxMinutes] caps what the custom editor will confirm,
+ * for settings that clamp their stored value — offering a length the store would
+ * silently shorten is worse than refusing it.
  */
 @Composable
 fun DurationPicker(
@@ -377,6 +379,7 @@ fun DurationPicker(
     onDismiss: () -> Unit,
     description: String? = null,
     inheritLabel: String? = null,
+    maxMinutes: Int = Int.MAX_VALUE,
 ) {
     val inherits = selected == null
     // The current choice when it isn't one of the presets — the Custom row then
@@ -452,6 +455,7 @@ fun DurationPicker(
                 unit = unit,
                 onUnitChange = { unit = it },
                 label = label,
+                maxMinutes = maxMinutes,
                 onConfirm = { minutes ->
                     onSelect(minutes)
                     onDismiss()
@@ -472,7 +476,9 @@ private fun durationCustomAmount(minutes: Int): Int =
  * The expanded "Custom" duration editor: a tonal card connected to the Custom row
  * above it. A Minutes/Hours unit toggle, an amount field with a live preview of
  * the length it resolves to, and a tonal confirm enabled only for a valid 1–999
- * amount. [onConfirm] receives the final length in minutes.
+ * amount that stays within [maxMinutes]. Over the cap, the preview names the
+ * limit instead of a length the setting could not keep. [onConfirm] receives the
+ * final length in minutes.
  */
 @Composable
 private fun CustomDurationEditor(
@@ -481,21 +487,26 @@ private fun CustomDurationEditor(
     unit: ReminderUnit,
     onUnitChange: (ReminderUnit) -> Unit,
     label: @Composable (Int) -> String,
+    maxMinutes: Int,
     onConfirm: (Int) -> Unit,
 ) {
     val units = remember { listOf(ReminderUnit.Minutes, ReminderUnit.Hours) }
-    val amount = amountText.toIntOrNull()?.takeIf { it in 1..999 }
+    val entered = amountText.toIntOrNull()?.takeIf { it in 1..999 }?.times(unit.minutesFactor)
+    val amount = entered?.takeIf { it <= maxMinutes }
     CustomAmountEditor(
         amountText = amountText,
         onAmountChange = onAmountChange,
         unitLabels = units.map { stringResource(reminderUnitLabel(it)) },
         selectedUnit = units.indexOf(unit).coerceAtLeast(0),
         onUnitChange = { onUnitChange(units[it]) },
-        preview = amount?.let { label(it * unit.minutesFactor) }
-            ?: stringResource(R.string.reminder_custom_amount),
+        preview = when {
+            amount != null -> label(amount)
+            entered != null -> stringResource(R.string.duration_custom_max, label(maxMinutes))
+            else -> stringResource(R.string.reminder_custom_amount)
+        },
         setLabel = stringResource(R.string.reminder_custom_set),
         confirmEnabled = amount != null,
-        onConfirm = { amount?.let { onConfirm(it * unit.minutesFactor) } },
+        onConfirm = { amount?.let(onConfirm) },
     )
 }
 

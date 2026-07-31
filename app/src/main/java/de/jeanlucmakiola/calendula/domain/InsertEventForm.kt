@@ -15,7 +15,9 @@ import kotlin.time.Instant
  * calendar this way to create a new event, passing the fields as
  * [android.provider.CalendarContract] extras. Any field the intent omits falls
  * back to the same defaults the in-app "new event" uses — a timed start at the
- * next full hour and a one-hour duration. [EventForm.calendarId] is left null so
+ * next full hour, and a placeholder hour for a missing end that the form then
+ * stretches to the default-duration setting (the intent is opened as
+ * `ImportSource.InsertOpenEnded`, #54). [EventForm.calendarId] is left null so
  * it resolves to the last-used / first-writable calendar, exactly like the
  * `.ics` single-event and plain new-event paths.
  *

@@ -244,6 +244,8 @@
     </plurals>
     <!-- A mixed duration: %1$s is the hours part, %2$s the minutes part. -->
     <string name="duration_hours_minutes">%1$s %2$s</string>
+    <!-- Shown instead of the preview when a custom length exceeds what the setting keeps. %1$s is the longest allowed, e.g. "24 hours". -->
+    <string name="duration_custom_max">At most %1$s</string>
     <plurals name="duration_weeks">
         <item quantity="one">%d week</item>
         <item quantity="other">%d weeks</item>

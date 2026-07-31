@@ -57,23 +57,33 @@ import kotlin.time.Instant
 import javax.inject.Inject
 
 /**
- * Where a prefilled [EventEditViewModel.openImported] form came from — the two
- * sources want different reminder handling (#49).
+ * Where a prefilled [EventEditViewModel.openImported] form came from. The sources
+ * want different reminder handling (#49), and differ in whether they own the
+ * event's length ([ownsDuration], #54) — one that does is never restretched to the
+ * default-duration setting.
  */
-enum class ImportSource {
+enum class ImportSource(internal val ownsDuration: Boolean) {
     /**
-     * An external `ACTION_INSERT` intent (another app/widget, e.g. Google Maps).
-     * It carries no reminders of its own, so the settings default is applied
-     * automatically, exactly like an in-app new event.
+     * An external `ACTION_INSERT` intent that named both ends (another app/widget,
+     * e.g. Google Maps), or an in-app duplicate. It carries no reminders of its
+     * own, so the settings default is applied automatically, exactly like an
+     * in-app new event; its span, though, is the caller's.
      */
-    Insert,
+    Insert(ownsDuration = true),
+
+    /**
+     * An `ACTION_INSERT` that named only a start. Reminders behave as for
+     * [Insert], but the length is ours to pick, so the default-duration setting
+     * applies just like an in-app new event.
+     */
+    InsertOpenEnded(ownsDuration = false),
 
     /**
      * A parsed single-event `.ics` file. Its own reminders are respected; the
      * settings default is offered through [EventEditViewModel.importReminderPrompt]
-     * rather than silently applied or suppressed.
+     * rather than silently applied or suppressed. Its span is the file's.
      */
-    File,
+    File(ownsDuration = true),
 }
 
 /**
@@ -329,6 +339,12 @@ class EventEditViewModel @Inject constructor(
      *   settings default is configured and differs, [importReminderPrompt] offers
      *   to swap it in rather than silently deciding for the user.
      *
+     * The length is frozen the same way: a source that named the event's end
+     * ([ImportSource.ownsDuration]) keeps it, so the default-duration setting
+     * never silently rewrites a span someone else chose; only an
+     * [ImportSource.InsertOpenEnded] intent — a start with no end — gets the
+     * default applied.
+     *
      * No-op when a form is already open, so the prefill survives configuration
      * changes.
      */
@@ -336,8 +352,9 @@ class EventEditViewModel @Inject constructor(
         if (_form.value != null || _editTarget.value != null) return
         _revealed.value = form.populatedFields()
         _form.value = form
+        if (source.ownsDuration) _durationTouched.value = true else applyDefaultDuration()
         when (source) {
-            ImportSource.Insert ->
+            ImportSource.Insert, ImportSource.InsertOpenEnded ->
                 if (form.reminders.isNotEmpty()) _remindersTouched.value = true
                 else applyDefaultReminder()
 
@@ -400,7 +417,13 @@ class EventEditViewModel @Inject constructor(
         viewModelScope.launch {
             val global = settingsPrefs.defaultEventDurationMinutes.first()
             val overrides = settingsPrefs.perCalendarEventDuration.first()
-            val targetId = calendarId ?: resolvedCalendarId.first()
+            // Only resolve the calendar when an override could actually apply —
+            // that read waits on the provider query, and the stretch would then
+            // land after the user can already see (and accept) the end time.
+            val targetId = when {
+                overrides.isEmpty() -> null
+                else -> calendarId ?: resolvedCalendarId.first()
+            }
             // Re-check after suspending: bail if the form closed or the user edited.
             if (_editTarget.value != null || _durationTouched.value) return@launch
             if (_form.value?.isAllDay != false) return@launch

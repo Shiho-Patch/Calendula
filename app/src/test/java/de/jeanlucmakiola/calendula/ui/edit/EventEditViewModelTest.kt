@@ -10,6 +10,7 @@ import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventDetail
+import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -248,6 +249,55 @@ class EventEditViewModelTest {
         assertThat(vm.state.value?.form?.end).isEqualTo(LocalDateTime(2030, 1, 15, 10, 15))
         job.cancel()
     }
+
+    @Test
+    fun `an imported event keeps the span its source named`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { calendarsResult = listOf(cal(1L), cal(2L)) }
+        val s = settings(tempDir)
+        s.setDefaultEventDurationMinutes(30)
+        s.setCalendarEventDuration(2L, 480)
+        val vm = viewModel(tempDir, fake, s)
+        val job = activate(vm)
+
+        vm.openImported(importedForm(end = LocalDateTime(2030, 1, 15, 11, 30)), ImportSource.File)
+        advanceUntilIdle()
+        vm.setCalendar(2L)
+        advanceUntilIdle()
+
+        // The file owns the length; a calendar switch must not restretch it.
+        assertThat(vm.state.value?.form?.end).isEqualTo(LocalDateTime(2030, 1, 15, 11, 30))
+        job.cancel()
+    }
+
+    @Test
+    fun `an insert intent with no end takes the default duration`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { calendarsResult = listOf(cal(1L), cal(2L)) }
+        val s = settings(tempDir)
+        s.setDefaultEventDurationMinutes(30)
+        val vm = viewModel(tempDir, fake, s)
+        val job = activate(vm)
+
+        // The placeholder hour buildInsertEventForm fills in for a missing end.
+        vm.openImported(
+            importedForm(end = LocalDateTime(2030, 1, 15, 10, 0)),
+            ImportSource.InsertOpenEnded,
+        )
+        advanceUntilIdle()
+
+        assertThat(vm.state.value?.form?.end).isEqualTo(LocalDateTime(2030, 1, 15, 9, 30))
+        job.cancel()
+    }
+
+    private fun importedForm(end: LocalDateTime) = EventForm(
+        calendarId = null,
+        title = "Imported",
+        start = LocalDateTime(2030, 1, 15, 9, 0),
+        end = end,
+    )
 
     @Test
     fun `an all-day event ignores the default duration`(

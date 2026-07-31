@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.DurationPicker
@@ -190,6 +191,7 @@ internal fun EventFormScreen(
             // No inherit row on the global default, so a pick is never null.
             onSelect = { minutes -> minutes?.let { viewModel.setDefaultEventDuration(it) } },
             onDismiss = { showDefaultDuration = false },
+            maxMinutes = SettingsPrefs.MAX_EVENT_DURATION,
         )
     }
     durationTarget?.let { calendarId ->
@@ -204,6 +206,7 @@ internal fun EventFormScreen(
             ),
             onSelect = { viewModel.setCalendarEventDuration(calendarId, it) },
             onDismiss = { durationTarget = null },
+            maxMinutes = SettingsPrefs.MAX_EVENT_DURATION,
         )
     }
 }

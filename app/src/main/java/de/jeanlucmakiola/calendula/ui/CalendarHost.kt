@@ -75,6 +75,7 @@ fun CalendarHost(
     requestedImportUri: android.net.Uri? = null,
     onImportConsumed: () -> Unit = {},
     requestedInsertForm: EventForm? = null,
+    requestedInsertSource: ImportSource = ImportSource.Insert,
     onInsertConsumed: () -> Unit = {},
     requestedEditKey: LongArray? = null,
     onEditKeyConsumed: () -> Unit = {},
@@ -203,7 +204,7 @@ fun CalendarHost(
     // reveals on top of whatever was open without extra dismissal.
     LaunchedEffect(requestedInsertForm) {
         if (requestedInsertForm != null) {
-            importFormSource = ImportSource.Insert
+            importFormSource = requestedInsertSource
             importForm = requestedInsertForm
             onInsertConsumed()
         }
