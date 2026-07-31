@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   duplicate — keeps that length. All-day events are unaffected ([#54]).
 
 ### Changed
+- The date in the top bar is now the way to jump: tapping the month, week or day
+  title opens the same date picker the sidebar's **Jump to date** offers, seeded
+  on whatever the bar is naming. A drop-down caret marks it as tappable. The
+  sidebar entry stays where it is ([#57]).
 - A reminder in the status bar is now Calendula's own mark — the calendar with
   the bloom — instead of the generic calendar glyph it shared with the system's
   date surfaces and every other calendar app. The status bar draws that icon as
@@ -1272,3 +1276,4 @@ automatically, with zero telemetry and no internet permission.
 [#103]: https://codeberg.org/jlmakiola/calendula/issues/103
 [#69]: https://codeberg.org/jlmakiola/calendula/issues/69
 [#54]: https://codeberg.org/jlmakiola/calendula/issues/54
+[#57]: https://codeberg.org/jlmakiola/calendula/issues/57

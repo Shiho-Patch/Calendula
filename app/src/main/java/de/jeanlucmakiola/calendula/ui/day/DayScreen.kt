@@ -68,6 +68,7 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
+import de.jeanlucmakiola.calendula.ui.common.CalendarTitleButton
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
@@ -221,6 +222,7 @@ fun DayScreen(
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
+                    onJumpToDate = jumpToDate,
                     showTodayButton = todayInToolbar,
                     onToday = jumpToToday,
                     scrollBehavior = scrollBehavior,
@@ -364,6 +366,7 @@ private fun DayTopBar(
     onCycleView: () -> Unit,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
+    onJumpToDate: (LocalDate) -> Unit,
     showTodayButton: Boolean,
     onToday: () -> Unit,
     scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
@@ -371,9 +374,10 @@ private fun DayTopBar(
     val locale = currentLocale()
     TopAppBar(
         title = {
-            Text(
-                text = formatDayTitle(date, locale, currentYear),
-                style = MaterialTheme.typography.titleLarge,
+            CalendarTitleButton(
+                title = formatDayTitle(date, locale, currentYear),
+                currentDate = date,
+                onJumpToDate = onJumpToDate,
             )
         },
         navigationIcon = {
