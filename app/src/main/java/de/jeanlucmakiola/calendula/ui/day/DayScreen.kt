@@ -87,10 +87,11 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
-import de.jeanlucmakiola.calendula.ui.common.LocalTimelineScale
+import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.MIN_EVENT_FRACTION
 import de.jeanlucmakiola.calendula.ui.common.SECONDARY_INK_ALPHA
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
+import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
 import de.jeanlucmakiola.calendula.ui.common.formatHourLabel
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
@@ -487,19 +488,23 @@ private fun Timeline(
     val dark = isSystemInDarkTheme()
     val use24Hour = LocalUse24HourFormat.current
     val locale = currentLocale()
-    val scale = LocalTimelineScale.current
+    val zoom = LocalTimelineZoom.current
 
     // BoxWithConstraints rather than Box: the fit-the-whole-day scale needs the
     // timeline's own viewport height, which is only known here — below the top
     // bar, date header and all-day strip.
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val hourHeight = scale.hourHeight(maxHeight)
+        val hourHeight = zoom.scale.hourHeight(maxHeight)
         val totalHeight = hourHeight * 24
+        // The pinch sits on the Row, above both scroll viewports: it has to
+        // outrank the vertical scroll, and it does that by watching the initial
+        // pass, which only reaches it if it is their ancestor.
+        val pinch = rememberTimelinePinchZoom(scrollState, hourHeight, zoom)
         // Gutter and day column are two scroll viewports that SHARE one scroll
         // state, so they stay perfectly aligned. The day-column viewport is a
         // static, rounded-clipped window — the content scrolls inside it, so the
         // soft corners are permanent at any scroll position.
-        Row(modifier = Modifier.fillMaxSize()) {
+        Row(modifier = Modifier.fillMaxSize().then(pinch)) {
             // Hour gutter (scrolls in sync with the day column). Start inset so the
             // labels centre on the top bar hamburger, matching the week view.
             Column(
@@ -680,7 +685,7 @@ private fun EventBlock(
 
 @Composable
 private fun DayLoading() {
-    val scale = LocalTimelineScale.current
+    val scale = LocalTimelineZoom.current.scale
     val scrollState = rememberScrollState()
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         // Same scale resolution as the loaded timeline, so the skeleton's column

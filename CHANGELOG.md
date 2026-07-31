@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   could sit below the fold all week. Compact and Comfortable are fixed steps
   either side of the previous spacing, which stays the default. Both views share
   the setting ([#56]).
+- Week and day view can be **pinched** with two fingers to set the hour height
+  directly, anywhere between and beyond the named steps. The time under your
+  fingers stays put as it zooms, so you keep your place in the day. A pinched
+  height is remembered and appears as **Custom** in the Hour height setting, so
+  tapping a named step there takes you back to it ([#56]).
 
 ### Changed
 - Event blocks now only draw text they can draw whole. One too short for a full

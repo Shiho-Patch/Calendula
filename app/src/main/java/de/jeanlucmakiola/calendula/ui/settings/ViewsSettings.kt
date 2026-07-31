@@ -335,7 +335,13 @@ internal fun ViewsScreen(
             title = stringResource(R.string.settings_timeline_scale),
             header = { PickerDescription(stringResource(R.string.settings_timeline_scale_hint)) },
             predictiveBack = true,
-            options = TimelineScale.entries,
+            // A height pinched on the timeline is listed alongside the presets
+            // rather than left as a silently unticked list: it is the current
+            // setting, so it has to be visible here, and seeing it next to the
+            // named steps is what makes "tap one to go back" obvious.
+            options = TimelineScale.presets + listOfNotNull(
+                state.timelineScale as? TimelineScale.Custom,
+            ),
             selected = state.timelineScale,
             label = { stringResource(it.labelRes) },
             summary = { stringResource(it.descriptionRes) },

@@ -66,9 +66,57 @@ class TimelineScaleTest {
     fun `the minimum event height stays a fixed share of an hour`() {
         // A fixed dp floor would swallow ever more of the day as the scale drops;
         // as a fraction it always means the same duration.
-        for (scale in TimelineScale.entries) {
+        for (scale in TimelineScale.presets) {
             val hour = scale.hourHeight(phoneViewport)
             assertThat((hour * MIN_EVENT_FRACTION) / hour).isWithin(0.001f).of(MIN_EVENT_FRACTION)
+        }
+    }
+
+    @Test
+    fun `a pinched height is used as given, whatever the viewport`() {
+        val scale = TimelineScale.custom(63.dp)
+        assertThat(scale.hourHeight(phoneViewport)).isEqualTo(63.dp)
+        assertThat(scale.hourHeight(120.dp)).isEqualTo(63.dp)
+    }
+
+    @Test
+    fun `a pinch cannot zoom past the legible range`() {
+        // The gesture clamps as it goes, but the floor and ceiling belong to the
+        // model — nothing that constructs a scale may land outside them (#56).
+        assertThat(TimelineScale.custom(1.dp).hourHeight).isEqualTo(MIN_PINCH_HOUR_HEIGHT)
+        assertThat(TimelineScale.custom(10_000.dp).hourHeight).isEqualTo(MAX_PINCH_HOUR_HEIGHT)
+    }
+
+    @Test
+    fun `a pinch can go beyond every preset in both directions`() {
+        // Otherwise the gesture would be strictly less capable than the picker
+        // it is meant to refine.
+        val presetHeights = TimelineScale.presets.map { it.hourHeight(phoneViewport) }
+        assertThat(MIN_PINCH_HOUR_HEIGHT).isAtMost(presetHeights.min())
+        assertThat(MAX_PINCH_HOUR_HEIGHT).isGreaterThan(presetHeights.max())
+    }
+
+    @Test
+    fun `every scale round-trips through storage`() {
+        for (scale in TimelineScale.presets + TimelineScale.custom(63.5f.dp)) {
+            assertThat(parseTimelineScale(scale.storageValue())).isEqualTo(scale)
+        }
+    }
+
+    @Test
+    fun `scales stored before the pinch existed still read back`() {
+        // These were enum names once. An install that picked one must not be
+        // silently reset to the default by the sealed-type rewrite.
+        assertThat(parseTimelineScale("FitDay")).isEqualTo(TimelineScale.FitDay)
+        assertThat(parseTimelineScale("Compact")).isEqualTo(TimelineScale.Compact)
+        assertThat(parseTimelineScale("Regular")).isEqualTo(TimelineScale.Regular)
+        assertThat(parseTimelineScale("Comfortable")).isEqualTo(TimelineScale.Comfortable)
+    }
+
+    @Test
+    fun `an unreadable stored scale falls back to the default`() {
+        for (stored in listOf(null, "", "Roomy", "custom:", "custom:huge")) {
+            assertThat(parseTimelineScale(stored)).isEqualTo(TimelineScale.Regular)
         }
     }
 }

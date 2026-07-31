@@ -29,7 +29,8 @@ import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.buildInsertEventForm
 import de.jeanlucmakiola.calendula.ui.RootScreen
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
-import de.jeanlucmakiola.calendula.ui.common.LocalTimelineScale
+import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
+import de.jeanlucmakiola.calendula.ui.common.rememberTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.WidgetNavRequest
@@ -126,6 +127,13 @@ class MainActivity : AppCompatActivity() {
             // re-import stamp AppFontSettings carries, so replacing the file
             // behind an active "custom" token still refreshes — changes;
             // "system for both" returns the default scale untouched.
+            // The timeline scale plus the pinch in flight over it (#56). Held
+            // here, above the calendar views, so a zoom survives paging between
+            // weeks and switching between the week and day view.
+            val timelineZoom = rememberTimelineZoom(
+                stored = settings.timelineScale,
+                onPersist = settingsViewModel::setTimelineScale,
+            )
             val fonts by settingsViewModel.fontState.collectAsStateWithLifecycle()
             val typography = remember(fonts, context) {
                 calendulaTypography(
@@ -142,7 +150,7 @@ class MainActivity : AppCompatActivity() {
                     CompositionLocalProvider(
                         LocalUse24HourFormat provides use24Hour,
                         LocalShowHourLines provides settings.showHourLines,
-                        LocalTimelineScale provides settings.timelineScale,
+                        LocalTimelineZoom provides timelineZoom,
                         LocalSoftenColors provides settings.softenColors,
                     ) {
                         RootScreen(

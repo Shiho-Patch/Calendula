@@ -364,7 +364,7 @@
     <string name="settings_hour_lines">Hour lines</string>
     <string name="settings_hour_lines_summary">Show a separator line at each hour in week and day view</string>
     <string name="settings_timeline_scale">Hour height</string>
-    <string name="settings_timeline_scale_hint">How much vertical space one hour takes in week and day view. Both views share this setting.</string>
+    <string name="settings_timeline_scale_hint">How much vertical space one hour takes in week and day view. Both views share this setting. You can also pinch the timeline with two fingers to set any height in between.</string>
     <string name="timeline_scale_fit_day">Fit whole day</string>
     <string name="timeline_scale_fit_day_summary">All 24 hours on one screen, no scrolling</string>
     <string name="timeline_scale_compact">Compact</string>
@@ -373,6 +373,8 @@
     <string name="timeline_scale_regular_summary">The standard spacing</string>
     <string name="timeline_scale_comfortable">Comfortable</string>
     <string name="timeline_scale_comfortable_summary">Roomier blocks, more scrolling</string>
+    <string name="timeline_scale_custom">Custom</string>
+    <string name="timeline_scale_custom_summary">The height you pinched the timeline to</string>
     <string name="settings_dim_completed">Dim completed events</string>
     <string name="settings_dim_completed_summary">Fade events that have already ended in month and week view</string>
     <string name="settings_past_events">Past events</string>

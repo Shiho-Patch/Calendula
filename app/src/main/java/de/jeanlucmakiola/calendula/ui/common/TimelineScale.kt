@@ -1,7 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.common
 
 import androidx.annotation.StringRes
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
@@ -16,23 +15,38 @@ import de.jeanlucmakiola.calendula.R
  * phone the default scale shows about half a day, so a whole week can hide
  * appointments below the fold. It derives the hour height from the timeline's
  * own viewport instead of a fixed value.
+ *
+ * [Custom] is what a pinch on the timeline leaves behind. The presets are the
+ * settings-screen vocabulary; a pinch is a direct manipulation and should be
+ * able to land anywhere between them, so it gets its own case rather than
+ * snapping to the nearest named step.
  */
-enum class TimelineScale {
+sealed interface TimelineScale {
+
     /** Whole day in one screen: the hour height follows the viewport. */
-    FitDay,
+    data object FitDay : TimelineScale
 
     /** Denser than the default, still a fixed height. */
-    Compact,
+    data object Compact : TimelineScale
 
     /** The historical 56dp scale. */
-    Regular,
+    data object Regular : TimelineScale
 
     /** Roomier blocks, more scrolling. */
-    Comfortable,
-}
+    data object Comfortable : TimelineScale
 
-/** The scale the timelines draw at, from the `timelineScale` preference. */
-val LocalTimelineScale = staticCompositionLocalOf { TimelineScale.Regular }
+    /** A height the user pinched to. Build it through [custom], which clamps. */
+    data class Custom(val hourHeight: Dp) : TimelineScale
+
+    companion object {
+        /** The named steps the settings picker offers, coarse to roomy. */
+        val presets: List<TimelineScale> = listOf(FitDay, Compact, Regular, Comfortable)
+
+        /** A pinched hour height, clamped into the legible zoom range. */
+        fun custom(hourHeight: Dp): Custom =
+            Custom(hourHeight.coerceIn(MIN_PINCH_HOUR_HEIGHT, MAX_PINCH_HOUR_HEIGHT))
+    }
+}
 
 /**
  * Hour height for this scale. [viewportHeight] is the visible height of the
@@ -48,6 +62,7 @@ fun TimelineScale.hourHeight(viewportHeight: Dp): Dp = when (this) {
     TimelineScale.Compact -> 40.dp
     TimelineScale.Regular -> 56.dp
     TimelineScale.Comfortable -> 80.dp
+    is TimelineScale.Custom -> this.hourHeight
 }
 
 /**
@@ -75,6 +90,19 @@ val FIT_DAY_MIN = 24.dp
 /** Largest hour height [TimelineScale.FitDay] will resolve to. */
 val FIT_DAY_MAX = 96.dp
 
+/**
+ * Floor for a pinch — the same legibility limit [TimelineScale.FitDay] stops at,
+ * since the gutter has the same 24 labels to fit either way.
+ */
+val MIN_PINCH_HOUR_HEIGHT = FIT_DAY_MIN
+
+/**
+ * Ceiling for a pinch, deliberately far above [TimelineScale.Comfortable]: a
+ * pinch is a deliberate act, so someone zooming in on a single busy afternoon
+ * should be allowed to go further than any preset offers.
+ */
+val MAX_PINCH_HOUR_HEIGHT = 240.dp
+
 @get:StringRes
 val TimelineScale.labelRes: Int
     get() = when (this) {
@@ -82,6 +110,7 @@ val TimelineScale.labelRes: Int
         TimelineScale.Compact -> R.string.timeline_scale_compact
         TimelineScale.Regular -> R.string.timeline_scale_regular
         TimelineScale.Comfortable -> R.string.timeline_scale_comfortable
+        is TimelineScale.Custom -> R.string.timeline_scale_custom
     }
 
 @get:StringRes
@@ -91,4 +120,40 @@ val TimelineScale.descriptionRes: Int
         TimelineScale.Compact -> R.string.timeline_scale_compact_summary
         TimelineScale.Regular -> R.string.timeline_scale_regular_summary
         TimelineScale.Comfortable -> R.string.timeline_scale_comfortable_summary
+        is TimelineScale.Custom -> R.string.timeline_scale_custom_summary
     }
+
+/** Marks a stored custom height; the rest of the value is its dp. */
+private const val CUSTOM_PREFIX = "custom:"
+
+/**
+ * Stored names for the presets. Spelled out rather than taken from `toString()`
+ * so R8 can't rename them out from under an existing install — and they match
+ * the enum names this used to be, so a value written before the pinch existed
+ * still reads back as the same preset.
+ */
+private val PRESET_NAMES: Map<TimelineScale, String> = mapOf(
+    TimelineScale.FitDay to "FitDay",
+    TimelineScale.Compact to "Compact",
+    TimelineScale.Regular to "Regular",
+    TimelineScale.Comfortable to "Comfortable",
+)
+
+/** Serialise for the `timeline_scale` preference; see [parseTimelineScale]. */
+fun TimelineScale.storageValue(): String = when (this) {
+    is TimelineScale.Custom -> CUSTOM_PREFIX + hourHeight.value
+    else -> PRESET_NAMES.getValue(this)
+}
+
+/**
+ * Parse a stored scale. Anything unrecognised — a null key, a name from a
+ * future release, a truncated custom height — falls back to
+ * [TimelineScale.Regular] rather than throwing, like the other enum prefs.
+ */
+fun parseTimelineScale(stored: String?): TimelineScale = when {
+    stored == null -> TimelineScale.Regular
+    stored.startsWith(CUSTOM_PREFIX) -> stored.removePrefix(CUSTOM_PREFIX).toFloatOrNull()
+        ?.let { TimelineScale.custom(it.dp) }
+        ?: TimelineScale.Regular
+    else -> PRESET_NAMES.entries.firstOrNull { it.value == stored }?.key ?: TimelineScale.Regular
+}

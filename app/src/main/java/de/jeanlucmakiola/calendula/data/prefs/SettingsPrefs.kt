@@ -22,6 +22,8 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.common.TimelineScale
+import de.jeanlucmakiola.calendula.ui.common.parseTimelineScale
+import de.jeanlucmakiola.calendula.ui.common.storageValue
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
 import de.jeanlucmakiola.calendula.widget.WidgetSize
@@ -273,14 +275,15 @@ class SettingsPrefs @Inject constructor(
 
     /**
      * How tall an hour is drawn in the week and day timelines (#56). Defaults to
-     * [TimelineScale.Regular] — the historical 56dp scale.
+     * [TimelineScale.Regular] — the historical 56dp scale. Holds either a preset
+     * or the height a pinch on the timeline settled at.
      */
     val timelineScale: Flow<TimelineScale> = store.data.map { prefs ->
-        prefs[TIMELINE_SCALE_KEY].toEnum(TimelineScale.Regular)
+        parseTimelineScale(prefs[TIMELINE_SCALE_KEY])
     }
 
     suspend fun setTimelineScale(scale: TimelineScale) {
-        store.edit { it[TIMELINE_SCALE_KEY] = scale.name }
+        store.edit { it[TIMELINE_SCALE_KEY] = scale.storageValue() }
     }
 
     /**
