@@ -19,6 +19,8 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import kotlin.math.abs
+import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.roundToInt
 
 /**
@@ -126,40 +128,52 @@ fun rememberTimelinePinchZoom(
             // Scroll the layout could not give us yet, carried to the next frame
             // (see anchoredScroll).
             var pending = 0f
-            while (true) {
-                val event = awaitPointerEvent(PointerEventPass.Initial)
-                if (event.changes.none { it.pressed }) break
-                if (event.changes.count { it.pressed } >= 2) {
-                    val step = event.calculateZoom()
-                    if (!claimed) {
-                        slop *= step
-                        if (abs(slop - 1f) >= PINCH_SLOP) {
-                            claimed = true
-                            zoom.beginPinch()
+            try {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    if (event.changes.none { it.pressed }) break
+                    if (event.changes.count { it.pressed } >= 2) {
+                        val step = event.calculateZoom()
+                        if (!claimed) {
+                            slop *= step
+                            if (abs(slop - 1f) >= PINCH_SLOP) {
+                                claimed = true
+                                zoom.beginPinch()
+                            }
+                        }
+                        if (claimed) {
+                            val old = currentHourHeight.value.toPx()
+                            val new = pinchedHourHeightPx(
+                                target = old * step,
+                                fillPx = fillHourHeight(currentViewport.value).toPx(),
+                                maxPx = MAX_PINCH_HOUR_HEIGHT.toPx(),
+                            )
+                            // Half a pixel, not equality: the height round-trips
+                            // through dp and back, and an exact test would read
+                            // the float noise that comes back as a scale change
+                            // and feed the scroll a delta on every frame of a
+                            // held pinch.
+                            if (abs(new - old) >= 0.5f) {
+                                val centroidY = event.calculateCentroid(useCurrent = true).y
+                                pending += anchoredScroll(scrollState.value, centroidY, old, new) -
+                                    scrollState.value
+                                zoom.pinchTo(new.toDp())
+                            }
+                            pending -= scrollState.dispatchRawDelta(pending)
                         }
                     }
-                    if (claimed) {
-                        val old = currentHourHeight.value.toPx()
-                        val new = pinchedHourHeightPx(
-                            target = old * step,
-                            fillPx = fillHourHeight(currentViewport.value).toPx(),
-                            maxPx = MAX_PINCH_HOUR_HEIGHT.toPx(),
-                        )
-                        if (new != old) {
-                            val centroidY = event.calculateCentroid(useCurrent = true).y
-                            pending += anchoredScroll(scrollState.value, centroidY, old, new) -
-                                scrollState.value
-                            zoom.pinchTo(new.toDp())
-                        }
-                        pending -= scrollState.dispatchRawDelta(pending)
-                    }
+                    // Hold the gesture to the end once it has become a pinch:
+                    // letting go the moment a finger lifts would turn the tail of
+                    // a zoom into a scroll, and the taps underneath into a new event.
+                    if (claimed) event.changes.forEach { if (it.pressed) it.consume() }
                 }
-                // Hold the gesture to the end once it has become a pinch: letting
-                // go the moment a finger lifts would turn the tail of a zoom into
-                // a scroll, and the taps underneath into a new event.
-                if (claimed) event.changes.forEach { if (it.pressed) it.consume() }
+            } finally {
+                // In a finally because the gesture can also end by having its
+                // pointer node disposed mid-pinch — the timeline swapping out
+                // under the fingers. The zoom outlives that node, and a pinch
+                // left open would make it ignore every later Settings change.
+                if (claimed) zoom.endPinch()
             }
-            if (claimed) zoom.endPinch()
         }
     }
 }
@@ -175,11 +189,19 @@ fun rememberTimelinePinchZoom(
  * the labels out at 56px and leaves the 23:00 label ~9px above the line it
  * names, jumping the whole column as a pinch drifts across each half pixel.
  * Pinning the hour to whole pixels keeps every part of the timeline on one grid.
+ *
+ * The bounds themselves are pulled onto that grid too, each in the direction
+ * that keeps its own promise — up for the fill floor, so no dead space opens
+ * under midnight, down for the ceiling. A fractional bound would be a height the
+ * pinch can be held against but never actually land on, and the difference feeds
+ * the focal anchor a scroll correction on every frame the fingers sit still.
  */
 internal fun pinchedHourHeightPx(target: Float, fillPx: Float, maxPx: Float): Float =
     // Filling the viewport wins over the ceiling: on a screen tall enough for
     // the two to disagree, dead space is the worse of the two failures.
-    target.coerceAtMost(maxPx).coerceAtLeast(fillPx).roundToInt().toFloat()
+    target.roundToInt().toFloat()
+        .coerceAtMost(floor(maxPx))
+        .coerceAtLeast(ceil(fillPx))
 
 /**
  * The scroll offset that keeps the moment under [centroidY] under it after the

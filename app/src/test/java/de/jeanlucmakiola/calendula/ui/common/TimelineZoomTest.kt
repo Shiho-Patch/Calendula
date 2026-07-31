@@ -75,6 +75,32 @@ class TimelineZoomTest {
     }
 
     @Test
+    fun `a pinch held against a fractional bound stays put`() {
+        // A bound that is not a whole pixel is a height the pinch can be pushed
+        // against but never land on, so every frame of a held gesture would look
+        // like a scale change and hand the focal anchor a scroll correction.
+        val fillPx = 62.083f
+        val maxPx = 616.5f
+
+        val floor = pinchedHourHeightPx(target = 1f, fillPx, maxPx)
+        val ceiling = pinchedHourHeightPx(target = 9_000f, fillPx, maxPx)
+
+        assertThat(floor).isEqualTo(63f)
+        assertThat(ceiling).isEqualTo(616f)
+        // Landing there and being pushed further must not move them again.
+        assertThat(pinchedHourHeightPx(floor * 0.9f, fillPx, maxPx)).isEqualTo(floor)
+        assertThat(pinchedHourHeightPx(ceiling * 1.1f, fillPx, maxPx)).isEqualTo(ceiling)
+    }
+
+    @Test
+    fun `the fill floor never leaves dead space under midnight`() {
+        // Rounding the floor down would open a gap the pinch cannot close.
+        val viewport = 1490f
+        val floor = pinchedHourHeightPx(target = 1f, fillPx = viewport / 24f, maxPx = 616f)
+        assertThat(floor * 24).isAtLeast(viewport)
+    }
+
+    @Test
     fun `a settled pinch is what gets persisted`() {
         var persisted: TimelineScale? = null
         val zoom = TimelineZoom(TimelineScale.Regular) { persisted = it }

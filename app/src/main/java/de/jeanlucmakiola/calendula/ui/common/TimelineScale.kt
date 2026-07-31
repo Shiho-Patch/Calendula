@@ -161,10 +161,20 @@ private val PRESET_NAMES: Map<TimelineScale, String> = mapOf(
     TimelineScale.Comfortable to "Comfortable",
 )
 
-/** Serialise for the `timeline_scale` preference; see [parseTimelineScale]. */
+/**
+ * Serialise for the `timeline_scale` preference; see [parseTimelineScale].
+ *
+ * Spelled out rather than an `else` into [PRESET_NAMES], so a preset added later
+ * without a stored name is a compile error here instead of a crash the first
+ * time someone picks it.
+ */
 fun TimelineScale.storageValue(): String = when (this) {
     is TimelineScale.Custom -> CUSTOM_PREFIX + hourHeight.value
-    else -> PRESET_NAMES.getValue(this)
+    TimelineScale.FitDay,
+    TimelineScale.Compact,
+    TimelineScale.Regular,
+    TimelineScale.Comfortable,
+    -> PRESET_NAMES.getValue(this)
 }
 
 /**
