@@ -112,6 +112,7 @@ fun AgendaScreen(
             CalendarDrawer(
                 currentView = selectedView,
                 currentDate = anchor,
+                drawerState = drawerState,
                 viewOrder = drawerViewOrder,
                 onSelectView = { view ->
                     onSelectView(view)

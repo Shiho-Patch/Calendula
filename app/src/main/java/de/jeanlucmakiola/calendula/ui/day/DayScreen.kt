@@ -195,6 +195,7 @@ fun DayScreen(
             CalendarDrawer(
                 currentView = selectedView,
                 currentDate = date,
+                drawerState = drawerState,
                 viewOrder = drawerViewOrder,
                 onSelectView = { view ->
                     onSelectView(view)

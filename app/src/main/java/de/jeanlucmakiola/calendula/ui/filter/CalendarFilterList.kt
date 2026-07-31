@@ -22,6 +22,7 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.sourceAppName
+import de.jeanlucmakiola.floret.components.GroupedListInset
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.positionOf
 
@@ -73,7 +74,12 @@ private fun FilterList(
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 12.dp, bottom = 4.dp),
+                modifier = Modifier.padding(
+                    start = GroupedListInset,
+                    end = GroupedListInset,
+                    top = 12.dp,
+                    bottom = 4.dp,
+                ),
             )
             group.calendars.forEachIndexed { index, cal ->
                 GroupedRow(
@@ -103,7 +109,7 @@ private fun FilterLoading(modifier: Modifier = Modifier) {
         repeat(4) {
             Box(
                 modifier = Modifier
-                    .padding(horizontal = 28.dp)
+                    .padding(horizontal = GroupedListInset)
                     .fillMaxWidth()
                     .height(36.dp)
                     .background(
@@ -129,6 +135,6 @@ private fun FilterMessage(reason: FailureReason, modifier: Modifier = Modifier) 
         textAlign = TextAlign.Center,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 28.dp, vertical = 24.dp),
+            .padding(horizontal = GroupedListInset, vertical = 24.dp),
     )
 }

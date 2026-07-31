@@ -216,6 +216,7 @@ fun WeekScreen(
             CalendarDrawer(
                 currentView = selectedView,
                 currentDate = weekStart,
+                drawerState = drawerState,
                 viewOrder = drawerViewOrder,
                 onSelectView = { view ->
                     onSelectView(view)
