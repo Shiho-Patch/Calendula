@@ -58,6 +58,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
 import de.jeanlucmakiola.floret.locale.localizedDateFormatter
+import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.widget.AgendaWidgetData
 import de.jeanlucmakiola.calendula.widget.CalendulaGlanceTheme
@@ -382,7 +383,7 @@ private fun EventRow(
     val title = event.title.ifBlank { context.getString(R.string.event_untitled) }
     // Glance has no generic alpha modifier, so dim by fading the colour stripe and
     // dropping both text lines to the lower-emphasis on-surface-variant tone.
-    val stripeColor = eventFill(event.color, dark, soften).let {
+    val stripeColor = eventAccent(event.color, dark, soften).let {
         if (dimmed) it.copy(alpha = EventDimAlpha) else it
     }
     val titleColor = if (dimmed) GlanceTheme.colors.onSurfaceVariant else GlanceTheme.colors.onSurface

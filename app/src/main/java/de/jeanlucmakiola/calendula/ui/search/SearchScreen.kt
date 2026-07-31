@@ -56,6 +56,7 @@ import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.Position
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.domain.spanFirstDay
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
@@ -208,7 +209,7 @@ private fun SearchResultRow(
                 modifier = Modifier
                     .size(width = 6.dp, height = 36.dp)
                     .clip(RoundedCornerShape(3.dp))
-                    .background(eventFill(event.color, dark, soften)),
+                    .background(eventAccent(event.color, dark, soften)),
             )
         },
         onClick = onClick,

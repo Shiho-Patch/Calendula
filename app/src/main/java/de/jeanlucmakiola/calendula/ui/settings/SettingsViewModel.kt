@@ -36,6 +36,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.common.TimelineScale
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import de.jeanlucmakiola.calendula.ui.theme.AppFontSettings
 import de.jeanlucmakiola.calendula.ui.theme.FONT_CUSTOM_TOKEN
@@ -170,8 +171,9 @@ class SettingsViewModel @Inject constructor(
                     prefs.drawerViewOrder,
                     prefs.monthViewStyle,
                     prefs.widgetSize,
-                ) { quickSwitch, drawer, monthStyle, widgetSize ->
-                    ViewCustomization(quickSwitch, drawer, monthStyle, widgetSize)
+                    prefs.timelineScale,
+                ) { quickSwitch, drawer, monthStyle, widgetSize, timelineScale ->
+                    ViewCustomization(quickSwitch, drawer, monthStyle, widgetSize, timelineScale)
                 },
             ) { showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization ->
                 MiscSettings(showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization)
@@ -195,6 +197,7 @@ class SettingsViewModel @Inject constructor(
                 drawerViewOrder = misc.viewCustomization.drawerOrder,
                 monthViewStyle = misc.viewCustomization.monthViewStyle,
                 widgetSize = misc.viewCustomization.widgetSize,
+                timelineScale = misc.viewCustomization.timelineScale,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -309,6 +312,7 @@ class SettingsViewModel @Inject constructor(
         val drawerOrder: List<CalendarView>,
         val monthViewStyle: MonthViewStyle,
         val widgetSize: WidgetSize,
+        val timelineScale: TimelineScale,
     )
 
     /** Contact special-dates sub-page (issue #15); its own flow — the main state is full. */
@@ -593,6 +597,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setMonthViewStyle(style: MonthViewStyle) {
         viewModelScope.launch { prefs.setMonthViewStyle(style) }
+    }
+
+    fun setTimelineScale(scale: TimelineScale) {
+        viewModelScope.launch { prefs.setTimelineScale(scale) }
     }
 
     fun setDrawerViewOrder(order: List<CalendarView>) {

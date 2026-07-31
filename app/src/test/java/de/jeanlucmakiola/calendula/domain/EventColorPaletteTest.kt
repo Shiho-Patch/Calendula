@@ -74,10 +74,10 @@ class EventColorPaletteTest {
     }
 
     @Test
-    fun `neutrals collapse to one painted tint instead of a run of look-alikes`() {
-        // Black and every gray paint as the same pale swatch (the picker pins
-        // lightness and floors saturation), so only one survives — no stranded
-        // run of look-alike "pinks" at the end of the grid (#22).
+    fun `neutrals collapse instead of forming a run of look-alikes`() {
+        // Neutrals lose their hue entirely when painted, so they collapse onto
+        // the one or two greys the poles offer — a dark and a pale — instead of
+        // the old stranded run of look-alike "pinks" at the end of the grid (#22).
         val curated = listOf(
             EventColorOption("black", 0xFF000000.toInt()),
             EventColorOption("gray", 0xFF808080.toInt()),
@@ -86,8 +86,11 @@ class EventColorPaletteTest {
             EventColorOption("red", 0xFFFF0000.toInt()),
         ).curatedForPicker().map { it.key }
 
-        assertThat(curated).containsNoneOf("gray", "darkgray") // folded into black
+        assertThat(curated).doesNotContain("gray") // paints as black's grey
         assertThat(curated).containsAtLeast("black", "red", "blue")
+        // darkgray is light enough to keep a pale character, so the three
+        // neutrals still fold down to at most two swatches, never a run.
+        assertThat(curated.count { it in listOf("black", "gray", "darkgray") }).isAtMost(2)
     }
 
     @Test

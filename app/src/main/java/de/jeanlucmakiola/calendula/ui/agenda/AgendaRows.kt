@@ -31,6 +31,7 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
+import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
 import de.jeanlucmakiola.floret.components.GroupedRow
@@ -137,7 +138,7 @@ internal fun AgendaEventRow(
                 modifier = Modifier
                     .size(width = 6.dp, height = 36.dp)
                     .clip(RoundedCornerShape(3.dp))
-                    .background(eventFill(event.color, dark, soften)),
+                    .background(eventAccent(event.color, dark, soften)),
             )
         },
         onClick = onClick,

@@ -5,6 +5,7 @@ import de.jeanlucmakiola.floret.reminders.ReminderOverride
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
+import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.domain.EventFormField
 import de.jeanlucmakiola.calendula.domain.FontRole
@@ -13,6 +14,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.common.TimelineScale
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -96,6 +98,31 @@ class SettingsPrefsTest {
         assertThat(prefs.showHourLines.first()).isFalse()
         prefs.setShowHourLines(true)
         assertThat(prefs.showHourLines.first()).isTrue()
+    }
+
+    @Test
+    fun `timeline scale defaults to regular and round-trips`(@TempDir tempDir: Path) = runTest {
+        // Regular is the historical 56dp scale — an existing install that never
+        // opened the setting must keep the timeline it had (#56).
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.timelineScale.first()).isEqualTo(TimelineScale.Regular)
+        prefs.setTimelineScale(TimelineScale.FitDay)
+        assertThat(prefs.timelineScale.first()).isEqualTo(TimelineScale.FitDay)
+    }
+
+    @Test
+    fun `a pinched timeline height round-trips`(@TempDir tempDir: Path) = runTest {
+        // The pinch settles on a height between the presets, so the preference
+        // has to store the number, not just a named step (#56).
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        val pinched = TimelineScale.custom(63.5f.dp)
+        prefs.setTimelineScale(pinched)
+        assertThat(prefs.timelineScale.first()).isEqualTo(pinched)
+
+        // …and a preset picked afterwards replaces it, rather than the two
+        // coexisting with one silently winning.
+        prefs.setTimelineScale(TimelineScale.Comfortable)
+        assertThat(prefs.timelineScale.first()).isEqualTo(TimelineScale.Comfortable)
     }
 
     @Test

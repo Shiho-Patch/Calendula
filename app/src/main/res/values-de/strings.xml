@@ -490,4 +490,12 @@
     </plurals>
     <string name="event_detail_duplicate">Duplikate</string>
     <string name="reminder_day_tomorrow">Morgen</string>
+    <string name="event_edit_timezone_device">Zeitzone des Gerätes</string>
+    <string name="event_edit_timezone_device_summary">Passt sich an wo Sie sind</string>
+    <string name="event_edit_timezone_search">Zeitzonen durchsuchen</string>
+    <string name="event_edit_timezone_recent">Kürzliche</string>
+    <string name="event_edit_timezone_all">Alle Zeitzonen</string>
+    <string name="event_edit_timezone_none">Keine Zeitzone passt zu “%1$s”</string>
+    <string name="event_edit_timezone_local_time">%1$s deiner Zeit</string>
+    <string name="import_reminder_prompt_title">Deine Standarterinnerung anwenden?</string>
 </resources>

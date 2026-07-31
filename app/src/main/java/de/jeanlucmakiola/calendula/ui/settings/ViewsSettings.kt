@@ -33,7 +33,9 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.PickerDescription
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.common.TimelineScale
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
+import de.jeanlucmakiola.calendula.ui.common.descriptionRes
 import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
 import de.jeanlucmakiola.calendula.ui.common.icon
 import de.jeanlucmakiola.calendula.ui.common.labelRes
@@ -68,6 +70,7 @@ internal fun ViewsScreen(
     var showTimeFormat by remember { mutableStateOf(false) }
     var showPastEvents by remember { mutableStateOf(false) }
     var showAgendaScreenRange by remember { mutableStateOf(false) }
+    var showTimelineScale by remember { mutableStateOf(false) }
 
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_views),
@@ -145,9 +148,15 @@ internal fun ViewsScreen(
         Spacer(Modifier.height(8.dp))
         SectionHeader(stringResource(R.string.settings_week_day_header))
         GroupedRow(
+            title = stringResource(R.string.settings_timeline_scale),
+            summary = stringResource(state.timelineScale.labelRes),
+            position = Position.Top,
+            onClick = { showTimelineScale = true },
+        )
+        GroupedRow(
             title = stringResource(R.string.settings_hour_lines),
             summary = stringResource(R.string.settings_hour_lines_summary),
-            position = Position.Alone,
+            position = Position.Bottom,
             trailing = {
                 Switch(
                     checked = state.showHourLines,
@@ -319,6 +328,25 @@ internal fun ViewsScreen(
             selected = state.pastEventDisplay,
             onSelect = viewModel::setPastEventDisplay,
             onDismiss = { showPastEvents = false },
+        )
+    }
+    if (showTimelineScale) {
+        OptionPicker(
+            title = stringResource(R.string.settings_timeline_scale),
+            header = { PickerDescription(stringResource(R.string.settings_timeline_scale_hint)) },
+            predictiveBack = true,
+            // A height pinched on the timeline is listed alongside the presets
+            // rather than left as a silently unticked list: it is the current
+            // setting, so it has to be visible here, and seeing it next to the
+            // named steps is what makes "tap one to go back" obvious.
+            options = TimelineScale.presets + listOfNotNull(
+                state.timelineScale as? TimelineScale.Custom,
+            ),
+            selected = state.timelineScale,
+            label = { stringResource(it.labelRes) },
+            summary = { stringResource(it.descriptionRes) },
+            onSelect = viewModel::setTimelineScale,
+            onDismiss = { showTimelineScale = false },
         )
     }
     if (showAgendaScreenRange) {

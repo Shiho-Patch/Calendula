@@ -100,6 +100,7 @@ import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.icuTimeZoneRegion
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.floret.components.OptionCard
 import de.jeanlucmakiola.floret.locale.currentLocale
@@ -386,7 +387,7 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
     val instance = detail.instance
     val dark = isSystemInDarkTheme()
     val locale = currentDetailLocale()
-    val accent = eventFill(instance.color, dark, LocalSoftenColors.current)
+    val accent = eventAccent(instance.color, dark, LocalSoftenColors.current)
 
     Column(
         modifier = modifier

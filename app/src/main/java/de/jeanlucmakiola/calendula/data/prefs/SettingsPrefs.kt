@@ -21,6 +21,9 @@ import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.common.TimelineScale
+import de.jeanlucmakiola.calendula.ui.common.parseTimelineScale
+import de.jeanlucmakiola.calendula.ui.common.storageValue
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import de.jeanlucmakiola.calendula.ui.theme.FONT_SYSTEM_TOKEN
 import de.jeanlucmakiola.calendula.widget.WidgetSize
@@ -268,6 +271,19 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setMonthViewStyle(style: MonthViewStyle) {
         store.edit { it[MONTH_VIEW_STYLE_KEY] = style.name }
+    }
+
+    /**
+     * How tall an hour is drawn in the week and day timelines (#56). Defaults to
+     * [TimelineScale.Regular] — the historical 56dp scale. Holds either a preset
+     * or the height a pinch on the timeline settled at.
+     */
+    val timelineScale: Flow<TimelineScale> = store.data.map { prefs ->
+        parseTimelineScale(prefs[TIMELINE_SCALE_KEY])
+    }
+
+    suspend fun setTimelineScale(scale: TimelineScale) {
+        store.edit { it[TIMELINE_SCALE_KEY] = scale.storageValue() }
     }
 
     /**
@@ -848,6 +864,7 @@ class SettingsPrefs @Inject constructor(
         internal val DIM_COMPLETED_EVENTS_KEY = booleanPreferencesKey("dim_completed_events")
         internal val SHOW_WEEK_NUMBERS_KEY = booleanPreferencesKey("show_week_numbers")
         internal val MONTH_VIEW_STYLE_KEY = stringPreferencesKey("month_view_style")
+        internal val TIMELINE_SCALE_KEY = stringPreferencesKey("timeline_scale")
         internal val TODAY_BUTTON_IN_TOOLBAR_KEY = booleanPreferencesKey("today_button_in_toolbar")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
         internal val QUICK_SWITCH_VIEWS_KEY = stringPreferencesKey("quick_switch_views")
