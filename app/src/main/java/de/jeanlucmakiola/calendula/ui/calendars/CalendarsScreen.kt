@@ -88,6 +88,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
 import de.jeanlucmakiola.calendula.ui.common.accountGroupTitle
 import de.jeanlucmakiola.calendula.ui.common.groupByAccount
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.LeadingAvatar
 import de.jeanlucmakiola.calendula.ui.common.SourceLogo
@@ -442,7 +443,7 @@ private fun CalendarEditor(
                     )
                 }
             }
-            EditorCard(icon = Icons.Default.CalendarMonth, iconTint = eventFill(color, dark, soften)) {
+            EditorCard(icon = Icons.Default.CalendarMonth, iconTint = eventAccent(color, dark, soften)) {
                 InlineTextField(
                     value = name,
                     onValueChange = { name = it },

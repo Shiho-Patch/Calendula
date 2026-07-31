@@ -330,8 +330,8 @@
     <string name="settings_default_view">Default view</string>
     <string name="settings_dynamic_color">Dynamic colour</string>
     <string name="settings_dynamic_color_unavailable">Requires Android 12 or newer</string>
-    <string name="settings_soften_colors">Soften calendar colours</string>
-    <string name="settings_soften_colors_summary">Tone calendar and event colours down to fit the theme. Turn off to show the raw colours from the calendar source.</string>
+    <string name="settings_soften_colors">Harmonise calendar colours</string>
+    <string name="settings_soften_colors_summary">Keep each calendar\'s hue but even out its brightness, so every event stays legible and the colours sit together. Turn off to show the raw colours from the calendar source.</string>
     <string name="settings_font_headings">Headings font</string>
     <string name="settings_font_body">Body font</string>
     <string name="settings_font_system">System default</string>
