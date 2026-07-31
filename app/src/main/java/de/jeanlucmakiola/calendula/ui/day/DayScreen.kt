@@ -499,7 +499,7 @@ private fun Timeline(
         // The pinch sits on the Row, above both scroll viewports: it has to
         // outrank the vertical scroll, and it does that by watching the initial
         // pass, which only reaches it if it is their ancestor.
-        val pinch = rememberTimelinePinchZoom(scrollState, hourHeight, zoom)
+        val pinch = rememberTimelinePinchZoom(scrollState, maxHeight, hourHeight, zoom)
         // Gutter and day column are two scroll viewports that SHARE one scroll
         // state, so they stay perfectly aligned. The day-column viewport is a
         // static, rounded-clipped window — the content scrolls inside it, so the

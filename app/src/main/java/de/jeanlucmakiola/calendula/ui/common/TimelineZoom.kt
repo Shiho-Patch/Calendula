@@ -19,6 +19,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * The scale the timelines draw at right now: the stored preference, or whatever
@@ -104,16 +105,19 @@ fun rememberTimelineZoom(
  *
  * [hourHeight] is the *resolved* height, so a pinch that starts from
  * `FitDay` picks up where the viewport left it rather than jumping.
+ * [viewportHeight] sets how far out it can go — see [fillHourHeight].
  */
 @Composable
 fun rememberTimelinePinchZoom(
     scrollState: ScrollState,
+    viewportHeight: Dp,
     hourHeight: Dp,
     zoom: TimelineZoom,
 ): Modifier {
-    // The gesture loop outlives any single composition, so it reads the height
-    // through a state handle rather than capturing the value it started with.
+    // The gesture loop outlives any single composition, so it reads these
+    // through state handles rather than capturing what they were when it started.
     val currentHourHeight = rememberUpdatedState(hourHeight)
+    val currentViewport = rememberUpdatedState(viewportHeight)
     return Modifier.pointerInput(scrollState, zoom) {
         awaitEachGesture {
             awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -136,8 +140,11 @@ fun rememberTimelinePinchZoom(
                     }
                     if (claimed) {
                         val old = currentHourHeight.value.toPx()
-                        val new = (old * step)
-                            .coerceIn(MIN_PINCH_HOUR_HEIGHT.toPx(), MAX_PINCH_HOUR_HEIGHT.toPx())
+                        val new = pinchedHourHeightPx(
+                            target = old * step,
+                            fillPx = fillHourHeight(currentViewport.value).toPx(),
+                            maxPx = MAX_PINCH_HOUR_HEIGHT.toPx(),
+                        )
                         if (new != old) {
                             val centroidY = event.calculateCentroid(useCurrent = true).y
                             pending += anchoredScroll(scrollState.value, centroidY, old, new) -
@@ -156,6 +163,23 @@ fun rememberTimelinePinchZoom(
         }
     }
 }
+
+/**
+ * Where a pinch aiming at [target] px per hour actually lands: clamped between
+ * "the whole day fills the screen" ([fillPx]) and [maxPx], then rounded to a
+ * whole pixel.
+ *
+ * The rounding is not cosmetic. The hour gutter is 24 stacked boxes one hour
+ * tall, and each rounds its own height to whole pixels, while the hour lines and
+ * event blocks are drawn at the fractional height — so a height of 56.4px lays
+ * the labels out at 56px and leaves the 23:00 label ~9px above the line it
+ * names, jumping the whole column as a pinch drifts across each half pixel.
+ * Pinning the hour to whole pixels keeps every part of the timeline on one grid.
+ */
+internal fun pinchedHourHeightPx(target: Float, fillPx: Float, maxPx: Float): Float =
+    // Filling the viewport wins over the ceiling: on a screen tall enough for
+    // the two to disagree, dead space is the worse of the two failures.
+    target.coerceAtMost(maxPx).coerceAtLeast(fillPx).roundToInt().toFloat()
 
 /**
  * The scroll offset that keeps the moment under [centroidY] under it after the

@@ -46,6 +46,35 @@ class TimelineZoomTest {
     }
 
     @Test
+    fun `a pinch lands on whole pixels`() {
+        // The gutter is 24 stacked hour-tall boxes, each rounding its own height,
+        // while the lines and blocks are drawn at the fractional one — a
+        // fractional hour puts the two on different grids and jumps the labels
+        // about as the pinch drifts across each half pixel.
+        for (target in listOf(56.4f, 56.6f, 83.5f, 120.01f)) {
+            val landed = pinchedHourHeightPx(target, fillPx = 28f, maxPx = 240f)
+            assertThat(landed).isEqualTo(landed.toInt().toFloat())
+        }
+    }
+
+    @Test
+    fun `a pinch stops where the day fills the screen`() {
+        assertThat(pinchedHourHeightPx(target = 5f, fillPx = 28f, maxPx = 240f)).isEqualTo(28f)
+    }
+
+    @Test
+    fun `filling the screen outranks the ceiling`() {
+        // On a viewport tall enough for the two to disagree, dead space under
+        // midnight is the worse of the two failures.
+        assertThat(pinchedHourHeightPx(target = 10f, fillPx = 300f, maxPx = 240f)).isEqualTo(300f)
+    }
+
+    @Test
+    fun `a pinch stops at the ceiling`() {
+        assertThat(pinchedHourHeightPx(target = 9_000f, fillPx = 28f, maxPx = 240f)).isEqualTo(240f)
+    }
+
+    @Test
     fun `a settled pinch is what gets persisted`() {
         var persisted: TimelineScale? = null
         val zoom = TimelineZoom(TimelineScale.Regular) { persisted = it }

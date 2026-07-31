@@ -73,27 +73,34 @@ class TimelineScaleTest {
     }
 
     @Test
-    fun `a pinched height is used as given, whatever the viewport`() {
-        val scale = TimelineScale.custom(63.dp)
-        assertThat(scale.hourHeight(phoneViewport)).isEqualTo(63.dp)
-        assertThat(scale.hourHeight(120.dp)).isEqualTo(63.dp)
+    fun `a pinched height is used as given`() {
+        assertThat(TimelineScale.custom(63.dp).hourHeight(phoneViewport)).isEqualTo(63.dp)
     }
 
     @Test
-    fun `a pinch cannot zoom past the legible range`() {
-        // The gesture clamps as it goes, but the floor and ceiling belong to the
-        // model — nothing that constructs a scale may land outside them (#56).
-        assertThat(TimelineScale.custom(1.dp).hourHeight).isEqualTo(MIN_PINCH_HOUR_HEIGHT)
-        assertThat(TimelineScale.custom(10_000.dp).hourHeight).isEqualTo(MAX_PINCH_HOUR_HEIGHT)
+    fun `a pinched height never leaves the timeline short of the screen`() {
+        // Zooming out means "show me more of the day"; once the whole day is on
+        // screen that is answered, and going further would only open dead space
+        // under midnight.
+        val tooSmall = TimelineScale.custom(4.dp)
+        assertThat(tooSmall.hourHeight(phoneViewport) * 24).isAtLeast(phoneViewport)
     }
 
     @Test
-    fun `a pinch can go beyond every preset in both directions`() {
+    fun `a height pinched on one viewport still fills a taller one`() {
+        // Pinching all the way out in landscape stores a small height; rotating
+        // back to portrait must not leave the day floating in the top half.
+        val pinchedInLandscape = TimelineScale.custom(fillHourHeight(320.dp))
+        assertThat(pinchedInLandscape.hourHeight(phoneViewport) * 24).isAtLeast(phoneViewport)
+    }
+
+    @Test
+    fun `a pinch can zoom in past every preset`() {
         // Otherwise the gesture would be strictly less capable than the picker
         // it is meant to refine.
         val presetHeights = TimelineScale.presets.map { it.hourHeight(phoneViewport) }
-        assertThat(MIN_PINCH_HOUR_HEIGHT).isAtMost(presetHeights.min())
         assertThat(MAX_PINCH_HOUR_HEIGHT).isGreaterThan(presetHeights.max())
+        assertThat(TimelineScale.custom(200.dp).hourHeight(phoneViewport)).isEqualTo(200.dp)
     }
 
     @Test

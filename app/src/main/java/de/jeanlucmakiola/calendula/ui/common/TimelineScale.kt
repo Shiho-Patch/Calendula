@@ -42,9 +42,13 @@ sealed interface TimelineScale {
         /** The named steps the settings picker offers, coarse to roomy. */
         val presets: List<TimelineScale> = listOf(FitDay, Compact, Regular, Comfortable)
 
-        /** A pinched hour height, clamped into the legible zoom range. */
+        /**
+         * A pinched hour height. The floor a pinch actually stops at depends on
+         * the viewport and is applied when the height is resolved (see
+         * [hourHeight]); this only holds a stored value to something sane.
+         */
         fun custom(hourHeight: Dp): Custom =
-            Custom(hourHeight.coerceIn(MIN_PINCH_HOUR_HEIGHT, MAX_PINCH_HOUR_HEIGHT))
+            Custom(hourHeight.coerceIn(MIN_STORED_HOUR_HEIGHT, MAX_PINCH_HOUR_HEIGHT))
     }
 }
 
@@ -56,6 +60,11 @@ sealed interface TimelineScale {
  * being legible, and above [FIT_DAY_MAX] a short landscape day would stretch its
  * blocks absurdly. On a screen too short for the whole day the clamp wins and
  * the timeline still scrolls a little — honest, rather than unreadable.
+ *
+ * A pinched height is held to [fillHourHeight] here and not only in the gesture,
+ * because the viewport can change under a height that was already stored: pinch
+ * all the way out in landscape and the same value would leave portrait with dead
+ * space under midnight.
  */
 fun TimelineScale.hourHeight(viewportHeight: Dp): Dp = when (this) {
     TimelineScale.FitDay -> (viewportHeight / 24f).coerceIn(FIT_DAY_MIN, FIT_DAY_MAX)
@@ -63,6 +72,8 @@ fun TimelineScale.hourHeight(viewportHeight: Dp): Dp = when (this) {
     TimelineScale.Regular -> 56.dp
     TimelineScale.Comfortable -> 80.dp
     is TimelineScale.Custom -> this.hourHeight
+        .coerceAtMost(MAX_PINCH_HOUR_HEIGHT)
+        .coerceAtLeast(fillHourHeight(viewportHeight))
 }
 
 /**
@@ -91,10 +102,14 @@ val FIT_DAY_MIN = 24.dp
 val FIT_DAY_MAX = 96.dp
 
 /**
- * Floor for a pinch — the same legibility limit [TimelineScale.FitDay] stops at,
- * since the gutter has the same 24 labels to fit either way.
+ * The hour height at which all 24 hours exactly fill [viewportHeight] — how far
+ * out a pinch can zoom.
+ *
+ * Below it there is no more day left to uncover, so the only thing shrinking
+ * further buys is empty space under midnight. Zooming out means "show me more of
+ * the day", and once the whole day is on screen that request is answered.
  */
-val MIN_PINCH_HOUR_HEIGHT = FIT_DAY_MIN
+fun fillHourHeight(viewportHeight: Dp): Dp = viewportHeight / 24f
 
 /**
  * Ceiling for a pinch, deliberately far above [TimelineScale.Comfortable]: a
@@ -102,6 +117,13 @@ val MIN_PINCH_HOUR_HEIGHT = FIT_DAY_MIN
  * should be allowed to go further than any preset offers.
  */
 val MAX_PINCH_HOUR_HEIGHT = 240.dp
+
+/**
+ * Floor for a *stored* pinched height, which only has to stay sane enough to be
+ * re-clamped against whatever viewport it is later shown in. The floor a pinch
+ * stops at is [fillHourHeight].
+ */
+private val MIN_STORED_HOUR_HEIGHT = 1.dp
 
 @get:StringRes
 val TimelineScale.labelRes: Int
