@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a start gets the default too; one that names its own end — an `.ics` file, a
   duplicate — keeps that length. All-day events are unaffected ([#54]).
 
+### Changed
+- A reminder in the status bar is now Calendula's own mark — the calendar with
+  the bloom — instead of the generic calendar glyph it shared with the system's
+  date surfaces and every other calendar app. The status bar draws that icon as
+  a plain silhouette, so its shape is the only thing that could tell them apart
+  ([#83]).
+
 ## [2.17.1] — 2026-07-30
 
 ### Added
@@ -1259,6 +1266,7 @@ automatically, with zero telemetry and no internet permission.
 [#79]: https://codeberg.org/jlmakiola/calendula/issues/79
 [#81]: https://codeberg.org/jlmakiola/calendula/issues/81
 [#82]: https://codeberg.org/jlmakiola/calendula/issues/82
+[#83]: https://codeberg.org/jlmakiola/calendula/issues/83
 [#87]: https://codeberg.org/jlmakiola/calendula/issues/87
 [#89]: https://codeberg.org/jlmakiola/calendula/issues/89
 [#103]: https://codeberg.org/jlmakiola/calendula/issues/103
