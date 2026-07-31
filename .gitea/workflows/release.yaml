@@ -264,9 +264,10 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "fdroid/repo/calendula_v${VERSION}.apk"
 
       # Per-version "What's New": ensure this version's changelog exists in the
-      # fastlane tree (committed at release-cut time for the official repo; this
-      # regenerates it from CHANGELOG.md so the self-hosted repo never depends on
-      # the commit having happened). The transform below then carries it across.
+      # fastlane tree. The committed hand-written summary (kept under Play's
+      # 500-char cap) is used as-is; only if it is missing does the script fall
+      # back to CHANGELOG.md, so the self-hosted repo never depends on the
+      # commit having happened. The transform below then carries it across.
       - name: Ensure this version's changelog is in the fastlane tree
         if: env.IS_RELEASE == 'true'
         run: bash scripts/sync_changelog_to_fastlane.sh

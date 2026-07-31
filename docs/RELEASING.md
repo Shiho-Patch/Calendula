@@ -33,15 +33,27 @@ Published version codes so far: `v0.1.0`→100 … `v1.0.0`→10000 … `v2.0.0`
    the F-Droid per-version changelog.
 3. Bump the committed `versionName` (and `versionCode`) in
    `app/build.gradle.kts` to the new version. **This bump is what triggers the
-   release** when the branch merges to `main`. Then run
+   release** when the branch merges to `main`. Then write the per-version
+   "What's New" by hand to
+   `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` and commit it.
+
+   **Keep it under 500 characters.** That one file is what both the **official**
+   F-Droid repo (which reads it from the tagged source tree) and **Google Play**
+   publish, and Play caps "What's New" at 500 characters while F-Droid truncates
+   long entries in-client. So it is a short summary — a handful of bullets
+   naming the headline changes — not a copy of the CHANGELOG.md section, which
+   runs to thousands of characters. `CHANGELOG.md` stays the full account and is
+   what the Gitea/Codeberg release notes use.
+
+   Then run
    ```bash
    scripts/sync_changelog_to_fastlane.sh
    ```
-   and commit the generated
-   `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`. This is what
-   makes the **official** F-Droid repo show this version's changelog (it reads
-   the changelog from the tagged source tree). The self-hosted pipeline
-   regenerates it regardless, so forgetting only affects the official listing.
+   to check it. The script **keeps** a committed file untouched and only warns
+   if it is over the limit; it extracts the CHANGELOG.md section as a fallback
+   solely when the file is missing, so the self-hosted pipeline always has
+   something to publish. The pipeline runs the same script, so forgetting to
+   write the file yields a long auto-generated changelog rather than none.
 4. **Verify the release build on a real device** — the mandatory gate. The
    shipped APK is R8-shrunk/obfuscated, and bugs that only appear there, or
    only on first run, never show up in the debug build or on a device that
@@ -142,8 +154,9 @@ because the store listing already lives in `fastlane/metadata/android/` — the
 same tree the official F-Droid repo harvests. One metadata source, two stores.
 
 **What gets uploaded per release:** the AAB, plus the per-version "What's New"
-from `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` (generated
-from `CHANGELOG.md` by `scripts/sync_changelog_to_fastlane.sh`). Listing text is
+from `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` — the
+hand-written summary from step 3, which is why it must stay **under 500
+characters**: Play rejects a longer one. Listing text is
 **not** touched — an accidental overwrite of a live listing triggers a Play
 policy review. Sync it deliberately with `bundle exec fastlane listing`.
 

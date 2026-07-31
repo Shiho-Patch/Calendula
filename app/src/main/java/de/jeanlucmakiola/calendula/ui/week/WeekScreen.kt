@@ -77,6 +77,7 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.hasEnded
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
+import de.jeanlucmakiola.calendula.ui.common.CalendarTitleButton
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
@@ -246,6 +247,7 @@ fun WeekScreen(
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
+                    onJumpToDate = jumpToDate,
                     showTodayButton = todayInToolbar,
                     onToday = jumpToToday,
                     scrollBehavior = scrollBehavior,
@@ -398,6 +400,7 @@ private fun WeekTopBar(
     onCycleView: () -> Unit,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
+    onJumpToDate: (LocalDate) -> Unit,
     showTodayButton: Boolean,
     onToday: () -> Unit,
     scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
@@ -405,9 +408,10 @@ private fun WeekTopBar(
     val locale = currentLocale()
     TopAppBar(
         title = {
-            Text(
-                text = formatWeekTitle(weekStart, locale, currentYear),
-                style = MaterialTheme.typography.titleLarge,
+            CalendarTitleButton(
+                title = formatWeekTitle(weekStart, locale, currentYear),
+                currentDate = weekStart,
+                onJumpToDate = onJumpToDate,
             )
         },
         navigationIcon = {

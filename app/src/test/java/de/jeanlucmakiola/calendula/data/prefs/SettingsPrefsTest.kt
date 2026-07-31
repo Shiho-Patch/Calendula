@@ -503,6 +503,56 @@ class SettingsPrefsTest {
     }
 
     @Test
+    fun `event duration defaults to an hour and clamps to a sane span`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.defaultEventDurationMinutes.first()).isEqualTo(60)
+        prefs.setDefaultEventDurationMinutes(480)
+        assertThat(prefs.defaultEventDurationMinutes.first()).isEqualTo(480)
+        prefs.setDefaultEventDurationMinutes(0)
+        assertThat(prefs.defaultEventDurationMinutes.first()).isEqualTo(1)
+        prefs.setDefaultEventDurationMinutes(5_000)
+        assertThat(prefs.defaultEventDurationMinutes.first()).isEqualTo(1_440)
+    }
+
+    @Test
+    fun `per-calendar duration round-trips and clears back to inherit`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.perCalendarEventDuration.first()).isEmpty()
+        prefs.setCalendarEventDuration(7L, 480)
+        prefs.setCalendarEventDuration(9L, 30)
+        assertThat(prefs.perCalendarEventDuration.first()).containsExactly(7L, 480, 9L, 30)
+        prefs.setCalendarEventDuration(7L, null)
+        assertThat(prefs.perCalendarEventDuration.first()).containsExactly(9L, 30)
+    }
+
+    @Test
+    fun `garbage per-calendar duration entries are dropped, the rest survive`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        val store = newDataStore(tempDir)
+        val prefs = SettingsPrefs(store)
+        store.updateData { p ->
+            val m = p.toMutablePreferences()
+            // A bad id, a non-numeric length, one out of range, and a good entry.
+            m[SettingsPrefs.CALENDAR_EVENT_DURATION_KEY] = "x=60;7=soon;8=99999;9=45"
+            m
+        }
+        assertThat(prefs.perCalendarEventDuration.first()).containsExactly(9L, 45)
+    }
+
+    @Test
+    fun `resolveDefaultEventDuration prefers the calendar's own length`() {
+        val overrides = mapOf(7L to 480)
+        assertThat(resolveDefaultEventDuration(60, overrides, calendarId = 7L)).isEqualTo(480)
+        assertThat(resolveDefaultEventDuration(60, overrides, calendarId = 9L)).isEqualTo(60)
+        assertThat(resolveDefaultEventDuration(60, overrides, calendarId = null)).isEqualTo(60)
+    }
+
+    @Test
     fun `custom-font stamps default to zero and bump per role independently`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
         // Existing installs have no stamp key — that must read as 0.

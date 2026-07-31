@@ -354,35 +354,66 @@ private fun CustomDaysEditor(
 }
 
 /**
- * Snooze-duration picker, full-screen and **single-select**: the [presets]
- * (whole-minute delays) each sit as a checkmark row, with a "Custom" row that
- * expands an inline amount field plus a Minutes/Hours unit toggle to enter an
- * arbitrary delay. Mirrors [AgendaRangePicker]'s custom-expand pattern; picking
- * a preset or confirming a custom value applies via [onSelect] and closes.
- * [label] renders a delay in minutes as a duration ("10 minutes", "1 hour") and
- * is reused for both the rows and the custom preview.
+ * Duration picker, full-screen and **single-select**: the [presets] (whole-minute
+ * lengths) each sit as a checkmark row, with a "Custom" row that expands an
+ * inline amount field plus a Minutes/Hours unit toggle to enter an arbitrary
+ * one. Mirrors [AgendaRangePicker]'s custom-expand pattern; picking a preset or
+ * confirming a custom value applies via [onSelect] and closes. [label] renders a
+ * length in minutes ("10 minutes", "1 hour") and is reused for both the rows and
+ * the custom preview.
+ *
+ * [inheritLabel] adds an exclusive "use the default" row on top, for the
+ * per-calendar pickers; picking it reports null. [selected] is null exactly when
+ * that row is the current choice. [description] explains the setting above the
+ * rows when it needs it. [maxMinutes] caps what the custom editor will confirm,
+ * for settings that clamp their stored value — offering a length the store would
+ * silently shorten is worse than refusing it.
  */
 @Composable
-fun SnoozeDurationPicker(
+fun DurationPicker(
     title: String,
     presets: List<Int>,
-    selected: Int,
+    selected: Int?,
     label: @Composable (Int) -> String,
-    onSelect: (Int) -> Unit,
+    onSelect: (Int?) -> Unit,
     onDismiss: () -> Unit,
+    description: String? = null,
+    inheritLabel: String? = null,
+    maxMinutes: Int = Int.MAX_VALUE,
 ) {
-    val customSelected = selected !in presets
+    val inherits = selected == null
+    // The current choice when it isn't one of the presets — the Custom row then
+    // names it and the editor opens pre-filled with it.
+    val custom = selected?.takeIf { it !in presets }
     val rowCount = presets.size + 1 // + the custom row
 
     var customExpanded by rememberSaveable { mutableStateOf(false) }
     var amountText by rememberSaveable {
-        mutableStateOf(if (customSelected) snoozeCustomAmount(selected).toString() else "")
+        mutableStateOf(custom?.let { durationCustomAmount(it).toString() }.orEmpty())
     }
     var unit by rememberSaveable {
-        mutableStateOf(if (customSelected) snoozeCustomUnit(selected) else ReminderUnit.Minutes)
+        mutableStateOf(custom?.let { durationCustomUnit(it) } ?: ReminderUnit.Minutes)
     }
 
     FullScreenPicker(title = title, onDismiss = onDismiss, predictiveBack = true) {
+        if (description != null) PickerDescription(description)
+        if (inheritLabel != null) {
+            GroupedRow(
+                title = inheritLabel,
+                position = Position.Alone,
+                selected = inherits,
+                trailing = if (inherits) {
+                    { SelectedCheck() }
+                } else {
+                    null
+                },
+                onClick = {
+                    onSelect(null)
+                    onDismiss()
+                },
+            )
+            Spacer(Modifier.height(24.dp))
+        }
         presets.forEachIndexed { index, minute ->
             val isSelected = minute == selected
             GroupedRow(
@@ -403,10 +434,10 @@ fun SnoozeDurationPicker(
         // The Custom row connects downward into the editor card when expanded, so
         // the two read as one grouped container (the shared custom-expand pattern).
         GroupedRow(
-            title = if (customSelected) label(selected) else stringResource(R.string.event_edit_reminder_custom),
+            title = custom?.let { label(it) } ?: stringResource(R.string.event_edit_reminder_custom),
             position = if (customExpanded) Position.Top else positionOf(presets.size, rowCount),
-            selected = customSelected,
-            trailing = if (customSelected) {
+            selected = custom != null,
+            trailing = if (custom != null) {
                 { SelectedCheck() }
             } else {
                 null
@@ -418,12 +449,13 @@ fun SnoozeDurationPicker(
             enter = expandEnter(),
             exit = collapseExit(),
         ) {
-            CustomSnoozeEditor(
+            CustomDurationEditor(
                 amountText = amountText,
                 onAmountChange = { amountText = it },
                 unit = unit,
                 onUnitChange = { unit = it },
                 label = label,
+                maxMinutes = maxMinutes,
                 onConfirm = { minutes ->
                     onSelect(minutes)
                     onDismiss()
@@ -433,41 +465,48 @@ fun SnoozeDurationPicker(
     }
 }
 
-/** Whole hours if the delay divides evenly, else minutes. */
-private fun snoozeCustomUnit(minutes: Int): ReminderUnit =
+/** Whole hours if the length divides evenly, else minutes. */
+private fun durationCustomUnit(minutes: Int): ReminderUnit =
     if (minutes % ReminderUnit.Hours.minutesFactor == 0) ReminderUnit.Hours else ReminderUnit.Minutes
 
-private fun snoozeCustomAmount(minutes: Int): Int =
+private fun durationCustomAmount(minutes: Int): Int =
     if (minutes % ReminderUnit.Hours.minutesFactor == 0) minutes / ReminderUnit.Hours.minutesFactor else minutes
 
 /**
- * The expanded "Custom" snooze editor: a tonal card connected to the Custom row
+ * The expanded "Custom" duration editor: a tonal card connected to the Custom row
  * above it. A Minutes/Hours unit toggle, an amount field with a live preview of
- * the delay it resolves to, and a tonal confirm enabled only for a valid 1–999
- * amount. [onConfirm] receives the final delay in minutes.
+ * the length it resolves to, and a tonal confirm enabled only for a valid 1–999
+ * amount that stays within [maxMinutes]. Over the cap, the preview names the
+ * limit instead of a length the setting could not keep. [onConfirm] receives the
+ * final length in minutes.
  */
 @Composable
-private fun CustomSnoozeEditor(
+private fun CustomDurationEditor(
     amountText: String,
     onAmountChange: (String) -> Unit,
     unit: ReminderUnit,
     onUnitChange: (ReminderUnit) -> Unit,
     label: @Composable (Int) -> String,
+    maxMinutes: Int,
     onConfirm: (Int) -> Unit,
 ) {
     val units = remember { listOf(ReminderUnit.Minutes, ReminderUnit.Hours) }
-    val amount = amountText.toIntOrNull()?.takeIf { it in 1..999 }
+    val entered = amountText.toIntOrNull()?.takeIf { it in 1..999 }?.times(unit.minutesFactor)
+    val amount = entered?.takeIf { it <= maxMinutes }
     CustomAmountEditor(
         amountText = amountText,
         onAmountChange = onAmountChange,
         unitLabels = units.map { stringResource(reminderUnitLabel(it)) },
         selectedUnit = units.indexOf(unit).coerceAtLeast(0),
         onUnitChange = { onUnitChange(units[it]) },
-        preview = amount?.let { label(it * unit.minutesFactor) }
-            ?: stringResource(R.string.reminder_custom_amount),
+        preview = when {
+            amount != null -> label(amount)
+            entered != null -> stringResource(R.string.duration_custom_max, label(maxMinutes))
+            else -> stringResource(R.string.reminder_custom_amount)
+        },
         setLabel = stringResource(R.string.reminder_custom_set),
         confirmEnabled = amount != null,
-        onConfirm = { amount?.let { onConfirm(it * unit.minutesFactor) } },
+        onConfirm = { amount?.let(onConfirm) },
     )
 }
 

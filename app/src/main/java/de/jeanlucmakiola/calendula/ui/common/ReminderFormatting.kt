@@ -37,3 +37,21 @@ fun reminderLeadTimeLabel(minutes: Int): String = when {
         pluralStringResource(R.plurals.reminder_hours, minutes / 60, minutes / 60)
     else -> pluralStringResource(R.plurals.reminder_minutes, minutes, minutes)
 }
+
+/**
+ * Humanise a plain duration — no "before": "45 minutes", "8 hours", or both
+ * parts for a mixed length ("1 hour 30 minutes"). Shared by the snooze delay and
+ * the default event duration (#54).
+ */
+@Composable
+fun durationLabel(minutes: Int): String {
+    val hours = minutes / 60
+    val rest = minutes % 60
+    val hoursLabel = pluralStringResource(R.plurals.duration_hours, hours, hours)
+    val minutesLabel = pluralStringResource(R.plurals.duration_minutes, rest, rest)
+    return when {
+        hours == 0 -> minutesLabel
+        rest == 0 -> hoursLabel
+        else -> stringResource(R.string.duration_hours_minutes, hoursLabel, minutesLabel)
+    }
+}

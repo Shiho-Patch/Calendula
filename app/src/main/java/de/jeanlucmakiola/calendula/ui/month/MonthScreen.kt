@@ -101,6 +101,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaEmptyDayRow
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaEventRow
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
+import de.jeanlucmakiola.calendula.ui.common.CalendarTitleButton
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
@@ -352,10 +353,12 @@ fun MonthScreen(
             topBar = {
                 MonthTopBar(
                     title = topBarTitle,
+                    titleDate = LocalDate(titleMonth.year, titleMonth.month, 1),
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
+                    onJumpToDate = jumpToDate,
                     showTodayButton = todayInToolbar,
                     onToday = jumpToToday,
                     scrollBehavior = scrollBehavior,
@@ -511,19 +514,22 @@ private fun ContinuousMonthContent(
 @Composable
 private fun MonthTopBar(
     title: String,
+    titleDate: LocalDate,
     selectedView: CalendarView,
     onCycleView: () -> Unit,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
+    onJumpToDate: (LocalDate) -> Unit,
     showTodayButton: Boolean,
     onToday: () -> Unit,
     scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
     TopAppBar(
         title = {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
+            CalendarTitleButton(
+                title = title,
+                currentDate = titleDate,
+                onJumpToDate = onJumpToDate,
             )
         },
         navigationIcon = {

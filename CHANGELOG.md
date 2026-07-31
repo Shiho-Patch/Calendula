@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.0] — 2026-07-31
+
 ### Added
+- A new event no longer always lasts an hour. **Settings → New event form →
+  Default duration** sets how long one opens, and each calendar may keep its own
+  length underneath — 8 hours for the calendar you keep work shifts in, 30
+  minutes for the one you book calls in. A calendar without its own length
+  follows the default, switching calendars mid-form re-stretches the event, and
+  setting an end time by hand keeps it. An event another app hands over with only
+  a start gets the default too; one that names its own end — an `.ics` file, a
+  duplicate — keeps that length. All-day events are unaffected ([#54]).
 - Week and day view can be set to show more or less of the day at once, under
   Settings → Views → Week & day → **Hour height**. **Fit whole day** sizes an
   hour to your screen so all 24 hours are visible without scrolling — on a tall
@@ -22,6 +32,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tapping a named step there takes you back to it ([#56]).
 
 ### Changed
+- The date in the top bar is now the way to jump: tapping the month, week or day
+  title opens the same date picker the sidebar's **Jump to date** offers, seeded
+  on whatever the bar is naming. A drop-down caret marks it as tappable. The
+  sidebar entry stays where it is ([#57]).
+- A reminder in the status bar is now Calendula's own mark — the calendar with
+  the bloom — instead of the generic calendar glyph it shared with the system's
+  date surfaces and every other calendar app. The status bar draws that icon as
+  a plain silhouette, so its shape is the only thing that could tell them apart
+  ([#83]).
 - Event blocks now only draw text they can draw whole. One too short for a full
   line shows no title rather than a sliced one, a block that cannot fit both its
   title and its time keeps the title, and a block too narrow to hold more than a
@@ -39,6 +58,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   background instead of sharing a colour meant to sit behind text. The setting
   is now called **Harmonise calendar colours**; turning it off still shows the
   raw colours from your calendar source ([#21], [#36]).
+
+### Fixed
+- The back gesture closes the sidebar instead of the app. With the drawer open,
+  swiping back left Calendula altogether rather than putting the sidebar away
+  ([#114]).
+- The sidebar lines up. "Calendula", "View" and "Calendars" now share the left
+  edge of the rows under them, and the view, jump-to-date, Settings and calendar
+  rows sit on one vertical axis instead of each icon finding its own — the same
+  alignment the Settings screens use ([#114]).
+- The status- and navigation-bar icons follow Calendula's own light/dark choice.
+  Setting the app dark while the system stayed light — or the other way round —
+  left the clock and battery drawn for the system's theme, so they could sit
+  near-invisible against the app's own bar ([#70]).
 
 ## [2.17.1] — 2026-07-30
 
@@ -1282,8 +1314,12 @@ automatically, with zero telemetry and no internet permission.
 [#79]: https://codeberg.org/jlmakiola/calendula/issues/79
 [#81]: https://codeberg.org/jlmakiola/calendula/issues/81
 [#82]: https://codeberg.org/jlmakiola/calendula/issues/82
+[#83]: https://codeberg.org/jlmakiola/calendula/issues/83
 [#87]: https://codeberg.org/jlmakiola/calendula/issues/87
 [#89]: https://codeberg.org/jlmakiola/calendula/issues/89
 [#103]: https://codeberg.org/jlmakiola/calendula/issues/103
 [#69]: https://codeberg.org/jlmakiola/calendula/issues/69
+[#54]: https://codeberg.org/jlmakiola/calendula/issues/54
+[#57]: https://codeberg.org/jlmakiola/calendula/issues/57
 [#56]: https://codeberg.org/jlmakiola/calendula/issues/56
+[#114]: https://codeberg.org/jlmakiola/calendula/issues/114
