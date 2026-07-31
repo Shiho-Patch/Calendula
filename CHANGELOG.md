@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.0] — 2026-07-31
+
 ### Added
 - A new event no longer always lasts an hour. **Settings → New event form →
   Default duration** sets how long one opens, and each calendar may keep its own
@@ -56,6 +58,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   background instead of sharing a colour meant to sit behind text. The setting
   is now called **Harmonise calendar colours**; turning it off still shows the
   raw colours from your calendar source ([#21], [#36]).
+
+### Fixed
+- The back gesture closes the sidebar instead of the app. With the drawer open,
+  swiping back left Calendula altogether rather than putting the sidebar away
+  ([#114]).
+- The sidebar lines up. "Calendula", "View" and "Calendars" now share the left
+  edge of the rows under them, and the view, jump-to-date, Settings and calendar
+  rows sit on one vertical axis instead of each icon finding its own — the same
+  alignment the Settings screens use ([#114]).
+- The status- and navigation-bar icons follow Calendula's own light/dark choice.
+  Setting the app dark while the system stayed light — or the other way round —
+  left the clock and battery drawn for the system's theme, so they could sit
+  near-invisible against the app's own bar ([#70]).
 
 ## [2.17.1] — 2026-07-30
 

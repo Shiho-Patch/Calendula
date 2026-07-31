@@ -1,0 +1,12 @@
+New
+• Default event duration — how long a new event opens, per calendar.
+• Week & day: choose an hour height, or pinch to zoom. "Fit whole day" shows all 24 hours at once.
+• Tap the date in the top bar to jump to another day.
+
+Changed
+• Calendar colours reworked so event text is always readable.
+• Reminders now carry Calendula's own status-bar icon.
+
+Fixed
+• Back closes the sidebar instead of the app, and its rows line up.
+• Status-bar icons follow the app's light/dark choice.
