@@ -330,6 +330,7 @@ fun MonthScreen(
             CalendarDrawer(
                 currentView = selectedView,
                 currentDate = LocalDate(titleMonth.year, titleMonth.month, 1),
+                drawerState = drawerState,
                 viewOrder = drawerViewOrder,
                 onSelectView = { view ->
                     onSelectView(view)
