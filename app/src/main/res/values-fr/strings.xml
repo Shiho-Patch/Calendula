@@ -44,7 +44,7 @@
     <string name="event_detail_share">Partager</string>
     <string name="event_share_chooser_title">Evénement partagé</string>
     <string name="event_share_failed">Impossible de partager cet événement.</string>
-    <string name="event_delete_title">Evénement supprimé ?</string>
+    <string name="event_delete_title">Evénement supprimé ?</string>
     <string name="event_delete_body">Cet événement est retiré de votre calendrier et de chaque appareil auquel il est synchronisé.</string>
     <string name="event_delete_recurring_title">Supprimer l\'événement récurrent</string>
     <string name="event_delete_option_occurrence">Seulement cet événement</string>
@@ -95,14 +95,14 @@
     <string name="event_edit_color_unsupported_hint">Ce calendrier ne propose aucun ensemble de couleurs. Vous pouvez autoriser des couleurs personnalisées pour ces calendriers dans les paramètres.</string>
     <string name="event_edit_color_sync_warning">Ce calendrier pourrait retirer ou remplacer la couleur lors de sa prochaine synchronisation.</string>
     <string name="event_edit_conflict_title">L\'événement a changé ailleurs</string>
-    <string name="event_edit_conflict_body">Durant l\'édition, cet événement a été altéré - par la synchronisation ou une autre application. Voulez-vous enregistrer ou annuler vos modifications ?</string>
+    <string name="event_edit_conflict_body">Durant l\'édition, cet événement a été altéré - par la synchronisation ou une autre application. Voulez-vous enregistrer ou annuler vos modifications ?</string>
     <string name="event_edit_conflict_overwrite">Enregistrer mes modifications</string>
     <string name="event_edit_conflict_overwrite_hint">Seuls les champs que vous modifiez remplacent l\'altération externe</string>
     <string name="event_edit_conflict_discard">Annuler mes modifications</string>
     <string name="event_edit_conflict_discard_hint">L’événement reste tel qu’il est maintenant</string>
     <string name="event_edit_gone_title">Evénement supprimé</string>
     <string name="event_edit_gone_body">Cet événement a été supprimé entre-temps, par exemple sur un autre appareil. Vos modifications ne peuvent plus être enregistrées.</string>
-    <string name="import_reminder_prompt_title">Appliquer votre rappel par défaut ?</string>
+    <string name="import_reminder_prompt_title">Appliquer votre rappel par défaut ?</string>
     <string name="import_reminder_prompt_body_none">Cet événement a été importé sans aucun rappel.</string>
     <plurals name="import_reminder_prompt_body_existing">
         <item quantity="one">Cet événement a été importé avec %1$d rappel.</item>
