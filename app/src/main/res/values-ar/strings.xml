@@ -368,4 +368,16 @@
     <string name="settings_language_auto">افتراضي النظام</string>
     <string name="settings_section_backup">النسخ الاحتياطي والاستعادة</string>
     <string name="settings_special_dates_enable">إظهار تواريخ جهات الاتصال</string>
+    <string name="settings_special_dates_enable_hint">اعكس أعياد ميلاد جهات اتصالك والتواريخ الأخرى إلى التقويمات المحلية. يقرأ جهات الاتصال على هذا الجهاز فقط — لا يتم رفع أي شئ، وجهات اتصالك لا يتم تغييرها أبدًا.</string>
+    <string name="settings_section_language">اللغة</string>
+    <string name="qs_tile_new_event_label">حدث جديد</string>
+    <string name="shortcut_new_event_long">إنشاء حدث جديد</string>
+    <string name="shortcut_new_event_short">حدث جديد</string>
+    <string name="settings_qs_tile_hint">أضف مربع ”حدث جديد“ إلى لوحة الإعدادات السريعة.</string>
+    <string name="calendars_local_header">تقويماتك</string>
+    <string name="settings_section_special_dates">تواريخ جهات الاتصال الخاصة</string>
+    <string name="calendars_title">التقويمات</string>
+    <string name="calendars_add">إضافة تقويم</string>
+    <string name="settings_section_calendars">التقويمات</string>
+    <string name="settings_manage_calendars">إدارة التقويمات</string>
 </resources>
