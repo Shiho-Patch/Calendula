@@ -44,7 +44,7 @@
     <string name="event_detail_share">Partager</string>
     <string name="event_share_chooser_title">Evénement partagé</string>
     <string name="event_share_failed">Impossible de partager cet événement.</string>
-    <string name="event_delete_title">Evénement supprimé ?</string>
+    <string name="event_delete_title">Evénement supprimé ?</string>
     <string name="event_delete_body">Cet événement est retiré de votre calendrier et de chaque appareil auquel il est synchronisé.</string>
     <string name="event_delete_recurring_title">Supprimer l\'événement récurrent</string>
     <string name="event_delete_option_occurrence">Seulement cet événement</string>
@@ -95,14 +95,14 @@
     <string name="event_edit_color_unsupported_hint">Ce calendrier ne propose aucun ensemble de couleurs. Vous pouvez autoriser des couleurs personnalisées pour ces calendriers dans les paramètres.</string>
     <string name="event_edit_color_sync_warning">Ce calendrier pourrait retirer ou remplacer la couleur lors de sa prochaine synchronisation.</string>
     <string name="event_edit_conflict_title">L\'événement a changé ailleurs</string>
-    <string name="event_edit_conflict_body">Durant l\'édition, cet événement a été altéré - par la synchronisation ou une autre application. Voulez-vous enregistrer ou annuler vos modifications ?</string>
+    <string name="event_edit_conflict_body">Durant l\'édition, cet événement a été altéré - par la synchronisation ou une autre application. Voulez-vous enregistrer ou annuler vos modifications ?</string>
     <string name="event_edit_conflict_overwrite">Enregistrer mes modifications</string>
     <string name="event_edit_conflict_overwrite_hint">Seuls les champs que vous modifiez remplacent l\'altération externe</string>
     <string name="event_edit_conflict_discard">Annuler mes modifications</string>
     <string name="event_edit_conflict_discard_hint">L’événement reste tel qu’il est maintenant</string>
     <string name="event_edit_gone_title">Evénement supprimé</string>
     <string name="event_edit_gone_body">Cet événement a été supprimé entre-temps, par exemple sur un autre appareil. Vos modifications ne peuvent plus être enregistrées.</string>
-    <string name="import_reminder_prompt_title">Appliquer votre rappel par défaut ?</string>
+    <string name="import_reminder_prompt_title">Appliquer votre rappel par défaut ?</string>
     <string name="import_reminder_prompt_body_none">Cet événement a été importé sans aucun rappel.</string>
     <plurals name="import_reminder_prompt_body_existing">
         <item quantity="one">Cet événement a été importé avec %1$d rappel.</item>
@@ -178,7 +178,7 @@
     <string name="event_access_confidential">Confidentiel</string>
     <string name="event_attendee_organizer">Organisateur</string>
     <string name="event_attendee_resource">Ressource</string>
-    <string name="event_detail_self_response">Votre réponse : %1$s</string>
+    <string name="event_detail_self_response">Votre réponse : %1$s</string>
     <string name="reminder_default">Rappel par défaut</string>
     <plurals name="reminder_minutes">
         <item quantity="one">%d minute avant</item>
@@ -283,7 +283,7 @@
     <string name="event_status_tentative">Provisoire</string>
     <string name="reminder_at_time">Au moment de l’événement</string>
     <string name="reminder_onboarding_body">Android n’affiche pas de rappels d’événements par lui-même — une application de calendrier doit le faire. Laissez Calendula faire ce travail.</string>
-    <string name="reminder_benefit_duplicates_title">Utiliser une deuxième application de calendrier ?</string>
+    <string name="reminder_benefit_duplicates_title">Utiliser une deuxième application de calendrier ?</string>
     <string name="reminder_benefit_duplicates_body">Si une autre application publie également des rappels, vous les verrez deux fois, désactivez-les là ou ici.</string>
     <string name="reminder_benefit_reversible_title">modifier à tout moment</string>
     <string name="reminder_benefit_reversible_body">Le commutateur se trouve dans les paramètres, sous Notifications.</string>
@@ -331,14 +331,14 @@
     <string name="settings_drawer_order_hint">Faites glisser pour réorganiser les vues répertoriées dans le menu de navigation.</string>
     <string name="reorder_drag_handle">Faites glisser pour réorganiser</string>
     <string name="settings_section_event_form">Nouveau formulaire d’événement</string>
-    <string name="settings_form_fields_hint">Champs affichés par défaut — tout le reste se trouve derrière « Plus de champs »</string>
+    <string name="settings_form_fields_hint">Champs affichés par défaut — tout le reste se trouve derrière « Plus de champs »</string>
     <string name="settings_autofocus_title">Titre principal du nouvel événement</string>
     <string name="settings_autofocus_title_hint">Lorsque vous démarrez un nouvel événement, placez le curseur dans le champ du titre et ouvrez immédiatement le clavier.</string>
     <string name="settings_color_unsupported">Autoriser les couleurs dans les calendriers non pris en charge</string>
     <string name="settings_color_unsupported_hint">Certains calendriers (par exemple, certains CalDAV) ne publient aucun ensemble de couleurs, une couleur d’événement personnalisée peut être supprimée ou remplacée lors de leur prochaine synchronisation. C’est une limitation de ces calendriers, pas quelque chose que Calendula peut réparer.</string>
     <string name="settings_section_notifications">Notifications</string>
     <string name="settings_reminders">rappels d\'événements</string>
-    <string name="settings_reminders_hint">Vous voyez des rappels deux fois ? Une autre application de calendrier les publie aussi — désactivez-les dans l’un des deux.</string>
+    <string name="settings_reminders_hint">Vous voyez des rappels deux fois ? Une autre application de calendrier les publie aussi — désactivez-les dans l’un des deux.</string>
     <string name="settings_default_reminder">rappel par défaut</string>
     <string name="settings_default_reminder_allday">événements d\'une journée entière</string>
     <string name="settings_allday_reminder_time">Heure de rappel toute la journée</string>
@@ -383,9 +383,9 @@
     <string name="settings_calendar_reminders_managed_hint">Définir dans les dates spéciales de contact</string>
     <string name="settings_special_dates_paused_title">suspendu</string>
     <string name="settings_special_dates_paused_hint">Calendula ne peut plus lire vos contacts, donc ces calendriers ne se mettent pas à jour.</string>
-    <string name="settings_special_dates_disable_title">Désactiver les dates de contact ?</string>
+    <string name="settings_special_dates_disable_title">Désactiver les dates de contact ?</string>
     <string name="settings_special_dates_disable_all_message">Cela supprime les calendriers de contact et leurs événements. Tous les rappels ou notes que vous leur avez ajoutés seront perdus.</string>
-    <string name="settings_special_dates_disable_type_message">Cela supprime le calendrier « %1$s » et ses événements. Tous les rappels ou notes que vous y avez ajoutés seront perdus.</string>
+    <string name="settings_special_dates_disable_type_message">Cela supprime le calendrier « %1$s » et ses événements. Tous les rappels ou notes que vous y avez ajoutés seront perdus.</string>
     <string name="settings_special_dates_disable_confirm">désactiver</string>
     <string name="settings_section_about">A propos</string>
     <string name="settings_license">Licence</string>
@@ -411,7 +411,7 @@
     <string name="calendars_edit_title">Editer un agenda</string>
     <string name="calendars_name_label">Nom</string>
     <string name="calendars_description_hint">Ajouter une description</string>
-    <string name="calendars_delete_confirm_title">Supprimer un calendrier ?</string>
+    <string name="calendars_delete_confirm_title">Supprimer un calendrier ?</string>
     <string name="calendars_delete_confirm_message">\"%1$s\" et tous ses événements seront définitivement retirés de cet appareil.</string>
     <string name="calendars_write_error">Impossible de sauvegarder les changements.</string>
     <string name="calendars_backup_hint">Les calendriers locaux ne sont synchronisés nulle part, alors exportez-les vers un fichier .ics pour en garder une copie.</string>
@@ -429,8 +429,8 @@
     <string name="calendars_auto_backup_interval">Intervalle</string>
     <string name="calendars_auto_backup_interval_min">Minimum 30 minutes.</string>
     <string name="calendars_auto_backup_status_never">Pas encore de sauvegarde automatique</string>
-    <string name="calendars_auto_backup_status_ok">Dernière sauvegarde : %1$s</string>
-    <string name="calendars_auto_backup_status_failed">La dernière sauvegarde a échoué : %1$s</string>
+    <string name="calendars_auto_backup_status_ok">Dernière sauvegarde : %1$s</string>
+    <string name="calendars_auto_backup_status_failed">La dernière sauvegarde a échoué : %1$s</string>
     <string name="backup_channel_description">Avertit si les sauvegardes automatiques échouent de manière répétée.</string>
     <string name="backup_failed_title">La sauvegarde automatique a échoué</string>
     <string name="backup_failed_text">Calendula n’a pas pu écrire le fichier de sauvegarde. Vérifiez le dossier de sauvegarde dans les paramètres.</string>
@@ -481,7 +481,7 @@
     </plurals>
     <string name="shortcut_new_event_long">créer un événement</string>
     <string name="settings_qs_tile">Ajouter des paramètres rapides</string>
-    <string name="settings_qs_tile_hint">Ajoutez un bouton « Nouvel événement » au panneau Paramètres rapides.</string>
+    <string name="settings_qs_tile_hint">Ajoutez un bouton « Nouvel événement » au panneau Paramètres rapides.</string>
     <string name="crash_dialog_title">%1$s a planté</string>
     <string name="crash_dialog_message">%1$s a été fermé de manière inattendue la dernière fois. Vous pouvez aider à le corriger en envoyant ce rapport en tant que problème. Il reste sur votre appareil jusqu’à ce que vous choisissiez de le partager, et n’inclut aucune donnée personnelle ni contenu de calendrier — seuls les détails techniques ci-dessous.</string>
     <string name="crash_dialog_report">rapport</string>
