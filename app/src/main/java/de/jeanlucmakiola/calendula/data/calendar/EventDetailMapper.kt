@@ -125,6 +125,7 @@ internal fun ColumnReader.toEventDetailCore(
         selfStatus = mapAttendeeStatus(getInt(EventDetailProjection.IDX_SELF_ATTENDEE_STATUS)),
         eventColor = eventColor,
         eventColorKey = eventColorKey,
+        isException = !isNull(EventDetailProjection.IDX_ORIGINAL_ID),
     )
 }
 

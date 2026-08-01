@@ -62,6 +62,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableIntStateOf
@@ -78,6 +79,23 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import kotlin.math.roundToInt
+import de.jeanlucmakiola.calendula.ui.common.rememberDragSurface
+import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
+import de.jeanlucmakiola.calendula.ui.common.MoveTarget
+import de.jeanlucmakiola.calendula.ui.common.MoveRequest
+import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
+import de.jeanlucmakiola.calendula.ui.common.GHOST_ALPHA
+import de.jeanlucmakiola.calendula.ui.common.DragSnapHaptics
+import de.jeanlucmakiola.calendula.ui.common.EventMoveScope
+import de.jeanlucmakiola.calendula.domain.spanFirstDay
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -384,13 +402,21 @@ fun MonthScreen(
                 )
             },
         ) { innerPadding ->
-            Column(
+            // Hoisted above every style's grid: a dragged chip is drawn in an
+            // overlay so it is free of the week row's clip and, in the scrolling
+            // styles, of the list viewport's.
+            val chipDrag = rememberMonthDragController()
+            Box(
                 modifier = Modifier
                     .padding(innerPadding)
                     .fillMaxSize(),
             ) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 WeekdayHeader(weekStart = weekStart, showWeekNumbers = showWeekNumbers)
-                CompositionLocalProvider(LocalDimCutoff provides dimCutoff) {
+                CompositionLocalProvider(
+                    LocalDimCutoff provides dimCutoff,
+                    LocalMonthDrag provides chipDrag,
+                ) {
                     if (scrolling) {
                         ContinuousMonthContent(
                             state = continuousState,
@@ -427,7 +453,53 @@ fun MonthScreen(
                     }
                 }
             }
+            MonthDragOverlay(chipDrag)
+            }
         }
+    }
+}
+
+/** The chip in flight, drawn over the grid and following the finger. */
+@Composable
+private fun MonthDragOverlay(controller: MonthDragController) {
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    val dark = isSystemInDarkTheme()
+    val density = LocalDensity.current
+    val reduceMotion = rememberReduceMotion()
+    // Here rather than beside the controller: this reads [drag], which changes
+    // every frame, and this composable is the one that is meant to.
+    DragSnapHaptics(controller.drag?.targetDate)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { origin = it.positionInRoot() },
+    ) {
+        val drag = controller.drag ?: return@Box
+        MonthBar(
+            event = drag.event,
+            dark = dark,
+            continuesLeft = false,
+            continuesRight = false,
+            modifier = Modifier
+                .offset {
+                    IntOffset(
+                        (drag.topLeftInRoot.x - origin.x).roundToInt(),
+                        (drag.topLeftInRoot.y - origin.y).roundToInt(),
+                    )
+                }
+                .width(with(density) { drag.sizePx.width.toDp() })
+                .height(with(density) { drag.sizePx.height.toDp() })
+                .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp)
+                .graphicsLayer {
+                    if (!reduceMotion) {
+                        scaleX = 1.04f
+                        scaleY = 1.04f
+                    }
+                    shadowElevation = 8.dp.toPx()
+                    shape = RoundedCornerShape(4.dp)
+                    clip = false
+                },
+        )
     }
 }
 
@@ -1720,6 +1792,22 @@ private fun MonthWeekRow(
     val shownLanes = laneCount.coerceAtMost(MAX_EVENT_ROWS)
     val morphing = morphInFlight()
 
+    // Drag to reschedule (#68). The chips can take no pointer input of their own —
+    // the full-bleed tap layer below sits on top of them, and Compose stops
+    // sibling hit-testing at the topmost hit — so one detector on the row's day-
+    // column box hit-tests them geometrically instead.
+    val moveScope = LocalEventMove.current
+    val dragController = LocalMonthDrag.current
+    val rowToken = remember { Any() }
+    val bandCoordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    val density = LocalDensity.current
+    val rowHeightPx = with(density) { EVENT_ROW_HEIGHT.toPx() }
+    val zone = remember { TimeZone.currentSystemDefault() }
+    val dragging = dragController?.isDragging == true
+    DisposableEffect(rowToken, dragController) {
+        onDispose { dragController?.removeRow(rowToken) }
+    }
+
     Row(modifier) {
         // Optional calendar-week gutter, sized so the seven day columns below
         // divide the remaining width — the absolute bar offsets stay correct
@@ -1735,7 +1823,27 @@ private fun MonthWeekRow(
         BoxWithConstraints(
             Modifier
                 .weight(1f)
-                .fillMaxHeight(),
+                .fillMaxHeight()
+                .onGloballyPositioned { coords ->
+                    dragController?.putRow(
+                        rowToken,
+                        MonthRowGeometry(
+                            days = week.days,
+                            cell = coords,
+                            columnWidthPx = coords.size.width / 7f,
+                        ),
+                    )
+                }
+                .then(
+                    monthChipDragModifier(
+                        week = week,
+                        moveScope = moveScope,
+                        controller = dragController,
+                        band = bandCoordinates,
+                        rowHeightPx = rowHeightPx,
+                        zone = zone,
+                    ),
+                ),
         ) {
             val colW = maxWidth / 7
 
@@ -1800,7 +1908,10 @@ private fun MonthWeekRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .then(if (morphing) Modifier else Modifier.clipToBounds()),
+                        .onGloballyPositioned { bandCoordinates[0] = it }
+                        // A dragged chip travels to another row, so the clip has
+                        // to yield for it exactly as it does for a morph.
+                        .then(if (morphing || dragging) Modifier else Modifier.clipToBounds()),
                 ) {
                     // Spanning bars on their shared lanes.
                     week.spans.filter { it.lane < shownLanes }.forEach { span ->
@@ -1960,6 +2071,74 @@ private fun MonthWeekRow(
 }
 
 /**
+ * The row-level pickup for month chips: it resolves which chip the press landed
+ * on from the geometry the row just laid out, and abandons the gesture when the
+ * press was on empty space (or on an event whose calendar can't be moved), so
+ * tapping a day still opens it.
+ */
+@Composable
+private fun monthChipDragModifier(
+    week: MonthWeek,
+    moveScope: EventMoveScope?,
+    controller: MonthDragController?,
+    band: Array<LayoutCoordinates?>,
+    rowHeightPx: Float,
+    zone: TimeZone,
+): Modifier = rememberDragSurface(
+    enabled = moveScope != null && controller != null,
+    key = week.days.first(),
+    onPickUp = { local, pointerInRoot, nodeInRoot, size ->
+        val bandTop = band[0]?.takeIf { it.isAttached }?.positionInRoot()?.y
+        val columnPx = size.width / 7f
+        val bandY = if (bandTop == null) -1f else local.y - (bandTop - nodeInRoot.y)
+        val lane = (bandY / rowHeightPx).toInt()
+        val column = (local.x / columnPx).toInt()
+        val event = if (bandY < 0f || columnPx <= 0f) {
+            null
+        } else {
+            week.chipAt(column, lane, MAX_EVENT_ROWS)
+        }
+        if (event == null || moveScope?.allows(event) != true) {
+            false
+        } else {
+            controller?.begin(
+                event = event,
+                grabDate = week.days[column],
+                pointerInRoot = pointerInRoot,
+                chipInRoot = Offset(
+                    x = nodeInRoot.x + column * columnPx,
+                    y = requireNotNull(bandTop) + lane * rowHeightPx,
+                ),
+                size = IntSize(columnPx.toInt(), rowHeightPx.toInt()),
+            )
+            true
+        }
+    },
+    onMove = { controller?.move(it) },
+    onDrop = {
+        controller?.finish()?.let { drop ->
+            val delta = drop.targetDate.toEpochDays() - drop.grabDate.toEpochDays()
+            if (delta != 0L) {
+                moveScope?.move(
+                    MoveRequest(
+                        eventId = drop.event.eventId,
+                        beginMillis = drop.event.start.toEpochMilliseconds(),
+                        endMillis = drop.event.end.toEpochMilliseconds(),
+                        // The event's own first day plus the columns crossed —
+                        // grabbing the middle of a multi-day bar shifts it by
+                        // what the finger travelled, not to where it landed.
+                        target = MoveTarget.Day(
+                            drop.event.spanFirstDay(zone).plus(delta.toInt(), DateTimeUnit.DAY),
+                        ),
+                    ),
+                )
+            }
+        }
+    },
+    onCancel = { controller?.cancel() },
+)
+
+/**
  * Left-gutter calendar-week cell (#25): a full-height tonal pill mirroring the
  * day cells' geometry, set apart by the secondaryContainer tint (matching the
  * Week view's badge), with the ISO week number centred like a day number. The
@@ -2057,6 +2236,9 @@ private fun MonthBar(
     val dimmed = dimCutoff != null && event.hasEnded(dimCutoff)
     val soften = LocalSoftenColors.current
     val fill = eventFill(event.color, dark, soften)
+    val moveAction = eventMoveAction(event)
+    // The source stays put as a ghost while its floating copy travels.
+    val lifted = LocalMonthDrag.current?.liftedInstanceId == event.instanceId
     val shape = RoundedCornerShape(
         topStart = if (continuesLeft) 0.dp else 4.dp,
         bottomStart = if (continuesLeft) 0.dp else 4.dp,
@@ -2065,9 +2247,13 @@ private fun MonthBar(
     )
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
+            .then(if (lifted) Modifier.alpha(GHOST_ALPHA) else Modifier)
             .background(fill, shape)
             .padding(horizontal = 4.dp)
-            .semantics { contentDescription = title },
+            .semantics {
+                contentDescription = title
+                if (moveAction != null) customActions = listOf(moveAction)
+            },
         contentAlignment = Alignment.CenterStart,
     ) {
         Text(

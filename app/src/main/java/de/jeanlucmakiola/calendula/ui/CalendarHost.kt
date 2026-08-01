@@ -10,6 +10,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,6 +28,10 @@ import de.jeanlucmakiola.calendula.ui.calendars.BackupScreen
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarsScreen
 import de.jeanlucmakiola.floret.identity.fadeThrough
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
+import de.jeanlucmakiola.calendula.ui.common.EventMoveHost
+import de.jeanlucmakiola.calendula.ui.common.EventMoveScope
+import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
+import de.jeanlucmakiola.calendula.ui.common.RescheduleViewModel
 import de.jeanlucmakiola.calendula.ui.common.drillToDay
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.selectView
@@ -294,6 +299,27 @@ fun CalendarHost(
         }
     }
 
+    // Drag to reschedule (#68). Hosted here so one instance serves every view and
+    // survives view switches; the calendar surfaces read it out of LocalEventMove.
+    val reschedule: RescheduleViewModel = hiltViewModel()
+    val movableCalendarIds by reschedule.movableCalendarIds.collectAsStateWithLifecycle()
+    val onEditEvent: (EventInstance) -> Unit = { event ->
+        val key = longArrayOf(
+            event.eventId,
+            event.start.toEpochMilliseconds(),
+            event.end.toEpochMilliseconds(),
+        )
+        heldEditKey = key
+        editKey = key
+    }
+    val moveScope = remember(movableCalendarIds, reschedule) {
+        EventMoveScope(
+            movableCalendarIds = movableCalendarIds,
+            move = reschedule::move,
+            edit = onEditEvent,
+        )
+    }
+
     val slideSpec = rememberCalendarSlideSpec()
 
     // Base-level back: pop the view stack while no overlay covers it (each overlay
@@ -311,6 +337,7 @@ fun CalendarHost(
         // navigation, so it fades through rather than sliding — paging *within* a
         // view keeps the directional slide. AnimatedContent keyed on the view type.
         val viewSwitch = fadeThrough()
+        CompositionLocalProvider(LocalEventMove provides moveScope) {
         AnimatedContent(
             targetState = view,
             transitionSpec = { viewSwitch },
@@ -367,6 +394,12 @@ fun CalendarHost(
                 )
             }
         }
+        }
+
+        // Scope prompt + confirmation/undo snackbar for a dropped event. Declared
+        // right after the calendar views, so any overlay opened afterwards covers
+        // the snackbar rather than the other way round.
+        EventMoveHost(reschedule, modifier = Modifier.fillMaxSize())
 
         // Search overlay — below detail/edit in the Box so a tapped result's
         // detail screen draws on top, and closing it returns to the results.

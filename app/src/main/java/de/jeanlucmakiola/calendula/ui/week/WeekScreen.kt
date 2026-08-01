@@ -62,9 +62,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,6 +86,18 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
+import de.jeanlucmakiola.calendula.ui.common.GHOST_ALPHA
+import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
+import de.jeanlucmakiola.calendula.ui.common.MoveRequest
+import de.jeanlucmakiola.calendula.ui.common.MoveTarget
+import de.jeanlucmakiola.calendula.ui.common.TimelineDragController
+import de.jeanlucmakiola.calendula.ui.common.TimelineDragOverlay
+import de.jeanlucmakiola.calendula.ui.common.TimelineDrop
+import de.jeanlucmakiola.calendula.ui.common.beginsOn
+import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
+import de.jeanlucmakiola.calendula.ui.common.rememberEventDragSource
+import de.jeanlucmakiola.calendula.ui.common.rememberTimelineDragController
+import de.jeanlucmakiola.calendula.ui.common.startInstant
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventFill
@@ -128,6 +142,8 @@ private val GUTTER_WIDTH = 48.dp
 private val GUTTER_CONTENT_START_INSET = 8.dp
 private val ALL_DAY_ROW_HEIGHT = 24.dp
 private val ALL_DAY_VERTICAL_PADDING = 6.dp
+/** Gap between day columns; part of the column pitch a drag maps positions through. */
+private val COLUMN_GAP = 2.dp
 
 /** Total all-day strip height for a week (0 when there are no all-day events). */
 private fun WeekUiState.Success.allDayStripHeight(): Dp {
@@ -331,32 +347,52 @@ private fun WeekContent(
     // gestures coexist without fighting.
     val swipeModifier = rememberCalendarPageSwipe(onSwipeNext, onSwipePrev)
 
-    AnimatedContent(
-        targetState = state,
-        modifier = modifier.then(swipeModifier),
-        contentKey = { s ->
+    // Above the AnimatedContent on purpose: a page change mid-drag would strand
+    // the floating block inside the outgoing page.
+    val dragController = rememberTimelineDragController()
+    val move = LocalEventMove.current
+    val zone = remember { TimeZone.currentSystemDefault() }
+
+    Box(modifier = modifier) {
+        AnimatedContent(
+            targetState = state,
+            modifier = Modifier.fillMaxSize().then(swipeModifier),
+            contentKey = { s ->
+                when (s) {
+                    is WeekUiState.Success -> "success-${s.weekStart}"
+                    is WeekUiState.Failure -> "failure-${s.reason}"
+                    WeekUiState.Loading -> "loading"
+                }
+            },
+            transitionSpec = { calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion) },
+            label = "week-transition",
+        ) { s ->
             when (s) {
-                is WeekUiState.Success -> "success-${s.weekStart}"
-                is WeekUiState.Failure -> "failure-${s.reason}"
-                WeekUiState.Loading -> "loading"
+                WeekUiState.Loading -> WeekLoading()
+                is WeekUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
+                is WeekUiState.Success -> WeekSuccess(
+                    state = s,
+                    topSectionColor = topSectionColor,
+                    scrollState = scrollState,
+                    allDayHeight = allDayHeight,
+                    dragController = dragController,
+                    onEventClick = onEventClick,
+                    onOpenDay = onOpenDay,
+                    onCreateAt = onCreateAt,
+                    onDrop = { drop ->
+                        move?.move(
+                            MoveRequest(
+                                eventId = drop.event.eventId,
+                                beginMillis = drop.event.start.toEpochMilliseconds(),
+                                endMillis = drop.event.end.toEpochMilliseconds(),
+                                target = MoveTarget.Start(drop.startInstant(zone)),
+                            ),
+                        )
+                    },
+                )
             }
-        },
-        transitionSpec = { calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion) },
-        label = "week-transition",
-    ) { s ->
-        when (s) {
-            WeekUiState.Loading -> WeekLoading()
-            is WeekUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
-            is WeekUiState.Success -> WeekSuccess(
-                state = s,
-                topSectionColor = topSectionColor,
-                scrollState = scrollState,
-                allDayHeight = allDayHeight,
-                onEventClick = onEventClick,
-                onOpenDay = onOpenDay,
-                onCreateAt = onCreateAt,
-            )
         }
+        TimelineDragOverlay(dragController)
     }
 }
 
@@ -366,9 +402,11 @@ private fun WeekSuccess(
     topSectionColor: Color,
     scrollState: ScrollState,
     allDayHeight: Dp,
+    dragController: TimelineDragController,
     onEventClick: (EventInstance) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -385,8 +423,10 @@ private fun WeekSuccess(
         Timeline(
             state = state,
             scrollState = scrollState,
+            dragController = dragController,
             onEventClick = onEventClick,
             onCreateAt = onCreateAt,
+            onDrop = onDrop,
         )
     }
 }
@@ -622,13 +662,16 @@ private fun AllDayBar(
 private fun Timeline(
     state: WeekUiState.Success,
     scrollState: ScrollState,
+    dragController: TimelineDragController,
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
     val use24Hour = LocalUse24HourFormat.current
     val locale = currentLocale()
     val zoom = LocalTimelineZoom.current
+    val density = LocalDensity.current
 
     // BoxWithConstraints rather than Box: the fit-the-whole-day scale needs the
     // timeline's own viewport height, which is only known here — below the top
@@ -680,13 +723,28 @@ private fun Timeline(
                     .weight(1f)
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(16.dp))
-                    .verticalScroll(scrollState),
+                    .verticalScroll(scrollState)
+                    .onGloballyPositioned { dragController.geometry.viewport = it },
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(totalHeight),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        .height(totalHeight)
+                        // The scrolling content itself, so its root position
+                        // already folds in the scroll offset — a drag maps
+                        // through it without reading the scroll state.
+                        .onGloballyPositioned { coords ->
+                            val gap = with(density) { COLUMN_GAP.toPx() }
+                            dragController.geometry.let {
+                                it.grid = coords
+                                it.scroll = scrollState
+                                it.hourPx = with(density) { hourHeight.toPx() }
+                                it.columnGapPx = gap
+                                it.columnWidthPx = (coords.size.width + gap) / state.days.size
+                                it.days = state.days
+                            }
+                        },
+                    horizontalArrangement = Arrangement.spacedBy(COLUMN_GAP),
                 ) {
                     state.days.forEach { day ->
                         DayColumnCard(
@@ -695,8 +753,10 @@ private fun Timeline(
                             date = day,
                             today = state.today,
                             hourHeight = hourHeight,
+                            dragController = dragController,
                             onEventClick = onEventClick,
                             onCreateAt = onCreateAt,
+                            onDrop = onDrop,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
@@ -715,8 +775,10 @@ private fun DayColumnCard(
     date: LocalDate,
     today: LocalDate,
     hourHeight: Dp,
+    dragController: TimelineDragController,
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val hourPx = with(LocalDensity.current) { hourHeight.toPx() }
@@ -758,7 +820,10 @@ private fun DayColumnCard(
                     dark = dark,
                     height = height,
                     width = laneWidth,
+                    date = date,
+                    dragController = dragController,
                     onClick = { onEventClick(block.event) },
+                    onDrop = onDrop,
                     modifier = Modifier
                         .offset(x = laneWidth * block.lane, y = top)
                         .width(laneWidth)
@@ -780,7 +845,10 @@ private fun EventBlock(
     dark: Boolean,
     height: Dp,
     width: Dp,
+    date: LocalDate,
+    dragController: TimelineDragController,
     onClick: () -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val title = block.event.title.ifBlank { stringResource(R.string.event_untitled) }
@@ -823,12 +891,33 @@ private fun EventBlock(
     val dimmed = dimCutoff != null && block.event.hasEnded(dimCutoff)
     val soften = LocalSoftenColors.current
     val fill = eventFill(block.event.color, dark, soften)
+    val zone = remember { TimeZone.currentSystemDefault() }
+    val moveAction = eventMoveAction(block.event)
+    // A block clipped at the top continues from the previous day: its top edge is
+    // midnight, not the event's start, so dragging it would invent a time.
+    val dragModifier = rememberEventDragSource(
+        enabled = moveAction != null && block.beginsOn(date, zone),
+        key = block.event.instanceId,
+        onPickUp = { pointer, blockRoot, _ -> dragController.begin(block, pointer, blockRoot) },
+        onMove = dragController::move,
+        onDrop = { dragController.finish()?.let(onDrop) },
+        onCancel = dragController::cancel,
+    )
+    val lifted = dragController.liftedInstanceId == block.event.instanceId
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
+            // The source stays put as a ghost while its floating copy travels.
+            .then(if (lifted) Modifier.alpha(GHOST_ALPHA) else Modifier)
             .background(fill, RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
+            // After clickable, so it is the inner node and wins the main pass;
+            // the tap still works, since a drag consumes the up.
+            .then(dragModifier)
             .padding(horizontal = 4.dp, vertical = 2.dp)
-            .semantics { contentDescription = "$title, $timeLabel" },
+            .semantics {
+                contentDescription = "$title, $timeLabel"
+                if (moveAction != null) customActions = listOf(moveAction)
+            },
     ) {
         Column {
             if (showTitle) {

@@ -44,6 +44,16 @@ val CalendarSource.hasVisibilitySwitch: Boolean
 val CalendarSource.isEventTarget: Boolean
     get() = canModifyContents && isVisibleInSystem && !isManaged && !isNotSynced
 
+/**
+ * Whether this calendar's events may have their times rewritten by a drag (#68).
+ * Deliberately not [isEventTarget]: an event living in a switched-off or
+ * non-syncing calendar isn't rendered anyway, while a *managed* event is
+ * editable (reminders, notes) yet must never move — the next contacts sync would
+ * put it back.
+ */
+val CalendarSource.allowsEventMove: Boolean
+    get() = canModifyContents && !isManaged
+
 /** Every state worth naming on this calendar's row, in reading order. */
 fun CalendarSource.stateLabels(): List<CalendarStateLabel> = buildList {
     if (isManaged) add(CalendarStateLabel.MANAGED)

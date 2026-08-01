@@ -95,6 +95,27 @@ class CalendarRowStateTest {
     }
 
     @Test
+    fun `a managed calendar's events are editable but never movable`() {
+        // Their date is owned by the contacts sync, so a drag would be undone.
+        val managed = cal().copy(isManaged = true)
+        assertThat(managed.allowsEventMove).isFalse()
+    }
+
+    @Test
+    fun `a read-only calendar's events are not movable`() {
+        assertThat(cal().copy(canModifyContents = false).allowsEventMove).isFalse()
+    }
+
+    @Test
+    fun `a switched-off calendar's events stay movable, unlike a new-event target`() {
+        // Nothing renders them, so the question is moot — but the predicate is
+        // deliberately not isEventTarget, which would also exclude them.
+        val hidden = cal().copy(isVisibleInSystem = false)
+        assertThat(hidden.isEventTarget).isFalse()
+        assertThat(hidden.allowsEventMove).isTrue()
+    }
+
+    @Test
     fun `manager order puts non-syncing calendars last and is otherwise stable`() {
         val ordered = listOf(
             cal(id = 1L, name = "Anna", syncsEvents = false),

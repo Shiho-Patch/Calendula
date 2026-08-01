@@ -108,6 +108,37 @@ on-device):
   UTC, so zones ahead of UTC can't leak an extra occurrence.
 - All-day events are normalised to UTC midnights with an exclusive end.
 
+### Drag to reschedule
+
+Dropping an event on another slot (#68) is not a second write path: the drop
+loads the event, prefills the **same** `toEditForm` the edit screen uses, shifts
+it (`EventShift.kt`), and dispatches through the same three repository calls a
+save does — so recurring writes, reminder reconciliation and attendee
+preservation behave identically. The full form is carried through, never a
+stripped one: `updateOccurrence` reconciles reminders *and* attendees onto the
+new exception row, and a partial form would wipe them.
+
+Two things the drag has to get right that the edit screen sidesteps:
+
+- **`RRULE` day parts go stale.** `buildEventUpdateValues` writes the rule
+  verbatim while `DTSTART` moves, so dragging a `FREQ=WEEKLY;BYDAY=MO` occurrence
+  onto a Wednesday under *All events* leaves a Wednesday anchor under a Monday
+  rule and the series does not move. `realignRecurrence` re-derives `BYDAY` /
+  `BYMONTHDAY` / `BYMONTH` from the new date, and returns **null** for rules one
+  moved occurrence cannot resolve (`BYDAY=MO,WE`, `2TH`, `BYSETPOS`) — the drop
+  then offers only *this event*, whose exception row carries no rule at all. The
+  same staleness is reachable from the edit screen; wiring it there too is a
+  separate change.
+- **The eligibility gate is load-bearing.** Nothing below the UI refuses a
+  write, so `CalendarSource.allowsEventMove` is what keeps read-only and
+  contact-managed events from being dragged. It is deliberately *not*
+  `isEventTarget`: a managed event is editable (reminders, notes) yet must never
+  move, while a switched-off calendar renders nothing to grab anyway.
+
+`EventForm.problems()` runs before the write, so a drop that would push a series
+past its own `UNTIL` — which makes the provider generate zero occurrences and the
+event vanish — is refused rather than written.
+
 ### Event time zones
 
 `EventForm.timezone` is the zone its wall-clock times mean, and **null means
@@ -143,6 +174,19 @@ informs and closes. Overwrite still writes only dirty fields, so external
 changes to untouched fields survive either way. Fields the form cannot
 write (attendees, status, reminder methods) are excluded so sync noise
 can't fake a conflict.
+
+A **dropped** event gets no conflict dialog, deliberately. Its blast radius is
+already bounded by the same dirty check — only `ALL_DAY`, `EVENT_TIMEZONE`,
+`DTSTART` and `DTEND`/`DURATION`/`RRULE` are written — so a concurrent remote
+edit to the title, notes or guests survives untouched. What a drop *can* clobber
+is a concurrent remote **time** change, and parking a one-gesture action behind a
+modal would cost more than that case is worth; the undo in the confirmation
+snackbar is the answer instead. Undo restores semantics, not the row's byte
+shape (`DURATION` normalises to `P<n>S`/`P<n>D`, `EVENT_TIMEZONE` is stamped
+concrete), and it is offered only where the inverse is one symmetric write — a
+one-off event or a whole-series shift. *This event* leaves an exception row
+behind and *this and following* splits the series; neither is undone by shifting
+back, so both get a plain confirmation.
 
 ## Reminder delivery
 
