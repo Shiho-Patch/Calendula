@@ -178,7 +178,7 @@
     <string name="event_access_confidential">Confidentiel</string>
     <string name="event_attendee_organizer">Organisateur</string>
     <string name="event_attendee_resource">Ressource</string>
-    <string name="event_detail_self_response">Votre réponse : %1$s</string>
+    <string name="event_detail_self_response">Votre réponse : %1$s</string>
     <string name="reminder_default">Rappel par défaut</string>
     <plurals name="reminder_minutes">
         <item quantity="one">%d minute avant</item>
