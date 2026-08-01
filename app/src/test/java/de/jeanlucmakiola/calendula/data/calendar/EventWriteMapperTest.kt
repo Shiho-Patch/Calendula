@@ -347,6 +347,29 @@ class EventWriteMapperTest {
     }
 
     @Test
+    fun `undoing a whole-series move lands the anchor back where it started`() {
+        // What makes undo safe for "all events": the shift is applied to the
+        // anchor the provider currently holds, so re-issuing it with the two
+        // forms swapped applies the exact inverse to the moved anchor.
+        val series = instantAt("2026-01-07T09:00", "Europe/Berlin")
+        val original = form(
+            start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(10, 0)),
+        ).copy(rrule = "FREQ=WEEKLY")
+        val moved = original.copy(
+            start = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(14, 30)),
+            end = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(15, 30)),
+        )
+
+        val movedAnchor = update(original, moved, series)[CalendarContract.Events.DTSTART] as Long
+        assertThat(movedAnchor).isNotEqualTo(series)
+
+        val restored = update(moved, original, movedAnchor)
+        assertThat(restored[CalendarContract.Events.DTSTART]).isEqualTo(series)
+        assertThat(restored[CalendarContract.Events.DURATION]).isEqualTo("P3600S")
+    }
+
+    @Test
     fun `switching a recurring event to all-day anchors the series on a UTC midnight`() {
         val series = instantAt("2026-01-07T09:00", "Europe/Berlin")
         val original = form(
