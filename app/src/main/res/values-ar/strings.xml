@@ -309,4 +309,5 @@
     <string name="agenda_range_showing_label">إظهار جميع الأحداث القادمة لـ</string>
     <string name="settings_reminders">تذكيرات الحدث</string>
     <string name="settings_default_reminder">التذكير الافتراضي</string>
+    <string name="reminder_benefit_delivery_title"></string>
 </resources>
