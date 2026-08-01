@@ -493,7 +493,7 @@
     <string name="calendars_auto_backup_interval">الفاصل الزمني</string>
     <string name="import_warning_no_start">تم تخطي حدث بدون وقت بدء.</string>
     <string name="import_warning_recurrence">تم تخطي بعض التكرارات التي تم تغييرها للأحداث المتكررة.</string>
-    <string name="import_close">إلغاء</string>
+    <string name="import_close">إغلاق</string>
     <string name="import_done_skipped_label">التكرارات</string>
     <string name="import_done_added_label">أُضيف</string>
     <string name="crash_dialog_title">%1$s تعطل</string>
@@ -527,4 +527,9 @@
     <string name="calendars_state_not_synced">لم تتم المزامنة مع هذا الجهاز</string>
     <string name="calendars_state_managed">تم ملؤه من جهات اتصالك</string>
     <string name="calendars_managed_delete_locked">تم ملء هذا التقويم من جهات الاتصال الخاصة بك، لذلك سيقوم Calendula بإنشائه مرة أخرى في المزامنة التالية. قم بإيقاف تشغيل التواريخ الخاصة ضمن الإعدادات ← التواريخ الخاصة لحذفها.</string>
+    <string name="duration_custom_max">كحد أقصى %1$s</string>
+    <string name="settings_calendar_duration_inherits">الافتراضي (%1$s)</string>
+    <string name="settings_calendar_duration_use_default">استخدام المدة الافتراضية (%1$s)</string>
+    <string name="reminder_benefit_delivery_title">التذكيرات، تُسلَّم</string>
+    <string name="reminder_use_default">استخدام التذكير الافتراضي</string>
 </resources>
