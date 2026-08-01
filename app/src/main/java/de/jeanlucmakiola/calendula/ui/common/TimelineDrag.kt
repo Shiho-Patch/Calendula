@@ -7,7 +7,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,6 +26,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
@@ -95,6 +96,13 @@ class TimelineGeometry {
     var edgePx: Float = 0f
     var stepPx: Float = 0f
     var days: List<LocalDate> = emptyList()
+
+    /**
+     * Whether the columns are laid out right-to-left. Pointer coordinates are
+     * never mirrored, but the grid is, so the leftmost column is the *last* day
+     * in Arabic — the mapping has to flip with it.
+     */
+    var isRtl: Boolean = false
 }
 
 /**
@@ -123,6 +131,14 @@ class TimelineDragController {
     private var grab = Offset.Zero
     private var pointer = Offset.Zero
 
+    /**
+     * The slot the block already occupied when it was picked up. A long press
+     * that never moves must write nothing — and because the target snaps to the
+     * grid, "nothing moved" is not the same as "the start is unchanged": an
+     * event at 09:07 resolves to 09:00 the instant it lifts.
+     */
+    private var originSlot: Pair<LocalDate, Int>? = null
+
     val isDragging: Boolean get() = liftedInstanceId != null
 
     fun begin(block: TimedBlock, pointerInRoot: Offset, blockInRoot: Offset) {
@@ -130,7 +146,9 @@ class TimelineDragController {
         liftedInstanceId = block.event.instanceId
         grab = pointerInRoot - blockInRoot
         pointer = pointerInRoot
+        originSlot = null
         recompute()
+        originSlot = drag?.slot
     }
 
     fun move(pointerInRoot: Offset) {
@@ -141,14 +159,20 @@ class TimelineDragController {
     fun cancel() {
         source = null
         liftedInstanceId = null
+        originSlot = null
         drag = null
     }
 
-    /** End the drag, handing back where it landed (null if it never resolved). */
+    /**
+     * End the drag, handing back where it landed — null when it never resolved,
+     * or when it landed back on the slot it started from.
+     */
     fun finish(): TimelineDrop? {
         val landed = drag
+        val origin = originSlot
         cancel()
-        return landed?.let { TimelineDrop(it.event, it.date, it.startMin) }
+        if (landed == null || landed.slot == origin) return null
+        return TimelineDrop(landed.event, landed.date, landed.startMin)
     }
 
     /**
@@ -171,11 +195,13 @@ class TimelineDragController {
         // fine and stays visible on the next day.
         val startMin = snapped.coerceIn(0, MINUTES_PER_DAY - DRAG_SNAP_MINUTES)
         val span = block.endMin - block.startMin
+        // The column the finger is over on screen, and the day that column shows.
         val column = ((pointer.x - origin.x) / columnPx).toInt().coerceIn(0, days.lastIndex)
+        val dayIndex = if (geometry.isRtl) days.lastIndex - column else column
         val height = maxOf(span / 60f * hourPx, MIN_EVENT_FRACTION * hourPx)
         drag = TimelineDrag(
             event = block.event,
-            date = days[column],
+            date = days[dayIndex],
             startMin = startMin,
             endMin = startMin + span,
             topLeftInRoot = Offset(
@@ -270,6 +296,9 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
     Box(
         modifier = modifier
             .fillMaxSize()
+            // A copy of a block that is still in the tree behind it; announcing
+            // it again would just duplicate the event for the drag's duration.
+            .clearAndSetSemantics { }
             .onGloballyPositioned { origin = it.positionInRoot() },
     ) {
         val drag = controller.drag ?: return@Box
@@ -279,7 +308,9 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
             formatMinuteOfDay(drag.endMin.coerceAtMost(MINUTES_PER_DAY), use24Hour, locale)
         Box(
             modifier = Modifier
-                .offset {
+                // Absolute: these are root coordinates, and the direction-aware
+                // offset would mirror them across the screen in an RTL layout.
+                .absoluteOffset {
                     IntOffset(
                         (drag.topLeftInRoot.x - origin.x).roundToInt(),
                         (drag.topLeftInRoot.y - origin.y).roundToInt(),

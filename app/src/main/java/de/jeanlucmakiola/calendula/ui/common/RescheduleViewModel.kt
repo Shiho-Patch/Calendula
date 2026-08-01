@@ -6,10 +6,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.calendar.NoSuchEventException
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
+import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventFormProblem
+import de.jeanlucmakiola.calendula.domain.RecurrenceEnd
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.allowsEventMove
+import de.jeanlucmakiola.calendula.domain.parseSimpleRecurrence
 import de.jeanlucmakiola.calendula.domain.problems
 import de.jeanlucmakiola.calendula.domain.realignRecurrence
 import de.jeanlucmakiola.calendula.domain.resolvedZone
@@ -26,9 +29,11 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.coroutines.cancellation.CancellationException
@@ -40,8 +45,14 @@ sealed interface MoveTarget {
     /** A new start instant — a timeline drag, which moves time and day at once. */
     data class Start(val instant: Instant) : MoveTarget
 
-    /** A new first day, keeping the time of day — a month-grid or all-day drag. */
-    data class Day(val date: LocalDate) : MoveTarget
+    /**
+     * A whole-day shift, keeping the time of day — a month-grid or all-day drag.
+     * A delta rather than a target date on purpose: the grid already knows how
+     * many columns the finger crossed, and re-deriving that from a date would
+     * mean the screen and this view model each resolving the event's first day
+     * in their own zone, which can disagree by a day.
+     */
+    data class ByDays(val days: Int) : MoveTarget
 }
 
 /**
@@ -123,6 +134,14 @@ class RescheduleViewModel @Inject constructor(
     private var pending: PreparedMove? = null
 
     /**
+     * Set from the moment a drop is accepted until its write settles. Two drops
+     * of the same recurring event landing inside that window would each compute
+     * their shift from the same pre-move occurrence, and the data layer applies
+     * both to the re-read anchor — so the shifts would compound.
+     */
+    private var busy = false
+
+    /**
      * The calendars whose events may be dragged. Nothing below the UI guards
      * this — the repository and data source attempt any write handed to them —
      * so a block outside this set registers no drag gesture at all.
@@ -149,15 +168,24 @@ class RescheduleViewModel @Inject constructor(
          * wider than the single occurrence would leave rule and anchor disagreeing.
          */
         val canRealign: Boolean,
+        /** The series row's DTSTART date after the move — what its `UNTIL` must clear. */
+        val newAnchorDate: LocalDate,
     )
 
     fun move(request: MoveRequest) {
-        if (_scopePrompt.value != null) return
+        if (busy || _scopePrompt.value != null) return
+        busy = true
         viewModelScope.launch {
-            val prepared = prepare(request) ?: return@launch
+            val prepared = prepare(request)
+            if (prepared == null) {
+                busy = false
+                return@launch
+            }
             if (!prepared.isRecurring) {
                 write(prepared, RecurringWriteScope.AllEvents)
+                busy = false
             } else {
+                // Still busy: the scope dialog is now the thing in flight.
                 pending = prepared
                 _scopePrompt.value = MoveScopePrompt(occurrenceOnly = !prepared.canRealign)
             }
@@ -167,19 +195,28 @@ class RescheduleViewModel @Inject constructor(
     /** Answer the scope dialog. */
     fun moveWithScope(scope: RecurringWriteScope) {
         val prepared = pending ?: return
+        // Belt and braces against the dialog ever offering a scope the rule
+        // can't carry: writing it would leave anchor and rule disagreeing.
+        if (!prepared.canRealign && scope != RecurringWriteScope.ThisEvent) return
         pending = null
         _scopePrompt.value = null
-        viewModelScope.launch { write(prepared, scope) }
+        viewModelScope.launch {
+            write(prepared, scope)
+            busy = false
+        }
     }
 
     /** Dismiss the scope dialog without writing. */
     fun cancelScope() {
         pending = null
+        busy = false
         _scopePrompt.value = null
     }
 
     /** Put a completed move back where it came from. */
     fun undo(undo: MoveUndo) {
+        if (busy) return
+        busy = true
         _outcome.value = null
         viewModelScope.launch {
             _outcome.value = try {
@@ -194,6 +231,7 @@ class RescheduleViewModel @Inject constructor(
             } catch (e: Exception) {
                 MoveOutcome.Failed
             }
+            busy = false
         }
     }
 
@@ -219,23 +257,16 @@ class RescheduleViewModel @Inject constructor(
         val original = detail.toEditForm(request.beginMillis, request.endMillis, zone)
         val shifted = when (val target = request.target) {
             is MoveTarget.Start -> original.shiftedTo(target.instant, zone)
-            is MoveTarget.Day -> original.shiftedByDays(
-                (
-                    target.date.toEpochDays() -
-                        sourceDate(request.beginMillis, original.isAllDay, zone).toEpochDays()
-                    ).toInt(),
-            )
+            is MoveTarget.ByDays -> original.shiftedByDays(target.days, zone)
         }
         // A zero-distance drop is not a write. Matches the edit form's own
         // pristine-form no-op, and keeps a mis-aimed long press harmless.
         if (shifted == original) return null
 
-        val problems = shifted.problems()
-        if (EventFormProblem.RecurrenceEndsBeforeStart in problems) {
-            _outcome.value = MoveOutcome.BlockedSeriesEnd
-            return null
-        }
-        if (problems.isNotEmpty()) {
+        // The UNTIL check is deferred to the write: how far the move reaches
+        // decides which date has to clear it, and "only this event" writes an
+        // exception row that no UNTIL constrains at all.
+        if ((shifted.problems() - EventFormProblem.RecurrenceEndsBeforeStart).isNotEmpty()) {
             _outcome.value = MoveOutcome.Failed
             return null
         }
@@ -243,12 +274,23 @@ class RescheduleViewModel @Inject constructor(
         // An exception row stands alone whatever rule a sync adapter left on it.
         val isRecurring = original.rrule != null && !detail.isException
         val movedDay = shifted.start.date != original.start.date
+        // The series anchor moves by the same *wall-clock* shift as the dragged
+        // occurrence, so only a whole-day shift moves it by a predictable number
+        // of days — a drag that also changes the time of day would carry some
+        // anchor times of day across an extra midnight and leave the rule naming
+        // the wrong weekday. All-day forms shift as bare dates, so they always
+        // qualify.
+        val wholeDayShift = original.isAllDay || shifted.start.time == original.start.time
         val realigned = if (isRecurring && movedDay) {
-            realignRecurrence(
-                requireNotNull(original.rrule),
-                original.start.date,
-                shifted.start.date,
-            )
+            if (wholeDayShift) {
+                realignRecurrence(
+                    requireNotNull(original.rrule),
+                    original.start.date,
+                    shifted.start.date,
+                )
+            } else {
+                null
+            }
         } else {
             original.rrule
         }
@@ -260,11 +302,20 @@ class RescheduleViewModel @Inject constructor(
             updated = shifted.copy(rrule = realigned ?: original.rrule),
             isRecurring = isRecurring,
             canRealign = !isRecurring || !movedDay || realigned != null,
+            // Where the series row's own DTSTART lands, given the anchor moves by
+            // the same shift. Only meaningful under [wholeDayShift], which is the
+            // only case a wider-than-one-occurrence write is offered in.
+            newAnchorDate = anchorDate(detail, original, zone)
+                .plus(shifted.start.date.toEpochDays() - original.start.date.toEpochDays(), DateTimeUnit.DAY),
         )
     }
 
     private suspend fun write(prepared: PreparedMove, scope: RecurringWriteScope) {
         val request = prepared.request
+        if (endsBeforeItStarts(prepared, scope)) {
+            _outcome.value = MoveOutcome.BlockedSeriesEnd
+            return
+        }
         _outcome.value = try {
             when {
                 !prepared.isRecurring || scope == RecurringWriteScope.AllEvents ->
@@ -301,6 +352,39 @@ class RescheduleViewModel @Inject constructor(
     }
 
     /**
+     * Whether this write would leave a rule whose `UNTIL` precedes the first day
+     * it now applies to — the provider then generates nothing and the event
+     * silently disappears from every view.
+     *
+     * Which date has to clear `UNTIL` depends on how far the write reaches: a
+     * whole-series move carries the series *anchor*, a split starts a new series
+     * at the moved occurrence, and a single occurrence becomes an exception row
+     * that no `UNTIL` constrains. Testing the occurrence in every case would
+     * refuse the perfectly ordinary drag of a bounded series' last occurrence.
+     */
+    private fun endsBeforeItStarts(prepared: PreparedMove, scope: RecurringWriteScope): Boolean {
+        if (!prepared.isRecurring || scope == RecurringWriteScope.ThisEvent) return false
+        val rule = prepared.updated.rrule ?: return false
+        val end = parseSimpleRecurrence(rule)?.end as? RecurrenceEnd.Until ?: return false
+        val firstDay = if (scope == RecurringWriteScope.AllEvents) {
+            prepared.newAnchorDate
+        } else {
+            prepared.updated.start.date
+        }
+        return end.date < firstDay
+    }
+
+    /**
+     * The series row's own start date — for a recurring master, `EventDetail`
+     * carries the row's DTSTART rather than the tapped occurrence's. Read in the
+     * same anchoring the write path uses: UTC for an all-day series.
+     */
+    private fun anchorDate(detail: EventDetail, original: EventForm, zone: TimeZone): LocalDate =
+        detail.instance.start
+            .toLocalDateTime(if (original.isAllDay) TimeZone.UTC else original.resolvedZone(zone))
+            .date
+
+    /**
      * Undo is offered only where the inverse is one symmetric write: a
      * non-recurring event (absolute DTSTART/DTEND) and a whole-series move (the
      * −Δ wall-clock shift lands on the re-read anchor). "This event" leaves an
@@ -333,9 +417,4 @@ class RescheduleViewModel @Inject constructor(
         }
     }
 
-    /** The calendar day the dragged occurrence started on, as the grid shows it. */
-    private fun sourceDate(beginMillis: Long, isAllDay: Boolean, zone: TimeZone): LocalDate =
-        Instant.fromEpochMilliseconds(beginMillis)
-            .toLocalDateTime(if (isAllDay) TimeZone.UTC else zone)
-            .date
 }

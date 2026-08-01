@@ -55,7 +55,7 @@ fun EventMoveHost(viewModel: RescheduleViewModel, modifier: Modifier = Modifier)
 
     val moved = outcome as? MoveOutcome.Moved
     val movedLabel = moved?.let { formatMovedTo(it.startMillis, it.isAllDay, use24Hour, locale) }
-    val message = when (val o = outcome) {
+    val message = when (outcome) {
         null -> null
         is MoveOutcome.Moved -> stringResource(R.string.event_move_done, movedLabel.orEmpty())
         MoveOutcome.Undone -> stringResource(R.string.event_move_undone)

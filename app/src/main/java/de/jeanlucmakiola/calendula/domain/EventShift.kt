@@ -40,13 +40,24 @@ fun EventForm.shiftedTo(newStart: Instant, deviceZone: TimeZone): EventForm {
 
 /**
  * The form moved [days] calendar days, keeping its time of day and its length.
- * Both ends move, so a multi-day event keeps its span rather than collapsing to
- * a single day; an all-day event's placeholder times ride along untouched.
+ * A multi-day event keeps its span rather than collapsing to a single day.
+ *
+ * An all-day event is pure date arithmetic — both ends move, and the placeholder
+ * times ride along untouched. A timed one re-derives its end from the preserved
+ * **instant** duration, for the same reason [shiftedTo] does: the length travels
+ * to a recurring row as `DURATION`, so a move onto a DST changeover that kept
+ * wall clock would silently rewrite the whole series' length.
  */
-fun EventForm.shiftedByDays(days: Int): EventForm {
+fun EventForm.shiftedByDays(days: Int, deviceZone: TimeZone): EventForm {
     if (days == 0) return this
-    return copy(
-        start = LocalDateTime(start.date.plus(days, DateTimeUnit.DAY), start.time),
-        end = LocalDateTime(end.date.plus(days, DateTimeUnit.DAY), end.time),
-    )
+    val newStart = LocalDateTime(start.date.plus(days, DateTimeUnit.DAY), start.time)
+    if (isAllDay) {
+        return copy(
+            start = newStart,
+            end = LocalDateTime(end.date.plus(days, DateTimeUnit.DAY), end.time),
+        )
+    }
+    val zone = resolvedZone(deviceZone)
+    val span = end.toInstant(zone) - start.toInstant(zone)
+    return copy(start = newStart, end = (newStart.toInstant(zone) + span).toLocalDateTime(zone))
 }

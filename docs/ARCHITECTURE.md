@@ -123,21 +123,45 @@ Two things the drag has to get right that the edit screen sidesteps:
 - **`RRULE` day parts go stale.** `buildEventUpdateValues` writes the rule
   verbatim while `DTSTART` moves, so dragging a `FREQ=WEEKLY;BYDAY=MO` occurrence
   onto a Wednesday under *All events* leaves a Wednesday anchor under a Monday
-  rule and the series does not move. `realignRecurrence` re-derives `BYDAY` /
-  `BYMONTHDAY` / `BYMONTH` from the new date, and returns **null** for rules one
-  moved occurrence cannot resolve (`BYDAY=MO,WE`, `2TH`, `BYSETPOS`) — the drop
-  then offers only *this event*, whose exception row carries no rule at all. The
-  same staleness is reachable from the edit screen; wiring it there too is a
-  separate change.
+  rule and the series does not move. `realignRecurrence` re-derives `BYDAY`, and
+  returns **null** for everything else — the drop then offers only *this event*,
+  whose exception row carries no rule at all. The same staleness is reachable
+  from the edit screen; wiring it there too is a separate change.
+
+  What the rule has to agree with is the **series anchor**, not the occurrence
+  being dragged, and the anchor moves by the same *wall-clock* shift. Only two
+  things survive that intact, which is exactly the envelope the realigner accepts:
+  weekday (uniform mod 7, so every anchor time of day crosses the same number of
+  midnights) and a shift that is a whole number of days (otherwise a late-enough
+  anchor crosses one midnight more than the occurrence did). Day-of-month is not
+  uniform — `BYMONTHDAY=28` with a January anchor, occurrence Feb 28 dragged to
+  Mar 1, would leave a Jan 29 anchor under a `BYMONTHDAY=1` rule, a DTSTART that
+  is not an instance of its own rule and a phantom occurrence on any client that
+  trusts it. Those drags may only move the one occurrence.
+
+  The accepted parts are deliberately a **subset** of what `parseSimpleRecurrence`
+  understands, so anything realignable is also a rule whose `UNTIL` the guard
+  below can actually read.
 - **The eligibility gate is load-bearing.** Nothing below the UI refuses a
   write, so `CalendarSource.allowsEventMove` is what keeps read-only and
   contact-managed events from being dragged. It is deliberately *not*
   `isEventTarget`: a managed event is editable (reminders, notes) yet must never
   move, while a switched-off calendar renders nothing to grab anyway.
 
-`EventForm.problems()` runs before the write, so a drop that would push a series
-past its own `UNTIL` — which makes the provider generate zero occurrences and the
-event vanish — is refused rather than written.
+A drop that would push a series past its own `UNTIL` — the provider then
+generates zero occurrences and the event vanishes from every view — is refused
+rather than written. The check happens at **write** time, not at drop time,
+because which date has to clear `UNTIL` depends on how far the write reaches: a
+whole-series move carries the *anchor*, a split starts a new series at the moved
+occurrence, and a single occurrence becomes an exception row that no `UNTIL`
+constrains. Testing the occurrence in every case would refuse the perfectly
+ordinary drag of a bounded series' last occurrence.
+
+Two known limitations of a whole-series move, both shared with the edit screen's
+own *All events* time save rather than introduced here — a drag just makes them
+one gesture away: the series' `EXDATE` stamps and its exception rows are **not**
+re-anchored, so previously deleted occurrences can reappear and previously
+modified ones stay behind while the rest of the series moves.
 
 ### Event time zones
 
@@ -186,7 +210,10 @@ shape (`DURATION` normalises to `P<n>S`/`P<n>D`, `EVENT_TIMEZONE` is stamped
 concrete), and it is offered only where the inverse is one symmetric write — a
 one-off event or a whole-series shift. *This event* leaves an exception row
 behind and *this and following* splits the series; neither is undone by shifting
-back, so both get a plain confirmation.
+back, so both get a plain confirmation. Two further gaps, both narrow and
+accepted: a shift whose *anchor* crosses a DST gap is not invertible in wall
+clock (the −Δ normalises back to where it started), and an undo after a
+concurrent remote time change overwrites it, exactly as the forward move would.
 
 ## Reminder delivery
 

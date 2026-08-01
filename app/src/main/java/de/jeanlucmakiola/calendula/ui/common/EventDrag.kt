@@ -121,15 +121,25 @@ fun rememberDragSurface(
                 if (!took) return@awaitEachGesture
                 var dropped = false
                 try {
+                    // Once the block is lifted the gesture is ours, so it is
+                    // driven on the initial pass and consumed there. That pass
+                    // runs parent → child, which gets both halves right: an
+                    // ancestor that outranks us (the pinch, which claims the
+                    // moment a second finger lands anywhere in the timeline) has
+                    // already consumed by the time we look, and everything below
+                    // us — the month grid's full-bleed tap layer, which is a
+                    // descendant and would otherwise open the day on lift — sees
+                    // ours. Consumption persists across passes, so the scroll and
+                    // the page swipe stand down on main as well.
                     while (true) {
-                        val event = awaitPointerEvent()
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (change.isConsumed) break
                         if (!change.pressed) {
+                            change.consume()
                             dropped = true
                             break
                         }
-                        // A second finger is the pinch taking over; it consumes on
-                        // the initial pass, so the drag is already dead.
                         if (event.changes.count { it.pressed } > 1) break
                         change.consume()
                         coordinates[0]?.takeIf { it.isAttached }

@@ -109,7 +109,7 @@ class EventShiftTest {
 
         assertThat(allDay.shiftedTo(target, berlin)).isEqualTo(allDay)
 
-        val moved = allDay.shiftedByDays(3)
+        val moved = allDay.shiftedByDays(3, berlin)
         assertThat(moved.start.date).isEqualTo(LocalDate(2026, 6, 14))
         assertThat(moved.end.date).isEqualTo(LocalDate(2026, 6, 14))
         // The placeholder times exist only for a switch back to timed; untouched.
@@ -123,15 +123,34 @@ class EventShiftTest {
             end = LocalDateTime(LocalDate(2026, 6, 13), LocalTime(2, 0)),
         )
 
-        val moved = multiDay.shiftedByDays(-2)
+        val moved = multiDay.shiftedByDays(-2, berlin)
 
         assertThat(moved.start).isEqualTo(LocalDateTime(LocalDate(2026, 6, 9), LocalTime(22, 0)))
         assertThat(moved.end).isEqualTo(LocalDateTime(LocalDate(2026, 6, 11), LocalTime(2, 0)))
     }
 
     @Test
+    fun `a timed shift onto a DST changeover keeps the real length, not the wall clock`() {
+        // 22:00 Sat -> 04:00 Sun is six real hours; the target Sunday is the one
+        // Berlin springs forward on. Keeping wall clock would write a five-hour
+        // DURATION for the whole series.
+        val overnight = form(
+            start = LocalDateTime(LocalDate(2026, 3, 21), LocalTime(22, 0)),
+            end = LocalDateTime(LocalDate(2026, 3, 22), LocalTime(4, 0)),
+        )
+
+        val moved = overnight.shiftedByDays(7, berlin)
+
+        assertThat(moved.start).isEqualTo(LocalDateTime(LocalDate(2026, 3, 28), LocalTime(22, 0)))
+        assertThat(moved.end.toInstant(berlin) - moved.start.toInstant(berlin))
+            .isEqualTo(overnight.end.toInstant(berlin) - overnight.start.toInstant(berlin))
+        // The wall-clock end therefore lands an hour later than a naive +7 days.
+        assertThat(moved.end).isEqualTo(LocalDateTime(LocalDate(2026, 3, 29), LocalTime(5, 0)))
+    }
+
+    @Test
     fun `shifting by no days is a no-op`() {
         val original = form()
-        assertThat(original.shiftedByDays(0)).isEqualTo(original)
+        assertThat(original.shiftedByDays(0, berlin)).isEqualTo(original)
     }
 }

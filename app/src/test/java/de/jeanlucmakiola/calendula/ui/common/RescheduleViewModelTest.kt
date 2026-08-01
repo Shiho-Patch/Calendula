@@ -45,12 +45,14 @@ class RescheduleViewModelTest {
     @BeforeEach fun setUp() = Dispatchers.setMain(dispatcher)
     @AfterEach fun tearDown() = Dispatchers.resetMain()
 
-    // Monday 2026-06-08, midday UTC — midday so the device zone can't move the
-    // weekday out from under the BYDAY assertions.
+    // Monday 2026-06-08, midday in whatever zone the test JVM runs in — resolved
+    // in the device zone rather than UTC, because that is the zone the drop path
+    // reads dates back in, and at UTC+13 a UTC midday is already Tuesday. The
+    // BYDAY assertions below depend on this really being a Monday.
     private val monday = LocalDate(2026, 6, 8)
-    private val wednesday = LocalDate(2026, 6, 10)
-    private val beginMillis =
-        LocalDateTime(monday, LocalTime(12, 0)).toInstant(TimeZone.UTC).toEpochMilliseconds()
+    private val beginMillis = LocalDateTime(monday, LocalTime(12, 0))
+        .toInstant(TimeZone.currentSystemDefault())
+        .toEpochMilliseconds()
     private val endMillis = beginMillis + 3_600_000L
 
     private fun cal(
@@ -103,7 +105,7 @@ class RescheduleViewModelTest {
         eventId = 42L,
         beginMillis = beginMillis,
         endMillis = endMillis,
-        target = MoveTarget.Day(wednesday),
+        target = MoveTarget.ByDays(2),
     )
 
     /** A drop an hour later, expressed the way a timeline drag expresses one. */
@@ -262,11 +264,60 @@ class RescheduleViewModelTest {
         val vm = viewModel(tempDir, fake)
 
         vm.move(toWednesday())
+        vm.moveWithScope(RecurringWriteScope.AllEvents)
         advanceUntilIdle()
 
         assertThat(vm.outcome.value).isEqualTo(MoveOutcome.BlockedSeriesEnd)
-        assertThat(vm.scopePrompt.value).isNull()
         assertThat(fake.updatedEvents).isEmpty()
+    }
+
+    @Test
+    fun `dragging a bounded series' last occurrence still allows moving just it`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply {
+            eventDetailResult = { detail(rrule = "FREQ=WEEKLY;UNTIL=20260608T120000Z") }
+        }
+        val vm = viewModel(tempDir, fake)
+
+        vm.move(toWednesday())
+        advanceUntilIdle()
+        // The block belongs to the write, not to the drop: an exception row is
+        // constrained by no UNTIL, so this scope must still be on offer.
+        assertThat(vm.scopePrompt.value).isNotNull()
+
+        vm.moveWithScope(RecurringWriteScope.ThisEvent)
+        advanceUntilIdle()
+
+        assertThat(fake.updatedOccurrences).hasSize(1)
+        assertThat(vm.outcome.value).isInstanceOf(MoveOutcome.Moved::class.java)
+    }
+
+    @Test
+    fun `a drag that changes both the day and the time cannot move the series`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply {
+            eventDetailResult = { detail(rrule = "FREQ=WEEKLY;BYDAY=MO") }
+        }
+        val vm = viewModel(tempDir, fake)
+
+        // Onto the next day *and* two hours later: the anchor moves by the same
+        // wall-clock shift, so an anchor late enough in the day would cross two
+        // midnights and land on a weekday the rebuilt rule doesn't name.
+        vm.move(
+            MoveRequest(
+                eventId = 42L,
+                beginMillis = beginMillis,
+                endMillis = endMillis,
+                target = MoveTarget.Start(
+                    Instant.fromEpochMilliseconds(beginMillis + 26 * 3_600_000L),
+                ),
+            ),
+        )
+        advanceUntilIdle()
+
+        assertThat(vm.scopePrompt.value).isEqualTo(MoveScopePrompt(occurrenceOnly = true))
     }
 
     @Test

@@ -78,6 +78,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.geometry.Offset
 import kotlin.math.roundToInt
 import de.jeanlucmakiola.calendula.ui.common.rememberDragSurface
@@ -472,6 +476,9 @@ private fun MonthDragOverlay(controller: MonthDragController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            // A copy of a chip that is still in the tree behind it; announcing it
+            // again would just duplicate the event for the drag's duration.
+            .clearAndSetSemantics { }
             .onGloballyPositioned { origin = it.positionInRoot() },
     ) {
         val drag = controller.drag ?: return@Box
@@ -481,7 +488,9 @@ private fun MonthDragOverlay(controller: MonthDragController) {
             continuesLeft = false,
             continuesRight = false,
             modifier = Modifier
-                .offset {
+                // Absolute: these are root coordinates, and the direction-aware
+                // offset would mirror them across the screen in an RTL layout.
+                .absoluteOffset {
                     IntOffset(
                         (drag.topLeftInRoot.x - origin.x).roundToInt(),
                         (drag.topLeftInRoot.y - origin.y).roundToInt(),
@@ -1802,7 +1811,7 @@ private fun MonthWeekRow(
     val bandCoordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val density = LocalDensity.current
     val rowHeightPx = with(density) { EVENT_ROW_HEIGHT.toPx() }
-    val zone = remember { TimeZone.currentSystemDefault() }
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val dragging = dragController?.isDragging == true
     DisposableEffect(rowToken, dragController) {
         onDispose { dragController?.removeRow(rowToken) }
@@ -1831,6 +1840,7 @@ private fun MonthWeekRow(
                             days = week.days,
                             cell = coords,
                             columnWidthPx = coords.size.width / 7f,
+                            isRtl = isRtl,
                         ),
                     )
                 }
@@ -1841,7 +1851,7 @@ private fun MonthWeekRow(
                         controller = dragController,
                         band = bandCoordinates,
                         rowHeightPx = rowHeightPx,
-                        zone = zone,
+                        isRtl = isRtl,
                     ),
                 ),
         ) {
@@ -2083,7 +2093,7 @@ private fun monthChipDragModifier(
     controller: MonthDragController?,
     band: Array<LayoutCoordinates?>,
     rowHeightPx: Float,
-    zone: TimeZone,
+    isRtl: Boolean,
 ): Modifier = rememberDragSurface(
     enabled = moveScope != null && controller != null,
     key = week.days.first(),
@@ -2092,18 +2102,20 @@ private fun monthChipDragModifier(
         val columnPx = size.width / 7f
         val bandY = if (bandTop == null) -1f else local.y - (bandTop - nodeInRoot.y)
         val lane = (bandY / rowHeightPx).toInt()
+        // The column under the finger on screen, and the day that column shows.
         val column = (local.x / columnPx).toInt()
+        val dayIndex = if (isRtl) week.days.lastIndex - column else column
         val event = if (bandY < 0f || columnPx <= 0f) {
             null
         } else {
-            week.chipAt(column, lane, MAX_EVENT_ROWS)
+            week.chipAt(dayIndex, lane, MAX_EVENT_ROWS)
         }
         if (event == null || moveScope?.allows(event) != true) {
             false
         } else {
             controller?.begin(
                 event = event,
-                grabDate = week.days[column],
+                grabDate = week.days[dayIndex],
                 pointerInRoot = pointerInRoot,
                 chipInRoot = Offset(
                     x = nodeInRoot.x + column * columnPx,
@@ -2117,19 +2129,17 @@ private fun monthChipDragModifier(
     onMove = { controller?.move(it) },
     onDrop = {
         controller?.finish()?.let { drop ->
-            val delta = drop.targetDate.toEpochDays() - drop.grabDate.toEpochDays()
-            if (delta != 0L) {
+            // How many columns the finger crossed — grabbing the middle of a
+            // multi-day bar shifts the event by what the finger travelled, not
+            // to where it landed.
+            val delta = (drop.targetDate.toEpochDays() - drop.grabDate.toEpochDays()).toInt()
+            if (delta != 0) {
                 moveScope?.move(
                     MoveRequest(
                         eventId = drop.event.eventId,
                         beginMillis = drop.event.start.toEpochMilliseconds(),
                         endMillis = drop.event.end.toEpochMilliseconds(),
-                        // The event's own first day plus the columns crossed —
-                        // grabbing the middle of a multi-day bar shifts it by
-                        // what the finger travelled, not to where it landed.
-                        target = MoveTarget.Day(
-                            drop.event.spanFirstDay(zone).plus(delta.toInt(), DateTimeUnit.DAY),
-                        ),
+                        target = MoveTarget.ByDays(delta),
                     ),
                 )
             }

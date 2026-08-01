@@ -20,6 +20,12 @@ class MonthRowGeometry(
     /** The row's day-column box — the space chip offsets are measured in. */
     val cell: LayoutCoordinates,
     val columnWidthPx: Float,
+    /**
+     * Whether the columns are laid out right-to-left. Pointer coordinates are
+     * never mirrored, but the grid is, so the leftmost column is the *last* day
+     * in Arabic.
+     */
+    val isRtl: Boolean,
 )
 
 /** A chip in flight, in root coordinates so it can be drawn in an overlay. */
@@ -127,7 +133,7 @@ class MonthDragController {
                 val column = ((pointer.x - bounds.left) / row.columnWidthPx)
                     .toInt()
                     .coerceIn(0, row.days.lastIndex)
-                row.days[column]
+                row.days[if (row.isRtl) row.days.lastIndex - column else column]
             }
         }
         drag = MonthChipDrag(

@@ -64,6 +64,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
@@ -71,6 +72,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -672,6 +674,7 @@ private fun Timeline(
     val locale = currentLocale()
     val zoom = LocalTimelineZoom.current
     val density = LocalDensity.current
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
     // BoxWithConstraints rather than Box: the fit-the-whole-day scale needs the
     // timeline's own viewport height, which is only known here — below the top
@@ -742,6 +745,7 @@ private fun Timeline(
                                 it.columnGapPx = gap
                                 it.columnWidthPx = (coords.size.width + gap) / state.days.size
                                 it.days = state.days
+                                it.isRtl = isRtl
                             }
                         },
                     horizontalArrangement = Arrangement.spacedBy(COLUMN_GAP),
@@ -895,15 +899,16 @@ private fun EventBlock(
     val moveAction = eventMoveAction(block.event)
     // A block clipped at the top continues from the previous day: its top edge is
     // midnight, not the event's start, so dragging it would invent a time.
+    val draggable = moveAction != null && block.beginsOn(date, zone)
     val dragModifier = rememberEventDragSource(
-        enabled = moveAction != null && block.beginsOn(date, zone),
+        enabled = draggable,
         key = block.event.instanceId,
         onPickUp = { pointer, blockRoot, _ -> dragController.begin(block, pointer, blockRoot) },
         onMove = dragController::move,
         onDrop = { dragController.finish()?.let(onDrop) },
         onCancel = dragController::cancel,
     )
-    val lifted = dragController.liftedInstanceId == block.event.instanceId
+    val lifted = draggable && dragController.liftedInstanceId == block.event.instanceId
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
             // The source stays put as a ghost while its floating copy travels.
