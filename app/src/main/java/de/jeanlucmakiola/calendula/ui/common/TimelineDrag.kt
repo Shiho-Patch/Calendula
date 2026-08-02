@@ -79,10 +79,9 @@ data class TimelineDrag(
 data class TimelineDrop(val event: EventInstance, val date: LocalDate, val startMin: Int)
 
 /**
- * The timeline's live geometry, republished on every layout. Held in plain
- * fields rather than snapshot state on purpose: it changes on every scroll
- * frame, and recomposing the screen that often would cost far more than the
- * drag loop's own per-frame read of it.
+ * The timeline's live geometry, republished on every layout. Plain fields rather
+ * than snapshot state: it changes on every scroll frame, and the drag loop reads
+ * it per frame anyway.
  */
 class TimelineGeometry {
     /** The day-columns row — scrolling *content*, so its root position folds in the scroll. */
@@ -102,18 +101,15 @@ class TimelineGeometry {
 
     /**
      * Whether the columns are laid out right-to-left. Pointer coordinates are
-     * never mirrored, but the grid is, so the leftmost column is the *last* day
-     * in Arabic — the mapping has to flip with it.
+     * never mirrored but the grid is, so the mapping has to flip with it.
      */
     var isRtl: Boolean = false
 }
 
 /**
  * Hoisted drag state for one timeline (#68). It lives above the per-page
- * `AnimatedContent` — a page change mid-drag would otherwise strand a ghost —
- * and the block it renders is drawn in an overlay: a `Card` column ends its
- * modifier chain with a clip, so a block offset toward the neighbouring column
- * would simply be cut off in place.
+ * `AnimatedContent`, so a page change mid-drag can't strand a ghost, and the
+ * block it renders is drawn in an overlay, clear of the day column's clip.
  */
 @Stable
 class TimelineDragController {
@@ -123,19 +119,16 @@ class TimelineDragController {
         private set
 
     /**
-     * A dropped block, held at the slot it landed on while the write runs. The
-     * grid behind it still shows the old time until the provider notifies and
-     * the query re-reads, so releasing the copy at drop time would snap the
-     * event back to where it came from for the length of the write.
+     * A dropped block, held at the slot it landed on while the write runs — the
+     * grid behind it still shows the old time until the query re-reads.
      */
     var settling: TimelineDrag? by mutableStateOf(null)
         private set
 
     /**
      * Which block is lifted, and whether anything is. Separate snapshot state
-     * from [drag] on purpose: [drag] changes on every frame, and the blocks that
-     * only need to know "am I the ghost" must not recompose that often. Stays
-     * set through [settling], so the source never reappears under the copy.
+     * from [drag], which changes every frame, so blocks that only need "am I the
+     * ghost" don't recompose that often. Stays set through [settling].
      */
     var liftedInstanceId: Long? by mutableStateOf(null)
         private set
@@ -143,10 +136,8 @@ class TimelineDragController {
     /**
      * Where the settled drop came from, and which event row it belongs to. The
      * instance id alone can't identify the source block for the length of the
-     * write: the provider regenerates `Instances` rows, so a re-read that still
-     * carries the *old* time can arrive under a new instance id — and a source
-     * matched by instance id would stop being the ghost and flash back to full
-     * opacity in the slot the event is about to leave.
+     * write: the provider regenerates `Instances` rows, so a re-read carrying the
+     * *old* time can arrive under a new instance id.
      */
     private var settledOrigin: Triple<Long, LocalDate, Int>? by mutableStateOf(null)
 
@@ -156,9 +147,8 @@ class TimelineDragController {
 
     /**
      * Whether the grid itself now draws the settled drop at its landing slot.
-     * The copy may only be handed back once this is true: releasing on a timer
-     * puts the source ghost back at full opacity in its *old* slot for whatever
-     * is left of the re-read — a flicker of the event where it no longer is.
+     * The copy may only be handed back once this is true, or the source ghost
+     * flashes back to full opacity in its old slot.
      */
     var settledOnGrid: Boolean by mutableStateOf(false)
         private set
@@ -168,10 +158,8 @@ class TimelineDragController {
     private var pointer = Offset.Zero
 
     /**
-     * The slot the block already occupied when it was picked up. A long press
-     * that never moves must write nothing — and because the target snaps to the
-     * grid, "nothing moved" is not the same as "the start is unchanged": an
-     * event at 09:07 resolves to 09:00 the instant it lifts.
+     * The slot the block already occupied when it was picked up — not the same
+     * as its start, since the target snaps to the grid (09:07 lifts to 09:00).
      */
     private var originSlot: Pair<LocalDate, Int>? = null
 
@@ -205,9 +193,8 @@ class TimelineDragController {
 
     /**
      * Whether [block] is the one whose copy is in flight, and so must stay a
-     * ghost. While the finger holds it that is the instance it picked up; once
-     * dropped it is also whatever now sits in the slot it left, however the
-     * provider has renumbered it in the meantime.
+     * ghost: the instance the finger picked up, or once dropped whatever now
+     * sits in the slot it left.
      */
     fun ghosts(block: TimedBlock, date: LocalDate): Boolean {
         if (liftedInstanceId == null) return false
@@ -221,8 +208,7 @@ class TimelineDragController {
     /**
      * What a day column now holds, so a settled drop can tell when the grid has
      * caught up with it. Matched on the landing slot plus either the event row
-     * or its title: a single-occurrence move writes an exception row with a new
-     * `eventId`, which nothing else about the drop can predict.
+     * or its title, since a single-occurrence move writes a new `eventId`.
      */
     fun noteGrid(date: LocalDate, blocks: List<TimedBlock>) {
         val landed = settling ?: return
@@ -254,9 +240,8 @@ class TimelineDragController {
 
     /**
      * Stop ghosting the source — the grid draws the drop itself by now — while
-     * the copy is still on screen dissolving. Un-ghosting only at [release]
-     * would leave the block under the fading copy dim, and brighten it once the
-     * copy was gone: a dip the eye reads as the event flickering.
+     * the copy is still dissolving. Un-ghosting at [release] instead would leave
+     * the block dim under the fading copy and then brighten it: a visible dip.
      */
     fun handOver() {
         liftedInstanceId = null
@@ -286,8 +271,7 @@ class TimelineDragController {
         val origin = grid.positionInRoot()
         val rawMinutes = (pointer.y - grab.y - origin.y) / hourPx * 60f
         val snapped = (rawMinutes / DRAG_SNAP_MINUTES).roundToInt() * DRAG_SNAP_MINUTES
-        // Clamp the start into the target day; a tail running past midnight is
-        // fine and stays visible on the next day.
+        // Clamp the start into the target day; a tail past midnight is fine.
         val startMin = snapped.coerceIn(0, MINUTES_PER_DAY - DRAG_SNAP_MINUTES)
         val span = block.endMin - block.startMin
         // The column the finger is over on screen, and the day that column shows.
@@ -312,8 +296,8 @@ class TimelineDragController {
 
     /**
      * Hold the scroll for the whole drag and nudge it once per frame while the
-     * finger sits near an edge. One `scroll` call, not a loop of
-     * `animateScrollBy`: each of those re-acquires the mutex and cancels the last.
+     * finger sits near an edge. One `scroll` call, since a loop of
+     * `animateScrollBy` would re-acquire the mutex and cancel the last.
      */
     suspend fun autoScroll() {
         val scroll = geometry.scroll ?: return
@@ -374,17 +358,15 @@ fun TimelineDrop.startInstant(zone: TimeZone): Instant =
 const val SETTLE_GRACE_MILLIS: Long = 60L
 
 /**
- * How long to wait for a grid that never confirms the drop — the event landed on
- * a day this timeline doesn't show, or the write failed and nothing changed. The
- * copy has to go either way.
+ * How long to wait for a grid that never confirms the drop — it landed on a day
+ * this timeline doesn't show, or the write failed. The copy has to go either way.
  */
 private const val SETTLE_TIMEOUT_MILLIS = 900L
 
 /**
  * The hand-over: the copy dissolves over this while the grid's own block slides
- * in under it, so the two overlap rather than one replacing the other. Kept
- * short, because a full-width copy sits over any neighbour it now shares a lane
- * with until it is gone.
+ * in under it. Kept short, because a full-width copy sits over any neighbour it
+ * now shares a lane with until it is gone.
  */
 const val SETTLE_FADE_MILLIS: Int = 250
 
@@ -409,9 +391,9 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
     LaunchedEffect(controller.isDragging) {
         if (controller.isDragging) controller.autoScroll()
     }
-    // Hold the landed copy until the write is done — including the whole time a
+    // Hold the landed copy until the write is done — including the time a
     // recurring drop's scope dialog is up — and then until the grid draws the
-    // drop itself, so the copy dissolves onto a block that is already there.
+    // drop itself.
     var handingOver by remember(controller.settling) { mutableStateOf(false) }
     LaunchedEffect(controller.settling, moveInFlight, controller.settledOnGrid) {
         if (controller.settling == null || moveInFlight) return@LaunchedEffect
@@ -425,14 +407,13 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
     Box(
         modifier = modifier
             .fillMaxSize()
-            // A copy of a block that is still in the tree behind it; announcing
-            // it again would just duplicate the event for the drag's duration.
+            // A copy of a block still in the tree behind it; announcing it again
+            // would duplicate the event for the drag's duration.
             .clearAndSetSemantics { }
             .onGloballyPositioned { origin = it.positionInRoot() },
     ) {
         val drag = controller.drag ?: controller.settling ?: return@Box
-        // Landed: the copy sinks back to the grid's own plane while the write
-        // runs, so the release reads as the block settling rather than vanishing.
+        // Landed: the copy sinks back to the grid's own plane while the write runs.
         val landed = controller.drag == null
         val lift by animateFloatAsState(
             targetValue = if (landed || reduceMotion) 0f else 1f,

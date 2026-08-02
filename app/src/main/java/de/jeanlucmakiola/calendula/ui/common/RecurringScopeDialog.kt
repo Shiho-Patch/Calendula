@@ -15,17 +15,13 @@ import de.jeanlucmakiola.floret.components.OptionCard
 
 /**
  * How far a write to a recurring event should reach: this occurrence, it and
- * everything after (a series split), or the whole series.
- *
- * One of the two carve-outs from the full-screen picker rule — a two-or-three
- * option decision taken mid-action reads better as a popup than as a near-empty
- * screen. Shared by the edit screen's save and a drag-and-drop reschedule, which
- * want the same three options for the same reasons.
+ * everything after (a series split), or the whole series. Shared by the edit
+ * screen's save and a drag-and-drop reschedule; one of the two carve-outs from
+ * the full-screen picker rule.
  *
  * [allowOccurrence] drops "only this event" (an exception row can't carry its own
- * rule, so a changed recurrence rules it out); [allowSeries] drops the two wider
- * options, for a rule whose days can't be recalculated from one moved
- * occurrence — [reason] then says why.
+ * rule); [allowSeries] drops the two wider options, for a rule whose days can't
+ * be recalculated from one moved occurrence — [reason] then says why.
  */
 @Composable
 fun RecurringScopeDialog(

@@ -89,10 +89,8 @@ internal object EventDetailProjection {
         // Recurring rows carry DURATION instead of DTEND; the detail screen
         // needs it to render a series opened without a named occurrence.
         CalendarContract.Events.DURATION,
-        // Non-null on a modified-occurrence exception row (it points at the
-        // series). "No RRULE" alone can't tell an exception from a master — a
-        // sync adapter that leaves the rule on the exception would otherwise
-        // get an exception written against an exception (#68).
+        // Non-null on a modified-occurrence exception row; "no RRULE" alone
+        // can't tell an exception from a master (#68).
         CalendarContract.Events.ORIGINAL_ID,
     )
 

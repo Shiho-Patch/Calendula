@@ -45,8 +45,8 @@ fun formatMinuteOfDay(minutes: Int, is24Hour: Boolean, locale: Locale): String =
 
 /**
  * The time shown in the timeline gutter while a block is dragged: 24h →
- * "09:15", 12h → "9:15". The meridiem is dropped on purpose — the hour labels
- * around it already carry it, and the gutter is too narrow to hold it.
+ * "09:15", 12h → "9:15". The meridiem is dropped — the hour labels around it
+ * already carry it, and the gutter is too narrow.
  */
 fun formatGutterTime(minutes: Int, is24Hour: Boolean, locale: Locale): String {
     val clamped = minutes.coerceIn(0, MINUTES_PER_DAY - 1)

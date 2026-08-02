@@ -21,29 +21,15 @@ import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 
-/**
- * How far the finger may wander during the hold. Deliberately well under touch
- * slop (~18dp): past that an ancestor — the vertical scroll, the page swipe —
- * claims the gesture, and a hold that survived to there would have opened a dead
- * zone where neither the drag nor the page turn happens.
- */
+/** How far the finger may wander during the hold — well under touch slop. */
 private val PICKUP_TOLERANCE = 6.dp
 
 /**
  * Pick an event block up with a long press and drag it, without
- * `detectDragGesturesAfterLongPress`.
- *
- * The stock detector cancels the press as soon as an ancestor consumes — and
- * during the hold the block itself consumes nothing, so the scroll and the page
- * swipe are free to claim at their own slop — and it also cancels when the finger
- * leaves the block, which a `MIN_EVENT_FRACTION`-tall block loses immediately.
- * This one keeps its own timeout and its own (much smaller) tolerance, and never
- * cancels on leaving the bounds.
- *
- * Movement before the timeout is deliberately **not** consumed: consuming it
- * would kill the ancestor's gesture outright, so a scroll that happens to start
- * on top of a block would die. Fast movement means the user meant to scroll —
- * abandon quietly. A second finger means a pinch, which owns the gesture.
+ * `detectDragGesturesAfterLongPress`: the stock detector cancels as soon as an
+ * ancestor consumes or the finger leaves the block, which a
+ * `MIN_EVENT_FRACTION`-tall block loses immediately. Movement before the timeout
+ * is deliberately not consumed, so a scroll starting on top of a block survives.
  */
 @Composable
 fun rememberEventDragSource(
@@ -68,9 +54,8 @@ fun rememberEventDragSource(
 /**
  * The same pickup, for a surface that carries many draggable pieces rather than
  * being one itself — the month grid, whose chips are covered by a full-bleed tap
- * layer and so can never take pointer input of their own. [onPickUp] receives the
- * press position local to this node and answers whether anything is there;
- * returning false abandons the gesture as if the hold had never completed.
+ * layer. [onPickUp] receives the press position local to this node and answers
+ * whether anything is there; false abandons the gesture.
  */
 @Composable
 fun rememberDragSurface(
@@ -121,16 +106,10 @@ fun rememberDragSurface(
                 if (!took) return@awaitEachGesture
                 var dropped = false
                 try {
-                    // Once the block is lifted the gesture is ours, so it is
-                    // driven on the initial pass and consumed there. That pass
-                    // runs parent → child, which gets both halves right: an
-                    // ancestor that outranks us (the pinch, which claims the
-                    // moment a second finger lands anywhere in the timeline) has
-                    // already consumed by the time we look, and everything below
-                    // us — the month grid's full-bleed tap layer, which is a
-                    // descendant and would otherwise open the day on lift — sees
-                    // ours. Consumption persists across passes, so the scroll and
-                    // the page swipe stand down on main as well.
+                    // Driven on the initial pass, which runs parent → child: an
+                    // ancestor that outranks us (the pinch) has already consumed
+                    // by the time we look, and descendants — the month grid's
+                    // full-bleed tap layer — see our consumption.
                     while (true) {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
@@ -146,19 +125,15 @@ fun rememberDragSurface(
                             ?.let { currentMove(it.localToRoot(change.position)) }
                     }
                 } finally {
-                    // Also reached when the pointer node is disposed mid-drag (the
-                    // page swapping out under the finger) — that is a cancel, not a
-                    // drop, and must never write.
+                    // Also reached when the pointer node is disposed mid-drag —
+                    // a cancel, not a drop, and must never write.
                     if (dropped) currentDrop() else currentCancel()
                 }
             }
         }
 }
 
-/**
- * The app's first haptics: a lift on pickup, then a tick every time the drop
- * target snaps to a different slot, so the granularity is felt rather than read.
- */
+/** A lift on pickup, then a tick every time the drop target snaps to a new slot. */
 @Composable
 fun DragSnapHaptics(slot: Any?) {
     val haptics = LocalHapticFeedback.current

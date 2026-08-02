@@ -398,9 +398,8 @@ fun CalendarHost(
         }
         }
 
-        // Scope prompt + confirmation/undo snackbar for a dropped event. Declared
-        // right after the calendar views, so any overlay opened afterwards covers
-        // the snackbar rather than the other way round.
+        // Scope prompt + confirmation/undo snackbar for a dropped event, declared
+        // right after the calendar views so later overlays cover it.
         EventMoveHost(reschedule, modifier = Modifier.fillMaxSize())
 
         // Search overlay — below detail/edit in the Box so a tapped result's

@@ -108,8 +108,7 @@ class CalendarRowStateTest {
 
     @Test
     fun `a switched-off calendar's events stay movable, unlike a new-event target`() {
-        // Nothing renders them, so the question is moot — but the predicate is
-        // deliberately not isEventTarget, which would also exclude them.
+        // The predicate is deliberately not isEventTarget.
         val hidden = cal().copy(isVisibleInSystem = false)
         assertThat(hidden.isEventTarget).isFalse()
         assertThat(hidden.allowsEventMove).isTrue()

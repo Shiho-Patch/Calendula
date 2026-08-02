@@ -67,8 +67,8 @@ class EventShiftTest {
 
         val moved = original.shiftedTo(target, berlin)
 
-        // Two real hours from 01:00 CET lands at 04:00 CEST, not 03:00: the wall
-        // clock stretches because the hour in between does not exist.
+        // Two real hours from 01:00 CET lands at 04:00 CEST: the hour in
+        // between does not exist.
         assertThat(moved.start).isEqualTo(LocalDateTime(LocalDate(2026, 3, 29), LocalTime(1, 0)))
         assertThat(moved.end).isEqualTo(LocalDateTime(LocalDate(2026, 3, 29), LocalTime(4, 0)))
         assertThat(moved.end.toInstant(berlin) - moved.start.toInstant(berlin))
@@ -131,9 +131,8 @@ class EventShiftTest {
 
     @Test
     fun `a timed shift onto a DST changeover keeps the real length, not the wall clock`() {
-        // 22:00 Sat -> 04:00 Sun is six real hours; the target Sunday is the one
-        // Berlin springs forward on. Keeping wall clock would write a five-hour
-        // DURATION for the whole series.
+        // 22:00 Sat -> 04:00 Sun is six real hours, onto the Sunday Berlin
+        // springs forward on. Keeping wall clock would write five.
         val overnight = form(
             start = LocalDateTime(LocalDate(2026, 3, 21), LocalTime(22, 0)),
             end = LocalDateTime(LocalDate(2026, 3, 22), LocalTime(4, 0)),

@@ -126,9 +126,8 @@ data class EventDetail(
     val eventColorKey: String? = null,
     /**
      * True when this row is a modified occurrence of a series (`ORIGINAL_ID` is
-     * set), not a master. Such a row stands alone — writing an exception against
-     * it would nest one exception inside another — so a reschedule always takes
-     * the plain whole-row path, whatever [rrule] a sync adapter left on it.
+     * set) rather than a master, so a reschedule takes the plain whole-row path
+     * whatever [rrule] a sync adapter left on it.
      */
     val isException: Boolean = false,
 )

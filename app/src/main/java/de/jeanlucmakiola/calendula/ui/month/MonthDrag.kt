@@ -28,8 +28,7 @@ class MonthRowGeometry(
     val laneCount: Int,
     /**
      * Whether the columns are laid out right-to-left. Pointer coordinates are
-     * never mirrored, but the grid is, so the leftmost column is the *last* day
-     * in Arabic.
+     * never mirrored but the grid is, so the mapping has to flip with it.
      */
     val isRtl: Boolean,
     /** What this row currently draws in [lane] of column `col`, or null. */
@@ -57,10 +56,9 @@ class MonthRowGeometry(
 }
 
 /**
- * Whether [chip] is the moved event [moved] as the grid now holds it. Neither
- * id alone will do: the provider hands re-read instances new instance ids, and a
- * single-occurrence move writes an exception row with a new event id — the title
- * is what survives both.
+ * Whether [chip] is the moved event [moved] as the grid now holds it. Neither id
+ * alone will do: re-read instances get new instance ids, and a single-occurrence
+ * move writes a new event id — the title survives both.
  */
 private fun isSameEvent(chip: EventInstance, moved: EventInstance): Boolean =
     chip.eventId == moved.eventId || chip.title == moved.title
@@ -83,14 +81,10 @@ data class MonthChipDrop(
 )
 
 /**
- * Hoisted drag state for the month grid (#68).
- *
- * Every visible week row registers itself, so a chip can be carried across rows:
- * the pointer node that took the press keeps receiving events after the finger
- * has left its own bounds, and the target is then resolved against whichever
- * registered row the finger is actually over. Rows are keyed by an identity token
- * rather than by their date, because the continuous style can show the same week
- * twice — once in each adjoining month.
+ * Hoisted drag state for the month grid (#68). Every visible week row registers
+ * itself so a chip can be carried across rows, the target resolved against
+ * whichever registered row the finger is over. Rows are keyed by an identity
+ * token rather than a date: the continuous style can show the same week twice.
  */
 @Stable
 class MonthDragController {
@@ -100,19 +94,16 @@ class MonthDragController {
         private set
 
     /**
-     * A dropped chip, held on the day it landed on while the write runs. The grid
-     * behind it still shows the old day until the provider notifies and the query
-     * re-reads, so releasing at drop time would snap the event back for the
-     * length of the write.
+     * A dropped chip, held on the day it landed on while the write runs — the
+     * grid behind it still shows the old day until the query re-reads.
      */
     var settling: MonthChipDrag? by mutableStateOf(null)
         private set
 
     /**
      * Which chip is lifted, and whether anything is. Separate snapshot state from
-     * [drag] on purpose: [drag] changes on every frame, while the chips and rows
-     * that only need "am I the ghost" / "must I stop clipping" must not. Stays
-     * set through [settling], so the source never reappears under the copy.
+     * [drag], which changes every frame, so the chips and rows that only need
+     * "am I the ghost" don't recompose that often. Stays set through [settling].
      */
     var liftedInstanceId: Long? by mutableStateOf(null)
         private set
@@ -120,20 +111,16 @@ class MonthDragController {
     /**
      * Where the grid itself now draws the drop, in root coordinates — published
      * by whichever week row ends up holding it. The copy is dropped wherever the
-     * finger was, but the grid seats it in a lane; without this the copy waits
-     * out a flat hold beside the chip the grid has already drawn and then
-     * cross-fades across the gap, which reads as the event taking its time to
-     * arrive. With it the copy glides onto its seat and hands over there.
+     * finger was while the grid seats it in a lane, so without this it would
+     * cross-fade across the gap instead of gliding onto its seat.
      */
     var settledInRoot: Offset? by mutableStateOf(null)
         private set
 
     /**
      * Whether the drop's own chip is still standing in for the copy. Cleared at
-     * [handOver] rather than at [release], for the same reason [liftedInstanceId]
-     * is: held to the end it would keep the chip dim under a copy that has
-     * already faded, and brighten it afterwards — a dip the eye reads as the
-     * event flickering.
+     * [handOver] rather than [release], or the chip stays dim under a copy that
+     * has already faded and brightens afterwards: a visible dip.
      */
     private var settledGhost: Boolean by mutableStateOf(false)
 
@@ -143,8 +130,7 @@ class MonthDragController {
 
     /**
      * The last drop this controller made, kept past [release] for [beginUndo] —
-     * the confirmation chip carries Undo for four seconds after the copy is long
-     * gone. Not snapshot state: nothing draws from it.
+     * the confirmation chip carries Undo long after the copy is gone.
      */
     private var undoable: MonthChipDrag? = null
 
@@ -199,10 +185,6 @@ class MonthDragController {
     /**
      * Whether [days] holds the chip the grid has drawn for the settled drop —
      * the seat the copy is on its way to, which must ghost until it gets there.
-     * Matched on the landing day plus either the event row or its title: a
-     * single-occurrence move writes an exception row with a new `eventId`, and
-     * the provider hands re-read instances new ids, so neither alone identifies
-     * the chip the drop became.
      */
     fun isSettledChip(event: EventInstance, days: List<LocalDate>?): Boolean {
         val landed = settling?.takeIf { settledGhost } ?: return false
@@ -211,9 +193,8 @@ class MonthDragController {
     }
 
     /**
-     * Ask the row keyed [token] whether it now seats the settled chip, and take
-     * its answer. The continuous style can show the same week twice, once in each
-     * adjoining month, so both copies of the landing row will answer: the seat
+     * Ask the row keyed [token] whether it now seats the settled chip. Both
+     * copies of a week the continuous style shows twice will answer; the seat
      * nearest where the chip was let go is the one the finger was over.
      */
     fun noteSettled(token: Any) {
@@ -227,15 +208,10 @@ class MonthDragController {
     }
 
     /**
-     * Send a copy back for an undo, which moves the event exactly as the drop did
-     * and so should read the same way rather than teleporting the chip. Nothing
-     * here writes anything: it puts a chip on the journey the inverse write is
-     * about to make, and the settle that follows is the drop's own.
-     *
-     * False when there is nothing to carry — no drop of this controller's to undo
-     * (it happened in another view, or has already been undone), or the grid does
-     * not seat the moved event where it would have to start from. The chip then
-     * simply reappears on the day it came from, as it always did.
+     * Put a chip on the journey an undo's inverse write is about to make, so it
+     * travels back rather than teleporting. Writes nothing itself. False when
+     * there is no drop of this controller's left to undo, or the grid doesn't
+     * seat the moved event where the chip would have to start from.
      */
     fun beginUndo(): Boolean {
         val last = undoable ?: return false
@@ -251,8 +227,8 @@ class MonthDragController {
 
     /**
      * End the drag. A real drop keeps its chip on the target day as [settling]
-     * until [release] — slid over to that day's column, so it lands where the
-     * grid is about to draw it rather than wherever the finger happened to be.
+     * until [release], slid over to that day's column so it lands where the grid
+     * is about to draw it.
      */
     fun finish(): MonthChipDrop? {
         val landed = drag
@@ -270,8 +246,7 @@ class MonthDragController {
 
     /**
      * Stop ghosting the source while the copy is still dissolving — un-ghosting
-     * only at [release] leaves the chip under it dim and then brightens it, a
-     * dip the eye reads as the event flickering.
+     * at [release] instead leaves the chip dim and then brightens it.
      */
     fun handOver() {
         liftedInstanceId = null
@@ -312,8 +287,8 @@ class MonthDragController {
         drag = MonthChipDrag(
             event = event,
             grabDate = grabbed,
-            // Off the grid entirely (the gutter, the header): keep the last cell
-            // it was over, so a wobble past the edge doesn't drop the target.
+            // Off the grid entirely: keep the last cell it was over, so a
+            // wobble past the edge doesn't drop the target.
             targetDate = resolved ?: drag?.targetDate,
             topLeftInRoot = pointer - grab,
             sizePx = sizePx,

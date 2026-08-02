@@ -56,8 +56,7 @@ fun HourGutter(
 ) {
     val use24Hour = LocalUse24HourFormat.current
     val locale = currentLocale()
-    // Derived, not read directly: the drag is rewritten every frame, while its
-    // snapped start only changes once per slot — which is all the gutter shows.
+    // Derived: the drag is rewritten every frame, its snapped start once a slot.
     val dragStartMin by remember(dragController) {
         derivedStateOf { dragController.drag?.startMin }
     }
@@ -103,8 +102,7 @@ fun HourGutter(
                     .height(BADGE_HEIGHT)
                     .background(MaterialTheme.colorScheme.primary, CircleShape)
                     .padding(horizontal = 4.dp)
-                    // The dragged block behind it already carries this time; a
-                    // second copy would only duplicate the announcement.
+                    // The dragged block already announces this time.
                     .clearAndSetSemantics { },
                 contentAlignment = Alignment.Center,
             ) {

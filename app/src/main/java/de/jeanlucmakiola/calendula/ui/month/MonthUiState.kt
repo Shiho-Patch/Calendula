@@ -69,9 +69,6 @@ fun MonthWeek.laneEvents(col: Int, day: LocalDate, laneCap: Int): List<EventInst
 
 /**
  * The event drawn in lane [lane] of column [col], or null for an empty slot.
- *
- * Mirrors how the paged grid seats a week: spanning bars keep the lane the row
- * layout gave them, and the day's timed pills fill the slots those bars leave.
  * Unlike [laneEvents] the lanes are *not* compacted — this answers "what is under
  * this point", so an empty lane above a seated bar has to stay empty (#68).
  */

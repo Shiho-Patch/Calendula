@@ -45,10 +45,8 @@ class RescheduleViewModelTest {
     @BeforeEach fun setUp() = Dispatchers.setMain(dispatcher)
     @AfterEach fun tearDown() = Dispatchers.resetMain()
 
-    // Monday 2026-06-08, midday in whatever zone the test JVM runs in — resolved
-    // in the device zone rather than UTC, because that is the zone the drop path
-    // reads dates back in, and at UTC+13 a UTC midday is already Tuesday. The
-    // BYDAY assertions below depend on this really being a Monday.
+    // Monday 2026-06-08, midday in the device zone — the zone the drop path
+    // reads dates back in. The BYDAY assertions depend on it being a Monday.
     private val monday = LocalDate(2026, 6, 8)
     private val beginMillis = LocalDateTime(monday, LocalTime(12, 0))
         .toInstant(TimeZone.currentSystemDefault())
@@ -282,8 +280,7 @@ class RescheduleViewModelTest {
 
         vm.move(toWednesday())
         advanceUntilIdle()
-        // The block belongs to the write, not to the drop: an exception row is
-        // constrained by no UNTIL, so this scope must still be on offer.
+        // An exception row is constrained by no UNTIL, so the scope stays on offer.
         assertThat(vm.scopePrompt.value).isNotNull()
 
         vm.moveWithScope(RecurringWriteScope.ThisEvent)
@@ -302,9 +299,8 @@ class RescheduleViewModelTest {
         }
         val vm = viewModel(tempDir, fake)
 
-        // Onto the next day *and* two hours later: the anchor moves by the same
-        // wall-clock shift, so an anchor late enough in the day would cross two
-        // midnights and land on a weekday the rebuilt rule doesn't name.
+        // Onto the next day *and* two hours later: a late enough anchor would
+        // cross two midnights under the same wall-clock shift.
         vm.move(
             MoveRequest(
                 eventId = 42L,

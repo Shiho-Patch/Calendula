@@ -349,8 +349,8 @@ private fun WeekContent(
     // gestures coexist without fighting.
     val swipeModifier = rememberCalendarPageSwipe(onSwipeNext, onSwipePrev)
 
-    // Above the AnimatedContent on purpose: a page change mid-drag would strand
-    // the floating block inside the outgoing page.
+    // Above the AnimatedContent: a page change mid-drag would strand the
+    // floating block inside the outgoing page.
     val dragController = rememberTimelineDragController()
     val move = LocalEventMove.current
     val zone = remember { TimeZone.currentSystemDefault() }
@@ -711,8 +711,7 @@ private fun Timeline(
                         .fillMaxWidth()
                         .height(totalHeight)
                         // The scrolling content itself, so its root position
-                        // already folds in the scroll offset — a drag maps
-                        // through it without reading the scroll state.
+                        // already folds in the scroll offset.
                         .onGloballyPositioned { coords ->
                             val gap = with(density) { COLUMN_GAP.toPx() }
                             dragController.geometry.let {
@@ -797,8 +796,7 @@ private fun DayColumnCard(
             val minEventHeight = hourHeight * MIN_EVENT_FRACTION
             // Keyed by event, so a block that changes time or lane is the *same*
             // composable afterwards and tweens there. The ordinal disambiguates
-            // the rare column holding two occurrences of one series, which would
-            // otherwise be two blocks under one key.
+            // a column holding two occurrences of one series.
             val ordinals = mutableMapOf<Long, Int>()
             blocks.forEach { block ->
                 val ordinal = ordinals.merge(block.event.eventId, 1, Int::plus)!! - 1
@@ -892,8 +890,8 @@ private fun EventBlock(
     val fill = eventFill(block.event.color, dark, soften)
     val zone = remember { TimeZone.currentSystemDefault() }
     val moveAction = eventMoveAction(block.event)
-    // A block clipped at the top continues from the previous day: its top edge is
-    // midnight, not the event's start, so dragging it would invent a time.
+    // A block clipped at the top continues from the previous day: its top edge
+    // is midnight, not the event's start, so dragging it would invent a time.
     val draggable = moveAction != null && block.beginsOn(date, zone)
     val dragModifier = rememberEventDragSource(
         enabled = draggable,
@@ -907,8 +905,7 @@ private fun EventBlock(
     val ghost = ghostAlpha(lifted)
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
-            // The source stays put as a ghost while its floating copy travels,
-            // then fades out as the copy settles on its new slot.
+            // The source stays put as a ghost while its floating copy travels.
             .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
             .background(fill, RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)

@@ -288,9 +288,8 @@ class EventWriteMapperTest {
 
     @Test
     fun `a weekday move must carry the rule with the anchor, or the series stays put`() {
-        // The anchor moves by the same shift as the occurrence, so a Monday
-        // series lands on a Wednesday — while RRULE is written verbatim. Without
-        // realignRecurrence the rule would still say Monday and nothing moves.
+        // The anchor moves by the same shift as the occurrence, while RRULE is
+        // written verbatim: without realignRecurrence nothing moves.
         val series = instantAt("2026-01-05T09:00", "Europe/Berlin")
         val original = form(
             start = LocalDateTime(LocalDate(2026, 6, 8), LocalTime(9, 0)),

@@ -17,9 +17,8 @@ import androidx.compose.ui.unit.Dp
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 
 /**
- * A timed block's own time label, crossfaded rather than replaced. The block
- * keeps its identity across a move and slides to the new slot; the label is the
- * one thing on it that would otherwise change in a single frame.
+ * A timed block's own time label, crossfaded rather than replaced — the block
+ * slides to its new slot, so the label shouldn't change in a single frame.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -50,14 +49,9 @@ fun BlockTimeLabel(label: String, color: Color, modifier: Modifier = Modifier) {
 data class BlockPlacement(val x: Dp, val y: Dp, val width: Dp, val height: Dp)
 
 /**
- * A timed block's placement, tweened rather than jumped. Every bound a block
- * has changes for a reason the user just caused — a drop landing at a new time,
- * an undo putting it back, a neighbour arriving and halving both lanes — and all
- * of them read better as motion than as a new layout appearing.
- *
- * Continuity comes from the caller keying each block by identity; a block
- * composed for the first time starts *at* its target, so nothing flies in from
- * the corner on the first frame.
+ * A timed block's placement, tweened rather than jumped. Continuity comes from
+ * the caller keying each block by identity; a block composed for the first time
+ * starts at its target, so nothing flies in on the first frame.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable

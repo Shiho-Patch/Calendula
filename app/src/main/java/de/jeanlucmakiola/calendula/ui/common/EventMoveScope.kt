@@ -19,13 +19,8 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Drag-to-reschedule wiring (#68), provided once at `CalendarHost` and read by
- * whichever event block is being composed. A composition local rather than six
- * layers of parameters: every calendar surface needs the same three things, and
- * the blocks that need them sit deep inside private composables.
- *
- * Null means moving is off entirely (no host provided it) — a block then
- * registers no drag gesture at all, so a long press keeps its old meaning of
- * nothing happening.
+ * whichever event block is being composed. Null means moving is off entirely and
+ * blocks register no drag gesture at all.
  */
 @Immutable
 class EventMoveScope(
@@ -36,10 +31,9 @@ class EventMoveScope(
     val movableCalendarIds: Set<Long>,
     val move: (MoveRequest) -> Unit,
     /**
-     * True while a dropped event is being written — including the time its scope
+     * True while a dropped event is being written, including the time its scope
      * dialog is up. A flow rather than a value so this scope stays the same
-     * object across a move: it is a composition local every visible block reads,
-     * and replacing it would recompose all of them twice per drop.
+     * object across a move — every visible block reads it as a composition local.
      */
     val inFlight: StateFlow<Boolean>,
     /** Ticks when an undo write begins — see `RescheduleViewModel.undoStarted`. */
@@ -68,8 +62,7 @@ fun moveInFlight(): Boolean {
 
 /**
  * Runs [onUndo] when an undo write begins, and never for one that began before
- * this composable came on screen — a view switched to *after* an undo has
- * nothing left to carry back.
+ * this composable came on screen.
  */
 @Composable
 fun OnUndoStarted(onUndo: () -> Unit) {
@@ -88,10 +81,8 @@ const val GHOST_ALPHA: Float = 0.3f
 
 /**
  * Opacity for a block whose copy is in flight: ghosted from the lift until the
- * copy is handed back, then animated up rather than switched. The ghost keeps
- * its place through the write and *travels* to the new slot when the grid
- * re-reads it, arriving under the copy as that fades — so what the eye follows
- * is one block moving, not one vanishing and another appearing.
+ * copy is handed back, then animated up rather than switched, so the block
+ * appears to travel to its new slot instead of vanishing and reappearing.
  */
 @Composable
 fun ghostAlpha(lifted: Boolean): Float = animateFloatAsState(
@@ -101,8 +92,7 @@ fun ghostAlpha(lifted: Boolean): Float = animateFloatAsState(
 
 /**
  * A TalkBack action that opens [event] in the edit form, so rescheduling isn't
- * pointer-only. Null when this event can't be moved — the block then carries no
- * action and registers no drag either.
+ * pointer-only. Null when this event can't be moved.
  */
 @Composable
 fun eventMoveAction(event: EventInstance): CustomAccessibilityAction? {

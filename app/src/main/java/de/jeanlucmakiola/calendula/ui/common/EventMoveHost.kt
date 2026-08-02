@@ -32,12 +32,7 @@ import java.util.Locale
 /** How long the confirmation chip stays up, matching a short snackbar. */
 private const val CHIP_MILLIS = 4_000L
 
-/**
- * How long an *undone* move stays up. Shorter than everything else the chip
- * says: it offers nothing to act on, and it confirms a change the user has just
- * asked for and can see on the grid behind it, so the full dwell is only the
- * chip outstaying what it had to say.
- */
+/** How long an *undone* move stays up — shorter, since it offers nothing to act on. */
 private const val UNDONE_CHIP_MILLIS = 1_600L
 
 /** What the chip currently reads, kept past the outcome it was built from. */
@@ -48,12 +43,9 @@ private val FAB_BAND = 88.dp
 
 /**
  * The two surfaces a drag-and-drop reschedule needs on top of the calendar: the
- * recurring-scope prompt, and the confirmation chip carrying Undo.
- *
- * None of the four calendar screens sets a `snackbarHost` on its Scaffold, so
- * this hosts its own confirmation — a pill on the FAB's own band at the bottom
- * start rather than a full-width bar, so the calendar it confirms a change to
- * stays visible behind it.
+ * recurring-scope prompt, and the confirmation chip carrying Undo. None of the
+ * calendar screens sets a `snackbarHost`, so this hosts its own confirmation as
+ * a pill on the FAB's band, leaving the calendar visible behind it.
  */
 @Composable
 fun EventMoveHost(viewModel: RescheduleViewModel, modifier: Modifier = Modifier) {
@@ -86,9 +78,8 @@ fun EventMoveHost(viewModel: RescheduleViewModel, modifier: Modifier = Modifier)
     }
 
     // Held past the outcome being consumed so the chip has something to draw
-    // while it springs back out. Updated *in composition* rather than from an
-    // effect: an effect lands a frame late, so the chip would open carrying the
-    // previous message and grow into this one while it was still animating in.
+    // while it springs back out. Updated in composition rather than from an
+    // effect, which would land a frame late and open the chip on stale text.
     val shown = remember { mutableStateOf(ChipContent("", null)) }
     if (message != null && (shown.value.message != message || shown.value.undo != moved?.undo)) {
         shown.value = ChipContent(message, moved?.undo)
@@ -102,9 +93,8 @@ fun EventMoveHost(viewModel: RescheduleViewModel, modifier: Modifier = Modifier)
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val chipMaxWidth = maxWidth - FAB_BAND
-        // A FAB-height band anchored at the bottom start with the FAB's own
-        // margin; centring the chip in it lines it up beside the bottom-end FAB
-        // at exactly its height, rather than sitting a touch above it.
+        // A FAB-height band at the bottom start with the FAB's own margin, so
+        // the chip lines up beside the bottom-end FAB.
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)

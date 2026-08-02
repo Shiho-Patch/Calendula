@@ -26,8 +26,7 @@ class RecurrenceRealignTest {
     fun `a day-of-month rule is refused, because the anchor moves by days not dates`() {
         // BYMONTHDAY=28 with a January anchor, occurrence Feb 28 dragged to Mar 1:
         // the rebuilt rule would say the 1st while the anchor became Jan 29 — a
-        // DTSTART that is not an instance of its own rule. Weekday arithmetic is
-        // uniform mod 7 and survives the same shift; day-of-month is not.
+        // DTSTART that is not an instance of its own rule.
         assertThat(realignRecurrence("FREQ=MONTHLY;BYMONTHDAY=8", monday, wednesday)).isNull()
         assertThat(
             realignRecurrence("FREQ=YEARLY;BYMONTH=6;BYMONTHDAY=8", monday, LocalDate(2026, 7, 20)),
@@ -36,8 +35,7 @@ class RecurrenceRealignTest {
 
     @Test
     fun `BYDAY on a non-weekly rule is refused`() {
-        // "every Monday of the month" is a shape this has not been reasoned about,
-        // and parseSimpleRecurrence can't read it either — so the UNTIL guard
+        // parseSimpleRecurrence can't read it either, so the UNTIL guard
         // downstream would be blind to it.
         assertThat(realignRecurrence("FREQ=MONTHLY;BYDAY=MO", monday, wednesday)).isNull()
     }
@@ -86,8 +84,7 @@ class RecurrenceRealignTest {
     @Test
     fun `everything realignable is also a rule the UNTIL guard can read`() {
         // problems() checks UNTIL through parseSimpleRecurrence; a rule this
-        // realigns but that parser rejects would move a series past its own end
-        // unchecked. Accepting only weekly BYDAY keeps the two in step.
+        // realigns but that parser rejects would go unchecked.
         val realignable = listOf(
             "FREQ=WEEKLY;BYDAY=MO",
             "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO;UNTIL=20261231T225959Z",
