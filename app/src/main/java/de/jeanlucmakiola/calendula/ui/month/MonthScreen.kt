@@ -4,7 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.animateFloat
@@ -93,6 +95,7 @@ import de.jeanlucmakiola.calendula.ui.common.moveInFlight
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.DragSnapHaptics
 import de.jeanlucmakiola.calendula.ui.common.SETTLE_FADE_MILLIS
+import de.jeanlucmakiola.calendula.ui.common.SETTLE_GRACE_MILLIS
 import de.jeanlucmakiola.calendula.ui.common.EventMoveScope
 import de.jeanlucmakiola.calendula.domain.spanFirstDay
 import androidx.compose.ui.unit.IntSize
@@ -466,8 +469,12 @@ fun MonthScreen(
     }
 }
 
-/** How long a landed chip holds its day while the write and re-read land. */
-private const val MONTH_SETTLE_HOLD_MILLIS = 450L
+/**
+ * How long to wait for a grid that never seats the drop — it landed in a day's
+ * "+N" overflow, or on a day this month doesn't show, or the write failed and
+ * nothing changed. The copy has to go either way.
+ */
+private const val MONTH_SETTLE_TIMEOUT_MILLIS = 450L
 
 /** The chip in flight, drawn over the grid and following the finger. */
 @Composable
@@ -481,13 +488,26 @@ private fun MonthDragOverlay(controller: MonthDragController) {
     // every frame, and this composable is the one that is meant to.
     DragSnapHaptics(controller.drag?.targetDate)
     // Hold the landed chip until the write is done — including the whole time a
-    // recurring drop's scope dialog is up — then a grace for the re-read. A flat
-    // wait, unlike the timeline's: the grid re-lays a whole month of rows, so
-    // there is no single column to watch for the chip arriving.
+    // recurring drop's scope dialog is up — and then, unlike the timeline, carry
+    // it to its seat: a chip is dropped at whatever height the finger was at,
+    // while the grid seats it in a lane, so the copy has a gap to close before
+    // the two are the same chip and the hand-over can be invisible.
     var handingOver by remember(controller.settling) { mutableStateOf(false) }
-    LaunchedEffect(controller.settling, moveInFlight) {
-        if (controller.settling == null || moveInFlight) return@LaunchedEffect
-        delay(MONTH_SETTLE_HOLD_MILLIS)
+    var gliding by remember(controller.settling) { mutableStateOf(false) }
+    val glide = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+    val glideSpec = MaterialTheme.motionScheme.fastSpatialSpec<Offset>()
+    val seat = controller.settledInRoot
+    LaunchedEffect(controller.settling, moveInFlight, seat) {
+        val landed = controller.settling
+        if (landed == null || moveInFlight) return@LaunchedEffect
+        if (seat == null) {
+            delay(MONTH_SETTLE_TIMEOUT_MILLIS)
+        } else {
+            if (!gliding) glide.snapTo(landed.topLeftInRoot)
+            gliding = true
+            if (reduceMotion) glide.snapTo(seat) else glide.animateTo(seat, glideSpec)
+            delay(SETTLE_GRACE_MILLIS)
+        }
         handingOver = true
         controller.handOver()
         delay(SETTLE_FADE_MILLIS.toLong())
@@ -522,9 +542,10 @@ private fun MonthDragOverlay(controller: MonthDragController) {
                 // Absolute: these are root coordinates, and the direction-aware
                 // offset would mirror them across the screen in an RTL layout.
                 .absoluteOffset {
+                    val at = if (gliding) glide.value else drag.topLeftInRoot
                     IntOffset(
-                        (drag.topLeftInRoot.x - origin.x).roundToInt(),
-                        (drag.topLeftInRoot.y - origin.y).roundToInt(),
+                        (at.x - origin.x).roundToInt(),
+                        (at.y - origin.y).roundToInt(),
                     )
                 }
                 .width(with(density) { drag.sizePx.width.toDp() })
@@ -1846,6 +1867,37 @@ private fun MonthWeekRow(
     DisposableEffect(rowToken, dragController) {
         onDispose { dragController?.removeRow(rowToken) }
     }
+    // Where this row seats a drop that landed on one of its days, once the
+    // re-read arrives — the copy in flight glides onto it. Null until the grid
+    // actually holds the moved event: before the re-read the week still shows it
+    // on the day it came from, and a chip that lands in the "+N" overflow gets no
+    // seat at all.
+    val landed = dragController?.settling
+    val seat = if (landed == null) {
+        null
+    } else {
+        remember(week, landed) {
+            val target = landed.targetDate ?: return@remember null
+            val col = week.days.indexOf(target).takeIf { it >= 0 } ?: return@remember null
+            val lane = (0 until MAX_EVENT_ROWS).firstOrNull { lane ->
+                val chip = week.chipAt(col, lane, MAX_EVENT_ROWS)
+                chip != null && dragController.isSettledChip(chip, listOf(target))
+            } ?: return@remember null
+            col to lane
+        }
+    }
+    LaunchedEffect(seat, dragController) {
+        val (col, lane) = seat ?: return@LaunchedEffect
+        val band = bandCoordinates[0]?.takeIf { it.isAttached } ?: return@LaunchedEffect
+        val origin = band.positionInRoot()
+        val column = if (isRtl) week.days.lastIndex - col else col
+        dragController?.noteSettled(
+            Offset(
+                x = origin.x + column * (band.size.width / 7f),
+                y = origin.y + lane * rowHeightPx,
+            ),
+        )
+    }
 
     Row(modifier) {
         // Optional calendar-week gutter, sized so the seven day columns below
@@ -1961,6 +2013,7 @@ private fun MonthWeekRow(
                             dark = dark,
                             continuesLeft = span.continuesLeft,
                             continuesRight = span.continuesRight,
+                            days = week.days.subList(span.startCol, span.endCol + 1),
                             modifier = Modifier
                                 .offset(
                                     x = colW * span.startCol,
@@ -2030,6 +2083,7 @@ private fun MonthWeekRow(
                                 dark = dark,
                                 continuesLeft = false,
                                 continuesRight = false,
+                                days = listOf(d),
                                 modifier = Modifier
                                     .offset(
                                         x = colW * col,
@@ -2270,6 +2324,14 @@ private fun MonthBar(
     continuesLeft: Boolean,
     continuesRight: Boolean,
     modifier: Modifier = Modifier,
+    /**
+     * The days this chip covers in its row, for the drag (#68). A drop's own chip
+     * has to ghost like the source it came from until the copy has landed on it,
+     * and the instance id can't find it: the provider hands the re-read instance a
+     * new one, so the chip the drop became would otherwise sit at full opacity
+     * under the copy still travelling towards it — the event drawn twice.
+     */
+    days: List<LocalDate>? = null,
 ) {
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     val dimCutoff = LocalDimCutoff.current
@@ -2280,7 +2342,8 @@ private fun MonthBar(
     // The source stays put as a ghost while its floating copy travels, then
     // fades out as the copy settles on its new day.
     val monthDrag = LocalMonthDrag.current
-    val lifted = monthDrag?.liftedInstanceId == event.instanceId
+    val lifted = monthDrag?.liftedInstanceId == event.instanceId ||
+        monthDrag?.isSettledChip(event, days) == true
     val ghost = ghostAlpha(lifted)
     val shape = RoundedCornerShape(
         topStart = if (continuesLeft) 0.dp else 4.dp,

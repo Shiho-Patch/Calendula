@@ -13,6 +13,7 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.unit.IntSize
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import kotlinx.datetime.LocalDate
+import kotlin.math.abs
 
 /** One week row's live geometry, republished on every layout while it is on screen. */
 class MonthRowGeometry(
@@ -80,6 +81,26 @@ class MonthDragController {
     var liftedInstanceId: Long? by mutableStateOf(null)
         private set
 
+    /**
+     * Where the grid itself now draws the drop, in root coordinates — published
+     * by whichever week row ends up holding it. The copy is dropped wherever the
+     * finger was, but the grid seats it in a lane; without this the copy waits
+     * out a flat hold beside the chip the grid has already drawn and then
+     * cross-fades across the gap, which reads as the event taking its time to
+     * arrive. With it the copy glides onto its seat and hands over there.
+     */
+    var settledInRoot: Offset? by mutableStateOf(null)
+        private set
+
+    /**
+     * Whether the drop's own chip is still standing in for the copy. Cleared at
+     * [handOver] rather than at [release], for the same reason [liftedInstanceId]
+     * is: held to the end it would keep the chip dim under a copy that has
+     * already faded, and brighten it afterwards — a dip the eye reads as the
+     * event flickering.
+     */
+    private var settledGhost: Boolean by mutableStateOf(false)
+
     /** Whether a finger is on a chip right now — [settling] is not dragging. */
     var isDragging: Boolean by mutableStateOf(false)
         private set
@@ -128,6 +149,35 @@ class MonthDragController {
         liftedInstanceId = null
         drag = null
         settling = null
+        settledInRoot = null
+        settledGhost = false
+    }
+
+    /**
+     * Whether [days] holds the chip the grid has drawn for the settled drop —
+     * the seat the copy is on its way to, which must ghost until it gets there.
+     * Matched on the landing day plus either the event row or its title: a
+     * single-occurrence move writes an exception row with a new `eventId`, and
+     * the provider hands re-read instances new ids, so neither alone identifies
+     * the chip the drop became.
+     */
+    fun isSettledChip(event: EventInstance, days: List<LocalDate>?): Boolean {
+        val landed = settling?.takeIf { settledGhost } ?: return false
+        if (days == null || landed.targetDate !in days) return false
+        return event.eventId == landed.event.eventId || event.title == landed.event.title
+    }
+
+    /**
+     * Publish a seat. The continuous style can show the same week twice, once in
+     * each adjoining month, so both copies of the landing row offer one: the one
+     * nearest where the chip was dropped is the one the finger was over.
+     */
+    fun noteSettled(topLeftInRoot: Offset) {
+        val landed = settling ?: return
+        val current = settledInRoot
+        val closer = current == null ||
+            abs(topLeftInRoot.y - landed.topLeftInRoot.y) < abs(current.y - landed.topLeftInRoot.y)
+        if (closer) settledInRoot = topLeftInRoot
     }
 
     /**
@@ -144,6 +194,7 @@ class MonthDragController {
             topLeftInRoot = Offset(left ?: landed.topLeftInRoot.x, landed.topLeftInRoot.y),
         )
         liftedInstanceId = landed.event.instanceId
+        settledGhost = true
         return MonthChipDrop(landed.event, landed.grabDate, target)
     }
 
@@ -154,11 +205,13 @@ class MonthDragController {
      */
     fun handOver() {
         liftedInstanceId = null
+        settledGhost = false
     }
 
     /** Drop the copy, once it has faded into the grid's own chip. */
     fun release() {
         settling = null
+        settledInRoot = null
         handOver()
     }
 
