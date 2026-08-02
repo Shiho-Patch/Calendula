@@ -32,6 +32,14 @@ import java.util.Locale
 /** How long the confirmation chip stays up, matching a short snackbar. */
 private const val CHIP_MILLIS = 4_000L
 
+/**
+ * How long an *undone* move stays up. Shorter than everything else the chip
+ * says: it offers nothing to act on, and it confirms a change the user has just
+ * asked for and can see on the grid behind it, so the full dwell is only the
+ * chip outstaying what it had to say.
+ */
+private const val UNDONE_CHIP_MILLIS = 1_600L
+
 /** What the chip currently reads, kept past the outcome it was built from. */
 private data class ChipContent(val message: String, val undo: MoveUndo?)
 
@@ -88,7 +96,7 @@ fun EventMoveHost(viewModel: RescheduleViewModel, modifier: Modifier = Modifier)
     val content = shown.value
     LaunchedEffect(outcome) {
         if (outcome == null) return@LaunchedEffect
-        delay(CHIP_MILLIS)
+        delay(if (outcome == MoveOutcome.Undone) UNDONE_CHIP_MILLIS else CHIP_MILLIS)
         viewModel.consumeOutcome()
     }
 
