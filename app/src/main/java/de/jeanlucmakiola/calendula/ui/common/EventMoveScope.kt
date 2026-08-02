@@ -29,7 +29,8 @@ class EventMoveScope(
      * the repository writes whatever it is handed — so this gate is load-bearing.
      */
     val movableCalendarIds: Set<Long>,
-    val move: (MoveRequest) -> Unit,
+    /** False when the drop was refused outright, so nothing will be written. */
+    val move: (MoveRequest) -> Boolean,
     /**
      * True while a dropped event is being written, including the time its scope
      * dialog is up. A flow rather than a value so this scope stays the same

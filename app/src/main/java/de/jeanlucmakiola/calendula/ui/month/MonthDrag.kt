@@ -226,15 +226,16 @@ class MonthDragController {
     }
 
     /**
-     * End the drag. A real drop keeps its chip on the target day as [settling]
-     * until [release], slid over to that day's column so it lands where the grid
-     * is about to draw it.
+     * End the drag, handing back where it landed — null when it never resolved,
+     * or when it landed back on the day it came from. A real drop keeps its chip
+     * on the target day as [settling] until [release], slid over to that day's
+     * column so it lands where the grid is about to draw it.
      */
     fun finish(): MonthChipDrop? {
         val landed = drag
         val left = landed?.targetDate?.let(::columnLeft)
         cancel()
-        val target = landed?.targetDate ?: return null
+        val target = landed?.targetDate?.takeIf { it != landed.grabDate } ?: return null
         settling = landed.copy(
             topLeftInRoot = Offset(left ?: landed.topLeftInRoot.x, landed.topLeftInRoot.y),
         )

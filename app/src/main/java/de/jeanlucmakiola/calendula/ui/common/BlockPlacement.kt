@@ -52,11 +52,17 @@ data class BlockPlacement(val x: Dp, val y: Dp, val width: Dp, val height: Dp)
  * A timed block's placement, tweened rather than jumped. Continuity comes from
  * the caller keying each block by identity; a block composed for the first time
  * starts at its target, so nothing flies in on the first frame.
+ *
+ * A pinch-zoom rewrites the hour height every pointer frame, and the gutter and
+ * grid lines follow it instantly — so the tween stands down for the gesture
+ * rather than leaving the blocks trailing the ruler they are measured against.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun animatedBlockPlacement(x: Dp, y: Dp, width: Dp, height: Dp): BlockPlacement {
-    val spec: FiniteAnimationSpec<Dp> = if (rememberReduceMotion()) {
+    val spec: FiniteAnimationSpec<Dp> = if (rememberReduceMotion() ||
+        LocalTimelineZoom.current.isPinching
+    ) {
         snap()
     } else {
         MaterialTheme.motionScheme.fastSpatialSpec()

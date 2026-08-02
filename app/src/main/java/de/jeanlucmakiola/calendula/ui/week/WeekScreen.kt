@@ -382,7 +382,7 @@ private fun WeekContent(
                     onOpenDay = onOpenDay,
                     onCreateAt = onCreateAt,
                     onDrop = { drop ->
-                        move?.move(
+                        val took = move?.move(
                             MoveRequest(
                                 eventId = drop.event.eventId,
                                 beginMillis = drop.event.start.toEpochMilliseconds(),
@@ -390,6 +390,9 @@ private fun WeekContent(
                                 target = MoveTarget.Start(drop.startInstant(zone)),
                             ),
                         )
+                        // Refused, so nothing will land: let the copy go now
+                        // rather than hold it out for a settle that never comes.
+                        if (took != true) dragController.release()
                     },
                 )
             }

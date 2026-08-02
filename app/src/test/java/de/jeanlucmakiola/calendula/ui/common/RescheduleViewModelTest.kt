@@ -67,11 +67,12 @@ class RescheduleViewModelTest {
         rrule: String? = null,
         isAllDay: Boolean = false,
         isException: Boolean = false,
+        anchorMillis: Long = beginMillis,
     ): EventDetail = EventDetail(
         instance = EventInstance(
             instanceId = 42L, eventId = 42L, calendarId = 1L, title = "Standup",
-            start = Instant.fromEpochMilliseconds(beginMillis),
-            end = Instant.fromEpochMilliseconds(endMillis),
+            start = Instant.fromEpochMilliseconds(anchorMillis),
+            end = Instant.fromEpochMilliseconds(anchorMillis + (endMillis - beginMillis)),
             isAllDay = isAllDay, color = 0xFF000000.toInt(), location = null,
         ),
         description = null, organizer = null, attendees = emptyList(), rrule = rrule,
@@ -230,6 +231,64 @@ class RescheduleViewModelTest {
 
         // The weekday is unchanged, so the ambiguous BYDAY is not in the way.
         assertThat(vm.scopePrompt.value).isEqualTo(MoveScopePrompt(occurrenceOnly = false))
+    }
+
+    @Test
+    fun `a time-only drop that would carry the anchor past midnight offers only the occurrence`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        // The anchor sits at 23:30 while the dragged occurrence is at midday —
+        // only possible when the row pins no zone, so the two resolve an hour
+        // apart. +1h leaves the occurrence on its day but rolls the anchor onto
+        // the next one, which would leave BYDAY naming the wrong weekday.
+        val anchor = LocalDateTime(LocalDate(2026, 6, 1), LocalTime(23, 30))
+            .toInstant(TimeZone.currentSystemDefault())
+            .toEpochMilliseconds()
+        val fake = FakeCalendarDataSource().apply {
+            eventDetailResult = { detail(rrule = "FREQ=WEEKLY;BYDAY=MO", anchorMillis = anchor) }
+        }
+        val vm = viewModel(tempDir, fake)
+
+        vm.move(oneHourLater())
+        advanceUntilIdle()
+
+        assertThat(vm.scopePrompt.value).isEqualTo(MoveScopePrompt(occurrenceOnly = true))
+    }
+
+    @Test
+    fun `a second drop is refused while the first is still in flight`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply {
+            eventDetailResult = { detail(rrule = "FREQ=WEEKLY;BYDAY=MO") }
+        }
+        val vm = viewModel(tempDir, fake)
+
+        assertThat(vm.move(toWednesday())).isTrue()
+        advanceUntilIdle()
+
+        // Parked on the scope dialog, so the first drop still owns the pipeline.
+        assertThat(vm.move(oneHourLater())).isFalse()
+        advanceUntilIdle()
+        assertThat(fake.updatedEvents).isEmpty()
+    }
+
+    @Test
+    fun `undo is refused while a write is running`(@TempDir tempDir: Path) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { eventDetailResult = { detail() } }
+        val vm = viewModel(tempDir, fake)
+        vm.move(oneHourLater())
+        advanceUntilIdle()
+        val undo = (vm.outcome.value as MoveOutcome.Moved).undo!!
+
+        // A second drop parks on its scope dialog, which holds the pipeline.
+        fake.eventDetailResult = { detail(rrule = "FREQ=WEEKLY;BYDAY=MO") }
+        vm.move(toWednesday())
+        advanceUntilIdle()
+
+        assertThat(vm.undo(undo)).isFalse()
+        advanceUntilIdle()
+        assertThat(fake.updatedEvents).hasSize(1)
     }
 
     @Test

@@ -40,6 +40,9 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Instant
 import javax.inject.Inject
 
+private const val MILLIS_PER_MINUTE = 60_000
+private const val MINUTES_PER_DAY = 24 * 60
+
 /** Where a dragged event should land. */
 sealed interface MoveTarget {
     /** A new start instant — a timeline drag, which moves time and day at once. */
@@ -182,8 +185,13 @@ class RescheduleViewModel @Inject constructor(
         val newAnchorDate: LocalDate,
     )
 
-    fun move(request: MoveRequest) {
-        if (busy || _scopePrompt.value != null) return
+    /**
+     * Take a drop, unless one is already being written. False means nothing will
+     * be written and the caller must let its held copy go now — waiting on
+     * [inFlight] would strand it until the settle timeout instead.
+     */
+    fun move(request: MoveRequest): Boolean {
+        if (busy || _scopePrompt.value != null) return false
         busy = true
         viewModelScope.launch {
             val prepared = prepare(request)
@@ -200,6 +208,7 @@ class RescheduleViewModel @Inject constructor(
                 _scopePrompt.value = MoveScopePrompt(occurrenceOnly = !prepared.canRealign)
             }
         }
+        return true
     }
 
     /** Answer the scope dialog. */
@@ -225,10 +234,11 @@ class RescheduleViewModel @Inject constructor(
     /**
      * Put a completed move back where it came from. The outcome stands until the
      * inverse write reports back, so the one chip changes what it says rather
-     * than closing and reopening.
+     * than closing and reopening. False when another write is already running —
+     * the chip hides its action for that window, so this is the backstop.
      */
-    fun undo(undo: MoveUndo) {
-        if (busy) return
+    fun undo(undo: MoveUndo): Boolean {
+        if (busy) return false
         busy = true
         _undoStarted.value += 1
         viewModelScope.launch {
@@ -246,6 +256,7 @@ class RescheduleViewModel @Inject constructor(
             }
             busy = false
         }
+        return true
     }
 
     /** Clear the outcome once the screen has shown it. */
@@ -309,7 +320,11 @@ class RescheduleViewModel @Inject constructor(
             // then is the single occurrence, whose exception row carries no rule.
             updated = shifted.copy(rrule = realigned ?: original.rrule),
             isRecurring = isRecurring,
-            canRealign = !isRecurring || !movedDay || realigned != null,
+            canRealign = when {
+                !isRecurring -> true
+                movedDay -> realigned != null
+                else -> anchorKeepsItsDay(detail, original, shifted, zone)
+            },
             // Where the series row's own DTSTART lands, given the anchor moves by
             // the same shift — only meaningful under wholeDayShift.
             newAnchorDate = anchorDate(detail, original, zone)
@@ -375,6 +390,29 @@ class RescheduleViewModel @Inject constructor(
             prepared.updated.start.date
         }
         return end.date < firstDay
+    }
+
+    /**
+     * Whether a same-date drag leaves the series anchor on its own day too. The
+     * anchor moves by the same wall-clock delta as the occurrence, and normally
+     * shares its time of day — but a row with no `EVENT_TIMEZONE` resolves the
+     * two in zones that can sit a DST hour apart, so a near-midnight drag could
+     * carry the anchor across a midnight the occurrence never crossed and leave
+     * `BYDAY` naming the wrong weekday.
+     */
+    private fun anchorKeepsItsDay(
+        detail: EventDetail,
+        original: EventForm,
+        shifted: EventForm,
+        zone: TimeZone,
+    ): Boolean {
+        val anchorZone = if (original.isAllDay) TimeZone.UTC else original.resolvedZone(zone)
+        val anchorMinute = detail.instance.start.toLocalDateTime(anchorZone)
+            .time.toMillisecondOfDay() / MILLIS_PER_MINUTE
+        val delta = (
+            shifted.start.time.toMillisecondOfDay() - original.start.time.toMillisecondOfDay()
+            ) / MILLIS_PER_MINUTE
+        return anchorMinute + delta in 0 until MINUTES_PER_DAY
     }
 
     /**

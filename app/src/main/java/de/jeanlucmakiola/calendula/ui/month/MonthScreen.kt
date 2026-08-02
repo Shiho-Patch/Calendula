@@ -2209,16 +2209,17 @@ private fun monthChipDragModifier(
             // How many columns the finger crossed — grabbing the middle of a
             // multi-day bar shifts by what it travelled, not to where it landed.
             val delta = (drop.targetDate.toEpochDays() - drop.grabDate.toEpochDays()).toInt()
-            if (delta != 0) {
-                moveScope?.move(
-                    MoveRequest(
-                        eventId = drop.event.eventId,
-                        beginMillis = drop.event.start.toEpochMilliseconds(),
-                        endMillis = drop.event.end.toEpochMilliseconds(),
-                        target = MoveTarget.ByDays(delta),
-                    ),
-                )
-            }
+            val took = moveScope?.move(
+                MoveRequest(
+                    eventId = drop.event.eventId,
+                    beginMillis = drop.event.start.toEpochMilliseconds(),
+                    endMillis = drop.event.end.toEpochMilliseconds(),
+                    target = MoveTarget.ByDays(delta),
+                ),
+            )
+            // Refused, so nothing will land: let the copy go now rather than
+            // hold the chip out for a settle that can never arrive.
+            if (took != true) controller?.release()
         }
     },
     onCancel = { controller?.cancel() },

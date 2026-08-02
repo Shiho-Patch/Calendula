@@ -273,7 +273,9 @@ class TimelineDragController {
         val snapped = (rawMinutes / DRAG_SNAP_MINUTES).roundToInt() * DRAG_SNAP_MINUTES
         // Clamp the start into the target day; a tail past midnight is fine.
         val startMin = snapped.coerceIn(0, MINUTES_PER_DAY - DRAG_SNAP_MINUTES)
-        val span = block.endMin - block.startMin
+        // The event's own length, not the block's: TimedBlock.endMin is clipped
+        // at midnight, which would draw a 22:00–02:00 event as a two-hour copy.
+        val span = (block.event.end - block.event.start).inWholeMinutes.toInt().coerceAtLeast(0)
         // The column the finger is over on screen, and the day that column shows.
         val column = ((pointer.x - origin.x) / columnPx).toInt().coerceIn(0, days.lastIndex)
         val dayIndex = if (geometry.isRtl) days.lastIndex - column else column
@@ -426,8 +428,15 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
         )
         val fill = eventFill(drag.event.color, dark, soften)
         val title = drag.event.title.ifBlank { stringResource(R.string.event_untitled) }
+        // An end past midnight wraps rather than saturating, so a four-hour
+        // event dragged to 22:00 reads "22:00–02:00" and not "22:00–24:00".
+        val endMin = if (drag.endMin > MINUTES_PER_DAY) {
+            drag.endMin % MINUTES_PER_DAY
+        } else {
+            drag.endMin
+        }
         val label = "${formatMinuteOfDay(drag.startMin, use24Hour, locale)}–" +
-            formatMinuteOfDay(drag.endMin.coerceAtMost(MINUTES_PER_DAY), use24Hour, locale)
+            formatMinuteOfDay(endMin, use24Hour, locale)
         Box(
             modifier = Modifier
                 // Absolute: these are root coordinates, and the direction-aware

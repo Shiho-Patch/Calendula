@@ -51,6 +51,8 @@ private val FAB_BAND = 88.dp
 fun EventMoveHost(viewModel: RescheduleViewModel, modifier: Modifier = Modifier) {
     val prompt by viewModel.scopePrompt.collectAsStateWithLifecycle()
     val outcome by viewModel.outcome.collectAsStateWithLifecycle()
+    val undoTick by viewModel.undoStarted.collectAsStateWithLifecycle()
+    val writeInFlight by viewModel.inFlight.collectAsStateWithLifecycle()
     val locale = currentLocale()
     val use24Hour = LocalUse24HourFormat.current
 
@@ -85,8 +87,12 @@ fun EventMoveHost(viewModel: RescheduleViewModel, modifier: Modifier = Modifier)
         shown.value = ChipContent(message, moved?.undo)
     }
     val content = shown.value
-    LaunchedEffect(outcome) {
-        if (outcome == null) return@LaunchedEffect
+    // Restarted by the undo tick and held while a write is in flight: an undo
+    // tapped in the last moments of the window leaves the outcome at Moved on
+    // purpose, and this timer would otherwise fire mid-undo and close the chip
+    // just before the same chip has to say "undone".
+    LaunchedEffect(outcome, undoTick, writeInFlight) {
+        if (outcome == null || writeInFlight) return@LaunchedEffect
         delay(if (outcome == MoveOutcome.Undone) UNDONE_CHIP_MILLIS else CHIP_MILLIS)
         viewModel.consumeOutcome()
     }
@@ -103,13 +109,15 @@ fun EventMoveHost(viewModel: RescheduleViewModel, modifier: Modifier = Modifier)
                 .height(SnackChipHeight),
             contentAlignment = Alignment.CenterStart,
         ) {
+            // The action goes away while a write runs: undo() refuses a second
+            // write anyway, so offering it would be a button that does nothing.
+            val undo = content.undo?.takeIf { !writeInFlight }
             SnackChip(
                 visible = outcome != null,
                 message = content.message,
                 maxWidth = chipMaxWidth,
-                actionLabel = stringResource(R.string.event_move_undo)
-                    .takeIf { content.undo != null },
-                onAction = content.undo?.let { undo -> { viewModel.undo(undo) } },
+                actionLabel = stringResource(R.string.event_move_undo).takeIf { undo != null },
+                onAction = undo?.let { { viewModel.undo(it) } },
             )
         }
     }
