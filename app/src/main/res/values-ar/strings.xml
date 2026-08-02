@@ -533,4 +533,13 @@
     <string name="reminder_benefit_delivery_title">التذكيرات، تُسلَّم</string>
     <string name="reminder_use_default">استخدام التذكير الافتراضي</string>
     <string name="settings_timeline_scale">ارتفاع الساعة</string>
+    <string name="settings_timeline_scale_hint">كم مدى المساحة العمودية التي تأخذها الساعة الواحده في عرض الأسبوع واليوم. كلا العرضين يشتركا في هذا الإعداد. يمكنك أيضًا الضغط على المخطط الزمني بإصبعين لتعيين أي ارتفاع بين.</string>
+    <string name="timeline_scale_fit_day">الملائمة لليوم بأكمله</string>
+    <string name="timeline_scale_compact">مضغوط</string>
+    <string name="timeline_scale_regular_summary">المساحة القياسية</string>
+    <string name="timeline_scale_comfortable">مُريَّح</string>
+    <string name="timeline_scale_compact_summary">المزيد من الساعات لكل شاشة، ومجموعات أصغر</string>
+    <string name="timeline_scale_regular">العادي</string>
+    <string name="timeline_scale_comfortable_summary">مجموعات أوسع، تمرير أكثر</string>
+    <string name="timeline_scale_custom_summary">الارتفاع الذي قمت بضغظت المخطط الزمني إليه</string>
 </resources>
