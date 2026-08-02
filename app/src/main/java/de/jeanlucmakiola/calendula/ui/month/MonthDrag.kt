@@ -147,10 +147,19 @@ class MonthDragController {
         return MonthChipDrop(landed.event, landed.grabDate, target)
     }
 
-    /** Hand a settled drop back to the grid, which by now draws it itself. */
+    /**
+     * Stop ghosting the source while the copy is still dissolving — un-ghosting
+     * only at [release] leaves the chip under it dim and then brightens it, a
+     * dip the eye reads as the event flickering.
+     */
+    fun handOver() {
+        liftedInstanceId = null
+    }
+
+    /** Drop the copy, once it has faded into the grid's own chip. */
     fun release() {
         settling = null
-        liftedInstanceId = null
+        handOver()
     }
 
     /** Root x of [date]'s column, in whichever visible row shows that day. */

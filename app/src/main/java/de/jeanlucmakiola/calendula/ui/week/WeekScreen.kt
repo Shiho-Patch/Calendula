@@ -902,7 +902,7 @@ private fun EventBlock(
         onDrop = { dragController.finish()?.let(onDrop) },
         onCancel = dragController::cancel,
     )
-    val lifted = draggable && dragController.liftedInstanceId == block.event.instanceId
+    val lifted = draggable && dragController.ghosts(block, date)
     val ghost = ghostAlpha(lifted)
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)

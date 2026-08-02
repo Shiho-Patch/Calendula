@@ -140,6 +140,16 @@ class TimelineDragController {
     var liftedInstanceId: Long? by mutableStateOf(null)
         private set
 
+    /**
+     * Where the settled drop came from, and which event row it belongs to. The
+     * instance id alone can't identify the source block for the length of the
+     * write: the provider regenerates `Instances` rows, so a re-read that still
+     * carries the *old* time can arrive under a new instance id — and a source
+     * matched by instance id would stop being the ghost and flash back to full
+     * opacity in the slot the event is about to leave.
+     */
+    private var settledOrigin: Triple<Long, LocalDate, Int>? by mutableStateOf(null)
+
     /** Whether a finger is on a block right now — [settling] is not dragging. */
     var isDragging: Boolean by mutableStateOf(false)
         private set
@@ -190,6 +200,22 @@ class TimelineDragController {
         drag = null
         settling = null
         settledOnGrid = false
+        settledOrigin = null
+    }
+
+    /**
+     * Whether [block] is the one whose copy is in flight, and so must stay a
+     * ghost. While the finger holds it that is the instance it picked up; once
+     * dropped it is also whatever now sits in the slot it left, however the
+     * provider has renumbered it in the meantime.
+     */
+    fun ghosts(block: TimedBlock, date: LocalDate): Boolean {
+        if (liftedInstanceId == null) return false
+        if (block.event.instanceId == liftedInstanceId) return true
+        val (eventId, originDate, originMin) = settledOrigin ?: return false
+        return block.event.eventId == eventId &&
+            date == originDate &&
+            block.startMin == originMin
     }
 
     /**
@@ -222,14 +248,26 @@ class TimelineDragController {
         if (landed == null || landed.slot == origin) return null
         settling = landed
         liftedInstanceId = landed.event.instanceId
+        settledOrigin = origin?.let { (date, min) -> Triple(landed.event.eventId, date, min) }
         return TimelineDrop(landed.event, landed.date, landed.startMin)
     }
 
-    /** Hand a settled drop back to the grid, which by now draws it itself. */
+    /**
+     * Stop ghosting the source — the grid draws the drop itself by now — while
+     * the copy is still on screen dissolving. Un-ghosting only at [release]
+     * would leave the block under the fading copy dim, and brighten it once the
+     * copy was gone: a dip the eye reads as the event flickering.
+     */
+    fun handOver() {
+        liftedInstanceId = null
+        settledOrigin = null
+    }
+
+    /** Drop the copy, once it has faded into the grid's own block. */
     fun release() {
         settling = null
-        liftedInstanceId = null
         settledOnGrid = false
+        handOver()
     }
 
     /**
@@ -379,6 +417,7 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
         if (controller.settling == null || moveInFlight) return@LaunchedEffect
         delay(if (controller.settledOnGrid) SETTLE_GRACE_MILLIS else SETTLE_TIMEOUT_MILLIS)
         handingOver = true
+        controller.handOver()
         delay(SETTLE_FADE_MILLIS.toLong())
         controller.release()
     }

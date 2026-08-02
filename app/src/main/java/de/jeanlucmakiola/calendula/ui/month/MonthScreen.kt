@@ -92,6 +92,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
 import de.jeanlucmakiola.calendula.ui.common.moveInFlight
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.DragSnapHaptics
+import de.jeanlucmakiola.calendula.ui.common.SETTLE_FADE_MILLIS
 import de.jeanlucmakiola.calendula.ui.common.EventMoveScope
 import de.jeanlucmakiola.calendula.domain.spanFirstDay
 import androidx.compose.ui.unit.IntSize
@@ -483,9 +484,13 @@ private fun MonthDragOverlay(controller: MonthDragController) {
     // recurring drop's scope dialog is up — then a grace for the re-read. A flat
     // wait, unlike the timeline's: the grid re-lays a whole month of rows, so
     // there is no single column to watch for the chip arriving.
+    var handingOver by remember(controller.settling) { mutableStateOf(false) }
     LaunchedEffect(controller.settling, moveInFlight) {
         if (controller.settling == null || moveInFlight) return@LaunchedEffect
         delay(MONTH_SETTLE_HOLD_MILLIS)
+        handingOver = true
+        controller.handOver()
+        delay(SETTLE_FADE_MILLIS.toLong())
         controller.release()
     }
     Box(
@@ -502,6 +507,11 @@ private fun MonthDragOverlay(controller: MonthDragController) {
         val lift by animateFloatAsState(
             targetValue = if (controller.drag == null || reduceMotion) 0f else 1f,
             label = "chip-lift",
+        )
+        val copyAlpha by animateFloatAsState(
+            targetValue = if (handingOver) 0f else 1f,
+            animationSpec = tween(SETTLE_FADE_MILLIS),
+            label = "chip-handover",
         )
         MonthBar(
             event = drag.event,
@@ -524,6 +534,7 @@ private fun MonthDragOverlay(controller: MonthDragController) {
                     scaleX = 1f + 0.04f * lift
                     scaleY = 1f + 0.04f * lift
                     shadowElevation = 8.dp.toPx() * lift
+                    alpha = copyAlpha
                     shape = RoundedCornerShape(4.dp)
                     clip = false
                 },
