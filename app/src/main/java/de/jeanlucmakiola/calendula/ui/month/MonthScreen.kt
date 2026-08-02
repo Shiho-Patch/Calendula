@@ -2266,7 +2266,7 @@ private fun MonthBar(
     // fades out as the copy settles on its new day.
     val monthDrag = LocalMonthDrag.current
     val lifted = monthDrag?.liftedInstanceId == event.instanceId
-    val ghost = ghostAlpha(lifted, landed = monthDrag?.settling != null)
+    val ghost = ghostAlpha(lifted)
     val shape = RoundedCornerShape(
         topStart = if (continuesLeft) 0.dp else 4.dp,
         bottomStart = if (continuesLeft) 0.dp else 4.dp,
@@ -2275,7 +2275,7 @@ private fun MonthBar(
     )
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
-            .then(if (lifted) Modifier.alpha(ghost) else Modifier)
+            .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
             .background(fill, shape)
             .padding(horizontal = 4.dp)
             .semantics {

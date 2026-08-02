@@ -42,6 +42,7 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -79,6 +80,7 @@ import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.animatedBlockPlacement
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
 import de.jeanlucmakiola.calendula.ui.common.MoveRequest
@@ -640,25 +642,39 @@ private fun DayColumnCard(
         ) {
             val colWidth = maxWidth
             val minEventHeight = hourHeight * MIN_EVENT_FRACTION
+            // Keyed by event, so a block that changes time or lane is the *same*
+            // composable afterwards and tweens there. The ordinal disambiguates
+            // the rare column holding two occurrences of one series, which would
+            // otherwise be two blocks under one key.
+            val ordinals = mutableMapOf<Long, Int>()
             blocks.forEach { block ->
-                val laneWidth = colWidth / block.laneCount
-                val top = hourHeight * (block.startMin / 60f)
-                val rawHeight = hourHeight * ((block.endMin - block.startMin) / 60f)
-                val height = if (rawHeight < minEventHeight) minEventHeight else rawHeight
-                EventBlock(
-                    block = block,
-                    dark = dark,
-                    height = height,
-                    date = date,
-                    dragController = dragController,
-                    onClick = { onEventClick(block.event) },
-                    onDrop = onDrop,
-                    modifier = Modifier
-                        .offset(x = laneWidth * block.lane, y = top)
-                        .width(laneWidth)
-                        .height(height)
-                        .padding(horizontal = 1.dp),
-                )
+                val ordinal = ordinals.merge(block.event.eventId, 1, Int::plus)!! - 1
+                key(block.event.eventId, ordinal) {
+                    val laneWidth = colWidth / block.laneCount
+                    val top = hourHeight * (block.startMin / 60f)
+                    val rawHeight = hourHeight * ((block.endMin - block.startMin) / 60f)
+                    val height = if (rawHeight < minEventHeight) minEventHeight else rawHeight
+                    val place = animatedBlockPlacement(
+                        x = laneWidth * block.lane,
+                        y = top,
+                        width = laneWidth,
+                        height = height,
+                    )
+                    EventBlock(
+                        block = block,
+                        dark = dark,
+                        height = place.height,
+                        date = date,
+                        dragController = dragController,
+                        onClick = { onEventClick(block.event) },
+                        onDrop = onDrop,
+                        modifier = Modifier
+                            .offset(x = place.x, y = place.y)
+                            .width(place.width)
+                            .height(place.height)
+                            .padding(horizontal = 1.dp),
+                    )
+                }
             }
             // Current-time line, on top of the events, only on today's column.
             if (date == today) {
@@ -714,12 +730,12 @@ private fun EventBlock(
         onCancel = dragController::cancel,
     )
     val lifted = draggable && dragController.liftedInstanceId == block.event.instanceId
-    val ghost = ghostAlpha(lifted, landed = dragController.settling != null)
+    val ghost = ghostAlpha(lifted)
     Box(
         modifier = modifier
             // The source stays put as a ghost while its floating copy travels,
             // then fades out as the copy settles on its new slot.
-            .then(if (lifted) Modifier.alpha(ghost) else Modifier)
+            .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
             .background(fill, RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
             // After clickable, so it is the inner node and wins the main pass;

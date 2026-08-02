@@ -1,6 +1,7 @@
 package de.jeanlucmakiola.calendula.ui.common
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.background
@@ -300,11 +301,19 @@ fun TimelineDrop.startInstant(zone: TimeZone): Instant =
     LocalDateTime(date, LocalTime(startMin / 60, startMin % 60)).toInstant(zone)
 
 /**
- * How long a landed block keeps its position after the write reports back. The
- * provider's change notification and the re-query land a beat later; releasing
- * on the write alone would still flash the old slot.
+ * How long a landed block keeps its position after the write reports back — the
+ * provider's change notification and the re-query land a beat later, and
+ * releasing on the write alone would still flash the old slot.
  */
-const val SETTLE_GRACE_MILLIS: Long = 450L
+const val SETTLE_GRACE_MILLIS: Long = 200L
+
+/**
+ * The hand-over: the copy dissolves over this while the grid's own block slides
+ * in under it, so the two overlap rather than one replacing the other. Kept
+ * short, because a full-width copy sits over any neighbour it now shares a lane
+ * with until it is gone.
+ */
+const val SETTLE_FADE_MILLIS: Int = 250
 
 /**
  * The floating block, drawn over the whole calendar so it is free of the day
@@ -328,10 +337,14 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
         if (controller.isDragging) controller.autoScroll()
     }
     // Hold the landed copy until the write is done — including the whole time a
-    // recurring drop's scope dialog is up — then a grace for the re-read.
+    // recurring drop's scope dialog is up — then a grace for the re-read, then
+    // fade it into the grid's own block, which has slid in underneath by now.
+    var handingOver by remember(controller.settling) { mutableStateOf(false) }
     LaunchedEffect(controller.settling, moveInFlight) {
         if (controller.settling == null || moveInFlight) return@LaunchedEffect
         delay(SETTLE_GRACE_MILLIS)
+        handingOver = true
+        delay(SETTLE_FADE_MILLIS.toLong())
         controller.release()
     }
 
@@ -350,6 +363,11 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
         val lift by animateFloatAsState(
             targetValue = if (landed || reduceMotion) 0f else 1f,
             label = "drag-lift",
+        )
+        val copyAlpha by animateFloatAsState(
+            targetValue = if (handingOver) 0f else 1f,
+            animationSpec = tween(SETTLE_FADE_MILLIS),
+            label = "drag-handover",
         )
         val fill = eventFill(drag.event.color, dark, soften)
         val title = drag.event.title.ifBlank { stringResource(R.string.event_untitled) }
@@ -374,6 +392,7 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
                     scaleX = 1f + 0.02f * lift
                     scaleY = 1f + 0.02f * lift
                     shadowElevation = 8.dp.toPx() * lift
+                    alpha = copyAlpha
                     shape = RoundedCornerShape(4.dp)
                     clip = false
                 }

@@ -62,17 +62,15 @@ fun moveInFlight(): Boolean {
 const val GHOST_ALPHA: Float = 0.3f
 
 /**
- * Opacity for a block whose copy is in flight: ghosted while the finger holds
- * it, then faded out once the copy has landed, so the slot it came from is
- * already empty by the time the grid re-reads the move.
+ * Opacity for a block whose copy is in flight: ghosted from the lift until the
+ * copy is handed back, then animated up rather than switched. The ghost keeps
+ * its place through the write and *travels* to the new slot when the grid
+ * re-reads it, arriving under the copy as that fades — so what the eye follows
+ * is one block moving, not one vanishing and another appearing.
  */
 @Composable
-fun ghostAlpha(lifted: Boolean, landed: Boolean): Float = animateFloatAsState(
-    targetValue = when {
-        !lifted -> 1f
-        landed -> 0f
-        else -> GHOST_ALPHA
-    },
+fun ghostAlpha(lifted: Boolean): Float = animateFloatAsState(
+    targetValue = if (lifted) GHOST_ALPHA else 1f,
     label = "ghost-alpha",
 ).value
 
