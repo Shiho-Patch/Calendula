@@ -491,4 +491,5 @@
         <item quantity="many">Importando %d eventos</item>
         <item quantity="other">Importando %d eventos</item>
     </plurals>
+    <string name="settings_soften_colors">Armoniza los colores del calendario</string>
 </resources>
