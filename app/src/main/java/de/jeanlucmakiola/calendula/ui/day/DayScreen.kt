@@ -110,8 +110,9 @@ import de.jeanlucmakiola.calendula.ui.common.MIN_EVENT_FRACTION
 import de.jeanlucmakiola.calendula.ui.common.SECONDARY_INK_ALPHA
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
-import de.jeanlucmakiola.calendula.ui.common.formatHourLabel
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
+import de.jeanlucmakiola.calendula.ui.common.GUTTER_WIDTH
+import de.jeanlucmakiola.calendula.ui.common.HourGutter
 import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
 import de.jeanlucmakiola.calendula.ui.week.TimedBlock
 import kotlinx.coroutines.flow.first
@@ -123,11 +124,6 @@ import kotlin.time.Clock
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private val GUTTER_WIDTH = 48.dp
-/** Start inset for the gutter's hour labels so they centre on the top bar's
- *  hamburger: with a 48dp gutter, 8dp lands the centre at 28dp (the app bar's
- *  4dp inset + 24dp half icon button), matching the week view. */
-private val GUTTER_CONTENT_START_INSET = 8.dp
 private val ALL_DAY_ROW_HEIGHT = 24.dp
 private val ALL_DAY_VERTICAL_PADDING = 6.dp
 
@@ -534,8 +530,6 @@ private fun Timeline(
     onDrop: (TimelineDrop) -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
-    val use24Hour = LocalUse24HourFormat.current
-    val locale = currentLocale()
     val zoom = LocalTimelineZoom.current
     val density = LocalDensity.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
@@ -557,32 +551,11 @@ private fun Timeline(
         Row(modifier = Modifier.fillMaxSize().then(pinch)) {
             // Hour gutter (scrolls in sync with the day column). Start inset so the
             // labels centre on the top bar hamburger, matching the week view.
-            Column(
-                modifier = Modifier
-                    .width(GUTTER_WIDTH)
-                    .padding(start = GUTTER_CONTENT_START_INSET)
-                    .fillMaxHeight()
-                    .verticalScroll(scrollState),
-            ) {
-                (0 until 24).forEach { h ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(hourHeight),
-                    ) {
-                        if (h > 0) {
-                            Text(
-                                text = formatHourLabel(h, use24Hour, locale),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .offset(y = (-6).dp),
-                            )
-                        }
-                    }
-                }
-            }
+            HourGutter(
+                scrollState = scrollState,
+                hourHeight = hourHeight,
+                dragController = dragController,
+            )
             // Day column: rounded, clipped scroll viewport (permanent corners).
             Box(
                 modifier = Modifier

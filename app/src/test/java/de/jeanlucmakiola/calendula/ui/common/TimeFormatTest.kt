@@ -28,6 +28,14 @@ class TimeFormatTest {
     }
 
     @Test
+    fun `gutter time drops the meridiem and clamps to the day`() {
+        assertThat(formatGutterTime(9 * 60 + 15, is24Hour = true, Locale.US)).isEqualTo("09:15")
+        assertThat(formatGutterTime(13 * 60 + 45, is24Hour = false, Locale.US)).isEqualTo("1:45")
+        assertThat(formatGutterTime(0, is24Hour = false, Locale.US)).isEqualTo("12:00")
+        assertThat(formatGutterTime(1_440, is24Hour = true, Locale.US)).isEqualTo("23:59")
+    }
+
+    @Test
     fun `hour label is zero-padded in 24h and compact am-pm in 12h`() {
         assertThat(formatHourLabel(13, is24Hour = true, Locale.US)).isEqualTo("13")
         assertThat(formatHourLabel(13, is24Hour = false, Locale.US)).isEqualTo("1 PM")

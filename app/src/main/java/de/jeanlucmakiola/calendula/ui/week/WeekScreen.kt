@@ -120,8 +120,10 @@ import de.jeanlucmakiola.calendula.ui.common.MIN_TITLE_WRAP_WIDTH
 import de.jeanlucmakiola.calendula.ui.common.SECONDARY_INK_ALPHA
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
-import de.jeanlucmakiola.calendula.ui.common.formatHourLabel
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
+import de.jeanlucmakiola.calendula.ui.common.GUTTER_CONTENT_START_INSET
+import de.jeanlucmakiola.calendula.ui.common.GUTTER_WIDTH
+import de.jeanlucmakiola.calendula.ui.common.HourGutter
 import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
@@ -137,11 +139,6 @@ import kotlin.time.Clock
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
-private val GUTTER_WIDTH = 48.dp
-/** Start inset for the gutter's content (week badge + hour labels) so it centres
- *  on the top bar's hamburger: with a 48dp gutter, 8dp lands the centre at 28dp
- *  (the app bar's 4dp inset + 24dp half icon button). */
-private val GUTTER_CONTENT_START_INSET = 8.dp
 private val ALL_DAY_ROW_HEIGHT = 24.dp
 private val ALL_DAY_VERTICAL_PADDING = 6.dp
 /** Gap between day columns; part of the column pitch a drag maps positions through. */
@@ -670,8 +667,6 @@ private fun Timeline(
     onDrop: (TimelineDrop) -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
-    val use24Hour = LocalUse24HourFormat.current
-    val locale = currentLocale()
     val zoom = LocalTimelineZoom.current
     val density = LocalDensity.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
@@ -694,32 +689,11 @@ private fun Timeline(
         Row(modifier = Modifier.fillMaxSize().then(pinch)) {
             // Hour gutter (scrolls in sync with the day columns). Same start inset
             // as the header badge so the labels sit under it and on the hamburger.
-            Column(
-                modifier = Modifier
-                    .width(GUTTER_WIDTH)
-                    .padding(start = GUTTER_CONTENT_START_INSET)
-                    .fillMaxHeight()
-                    .verticalScroll(scrollState),
-            ) {
-                (0 until 24).forEach { h ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(hourHeight),
-                    ) {
-                        if (h > 0) {
-                            Text(
-                                text = formatHourLabel(h, use24Hour, locale),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .offset(y = (-6).dp),
-                            )
-                        }
-                    }
-                }
-            }
+            HourGutter(
+                scrollState = scrollState,
+                hourHeight = hourHeight,
+                dragController = dragController,
+            )
             // Day columns: rounded, clipped scroll viewport (permanent corners).
             Box(
                 modifier = Modifier
