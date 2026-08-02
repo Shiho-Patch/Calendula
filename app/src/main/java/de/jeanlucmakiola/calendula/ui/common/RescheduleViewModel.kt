@@ -226,11 +226,15 @@ class RescheduleViewModel @Inject constructor(
         _scopePrompt.value = null
     }
 
-    /** Put a completed move back where it came from. */
+    /**
+     * Put a completed move back where it came from. The outcome deliberately
+     * stands until the inverse write reports back: clearing it first would drop
+     * the confirmation chip and open a second one a moment later, rather than
+     * letting the one chip change what it says.
+     */
     fun undo(undo: MoveUndo) {
         if (busy) return
         busy = true
-        _outcome.value = null
         viewModelScope.launch {
             _outcome.value = try {
                 repository.updateEvent(undo.eventId, undo.moved, undo.restored)

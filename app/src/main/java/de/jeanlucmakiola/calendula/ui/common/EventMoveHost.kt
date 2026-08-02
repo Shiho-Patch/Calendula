@@ -32,6 +32,9 @@ import java.util.Locale
 /** How long the confirmation chip stays up, matching a short snackbar. */
 private const val CHIP_MILLIS = 4_000L
 
+/** What the chip currently reads, kept past the outcome it was built from. */
+private data class ChipContent(val message: String, val undo: MoveUndo?)
+
 /** The FAB's own band at the bottom end, which the chip must not run into. */
 private val FAB_BAND = 88.dp
 
@@ -75,13 +78,16 @@ fun EventMoveHost(viewModel: RescheduleViewModel, modifier: Modifier = Modifier)
     }
 
     // Held past the outcome being consumed so the chip has something to draw
-    // while it slides back out.
-    var shownMessage by remember { mutableStateOf("") }
-    var shownUndo by remember { mutableStateOf<MoveUndo?>(null) }
+    // while it springs back out. Updated *in composition* rather than from an
+    // effect: an effect lands a frame late, so the chip would open carrying the
+    // previous message and grow into this one while it was still animating in.
+    val shown = remember { mutableStateOf(ChipContent("", null)) }
+    if (message != null && (shown.value.message != message || shown.value.undo != moved?.undo)) {
+        shown.value = ChipContent(message, moved?.undo)
+    }
+    val content = shown.value
     LaunchedEffect(outcome) {
-        val text = message ?: return@LaunchedEffect
-        shownMessage = text
-        shownUndo = moved?.undo
+        if (outcome == null) return@LaunchedEffect
         delay(CHIP_MILLIS)
         viewModel.consumeOutcome()
     }
@@ -101,11 +107,11 @@ fun EventMoveHost(viewModel: RescheduleViewModel, modifier: Modifier = Modifier)
         ) {
             SnackChip(
                 visible = outcome != null,
-                message = shownMessage,
+                message = content.message,
                 maxWidth = chipMaxWidth,
                 actionLabel = stringResource(R.string.event_move_undo)
-                    .takeIf { shownUndo != null },
-                onAction = shownUndo?.let { undo -> { viewModel.undo(undo) } },
+                    .takeIf { content.undo != null },
+                onAction = content.undo?.let { undo -> { viewModel.undo(undo) } },
             )
         }
     }
