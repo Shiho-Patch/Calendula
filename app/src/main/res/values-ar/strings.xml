@@ -532,4 +532,5 @@
     <string name="settings_calendar_duration_use_default">استخدام المدة الافتراضية (%1$s)</string>
     <string name="reminder_benefit_delivery_title">التذكيرات، تُسلَّم</string>
     <string name="reminder_use_default">استخدام التذكير الافتراضي</string>
+    <string name="settings_timeline_scale">ارتفاع الساعة</string>
 </resources>
