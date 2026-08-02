@@ -69,8 +69,10 @@ data class MoveRequest(
 
 /**
  * A recurring drop waiting for the user to pick how far it reaches.
- * [occurrenceOnly] means the rule names days a single moved occurrence can't
- * re-derive (`BYDAY=MO,WE`, `2TH`, …) — see [realignRecurrence].
+ * [occurrenceOnly] means a wider write would leave the rule and the series
+ * anchor disagreeing — either the rule names days one moved occurrence can't
+ * re-derive (`BYDAY=MO,WE`, `2TH`, …), or the shift wouldn't carry the anchor
+ * across the same midnights the occurrence crossed.
  */
 data class MoveScopePrompt(val occurrenceOnly: Boolean)
 
@@ -297,8 +299,9 @@ class RescheduleViewModel @Inject constructor(
         val isRecurring = original.rrule != null && !detail.isException
         val movedDay = shifted.start.date != original.start.date
         // The series anchor moves by the same *wall-clock* shift as the dragged
-        // occurrence, so only a whole-day shift moves it by a predictable number
-        // of days; anything else can cross an extra midnight at the anchor.
+        // occurrence, so only a whole-day shift carries it across the same number
+        // of midnights whatever time of day it sits at. A same-date drag has its
+        // own, narrower check — see anchorKeepsItsDay.
         val wholeDayShift = original.isAllDay || shifted.start.time == original.start.time
         val realigned = if (isRecurring && movedDay) {
             if (wholeDayShift) {
@@ -326,7 +329,8 @@ class RescheduleViewModel @Inject constructor(
                 else -> anchorKeepsItsDay(detail, original, shifted, zone)
             },
             // Where the series row's own DTSTART lands, given the anchor moves by
-            // the same shift — only meaningful under wholeDayShift.
+            // the same shift. Only read under canRealign, which is what
+            // guarantees the anchor really does travel this many days.
             newAnchorDate = anchorDate(detail, original, zone)
                 .plus(shifted.start.date.toEpochDays() - original.start.date.toEpochDays(), DateTimeUnit.DAY),
         )

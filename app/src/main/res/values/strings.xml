@@ -69,7 +69,7 @@
     <!-- Drag an event to another time or day (#68) -->
     <string name="event_move_action">Move…</string>
     <string name="event_move_recurring_title">Move recurring event</string>
-    <string name="event_move_occurrence_only">This series picks its days in a way that can\'t be recalculated from one moved event, so only this event can move.</string>
+    <string name="event_move_occurrence_only">Moving the whole series would change which days it falls on, so only this event can move.</string>
     <!-- %1$s is the new date and time, e.g. "Fri, 7 Aug, 09:00". -->
     <string name="event_move_done">Moved to %1$s</string>
     <string name="event_move_undo">Undo</string>

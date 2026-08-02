@@ -129,15 +129,29 @@ Two things the drag has to get right that the edit screen sidesteps:
   from the edit screen; wiring it there too is a separate change.
 
   What the rule has to agree with is the **series anchor**, not the occurrence
-  being dragged, and the anchor moves by the same *wall-clock* shift. Only two
-  things survive that intact, which is exactly the envelope the realigner accepts:
-  weekday (uniform mod 7, so every anchor time of day crosses the same number of
-  midnights) and a shift that is a whole number of days (otherwise a late-enough
-  anchor crosses one midnight more than the occurrence did). Day-of-month is not
-  uniform — `BYMONTHDAY=28` with a January anchor, occurrence Feb 28 dragged to
-  Mar 1, would leave a Jan 29 anchor under a `BYMONTHDAY=1` rule, a DTSTART that
-  is not an instance of its own rule and a phantom occurrence on any client that
-  trusts it. Those drags may only move the one occurrence.
+  being dragged, and `buildEventUpdateValues` moves that anchor by the same
+  *wall-clock* shift. So the realigner only touches weekday, which is uniform mod
+  7 and therefore survives that shift whatever time of day the anchor sits at.
+  Day-of-month is not uniform — `BYMONTHDAY=28` with a January anchor, occurrence
+  Feb 28 dragged to Mar 1, would leave a Jan 29 anchor under a `BYMONTHDAY=1`
+  rule, a DTSTART that is not an instance of its own rule and a phantom
+  occurrence on any client that trusts it.
+
+  Uniform mod 7 is not enough on its own: the anchor also has to cross the *same
+  number of midnights* as the occurrence did, or the rebuilt weekday is off by a
+  day. `RescheduleViewModel` requires that of every write wider than one
+  occurrence, in the two shapes a drag comes in:
+
+  - a drag that **changes the day** must be a whole number of days, so the two
+    move in step whatever the anchor's time of day;
+  - a **time-only** drag must leave the anchor on its own day. That is normally
+    free, since the anchor shares the occurrence's time of day — but a row with
+    no `EVENT_TIMEZONE` resolves anchor and occurrence in zones that can sit a
+    DST hour apart, and a near-midnight drag would then carry the anchor across a
+    midnight the occurrence never crossed.
+
+  Whatever falls outside — a rule the realigner won't rebuild, or a shift that
+  would move rule and anchor out of step — may only move the one occurrence.
 
   The accepted parts are deliberately a **subset** of what `parseSimpleRecurrence`
   understands, so anything realignable is also a rule whose `UNTIL` the guard
@@ -156,6 +170,14 @@ whole-series move carries the *anchor*, a split starts a new series at the moved
 occurrence, and a single occurrence becomes an exception row that no `UNTIL`
 constrains. Testing the occurrence in every case would refuse the perfectly
 ordinary drag of a bounded series' last occurrence.
+
+**One drop is written at a time.** Two drops of the same recurring event landing
+inside one write window would each compute their shift from the same pre-move
+occurrence, while the data layer applies both to the re-read anchor — so the
+shifts would compound. `RescheduleViewModel.move` therefore refuses while a write
+(or its scope dialog) is outstanding, and says so in its return value: the view
+that took the drop releases the block it was holding on the target instead of
+waiting out a settle that will never arrive.
 
 Two known limitations of a whole-series move, both shared with the edit screen's
 own *All events* time save rather than introduced here — a drag just makes them
@@ -204,8 +226,8 @@ already bounded by the same dirty check — only `ALL_DAY`, `EVENT_TIMEZONE`,
 `DTSTART` and `DTEND`/`DURATION`/`RRULE` are written — so a concurrent remote
 edit to the title, notes or guests survives untouched. What a drop *can* clobber
 is a concurrent remote **time** change, and parking a one-gesture action behind a
-modal would cost more than that case is worth; the undo in the confirmation
-snackbar is the answer instead. Undo restores semantics, not the row's byte
+modal would cost more than that case is worth; the undo on the confirmation chip
+is the answer instead. Undo restores semantics, not the row's byte
 shape (`DURATION` normalises to `P<n>S`/`P<n>D`, `EVENT_TIMEZONE` is stamped
 concrete), and it is offered only where the inverse is one symmetric write — a
 one-off event or a whole-series shift. *This event* leaves an exception row
