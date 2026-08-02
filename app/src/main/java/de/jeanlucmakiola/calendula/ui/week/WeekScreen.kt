@@ -89,6 +89,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
+import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.animatedBlockPlacement
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
@@ -931,11 +932,8 @@ private fun EventBlock(
                 )
             }
             if (showTime) {
-                Text(
-                    text = timeLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                BlockTimeLabel(
+                    label = timeLabel,
                     color = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
                 )
             }
