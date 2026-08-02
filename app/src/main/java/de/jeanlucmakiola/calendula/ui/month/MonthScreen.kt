@@ -92,7 +92,6 @@ import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
 import de.jeanlucmakiola.calendula.ui.common.moveInFlight
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.DragSnapHaptics
-import de.jeanlucmakiola.calendula.ui.common.SETTLE_GRACE_MILLIS
 import de.jeanlucmakiola.calendula.ui.common.EventMoveScope
 import de.jeanlucmakiola.calendula.domain.spanFirstDay
 import androidx.compose.ui.unit.IntSize
@@ -466,6 +465,9 @@ fun MonthScreen(
     }
 }
 
+/** How long a landed chip holds its day while the write and re-read land. */
+private const val MONTH_SETTLE_HOLD_MILLIS = 450L
+
 /** The chip in flight, drawn over the grid and following the finger. */
 @Composable
 private fun MonthDragOverlay(controller: MonthDragController) {
@@ -478,10 +480,12 @@ private fun MonthDragOverlay(controller: MonthDragController) {
     // every frame, and this composable is the one that is meant to.
     DragSnapHaptics(controller.drag?.targetDate)
     // Hold the landed chip until the write is done — including the whole time a
-    // recurring drop's scope dialog is up — then a grace for the re-read.
+    // recurring drop's scope dialog is up — then a grace for the re-read. A flat
+    // wait, unlike the timeline's: the grid re-lays a whole month of rows, so
+    // there is no single column to watch for the chip arriving.
     LaunchedEffect(controller.settling, moveInFlight) {
         if (controller.settling == null || moveInFlight) return@LaunchedEffect
-        delay(SETTLE_GRACE_MILLIS)
+        delay(MONTH_SETTLE_HOLD_MILLIS)
         controller.release()
     }
     Box(

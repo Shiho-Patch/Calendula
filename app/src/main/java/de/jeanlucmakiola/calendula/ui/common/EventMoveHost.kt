@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FloatingActionButtonDefaults
-import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -108,10 +106,6 @@ fun EventMoveHost(viewModel: RescheduleViewModel, modifier: Modifier = Modifier)
                 actionLabel = stringResource(R.string.event_move_undo)
                     .takeIf { shownUndo != null },
                 onAction = shownUndo?.let { undo -> { viewModel.undo(undo) } },
-                // The FAB's own colours: the chip shares its band, so sharing its
-                // fill reads as one bottom layer rather than two competing ones.
-                color = FloatingActionButtonDefaults.containerColor,
-                contentColor = contentColorFor(FloatingActionButtonDefaults.containerColor),
             )
         }
     }

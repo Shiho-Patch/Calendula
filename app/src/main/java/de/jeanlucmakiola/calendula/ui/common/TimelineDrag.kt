@@ -144,6 +144,15 @@ class TimelineDragController {
     var isDragging: Boolean by mutableStateOf(false)
         private set
 
+    /**
+     * Whether the grid itself now draws the settled drop at its landing slot.
+     * The copy may only be handed back once this is true: releasing on a timer
+     * puts the source ghost back at full opacity in its *old* slot for whatever
+     * is left of the re-read — a flicker of the event where it no longer is.
+     */
+    var settledOnGrid: Boolean by mutableStateOf(false)
+        private set
+
     private var source: TimedBlock? = null
     private var grab = Offset.Zero
     private var pointer = Offset.Zero
@@ -180,6 +189,25 @@ class TimelineDragController {
         originSlot = null
         drag = null
         settling = null
+        settledOnGrid = false
+    }
+
+    /**
+     * What a day column now holds, so a settled drop can tell when the grid has
+     * caught up with it. Matched on the landing slot plus either the event row
+     * or its title: a single-occurrence move writes an exception row with a new
+     * `eventId`, which nothing else about the drop can predict.
+     */
+    fun noteGrid(date: LocalDate, blocks: List<TimedBlock>) {
+        val landed = settling ?: return
+        if (settledOnGrid || landed.date != date) return
+        settledOnGrid = blocks.any { block ->
+            block.startMin == landed.startMin &&
+                (
+                    block.event.eventId == landed.event.eventId ||
+                        block.event.title == landed.event.title
+                    )
+        }
     }
 
     /**
@@ -201,6 +229,7 @@ class TimelineDragController {
     fun release() {
         settling = null
         liftedInstanceId = null
+        settledOnGrid = false
     }
 
     /**
@@ -301,11 +330,17 @@ fun TimelineDrop.startInstant(zone: TimeZone): Instant =
     LocalDateTime(date, LocalTime(startMin / 60, startMin % 60)).toInstant(zone)
 
 /**
- * How long a landed block keeps its position after the write reports back — the
- * provider's change notification and the re-query land a beat later, and
- * releasing on the write alone would still flash the old slot.
+ * A beat after the grid draws the drop, so its own block is under way before the
+ * copy starts dissolving.
  */
-const val SETTLE_GRACE_MILLIS: Long = 200L
+const val SETTLE_GRACE_MILLIS: Long = 60L
+
+/**
+ * How long to wait for a grid that never confirms the drop — the event landed on
+ * a day this timeline doesn't show, or the write failed and nothing changed. The
+ * copy has to go either way.
+ */
+private const val SETTLE_TIMEOUT_MILLIS = 900L
 
 /**
  * The hand-over: the copy dissolves over this while the grid's own block slides
@@ -337,12 +372,12 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
         if (controller.isDragging) controller.autoScroll()
     }
     // Hold the landed copy until the write is done — including the whole time a
-    // recurring drop's scope dialog is up — then a grace for the re-read, then
-    // fade it into the grid's own block, which has slid in underneath by now.
+    // recurring drop's scope dialog is up — and then until the grid draws the
+    // drop itself, so the copy dissolves onto a block that is already there.
     var handingOver by remember(controller.settling) { mutableStateOf(false) }
-    LaunchedEffect(controller.settling, moveInFlight) {
+    LaunchedEffect(controller.settling, moveInFlight, controller.settledOnGrid) {
         if (controller.settling == null || moveInFlight) return@LaunchedEffect
-        delay(SETTLE_GRACE_MILLIS)
+        delay(if (controller.settledOnGrid) SETTLE_GRACE_MILLIS else SETTLE_TIMEOUT_MILLIS)
         handingOver = true
         delay(SETTLE_FADE_MILLIS.toLong())
         controller.release()

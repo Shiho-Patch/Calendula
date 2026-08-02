@@ -615,6 +615,10 @@ private fun DayColumnCard(
     val hourPx = with(LocalDensity.current) { hourHeight.toPx() }
     val showHourLines = LocalShowHourLines.current
     val hourLineColor = MaterialTheme.colorScheme.outlineVariant
+    // Tells a settled drop when this column has caught up with it.
+    LaunchedEffect(blocks, dragController.settling) {
+        dragController.noteGrid(date, blocks)
+    }
     Card(
         // Plain rectangular column — the soft corners come from the outer
         // rounded scroll viewport, so inner rounding would look odd at the edges.
