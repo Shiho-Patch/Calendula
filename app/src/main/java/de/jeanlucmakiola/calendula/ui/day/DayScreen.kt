@@ -79,7 +79,7 @@ import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
-import de.jeanlucmakiola.calendula.ui.common.GHOST_ALPHA
+import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
 import de.jeanlucmakiola.calendula.ui.common.MoveRequest
 import de.jeanlucmakiola.calendula.ui.common.MoveTarget
@@ -714,10 +714,12 @@ private fun EventBlock(
         onCancel = dragController::cancel,
     )
     val lifted = draggable && dragController.liftedInstanceId == block.event.instanceId
+    val ghost = ghostAlpha(lifted, landed = dragController.settling != null)
     Box(
         modifier = modifier
-            // The source stays put as a ghost while its floating copy travels.
-            .then(if (lifted) Modifier.alpha(GHOST_ALPHA) else Modifier)
+            // The source stays put as a ghost while its floating copy travels,
+            // then fades out as the copy settles on its new slot.
+            .then(if (lifted) Modifier.alpha(ghost) else Modifier)
             .background(fill, RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
             // After clickable, so it is the inner node and wins the main pass;

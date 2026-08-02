@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.common
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.background
@@ -41,6 +42,7 @@ import de.jeanlucmakiola.calendula.ui.week.MINUTES_PER_DAY
 import de.jeanlucmakiola.calendula.ui.week.TimedBlock
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.floret.locale.currentLocale
+import kotlinx.coroutines.delay
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -120,11 +122,25 @@ class TimelineDragController {
         private set
 
     /**
+     * A dropped block, held at the slot it landed on while the write runs. The
+     * grid behind it still shows the old time until the provider notifies and
+     * the query re-reads, so releasing the copy at drop time would snap the
+     * event back to where it came from for the length of the write.
+     */
+    var settling: TimelineDrag? by mutableStateOf(null)
+        private set
+
+    /**
      * Which block is lifted, and whether anything is. Separate snapshot state
      * from [drag] on purpose: [drag] changes on every frame, and the blocks that
-     * only need to know "am I the ghost" must not recompose that often.
+     * only need to know "am I the ghost" must not recompose that often. Stays
+     * set through [settling], so the source never reappears under the copy.
      */
     var liftedInstanceId: Long? by mutableStateOf(null)
+        private set
+
+    /** Whether a finger is on a block right now — [settling] is not dragging. */
+    var isDragging: Boolean by mutableStateOf(false)
         private set
 
     private var source: TimedBlock? = null
@@ -139,10 +155,10 @@ class TimelineDragController {
      */
     private var originSlot: Pair<LocalDate, Int>? = null
 
-    val isDragging: Boolean get() = liftedInstanceId != null
-
     fun begin(block: TimedBlock, pointerInRoot: Offset, blockInRoot: Offset) {
         source = block
+        settling = null
+        isDragging = true
         liftedInstanceId = block.event.instanceId
         grab = pointerInRoot - blockInRoot
         pointer = pointerInRoot
@@ -158,21 +174,32 @@ class TimelineDragController {
 
     fun cancel() {
         source = null
+        isDragging = false
         liftedInstanceId = null
         originSlot = null
         drag = null
+        settling = null
     }
 
     /**
      * End the drag, handing back where it landed — null when it never resolved,
-     * or when it landed back on the slot it started from.
+     * or when it landed back on the slot it started from. A real drop keeps its
+     * copy on the target as [settling] until [release].
      */
     fun finish(): TimelineDrop? {
         val landed = drag
         val origin = originSlot
         cancel()
         if (landed == null || landed.slot == origin) return null
+        settling = landed
+        liftedInstanceId = landed.event.instanceId
         return TimelineDrop(landed.event, landed.date, landed.startMin)
+    }
+
+    /** Hand a settled drop back to the grid, which by now draws it itself. */
+    fun release() {
+        settling = null
+        liftedInstanceId = null
     }
 
     /**
@@ -273,6 +300,13 @@ fun TimelineDrop.startInstant(zone: TimeZone): Instant =
     LocalDateTime(date, LocalTime(startMin / 60, startMin % 60)).toInstant(zone)
 
 /**
+ * How long a landed block keeps its position after the write reports back. The
+ * provider's change notification and the re-query land a beat later; releasing
+ * on the write alone would still flash the old slot.
+ */
+const val SETTLE_GRACE_MILLIS: Long = 450L
+
+/**
  * The floating block, drawn over the whole calendar so it is free of the day
  * column's clip and of the scroll viewport's rounded corners.
  */
@@ -285,12 +319,20 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
     val locale = currentLocale()
     val reduceMotion = rememberReduceMotion()
     val density = LocalDensity.current
+    val moveInFlight = moveInFlight()
 
     // Both live here rather than beside the controller: they read [drag], which
     // changes every frame, and this composable is the one that is meant to.
     DragSnapHaptics(controller.drag?.slot)
     LaunchedEffect(controller.isDragging) {
         if (controller.isDragging) controller.autoScroll()
+    }
+    // Hold the landed copy until the write is done — including the whole time a
+    // recurring drop's scope dialog is up — then a grace for the re-read.
+    LaunchedEffect(controller.settling, moveInFlight) {
+        if (controller.settling == null || moveInFlight) return@LaunchedEffect
+        delay(SETTLE_GRACE_MILLIS)
+        controller.release()
     }
 
     Box(
@@ -301,7 +343,14 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
             .clearAndSetSemantics { }
             .onGloballyPositioned { origin = it.positionInRoot() },
     ) {
-        val drag = controller.drag ?: return@Box
+        val drag = controller.drag ?: controller.settling ?: return@Box
+        // Landed: the copy sinks back to the grid's own plane while the write
+        // runs, so the release reads as the block settling rather than vanishing.
+        val landed = controller.drag == null
+        val lift by animateFloatAsState(
+            targetValue = if (landed || reduceMotion) 0f else 1f,
+            label = "drag-lift",
+        )
         val fill = eventFill(drag.event.color, dark, soften)
         val title = drag.event.title.ifBlank { stringResource(R.string.event_untitled) }
         val label = "${formatMinuteOfDay(drag.startMin, use24Hour, locale)}–" +
@@ -322,11 +371,9 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
                 )
                 .padding(horizontal = 1.dp)
                 .graphicsLayer {
-                    if (!reduceMotion) {
-                        scaleX = 1.02f
-                        scaleY = 1.02f
-                    }
-                    shadowElevation = 8.dp.toPx()
+                    scaleX = 1f + 0.02f * lift
+                    scaleY = 1f + 0.02f * lift
+                    shadowElevation = 8.dp.toPx() * lift
                     shape = RoundedCornerShape(4.dp)
                     clip = false
                 }

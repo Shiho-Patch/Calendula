@@ -63,11 +63,25 @@ class MonthDragController {
         private set
 
     /**
+     * A dropped chip, held on the day it landed on while the write runs. The grid
+     * behind it still shows the old day until the provider notifies and the query
+     * re-reads, so releasing at drop time would snap the event back for the
+     * length of the write.
+     */
+    var settling: MonthChipDrag? by mutableStateOf(null)
+        private set
+
+    /**
      * Which chip is lifted, and whether anything is. Separate snapshot state from
      * [drag] on purpose: [drag] changes on every frame, while the chips and rows
-     * that only need "am I the ghost" / "must I stop clipping" must not.
+     * that only need "am I the ghost" / "must I stop clipping" must not. Stays
+     * set through [settling], so the source never reappears under the copy.
      */
     var liftedInstanceId: Long? by mutableStateOf(null)
+        private set
+
+    /** Whether a finger is on a chip right now — [settling] is not dragging. */
+    var isDragging: Boolean by mutableStateOf(false)
         private set
 
     private var event: EventInstance? = null
@@ -75,8 +89,6 @@ class MonthDragController {
     private var grab = Offset.Zero
     private var pointer = Offset.Zero
     private var sizePx = IntSize.Zero
-
-    val isDragging: Boolean get() = liftedInstanceId != null
 
     fun putRow(token: Any, geometry: MonthRowGeometry) {
         rows[token] = geometry
@@ -95,6 +107,8 @@ class MonthDragController {
     ) {
         this.event = event
         this.grabDate = grabDate
+        settling = null
+        isDragging = true
         liftedInstanceId = event.instanceId
         grab = pointerInRoot - chipInRoot
         pointer = pointerInRoot
@@ -110,15 +124,42 @@ class MonthDragController {
     fun cancel() {
         event = null
         grabDate = null
+        isDragging = false
         liftedInstanceId = null
         drag = null
+        settling = null
     }
 
+    /**
+     * End the drag. A real drop keeps its chip on the target day as [settling]
+     * until [release] — slid over to that day's column, so it lands where the
+     * grid is about to draw it rather than wherever the finger happened to be.
+     */
     fun finish(): MonthChipDrop? {
         val landed = drag
+        val left = landed?.targetDate?.let(::columnLeft)
         cancel()
         val target = landed?.targetDate ?: return null
+        settling = landed.copy(
+            topLeftInRoot = Offset(left ?: landed.topLeftInRoot.x, landed.topLeftInRoot.y),
+        )
+        liftedInstanceId = landed.event.instanceId
         return MonthChipDrop(landed.event, landed.grabDate, target)
+    }
+
+    /** Hand a settled drop back to the grid, which by now draws it itself. */
+    fun release() {
+        settling = null
+        liftedInstanceId = null
+    }
+
+    /** Root x of [date]'s column, in whichever visible row shows that day. */
+    private fun columnLeft(date: LocalDate): Float? = rows.values.firstNotNullOfOrNull { row ->
+        val index = row.days.indexOf(date).takeIf { it >= 0 } ?: return@firstNotNullOfOrNull null
+        val bounds = row.cell.takeIf { it.isAttached }?.boundsInRoot()
+            ?: return@firstNotNullOfOrNull null
+        val column = if (row.isRtl) row.days.lastIndex - index else index
+        bounds.left + column * row.columnWidthPx
     }
 
     private fun recompute() {

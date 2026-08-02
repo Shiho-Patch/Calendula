@@ -89,8 +89,10 @@ import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
 import de.jeanlucmakiola.calendula.ui.common.MoveTarget
 import de.jeanlucmakiola.calendula.ui.common.MoveRequest
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
-import de.jeanlucmakiola.calendula.ui.common.GHOST_ALPHA
+import de.jeanlucmakiola.calendula.ui.common.moveInFlight
+import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.DragSnapHaptics
+import de.jeanlucmakiola.calendula.ui.common.SETTLE_GRACE_MILLIS
 import de.jeanlucmakiola.calendula.ui.common.EventMoveScope
 import de.jeanlucmakiola.calendula.domain.spanFirstDay
 import androidx.compose.ui.unit.IntSize
@@ -148,6 +150,7 @@ import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.floret.time.isoWeekNumber
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
@@ -470,9 +473,17 @@ private fun MonthDragOverlay(controller: MonthDragController) {
     val dark = isSystemInDarkTheme()
     val density = LocalDensity.current
     val reduceMotion = rememberReduceMotion()
+    val moveInFlight = moveInFlight()
     // Here rather than beside the controller: this reads [drag], which changes
     // every frame, and this composable is the one that is meant to.
     DragSnapHaptics(controller.drag?.targetDate)
+    // Hold the landed chip until the write is done — including the whole time a
+    // recurring drop's scope dialog is up — then a grace for the re-read.
+    LaunchedEffect(controller.settling, moveInFlight) {
+        if (controller.settling == null || moveInFlight) return@LaunchedEffect
+        delay(SETTLE_GRACE_MILLIS)
+        controller.release()
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -481,7 +492,13 @@ private fun MonthDragOverlay(controller: MonthDragController) {
             .clearAndSetSemantics { }
             .onGloballyPositioned { origin = it.positionInRoot() },
     ) {
-        val drag = controller.drag ?: return@Box
+        val drag = controller.drag ?: controller.settling ?: return@Box
+        // Landed: the copy sinks back to the grid's own plane while the write
+        // runs, so the release reads as the chip settling rather than vanishing.
+        val lift by animateFloatAsState(
+            targetValue = if (controller.drag == null || reduceMotion) 0f else 1f,
+            label = "chip-lift",
+        )
         MonthBar(
             event = drag.event,
             dark = dark,
@@ -500,11 +517,9 @@ private fun MonthDragOverlay(controller: MonthDragController) {
                 .height(with(density) { drag.sizePx.height.toDp() })
                 .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp)
                 .graphicsLayer {
-                    if (!reduceMotion) {
-                        scaleX = 1.04f
-                        scaleY = 1.04f
-                    }
-                    shadowElevation = 8.dp.toPx()
+                    scaleX = 1f + 0.04f * lift
+                    scaleY = 1f + 0.04f * lift
+                    shadowElevation = 8.dp.toPx() * lift
                     shape = RoundedCornerShape(4.dp)
                     clip = false
                 },
@@ -2247,8 +2262,11 @@ private fun MonthBar(
     val soften = LocalSoftenColors.current
     val fill = eventFill(event.color, dark, soften)
     val moveAction = eventMoveAction(event)
-    // The source stays put as a ghost while its floating copy travels.
-    val lifted = LocalMonthDrag.current?.liftedInstanceId == event.instanceId
+    // The source stays put as a ghost while its floating copy travels, then
+    // fades out as the copy settles on its new day.
+    val monthDrag = LocalMonthDrag.current
+    val lifted = monthDrag?.liftedInstanceId == event.instanceId
+    val ghost = ghostAlpha(lifted, landed = monthDrag?.settling != null)
     val shape = RoundedCornerShape(
         topStart = if (continuesLeft) 0.dp else 4.dp,
         bottomStart = if (continuesLeft) 0.dp else 4.dp,
@@ -2257,7 +2275,7 @@ private fun MonthBar(
     )
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
-            .then(if (lifted) Modifier.alpha(GHOST_ALPHA) else Modifier)
+            .then(if (lifted) Modifier.alpha(ghost) else Modifier)
             .background(fill, shape)
             .padding(horizontal = 4.dp)
             .semantics {

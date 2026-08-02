@@ -316,6 +316,7 @@ fun CalendarHost(
         EventMoveScope(
             movableCalendarIds = movableCalendarIds,
             move = reschedule::move,
+            inFlight = reschedule.inFlight,
             edit = onEditEvent,
         )
     }

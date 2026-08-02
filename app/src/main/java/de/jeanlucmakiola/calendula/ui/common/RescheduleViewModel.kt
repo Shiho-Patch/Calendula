@@ -133,6 +133,15 @@ class RescheduleViewModel @Inject constructor(
 
     private var pending: PreparedMove? = null
 
+    private val _inFlight = MutableStateFlow(false)
+
+    /**
+     * True from the moment a drop is accepted until its write settles — the
+     * window the dropped block holds its landing position for, rather than
+     * snapping back to where it came from until the grid re-reads it.
+     */
+    val inFlight: StateFlow<Boolean> = _inFlight.asStateFlow()
+
     /**
      * Set from the moment a drop is accepted until its write settles. Two drops
      * of the same recurring event landing inside that window would each compute
@@ -140,6 +149,10 @@ class RescheduleViewModel @Inject constructor(
      * both to the re-read anchor — so the shifts would compound.
      */
     private var busy = false
+        set(value) {
+            field = value
+            _inFlight.value = value
+        }
 
     /**
      * The calendars whose events may be dragged. Nothing below the UI guards
