@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.IntSize
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import kotlinx.datetime.LocalDate
@@ -20,14 +21,49 @@ class MonthRowGeometry(
     val days: List<LocalDate>,
     /** The row's day-column box — the space chip offsets are measured in. */
     val cell: LayoutCoordinates,
+    /** The lane band inside that box, where the chips themselves are seated. */
+    val band: LayoutCoordinates?,
     val columnWidthPx: Float,
+    val laneHeightPx: Float,
+    val laneCount: Int,
     /**
      * Whether the columns are laid out right-to-left. Pointer coordinates are
      * never mirrored, but the grid is, so the leftmost column is the *last* day
      * in Arabic.
      */
     val isRtl: Boolean,
-)
+    /** What this row currently draws in [lane] of column `col`, or null. */
+    val chipAt: (col: Int, lane: Int) -> EventInstance?,
+) {
+    /** Root top-left of the chip seated in [lane] of column [col]. */
+    fun seat(col: Int, lane: Int): Offset? {
+        val band = band?.takeIf { it.isAttached } ?: return null
+        val origin = band.positionInRoot()
+        val column = if (isRtl) days.lastIndex - col else col
+        return Offset(origin.x + column * columnWidthPx, origin.y + lane * laneHeightPx)
+    }
+
+    /**
+     * Where this row seats [event] on [date], or null when it doesn't hold it —
+     * the day isn't in this week, or the chip went into the day's "+N" overflow.
+     */
+    fun seatOf(event: EventInstance, date: LocalDate): Offset? {
+        val col = days.indexOf(date).takeIf { it >= 0 } ?: return null
+        val lane = (0 until laneCount).firstOrNull { lane ->
+            chipAt(col, lane)?.let { isSameEvent(it, event) } == true
+        } ?: return null
+        return seat(col, lane)
+    }
+}
+
+/**
+ * Whether [chip] is the moved event [moved] as the grid now holds it. Neither
+ * id alone will do: the provider hands re-read instances new instance ids, and a
+ * single-occurrence move writes an exception row with a new event id — the title
+ * is what survives both.
+ */
+private fun isSameEvent(chip: EventInstance, moved: EventInstance): Boolean =
+    chip.eventId == moved.eventId || chip.title == moved.title
 
 /** A chip in flight, in root coordinates so it can be drawn in an overlay. */
 data class MonthChipDrag(
@@ -105,6 +141,13 @@ class MonthDragController {
     var isDragging: Boolean by mutableStateOf(false)
         private set
 
+    /**
+     * The last drop this controller made, kept past [release] for [beginUndo] —
+     * the confirmation chip carries Undo for four seconds after the copy is long
+     * gone. Not snapshot state: nothing draws from it.
+     */
+    private var undoable: MonthChipDrag? = null
+
     private var event: EventInstance? = null
     private var grabDate: LocalDate? = null
     private var grab = Offset.Zero
@@ -164,20 +207,46 @@ class MonthDragController {
     fun isSettledChip(event: EventInstance, days: List<LocalDate>?): Boolean {
         val landed = settling?.takeIf { settledGhost } ?: return false
         if (days == null || landed.targetDate !in days) return false
-        return event.eventId == landed.event.eventId || event.title == landed.event.title
+        return isSameEvent(event, landed.event)
     }
 
     /**
-     * Publish a seat. The continuous style can show the same week twice, once in
-     * each adjoining month, so both copies of the landing row offer one: the one
-     * nearest where the chip was dropped is the one the finger was over.
+     * Ask the row keyed [token] whether it now seats the settled chip, and take
+     * its answer. The continuous style can show the same week twice, once in each
+     * adjoining month, so both copies of the landing row will answer: the seat
+     * nearest where the chip was let go is the one the finger was over.
      */
-    fun noteSettled(topLeftInRoot: Offset) {
+    fun noteSettled(token: Any) {
         val landed = settling ?: return
+        val target = landed.targetDate ?: return
+        val at = rows[token]?.seatOf(landed.event, target) ?: return
         val current = settledInRoot
         val closer = current == null ||
-            abs(topLeftInRoot.y - landed.topLeftInRoot.y) < abs(current.y - landed.topLeftInRoot.y)
-        if (closer) settledInRoot = topLeftInRoot
+            abs(at.y - landed.topLeftInRoot.y) < abs(current.y - landed.topLeftInRoot.y)
+        if (closer) settledInRoot = at
+    }
+
+    /**
+     * Send a copy back for an undo, which moves the event exactly as the drop did
+     * and so should read the same way rather than teleporting the chip. Nothing
+     * here writes anything: it puts a chip on the journey the inverse write is
+     * about to make, and the settle that follows is the drop's own.
+     *
+     * False when there is nothing to carry — no drop of this controller's to undo
+     * (it happened in another view, or has already been undone), or the grid does
+     * not seat the moved event where it would have to start from. The chip then
+     * simply reappears on the day it came from, as it always did.
+     */
+    fun beginUndo(): Boolean {
+        val last = undoable ?: return false
+        undoable = null
+        val from = last.targetDate ?: return false
+        val at = rows.values.firstNotNullOfOrNull { it.seatOf(last.event, from) } ?: return false
+        settling = last.copy(grabDate = from, targetDate = last.grabDate, topLeftInRoot = at)
+        liftedInstanceId = last.event.instanceId
+        settledGhost = true
+        settledInRoot = null
+        return true
     }
 
     /**
@@ -195,6 +264,7 @@ class MonthDragController {
         )
         liftedInstanceId = landed.event.instanceId
         settledGhost = true
+        undoable = settling
         return MonthChipDrop(landed.event, landed.grabDate, target)
     }
 

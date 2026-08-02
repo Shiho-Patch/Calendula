@@ -142,6 +142,17 @@ class RescheduleViewModel @Inject constructor(
      */
     val inFlight: StateFlow<Boolean> = _inFlight.asStateFlow()
 
+    private val _undoStarted = MutableStateFlow(0)
+
+    /**
+     * Ticks the moment an undo write begins — before the provider has anything to
+     * re-read. An undo moves an event exactly as a drop does, so the view that
+     * drew the drop takes this as its cue to carry the chip back rather than let
+     * it reappear on the old day. A counter rather than the undo itself: what a
+     * view needs is the *timing*, and it already knows what it moved.
+     */
+    val undoStarted: StateFlow<Int> = _undoStarted.asStateFlow()
+
     /**
      * Set from the moment a drop is accepted until its write settles. Two drops
      * of the same recurring event landing inside that window would each compute
@@ -235,6 +246,7 @@ class RescheduleViewModel @Inject constructor(
     fun undo(undo: MoveUndo) {
         if (busy) return
         busy = true
+        _undoStarted.value += 1
         viewModelScope.launch {
             _outcome.value = try {
                 repository.updateEvent(undo.eventId, undo.moved, undo.restored)

@@ -61,6 +61,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -92,6 +93,7 @@ import de.jeanlucmakiola.calendula.ui.common.MoveTarget
 import de.jeanlucmakiola.calendula.ui.common.MoveRequest
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
 import de.jeanlucmakiola.calendula.ui.common.moveInFlight
+import de.jeanlucmakiola.calendula.ui.common.OnUndoStarted
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.DragSnapHaptics
 import de.jeanlucmakiola.calendula.ui.common.SETTLE_FADE_MILLIS
@@ -416,6 +418,10 @@ fun MonthScreen(
             // overlay so it is free of the week row's clip and, in the scrolling
             // styles, of the list viewport's.
             val chipDrag = rememberMonthDragController()
+            // Undo moves the event back, so the chip travels back too rather than
+            // reappearing on its old day. The signal comes from the write, not
+            // from the chip that offers it: that lives above every view.
+            OnUndoStarted { chipDrag.beginUndo() }
             Box(
                 modifier = Modifier
                     .padding(innerPadding)
@@ -1860,6 +1866,7 @@ private fun MonthWeekRow(
     val dragController = LocalMonthDrag.current
     val rowToken = remember { Any() }
     val bandCoordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    val cellCoordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
     val density = LocalDensity.current
     val rowHeightPx = with(density) { EVENT_ROW_HEIGHT.toPx() }
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
@@ -1867,36 +1874,35 @@ private fun MonthWeekRow(
     DisposableEffect(rowToken, dragController) {
         onDispose { dragController?.removeRow(rowToken) }
     }
-    // Where this row seats a drop that landed on one of its days, once the
-    // re-read arrives — the copy in flight glides onto it. Null until the grid
-    // actually holds the moved event: before the re-read the week still shows it
-    // on the day it came from, and a chip that lands in the "+N" overflow gets no
-    // seat at all.
-    val landed = dragController?.settling
-    val seat = if (landed == null) {
-        null
-    } else {
-        remember(week, landed) {
-            val target = landed.targetDate ?: return@remember null
-            val col = week.days.indexOf(target).takeIf { it >= 0 } ?: return@remember null
-            val lane = (0 until MAX_EVENT_ROWS).firstOrNull { lane ->
-                val chip = week.chipAt(col, lane, MAX_EVENT_ROWS)
-                chip != null && dragController.isSettledChip(chip, listOf(target))
-            } ?: return@remember null
-            col to lane
+    // Republished on layout *and* on every recomposition: the coordinates only
+    // change on the former, but what the row draws — which the controller reads
+    // to find a moved chip's seat — changes on the latter, and a re-read that
+    // moves an event doesn't move the row it lands in.
+    val publish = {
+        val cell = cellCoordinates[0]?.takeIf { it.isAttached }
+        if (dragController != null && cell != null) {
+            dragController.putRow(
+                rowToken,
+                MonthRowGeometry(
+                    days = week.days,
+                    cell = cell,
+                    band = bandCoordinates[0],
+                    columnWidthPx = cell.size.width / 7f,
+                    laneHeightPx = rowHeightPx,
+                    laneCount = MAX_EVENT_ROWS,
+                    isRtl = isRtl,
+                    chipAt = { col, lane -> week.chipAt(col, lane, MAX_EVENT_ROWS) },
+                ),
+            )
         }
     }
-    LaunchedEffect(seat, dragController) {
-        val (col, lane) = seat ?: return@LaunchedEffect
-        val band = bandCoordinates[0]?.takeIf { it.isAttached } ?: return@LaunchedEffect
-        val origin = band.positionInRoot()
-        val column = if (isRtl) week.days.lastIndex - col else col
-        dragController?.noteSettled(
-            Offset(
-                x = origin.x + column * (band.size.width / 7f),
-                y = origin.y + lane * rowHeightPx,
-            ),
-        )
+    SideEffect { publish() }
+    // Once the grid holds the settled chip, tell the controller where this row
+    // has seated it, so the copy in flight can glide onto it. Keyed on the week
+    // because that is what changes when the re-read lands: until then the row
+    // still draws the event on the day it came from and answers nothing.
+    LaunchedEffect(week, dragController?.settling) {
+        dragController?.noteSettled(rowToken)
     }
 
     Row(modifier) {
@@ -1916,15 +1922,8 @@ private fun MonthWeekRow(
                 .weight(1f)
                 .fillMaxHeight()
                 .onGloballyPositioned { coords ->
-                    dragController?.putRow(
-                        rowToken,
-                        MonthRowGeometry(
-                            days = week.days,
-                            cell = coords,
-                            columnWidthPx = coords.size.width / 7f,
-                            isRtl = isRtl,
-                        ),
-                    )
+                    cellCoordinates[0] = coords
+                    publish()
                 }
                 .then(
                     monthChipDragModifier(
@@ -2000,7 +1999,10 @@ private fun MonthWeekRow(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .onGloballyPositioned { bandCoordinates[0] = it }
+                        .onGloballyPositioned {
+                            bandCoordinates[0] = it
+                            publish()
+                        }
                         // A dragged chip travels to another row, so the clip has
                         // to yield for it exactly as it does for a morph.
                         .then(if (morphing || dragging) Modifier else Modifier.clipToBounds()),

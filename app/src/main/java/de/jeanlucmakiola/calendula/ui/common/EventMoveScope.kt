@@ -3,8 +3,12 @@ package de.jeanlucmakiola.calendula.ui.common
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,6 +42,8 @@ class EventMoveScope(
      * and replacing it would recompose all of them twice per drop.
      */
     val inFlight: StateFlow<Boolean>,
+    /** Ticks when an undo write begins — see `RescheduleViewModel.undoStarted`. */
+    val undoStarted: StateFlow<Int>,
     /** Open an event in the edit form — the pointer-free route to the same change. */
     val edit: (EventInstance) -> Unit,
 ) {
@@ -48,6 +54,8 @@ val LocalEventMove = compositionLocalOf<EventMoveScope?> { null }
 
 private val NEVER_IN_FLIGHT = MutableStateFlow(false)
 
+private val NEVER_UNDONE = MutableStateFlow(0)
+
 /**
  * Whether a dropped event is still being written — false wherever moving is off.
  * The drag overlays hold a landed block on its target for this window.
@@ -56,6 +64,23 @@ private val NEVER_IN_FLIGHT = MutableStateFlow(false)
 fun moveInFlight(): Boolean {
     val flow = LocalEventMove.current?.inFlight ?: NEVER_IN_FLIGHT
     return flow.collectAsStateWithLifecycle().value
+}
+
+/**
+ * Runs [onUndo] when an undo write begins, and never for one that began before
+ * this composable came on screen — a view switched to *after* an undo has
+ * nothing left to carry back.
+ */
+@Composable
+fun OnUndoStarted(onUndo: () -> Unit) {
+    val flow = LocalEventMove.current?.undoStarted ?: NEVER_UNDONE
+    val tick by flow.collectAsStateWithLifecycle()
+    var seen by remember { mutableIntStateOf(tick) }
+    LaunchedEffect(tick) {
+        if (tick == seen) return@LaunchedEffect
+        seen = tick
+        onUndo()
+    }
 }
 
 /** Opacity the source block keeps while its floating copy travels. */

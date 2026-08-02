@@ -317,6 +317,7 @@ fun CalendarHost(
             movableCalendarIds = movableCalendarIds,
             move = reschedule::move,
             inFlight = reschedule.inFlight,
+            undoStarted = reschedule.undoStarted,
             edit = onEditEvent,
         )
     }
