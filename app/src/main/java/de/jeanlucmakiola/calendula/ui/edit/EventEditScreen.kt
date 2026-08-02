@@ -127,6 +127,7 @@ import de.jeanlucmakiola.floret.identity.collapseExit
 import de.jeanlucmakiola.floret.identity.expandEnter
 import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
+import de.jeanlucmakiola.calendula.ui.common.RecurringScopeDialog
 import de.jeanlucmakiola.calendula.ui.common.CalendarPickerGroups
 import de.jeanlucmakiola.calendula.ui.common.CalendarDatePickerDialog
 import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
@@ -452,30 +453,11 @@ private fun SaveScopeDialog(
     onSelect: (RecurringWriteScope) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.event_edit_recurring_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (!recurrenceChanged) {
-                    OptionCard(
-                        label = stringResource(R.string.event_delete_option_occurrence),
-                        onClick = { onSelect(RecurringWriteScope.ThisEvent) },
-                    )
-                }
-                OptionCard(
-                    label = stringResource(R.string.event_delete_option_following),
-                    onClick = { onSelect(RecurringWriteScope.ThisAndFollowing) },
-                )
-                OptionCard(
-                    label = stringResource(R.string.event_delete_option_series),
-                    onClick = { onSelect(RecurringWriteScope.AllEvents) },
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) }
-        },
+    RecurringScopeDialog(
+        title = stringResource(R.string.event_edit_recurring_title),
+        onSelect = onSelect,
+        onDismiss = onDismiss,
+        allowOccurrence = !recurrenceChanged,
     )
 }
 

@@ -89,6 +89,9 @@ internal object EventDetailProjection {
         // Recurring rows carry DURATION instead of DTEND; the detail screen
         // needs it to render a series opened without a named occurrence.
         CalendarContract.Events.DURATION,
+        // Non-null on a modified-occurrence exception row; "no RRULE" alone
+        // can't tell an exception from a master (#68).
+        CalendarContract.Events.ORIGINAL_ID,
     )
 
     const val IDX_EVENT_ID = 0
@@ -110,6 +113,7 @@ internal object EventDetailProjection {
     const val IDX_SELF_ATTENDEE_STATUS = 16
     const val IDX_EVENT_COLOR_KEY = 17
     const val IDX_DURATION = 18
+    const val IDX_ORIGINAL_ID = 19
 }
 
 /**

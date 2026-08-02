@@ -68,6 +68,23 @@ fun MonthWeek.laneEvents(col: Int, day: LocalDate, laneCap: Int): List<EventInst
 }
 
 /**
+ * The event drawn in lane [lane] of column [col], or null for an empty slot.
+ * Unlike [laneEvents] the lanes are *not* compacted — this answers "what is under
+ * this point", so an empty lane above a seated bar has to stay empty (#68).
+ */
+fun MonthWeek.chipAt(col: Int, lane: Int, laneCap: Int): EventInstance? {
+    if (col !in days.indices || lane !in 0 until laneCap) return null
+    spans.firstOrNull { it.lane == lane && col in it.startCol..it.endCol }?.let { return it.event }
+    val occupied = spans
+        .filter { it.lane < laneCap && col in it.startCol..it.endCol }
+        .map { it.lane }
+        .toSet()
+    val free = (0 until laneCap).filter { it !in occupied }
+    val index = free.indexOf(lane).takeIf { it >= 0 } ?: return null
+    return timedByDay[days[col]].orEmpty().take(free.size).getOrNull(index)
+}
+
+/**
  * The events on [day] that [laneEvents] had no lane left for — its exact
  * complement, in the same bars-then-pills order. Returned as events rather than
  * a count because dimming is a per-event question (#79).

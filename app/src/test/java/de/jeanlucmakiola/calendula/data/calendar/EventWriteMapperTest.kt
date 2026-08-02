@@ -5,6 +5,7 @@ import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Availability
 import de.jeanlucmakiola.calendula.domain.EventForm
+import de.jeanlucmakiola.calendula.domain.realignRecurrence
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -283,6 +284,88 @@ class EventWriteMapperTest {
 
         assertThat(update(original, moved, series)[CalendarContract.Events.DTSTART])
             .isEqualTo(instantAt("2026-01-09T14:30", "Europe/Berlin"))
+    }
+
+    @Test
+    fun `a weekday move must carry the rule with the anchor, or the series stays put`() {
+        // The anchor moves by the same shift as the occurrence, while RRULE is
+        // written verbatim: without realignRecurrence nothing moves.
+        val series = instantAt("2026-01-05T09:00", "Europe/Berlin")
+        val original = form(
+            start = LocalDateTime(LocalDate(2026, 6, 8), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 8), LocalTime(10, 0)),
+        ).copy(rrule = "FREQ=WEEKLY;BYDAY=MO")
+        val moved = original.copy(
+            start = LocalDateTime(LocalDate(2026, 6, 10), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 10), LocalTime(10, 0)),
+            rrule = realignRecurrence("FREQ=WEEKLY;BYDAY=MO", LocalDate(2026, 6, 8), LocalDate(2026, 6, 10)),
+        )
+
+        val values = update(original, moved, series)
+
+        val anchor = java.time.Instant.ofEpochMilli(values[CalendarContract.Events.DTSTART] as Long)
+            .atZone(java.time.ZoneId.of("Europe/Berlin"))
+        assertThat(anchor.dayOfWeek).isEqualTo(java.time.DayOfWeek.WEDNESDAY)
+        assertThat(values[CalendarContract.Events.RRULE]).isEqualTo("FREQ=WEEKLY;BYDAY=WE")
+    }
+
+    @Test
+    fun `a recurring move keeps the series' length across a DST boundary`() {
+        // The occurrence being dragged is in CET; the series anchor is in CEST.
+        val series = instantAt("2026-07-15T09:00", "Europe/Berlin")
+        val original = form(
+            start = LocalDateTime(LocalDate(2026, 1, 7), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 1, 7), LocalTime(10, 30)),
+        ).copy(rrule = "FREQ=WEEKLY")
+        val moved = original.copy(
+            start = LocalDateTime(LocalDate(2026, 1, 8), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 1, 8), LocalTime(10, 30)),
+        )
+
+        assertThat(update(original, moved, series)[CalendarContract.Events.DURATION])
+            .isEqualTo("P5400S")
+    }
+
+    @Test
+    fun `shifting a one-off event and back again restores the original values`() {
+        val original = form()
+        val moved = original.copy(
+            start = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(14, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(15, 0)),
+        )
+
+        val forward = update(original, moved)
+        val back = update(moved, original)
+
+        assertThat(back[CalendarContract.Events.DTSTART])
+            .isEqualTo(original.toWriteTimes(berlin).dtStartMillis)
+        assertThat(back[CalendarContract.Events.DTEND])
+            .isEqualTo(original.toWriteTimes(berlin).dtEndMillis)
+        assertThat(forward[CalendarContract.Events.DTSTART])
+            .isNotEqualTo(back[CalendarContract.Events.DTSTART])
+    }
+
+    @Test
+    fun `undoing a whole-series move lands the anchor back where it started`() {
+        // What makes undo safe for "all events": the shift is applied to the
+        // anchor the provider currently holds, so re-issuing it with the two
+        // forms swapped applies the exact inverse to the moved anchor.
+        val series = instantAt("2026-01-07T09:00", "Europe/Berlin")
+        val original = form(
+            start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(10, 0)),
+        ).copy(rrule = "FREQ=WEEKLY")
+        val moved = original.copy(
+            start = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(14, 30)),
+            end = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(15, 30)),
+        )
+
+        val movedAnchor = update(original, moved, series)[CalendarContract.Events.DTSTART] as Long
+        assertThat(movedAnchor).isNotEqualTo(series)
+
+        val restored = update(moved, original, movedAnchor)
+        assertThat(restored[CalendarContract.Events.DTSTART]).isEqualTo(series)
+        assertThat(restored[CalendarContract.Events.DURATION]).isEqualTo("P3600S")
     }
 
     @Test

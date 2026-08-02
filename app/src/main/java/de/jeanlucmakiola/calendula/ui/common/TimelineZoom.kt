@@ -41,7 +41,14 @@ class TimelineZoom(
     var scale: TimelineScale by mutableStateOf(initial)
         private set
 
-    private var pinching = false
+    /**
+     * Whether fingers are rescaling the timeline right now. Snapshot state, so
+     * anything that tweens off [scale] can stand down for the gesture: the
+     * height changes every pointer frame, and a spring would spend the whole
+     * pinch chasing a target that has already moved.
+     */
+    var isPinching: Boolean by mutableStateOf(false)
+        private set
 
     /**
      * Take a value that came from the preference. Ignored mid-pinch: the stored
@@ -49,11 +56,11 @@ class TimelineZoom(
      * snap the timeline back while the user is still pinching.
      */
     fun adopt(stored: TimelineScale) {
-        if (!pinching) scale = stored
+        if (!isPinching) scale = stored
     }
 
     fun beginPinch() {
-        pinching = true
+        isPinching = true
     }
 
     fun pinchTo(hourHeight: Dp) {
@@ -61,7 +68,7 @@ class TimelineZoom(
     }
 
     fun endPinch() {
-        pinching = false
+        isPinching = false
         persist(scale)
     }
 }

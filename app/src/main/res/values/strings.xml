@@ -65,6 +65,20 @@
     <string name="event_edit_recurring_title">Edit recurring event</string>
     <string name="event_delete_failed">Couldn\'t delete the event</string>
     <string name="event_delete_write_denied">Calendula needs write access to delete events</string>
+
+    <!-- Drag an event to another time or day (#68) -->
+    <string name="event_move_action">Move…</string>
+    <string name="event_move_recurring_title">Move recurring event</string>
+    <string name="event_move_occurrence_only">Moving the whole series would change which days it falls on, so only this event can move.</string>
+    <!-- %1$s is the new date and time, e.g. "Fri, 7 Aug, 09:00". -->
+    <string name="event_move_done">Moved to %1$s</string>
+    <string name="event_move_undo">Undo</string>
+    <string name="event_move_undone">Move undone</string>
+    <string name="event_move_failed">Couldn\'t move the event</string>
+    <string name="event_move_write_denied">Calendula needs write access to move events</string>
+    <string name="event_move_gone">That event no longer exists</string>
+    <string name="event_move_blocked_series_end">Can\'t move an event past the end of its series</string>
+
     <string name="dialog_cancel">Cancel</string>
     <string name="dialog_ok">OK</string>
 
