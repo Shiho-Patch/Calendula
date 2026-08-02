@@ -616,9 +616,7 @@ class AndroidCalendarDataSource @Inject constructor(
                 // A recurring master's DTSTART is the series start; show its
                 // nearest occurrence instead so the date is the one the user
                 // actually cares about (and sorting reflects it).
-                val recurring = !reader.getString(SearchProjection.IDX_RRULE).isNullOrEmpty() ||
-                    !reader.getString(SearchProjection.IDX_RDATE).isNullOrEmpty()
-                out += if (recurring) {
+                out += if (base.isRecurring) {
                     nearestOccurrenceMillis(base.eventId)?.let { (begin, end) ->
                         base.copy(
                             start = begin.toKotlinInstantFromEpochMillis(),

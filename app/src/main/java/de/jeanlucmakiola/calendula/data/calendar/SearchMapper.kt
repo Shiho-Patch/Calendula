@@ -40,5 +40,7 @@ internal fun ColumnReader.toSearchResult(): EventInstance? {
         isAllDay = getInt(SearchProjection.IDX_ALL_DAY) != 0,
         color = color,
         location = getString(SearchProjection.IDX_LOCATION),
+        isRecurring = !getString(SearchProjection.IDX_RRULE).isNullOrEmpty() ||
+            !getString(SearchProjection.IDX_RDATE).isNullOrEmpty(),
     )
 }

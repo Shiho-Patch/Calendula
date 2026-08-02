@@ -16,7 +16,11 @@ class SearchMapperTest {
         eventColor: Any? = null,
         calendarColor: Int = 0xFFAABBCC.toInt(),
         location: String? = null,
+        rrule: String? = null,
+        rdate: String? = null,
     ): MapColumnReader = MapColumnReader(
+        SearchProjection.IDX_RRULE to rrule,
+        SearchProjection.IDX_RDATE to rdate,
         SearchProjection.IDX_ID to id,
         SearchProjection.IDX_CALENDAR_ID to calendarId,
         SearchProjection.IDX_TITLE to title,
@@ -41,5 +45,17 @@ class SearchMapperTest {
     @Test
     fun `absent dtstart drops the search hit`() {
         assertThat(searchReader(dtstart = null).toSearchResult()).isNull()
+    }
+
+    @Test
+    fun `a rule or an rdate marks the hit recurring (issue #80)`() {
+        assertThat(searchReader().toSearchResult()!!.isRecurring).isFalse()
+        assertThat(searchReader(rrule = "").toSearchResult()!!.isRecurring).isFalse()
+        assertThat(
+            searchReader(rrule = "FREQ=WEEKLY").toSearchResult()!!.isRecurring,
+        ).isTrue()
+        assertThat(
+            searchReader(rdate = "20260101T000000Z").toSearchResult()!!.isRecurring,
+        ).isTrue()
     }
 }

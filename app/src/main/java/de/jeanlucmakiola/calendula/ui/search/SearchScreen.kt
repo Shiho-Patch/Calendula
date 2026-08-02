@@ -1,5 +1,10 @@
 package de.jeanlucmakiola.calendula.ui.search
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -11,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,7 +25,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,41 +37,53 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.floret.identity.animateItemMotion
 import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.Position
+import de.jeanlucmakiola.floret.components.SnackChip
+import de.jeanlucmakiola.floret.components.SnackChipHeight
+import de.jeanlucmakiola.floret.components.SnackChipMargin
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.RecurringScopeDialog
 import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.domain.spanFirstDay
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.timeOfDayFormatter
 import de.jeanlucmakiola.floret.components.positionOf
+import kotlinx.coroutines.delay
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toJavaLocalDate
 import java.time.Instant as JavaInstant
@@ -69,10 +91,14 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
+/** How long the delete confirmation chip stays up, matching a short snackbar. */
+private const val CHIP_MILLIS = 4_000L
+
 /**
  * Full-text event search (top-bar entry). Type a query → matching events
  * (title / location / description) across the whole calendar, newest-relevant
- * first; tap a result to open its detail. A full-screen overlay hosted by
+ * first; tap a result to open its detail. Long-press a result to enter selection
+ * mode and delete several at once (#80). A full-screen overlay hosted by
  * [de.jeanlucmakiola.calendula.ui.CalendarHost].
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,8 +111,13 @@ fun SearchScreen(
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val selection by viewModel.selection.collectAsStateWithLifecycle()
+    val deleteState by viewModel.deleteState.collectAsStateWithLifecycle()
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+    val inSelection = selection.isNotEmpty()
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     // Each fresh open starts blank and straight into typing. The ViewModel is
     // activity-scoped so it outlives the overlay; clearing on (re)enter is what
@@ -97,46 +128,83 @@ fun SearchScreen(
         focusRequester.requestFocus()
         keyboard?.show()
     }
+
+    // Same in-place WRITE_CALENDAR upgrade the detail screen does: a v1.0 install
+    // holds only READ_CALENDAR, and granting continues into the held delete.
+    var pendingWrite by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val writePermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) pendingWrite?.invoke()
+        pendingWrite = null
+    }
+    val requireWrite: (() -> Unit) -> Unit = { action ->
+        val granted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.WRITE_CALENDAR,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            action()
+        } else {
+            pendingWrite = action
+            writePermissionLauncher.launch(Manifest.permission.WRITE_CALENDAR)
+        }
+    }
+
+    // Back leaves selection mode before it leaves the screen — and without the
+    // predictive-back scale-out, which would read as closing search only to have
+    // it snap back. The two handlers are mutually exclusive on [inSelection].
+    BackHandler(enabled = inSelection) { viewModel.clearSelection() }
+
     Scaffold(
-        modifier = modifier.predictiveBack(onBack = onBack),
+        modifier = modifier.predictiveBack(onBack = onBack, enabled = !inSelection),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            TopAppBar(
-                title = {
-                    InlineTextField(
-                        value = query,
-                        onValueChange = viewModel::setQuery,
-                        placeholder = stringResource(R.string.search_hint),
-                        capitalization = KeyboardCapitalization.None,
-                        imeAction = ImeAction.Search,
-                        onImeAction = { keyboard?.hide() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester),
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.search_back),
+            if (inSelection) {
+                SelectionTopBar(
+                    count = selection.size,
+                    onClose = viewModel::clearSelection,
+                    onSelectAll = viewModel::selectAll,
+                    onDelete = { requireWrite { showDeleteDialog = true } },
+                )
+            } else {
+                TopAppBar(
+                    title = {
+                        InlineTextField(
+                            value = query,
+                            onValueChange = viewModel::setQuery,
+                            placeholder = stringResource(R.string.search_hint),
+                            capitalization = KeyboardCapitalization.None,
+                            imeAction = ImeAction.Search,
+                            onImeAction = { keyboard?.hide() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(focusRequester),
                         )
-                    }
-                },
-                actions = {
-                    if (query.isNotEmpty()) {
-                        IconButton(onClick = { viewModel.setQuery("") }) {
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
                             Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = stringResource(R.string.search_clear),
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.search_back),
                             )
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-            )
+                    },
+                    actions = {
+                        if (query.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.setQuery("") }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.search_clear),
+                                )
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                )
+            }
         },
     ) { padding ->
         // imePadding shrinks the content by the keyboard, so the centered
@@ -158,19 +226,113 @@ fun SearchScreen(
                     text = stringResource(R.string.search_empty, s.query),
                 )
                 is SearchUiState.Results -> SearchResults(
-                    events = s.events,
+                    results = s,
+                    selection = selection,
+                    inSelection = inSelection,
                     onEventClick = onEventClick,
+                    onToggle = viewModel::toggleSelection,
                 )
             }
+            DeleteOutcomeChip(
+                deleteState = deleteState,
+                onConsume = viewModel::consumeDeleteResult,
+                modifier = Modifier.align(Alignment.BottomStart),
+            )
+        }
+    }
+
+    if (showDeleteDialog) {
+        val count = selection.size
+        // One decision for the whole batch: the scope question is only asked when
+        // a recurring event is in it, and one-offs ignore whatever comes back.
+        if (viewModel.selectionHasRecurring()) {
+            RecurringScopeDialog(
+                title = stringResource(R.string.event_delete_recurring_title),
+                onSelect = { scope ->
+                    showDeleteDialog = false
+                    viewModel.deleteSelected(scope)
+                },
+                onDismiss = { showDeleteDialog = false },
+            )
+        } else {
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = false },
+                title = {
+                    Text(pluralStringResource(R.plurals.search_delete_title, count, count))
+                },
+                text = { Text(stringResource(R.string.event_delete_body)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteDialog = false
+                            viewModel.deleteSelected(RecurringWriteScope.AllEvents)
+                        },
+                    ) {
+                        Text(
+                            text = stringResource(R.string.event_detail_delete),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = false }) {
+                        Text(stringResource(R.string.dialog_cancel))
+                    }
+                },
+            )
         }
     }
 }
 
+/** Contextual bar replacing the search field while results are picked. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SelectionTopBar(
+    count: Int,
+    onClose: () -> Unit,
+    onSelectAll: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    TopAppBar(
+        title = { Text(pluralStringResource(R.plurals.search_selected_count, count, count)) },
+        navigationIcon = {
+            IconButton(onClick = onClose) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.search_selection_close),
+                )
+            }
+        },
+        actions = {
+            IconButton(onClick = onSelectAll) {
+                Icon(
+                    imageVector = Icons.Default.SelectAll,
+                    contentDescription = stringResource(R.string.search_select_all),
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = stringResource(R.string.search_delete_selected),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+    )
+}
+
 @Composable
 private fun SearchResults(
-    events: List<EventInstance>,
+    results: SearchUiState.Results,
+    selection: Set<Long>,
+    inSelection: Boolean,
     onEventClick: (EventInstance) -> Unit,
+    onToggle: (Long) -> Unit,
 ) {
+    val events = results.events
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
@@ -179,11 +341,22 @@ private fun SearchResults(
             items = events,
             key = { _, event -> event.eventId },
         ) { index, event ->
+            val deletable = results.isDeletable(event)
             SearchResultRow(
                 event = event,
                 position = positionOf(index, events.size),
                 modifier = animateItemMotion(),
-                onClick = { onEventClick(event) },
+                selected = event.eventId in selection,
+                // A read-only calendar's row can't join a batch, so in selection
+                // mode it goes quiet rather than offering a checkbox that fails.
+                inSelection = inSelection,
+                selectable = deletable,
+                onClick = when {
+                    inSelection && deletable -> ({ onToggle(event.eventId) })
+                    inSelection -> null
+                    else -> ({ onEventClick(event) })
+                },
+                onLongClick = { onToggle(event.eventId) }.takeIf { deletable && !inSelection },
             )
         }
     }
@@ -194,7 +367,11 @@ private fun SearchResultRow(
     event: EventInstance,
     position: Position,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit,
+    selected: Boolean = false,
+    inSelection: Boolean = false,
+    selectable: Boolean = true,
+    onClick: (() -> Unit)?,
+    onLongClick: (() -> Unit)? = null,
 ) {
     val dark = isSystemInDarkTheme()
     val soften = LocalSoftenColors.current
@@ -204,6 +381,8 @@ private fun SearchResultRow(
         summary = searchSummary(event),
         position = position,
         minHeight = 64.dp,
+        selected = selected,
+        dimmed = inSelection && !selectable,
         leading = {
             Box(
                 modifier = Modifier
@@ -212,8 +391,67 @@ private fun SearchResultRow(
                     .background(eventAccent(event.color, dark, soften)),
             )
         },
+        trailing = if (inSelection && selectable) {
+            {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = null,
+                )
+            }
+        } else {
+            null
+        },
         onClick = onClick,
+        onLongClick = onLongClick,
     )
+}
+
+/**
+ * The batch's receipt: how many events went, and whether any refused. Sits on
+ * the FAB band so the shortened list stays visible behind it. Deletes aren't
+ * reversible through the provider, so this carries no Undo.
+ */
+@Composable
+private fun DeleteOutcomeChip(
+    deleteState: BulkDeleteUiState,
+    onConsume: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val message = when (deleteState) {
+        is BulkDeleteUiState.Done -> when {
+            deleteState.failed > 0 -> stringResource(
+                R.string.search_delete_partial,
+                deleteState.deleted,
+                deleteState.failed,
+            )
+            else -> pluralStringResource(
+                R.plurals.search_delete_done,
+                deleteState.deleted,
+                deleteState.deleted,
+            )
+        }
+        BulkDeleteUiState.NeedsPermission -> stringResource(R.string.event_delete_write_denied)
+        else -> null
+    }
+    // Held past the state being consumed so the chip has something to draw while
+    // it springs back out.
+    val shown = remember { mutableStateOf("") }
+    if (message != null && shown.value != message) shown.value = message
+
+    LaunchedEffect(deleteState) {
+        if (message == null) return@LaunchedEffect
+        delay(CHIP_MILLIS)
+        onConsume()
+    }
+    Box(
+        modifier = modifier
+            .navigationBarsPadding()
+            .padding(start = SnackChipMargin, bottom = SnackChipMargin)
+            .height(SnackChipHeight),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        SnackChip(visible = message != null, message = shown.value)
+    }
 }
 
 /** "Wed, 17 Jun 2026 · 09:00 · Office" — date, then time (or All day), then location. */
