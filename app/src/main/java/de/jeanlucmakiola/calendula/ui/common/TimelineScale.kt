@@ -77,6 +77,18 @@ fun TimelineScale.hourHeight(viewportHeight: Dp): Dp = when (this) {
 }
 
 /**
+ * The minute of the day a tap [offsetY] px down a timeline column means, snapped
+ * to the hour it landed in.
+ *
+ * [hourPx] must be the hour height the column is drawing at *now* — a tap
+ * detector that captured it when it was installed maps taps to a pre-pinch grid
+ * (#148). A zero or negative height (a viewport measured at nothing) has no grid
+ * to read, so it answers midnight rather than dividing by it.
+ */
+fun tappedMinuteOfDay(offsetY: Float, hourPx: Float): Int =
+    if (hourPx <= 0f) 0 else (offsetY / hourPx).toInt().coerceIn(0, 23) * 60
+
+/**
  * Shortest an event block may render, as a fraction of an hour. Blocks keep a
  * floor so a 15-minute event stays tappable, but the floor scales with the hour
  * height — a fixed 24dp would swallow half an hour once zoomed out and make

@@ -126,4 +126,24 @@ class TimelineScaleTest {
             assertThat(parseTimelineScale(stored)).isEqualTo(TimelineScale.Regular)
         }
     }
+
+    @Test
+    fun `a tap creates at the hour it landed in, at whatever scale`() {
+        // Same point on the same column reads as a different hour once the
+        // timeline has been pinched — which is the whole of #148: the tap has to
+        // be measured against the height the column is drawing at now.
+        assertThat(tappedMinuteOfDay(offsetY = 500f, hourPx = 100f)).isEqualTo(5 * 60)
+        assertThat(tappedMinuteOfDay(offsetY = 500f, hourPx = 50f)).isEqualTo(10 * 60)
+        // Within an hour it snaps back to that hour's start.
+        assertThat(tappedMinuteOfDay(offsetY = 599f, hourPx = 100f)).isEqualTo(5 * 60)
+    }
+
+    @Test
+    fun `a tap outside the day stays inside it`() {
+        assertThat(tappedMinuteOfDay(offsetY = -20f, hourPx = 56f)).isEqualTo(0)
+        assertThat(tappedMinuteOfDay(offsetY = 99_999f, hourPx = 56f)).isEqualTo(23 * 60)
+        // A viewport measured at nothing has no grid to read — midnight, not a
+        // division by zero.
+        assertThat(tappedMinuteOfDay(offsetY = 500f, hourPx = 0f)).isEqualTo(0)
+    }
 }

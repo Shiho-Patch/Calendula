@@ -1,0 +1,2 @@
+Corrigido
+• Vista de semana e de dia: tocar num espaço livre cria o evento à hora tocada, mesmo depois de ampliar a linha temporal ou alterar a altura da hora.

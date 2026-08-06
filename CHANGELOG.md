@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.1] — 2026-08-06
+
+### Fixed
+- Tapping an empty slot in week or day view creates the event at the hour you
+  tapped, after the timeline has been zoomed. Pinching the day taller or shorter
+  — or changing **Hour height** in Settings — left the tap still being measured
+  against the old spacing, so the new event landed at some other hour entirely
+  ([#148]).
+
 ## [2.18.0] — 2026-07-31
 
 ### Added
@@ -1323,3 +1332,4 @@ automatically, with zero telemetry and no internet permission.
 [#57]: https://codeberg.org/jlmakiola/calendula/issues/57
 [#56]: https://codeberg.org/jlmakiola/calendula/issues/56
 [#114]: https://codeberg.org/jlmakiola/calendula/issues/114
+[#148]: https://codeberg.org/jlmakiola/calendula/issues/148
