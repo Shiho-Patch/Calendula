@@ -1,0 +1,2 @@
+Behoben
+• Wochen- und Tagesansicht: Ein Tippen auf einen freien Bereich legt den Termin jetzt zur angetippten Uhrzeit an – auch nachdem die Zeitleiste gezoomt oder die Stundenhöhe geändert wurde.

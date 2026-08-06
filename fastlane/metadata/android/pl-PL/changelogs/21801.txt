@@ -1,0 +1,2 @@
+Poprawki
+• Widok tygodnia i dnia: dotknięcie pustego miejsca tworzy teraz wydarzenie o dotkniętej godzinie, także po powiększeniu osi czasu lub zmianie wysokości godziny.

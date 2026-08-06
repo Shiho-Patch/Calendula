@@ -1,0 +1,2 @@
+Corregido
+• Vista de semana y día: al tocar un hueco libre, el evento se crea a la hora que has tocado, incluso después de ampliar la línea de tiempo o cambiar la altura de la hora.

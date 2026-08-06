@@ -1,0 +1,2 @@
+Corrigé
+• Vues Semaine et Jour : appuyer sur un créneau vide crée désormais l'événement à l'heure touchée, même après avoir zoomé sur la grille ou modifié la hauteur d'une heure.

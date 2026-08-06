@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.18.1] — 2026-08-06
+
 ### Fixed
 - Tapping an empty slot in week or day view creates the event at the hour you
   tapped, after the timeline has been zoomed. Pinching the day taller or shorter
