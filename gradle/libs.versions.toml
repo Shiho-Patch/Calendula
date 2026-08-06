@@ -21,7 +21,7 @@ espressoCore = "3.7.0"
 kotlinxDatetime = "0.7.0"
 kotlinxCoroutines = "1.10.2"
 turbine = "1.2.1"
-hiltNavigationCompose = "1.3.0"
+hiltNavigationCompose = "1.4.0"
 lifecycleCompose = "2.10.0"
 androidxTestRules = "1.7.0"
 # Glance: 1.1.1 is the latest stable (1.2.0 is still rc, 1.3.0 alpha).
