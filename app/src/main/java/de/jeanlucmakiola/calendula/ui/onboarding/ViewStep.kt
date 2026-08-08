@@ -178,7 +178,12 @@ private fun StepPickerScaffold(
         actions = {
             Button(
                 onClick = onFinished,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                // The step is full-bleed, so the button takes the grouped rows'
+                // own inset and ends up as wide as the options above it.
+                modifier = Modifier
+                    .padding(horizontal = GroupedListInset)
+                    .fillMaxWidth()
+                    .height(56.dp),
             ) {
                 Text(
                     text = stringResource(R.string.onboarding_view_continue_button),
