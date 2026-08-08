@@ -1,12 +1,20 @@
 package de.jeanlucmakiola.calendula.ui.common
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -18,6 +26,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import kotlin.math.roundToInt
 
 /**
@@ -86,3 +95,54 @@ internal fun ScaledViewPreview(
         Column(Modifier.fillMaxSize()) { content() }
     }
 }
+
+/**
+ * The bezel every preview picker frames its preview with, cross-fading as
+ * [selected] changes.
+ *
+ * A preview draws the app's own surface, so on a chooser screen — which draws the
+ * same surface — it had no edge of its own and dissolved into the page. The tonal
+ * ring gives it one: the preview reads as a screen being shown rather than as
+ * part of the screen showing it.
+ */
+@Composable
+internal fun <T> ViewPreviewFrame(
+    selected: T,
+    label: String,
+    modifier: Modifier = Modifier,
+    content: @Composable (T) -> Unit,
+) {
+    val reduceMotion = rememberReduceMotion()
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(FRAME_SHAPE)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .padding(FRAME_INSET),
+        ) {
+            Crossfade(
+                targetState = selected,
+                animationSpec = if (reduceMotion) snap() else tween(durationMillis = 250),
+                label = label,
+            ) { shown ->
+                // Each preview renders the real view at phone size and scales it
+                // down, so its own corners are square — the frame rounds them.
+                Box(
+                    modifier = Modifier
+                        .clip(PREVIEW_SHAPE)
+                        .background(MaterialTheme.colorScheme.surface)
+                        .clipToBounds(),
+                ) {
+                    content(shown)
+                }
+            }
+        }
+    }
+}
+
+private val FRAME_INSET = 8.dp
+private val FRAME_SHAPE = RoundedCornerShape(20.dp)
+private val PREVIEW_SHAPE = RoundedCornerShape(12.dp)

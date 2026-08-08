@@ -1,24 +1,15 @@
 package de.jeanlucmakiola.calendula.ui.onboarding
 
-import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -28,6 +19,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaViewPreview
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.PickerDescription
+import de.jeanlucmakiola.calendula.ui.common.ViewPreviewFrame
 import de.jeanlucmakiola.calendula.ui.common.icon
 import de.jeanlucmakiola.calendula.ui.common.labelRes
 import de.jeanlucmakiola.calendula.ui.day.DayViewPreview
@@ -42,7 +34,6 @@ import de.jeanlucmakiola.floret.components.OnboardingSpace
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.SelectedCheck
 import de.jeanlucmakiola.floret.components.positionOf
-import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.floret.locale.currentLocale
 
 /**
@@ -196,40 +187,31 @@ private fun StepPickerScaffold(
     )
 }
 
-/** The live preview, cross-fading as [selected] changes, framed like the picker's. */
+/**
+ * The live preview, framed like the picker's. The gap under it is wider than the
+ * one above: the rows below are the things to tap, and they need to look like a
+ * group of their own rather than the preview's caption.
+ */
 @Composable
 private fun <T> StepPreview(selected: T, content: @Composable (T) -> Unit) {
-    val reduceMotion = rememberReduceMotion()
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-            .height(PREVIEW_HEIGHT),
-        contentAlignment = Alignment.Center,
-    ) {
-        Crossfade(
-            targetState = selected,
-            animationSpec = if (reduceMotion) snap() else tween(durationMillis = 250),
-            label = "step-preview",
-        ) { shown ->
-            // Each preview renders the real view at phone size and scales it
-            // down, so its own corners are square — the frame rounds it.
-            Box(
-                modifier = Modifier
-                    .clip(PREVIEW_SHAPE)
-                    .background(MaterialTheme.colorScheme.surface)
-                    .clipToBounds(),
-            ) {
-                content(shown)
-            }
-        }
-    }
+    ViewPreviewFrame(
+        selected = selected,
+        label = "step-preview",
+        modifier = Modifier.padding(
+            horizontal = 12.dp,
+            vertical = OnboardingSpace.xs,
+        ).padding(bottom = OnboardingSpace.sm),
+        content = content,
+    )
 }
 
 /**
+ * Sized so the preview plus its frame occupies what the unframed preview used to:
+ * the bezel comes out of the picture, not out of the step, which still has to fit
+ * without scrolling.
+ *
  * Smaller than the Settings chooser's preview: this screen also carries the step
  * counter and the Continue button, and the whole step has to fit without
  * scrolling.
  */
-private val PREVIEW_HEIGHT: Dp = 200.dp
-private val PREVIEW_SHAPE = RoundedCornerShape(12.dp)
+private val PREVIEW_HEIGHT: Dp = 184.dp

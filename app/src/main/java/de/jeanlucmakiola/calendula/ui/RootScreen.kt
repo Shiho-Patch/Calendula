@@ -27,12 +27,12 @@ import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
 import de.jeanlucmakiola.calendula.data.contacts.hasContactsPermission
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarVisibilityNoticeDialog
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarVisibilityNoticeViewModel
-import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
-import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.onboarding.OnboardingStep
 import de.jeanlucmakiola.calendula.ui.onboarding.OnboardingSteps
 import de.jeanlucmakiola.calendula.ui.onboarding.OnboardingViewModel
+import de.jeanlucmakiola.calendula.ui.onboarding.onboardingSlideTransition
+import de.jeanlucmakiola.calendula.ui.onboarding.rememberOnboardingSlideSpec
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 
 /** What the root is showing: a wizard step, the app, or neither yet. */
@@ -130,12 +130,10 @@ fun RootScreen(
     val slideDir = if (ordinal < lastOrdinal) -1 else 1
     SideEffect { lastOrdinal = ordinal }
 
-    // The wizard advances along M3's shared-axis X, the same transition adjacent
-    // months and weeks use: the outgoing step slides and fades one way while the
-    // next arrives from the other. A plain cross-fade read as a smear here —
-    // both steps are opaque full-screen scaffolds, so their text dissolved
-    // through each other with nothing to say which way the flow was going.
-    val slideSpec = rememberCalendarSlideSpec()
+    // The wizard swipes: the steps sit side by side and the whole width travels,
+    // so the flow reads as moving through a stack of screens rather than as one
+    // screen redrawing itself.
+    val slideSpec = rememberOnboardingSlideSpec()
     val fadeSpec = rememberCalendarFadeSpec()
     val reduceMotion = rememberReduceMotion()
     AnimatedContent(
@@ -146,7 +144,7 @@ fun RootScreen(
             if (initialState == RootTarget.Loading) {
                 fadeIn(fadeSpec).togetherWith(fadeOut(fadeSpec))
             } else {
-                calendarSlideTransition(
+                onboardingSlideTransition(
                     slideDir = slideDir,
                     spec = slideSpec,
                     fadeSpec = fadeSpec,
