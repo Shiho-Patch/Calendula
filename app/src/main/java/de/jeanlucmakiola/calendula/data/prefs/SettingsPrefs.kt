@@ -599,6 +599,28 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * Whether the wizard's calendar-visibility notice has been read. Separate
+     * from [CalendarPrefs.visibilityNoticePending], which says whether this
+     * install has anything to announce at all.
+     */
+    val onboardingVisibilityDone: Flow<Boolean> = store.data.map { prefs ->
+        prefs[ONBOARDING_VISIBILITY_KEY] ?: false
+    }
+
+    suspend fun setOnboardingVisibilityDone(done: Boolean = true) {
+        store.edit { it[ONBOARDING_VISIBILITY_KEY] = done }
+    }
+
+    /** Whether the wizard's closing screen has been seen. */
+    val onboardingDoneShown: Flow<Boolean> = store.data.map { prefs ->
+        prefs[ONBOARDING_DONE_KEY] ?: false
+    }
+
+    suspend fun setOnboardingDoneShown(shown: Boolean = true) {
+        store.edit { it[ONBOARDING_DONE_KEY] = shown }
+    }
+
+    /**
      * The default reminder lead times (minutes before start) prefilled on new
      * **timed** events. The empty list = no default reminder — the prior
      * behaviour, kept as the factory default so existing users aren't surprised by
@@ -931,6 +953,9 @@ class SettingsPrefs @Inject constructor(
         internal val ONBOARDING_VIEW_KEY = booleanPreferencesKey("onboarding_view_done")
         internal val ONBOARDING_MONTH_STYLE_KEY =
             booleanPreferencesKey("onboarding_month_style_done")
+        internal val ONBOARDING_VISIBILITY_KEY =
+            booleanPreferencesKey("onboarding_visibility_done")
+        internal val ONBOARDING_DONE_KEY = booleanPreferencesKey("onboarding_done_shown")
         internal val ALLOW_COLOR_UNSUPPORTED_KEY =
             booleanPreferencesKey("allow_color_unsupported_calendars")
         internal val DEFAULT_REMINDER_KEY = stringPreferencesKey("default_reminder_minutes")

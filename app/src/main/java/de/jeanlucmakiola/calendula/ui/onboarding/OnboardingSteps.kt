@@ -104,5 +104,17 @@ fun OnboardingSteps(
                 )
             }
         }
+        OnboardingStep.Visibility -> VisibilityStep(
+            onFinished = viewModel::finishVisibility,
+            modifier = modifier,
+            progress = progress,
+            navigationIcon = navigationIcon,
+        )
+        OnboardingStep.Done -> DoneStep(
+            onFinished = viewModel::finishOnboarding,
+            modifier = modifier,
+            progress = progress,
+            navigationIcon = navigationIcon,
+        )
     }
 }

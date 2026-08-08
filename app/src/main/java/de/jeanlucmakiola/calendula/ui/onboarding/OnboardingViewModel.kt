@@ -9,7 +9,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.data.backup.BackupScheduler
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
+import de.jeanlucmakiola.calendula.data.calendar.CalendarVisibilityReconciler
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
+import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.data.reminders.ReminderScanner
@@ -45,8 +47,10 @@ import javax.inject.Inject
 class OnboardingViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val prefs: SettingsPrefs,
+    private val calendarPrefs: CalendarPrefs,
     private val repository: CalendarRepository,
     private val scanner: ReminderScanner,
+    private val visibilityReconciler: CalendarVisibilityReconciler,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
 
@@ -78,8 +82,16 @@ class OnboardingViewModel @Inject constructor(
         ::OnboardingFlags,
     )
 
+    /** The closing steps' own flags, and whether the notice applies at all. */
+    private val closingFlags: Flow<ClosingFlags> = combine(
+        calendarPrefs.visibilityNoticePending.map { it == true },
+        prefs.onboardingVisibilityDone,
+        prefs.onboardingDoneShown,
+        ::ClosingFlags,
+    )
+
     val plan: StateFlow<OnboardingPlan?> =
-        combine(hasPermission, flags, backupApplies) { granted, stored, backup ->
+        combine(hasPermission, flags, closingFlags, backupApplies) { granted, stored, closing, backup ->
             granted?.let {
                 onboardingPlan(
                     hasPermission = it,
@@ -89,6 +101,9 @@ class OnboardingViewModel @Inject constructor(
                     viewDone = stored.viewDone,
                     monthStyleDone = stored.monthStyleDone,
                     backupApplies = backup,
+                    visibilityArmed = closing.visibilityArmed,
+                    visibilityDone = closing.visibilityDone,
+                    doneShown = closing.doneShown,
                 )
             }
         }.stateIn(
@@ -147,6 +162,8 @@ class OnboardingViewModel @Inject constructor(
                 OnboardingStep.Backup -> prefs.setOnboardingBackupDone(false)
                 OnboardingStep.View -> prefs.setOnboardingViewDone(false)
                 OnboardingStep.MonthStyle -> prefs.setOnboardingMonthStyleDone(false)
+                OnboardingStep.Visibility -> prefs.setOnboardingVisibilityDone(false)
+                OnboardingStep.Done -> prefs.setOnboardingDoneShown(false)
                 OnboardingStep.Permission, null -> Unit
             }
         }
@@ -200,6 +217,26 @@ class OnboardingViewModel @Inject constructor(
     fun finishMonthStyle() {
         viewModelScope.launch { prefs.setOnboardingMonthStyleDone() }
     }
+
+    /** Acknowledge the calendar-visibility notice (#75). */
+    fun finishVisibility() {
+        viewModelScope.launch { prefs.setOnboardingVisibilityDone() }
+    }
+
+    /** Close the wizard from its last screen. */
+    fun finishOnboarding() {
+        viewModelScope.launch { prefs.setOnboardingDoneShown() }
+    }
+
+    /**
+     * Fold the retired app-local calendar visibility into the device's own, and
+     * arm the notice if this install has anything to announce. Runs whenever the
+     * app comes up holding the permission, however it was granted — one taken on
+     * Android's app-settings screen never reaches the permission step's callback.
+     */
+    fun reconcileCalendarVisibility() {
+        viewModelScope.launch { visibilityReconciler.run() }
+    }
 }
 
 /** The stored answers the plan is derived from. */
@@ -209,6 +246,13 @@ private data class OnboardingFlags(
     val backupDone: Boolean,
     val viewDone: Boolean,
     val monthStyleDone: Boolean,
+)
+
+/** The tail of the flow: the visibility notice and the closing screen. */
+private data class ClosingFlags(
+    val visibilityArmed: Boolean,
+    val visibilityDone: Boolean,
+    val doneShown: Boolean,
 )
 
 /** What the view step starts from, and renders its previews with. */

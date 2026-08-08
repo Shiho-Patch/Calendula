@@ -16,6 +16,12 @@ enum class OnboardingStep {
 
     /** How the Month view lays itself out, chosen from a live preview. */
     MonthStyle,
+
+    /** Only on an install that has calendars the device is hiding (#75). */
+    Visibility,
+
+    /** The closing screen: everything is answered and the app is ready. */
+    Done,
 }
 
 /**
@@ -64,6 +70,13 @@ data class OnboardingPlan(
  * Month is reachable from the drawer whatever opens first, and making the step
  * appear and disappear as the view is picked would move the counter under the
  * user on the step right before it.
+ *
+ * [visibilityArmed] carries the one-time notice that the device is hiding some
+ * calendars (#75). It is a step rather than a dialog over the app so that an
+ * install owing both meets it inside the flow instead of straight after it —
+ * and it is the only optional step an *existing* install can be given, which is
+ * why it is not gated on `fresh`. The closing screen is: there is nothing to
+ * conclude for someone who was only shown one notice.
  */
 fun onboardingPlan(
     hasPermission: Boolean,
@@ -73,6 +86,9 @@ fun onboardingPlan(
     viewDone: Boolean,
     monthStyleDone: Boolean,
     backupApplies: Boolean?,
+    visibilityArmed: Boolean = false,
+    visibilityDone: Boolean = false,
+    doneShown: Boolean = false,
 ): OnboardingPlan {
     val fresh = wizardArmed || (!hasPermission && !remindersDone)
     val steps = buildList {
@@ -83,6 +99,8 @@ fun onboardingPlan(
             add(OnboardingStep.View)
             add(OnboardingStep.MonthStyle)
         }
+        if (visibilityArmed) add(OnboardingStep.Visibility)
+        if (fresh) add(OnboardingStep.Done)
     }
     val current = steps.firstOrNull { step ->
         when (step) {
@@ -91,6 +109,8 @@ fun onboardingPlan(
             OnboardingStep.Backup -> !backupDone
             OnboardingStep.View -> !viewDone
             OnboardingStep.MonthStyle -> !monthStyleDone
+            OnboardingStep.Visibility -> !visibilityDone
+            OnboardingStep.Done -> !doneShown
         }
     }
     return OnboardingPlan(steps, current)

@@ -25,8 +25,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
 import de.jeanlucmakiola.calendula.data.contacts.hasContactsPermission
-import de.jeanlucmakiola.calendula.ui.calendars.CalendarVisibilityNoticeDialog
-import de.jeanlucmakiola.calendula.ui.calendars.CalendarVisibilityNoticeViewModel
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.calendula.ui.onboarding.OnboardingStep
 import de.jeanlucmakiola.calendula.ui.onboarding.OnboardingSteps
@@ -99,12 +97,10 @@ fun RootScreen(
         if (hasPermission && !grantedAtLaunch) onboarding.onPermissionGranted()
     }
 
-    // One-time explainer for the switch to the device's own calendar visibility
-    // (#75), armed by the reconciler.
-    val visibilityNotice: CalendarVisibilityNoticeViewModel = hiltViewModel()
-    val noticePending by visibilityNotice.pending.collectAsStateWithLifecycle()
+    // Arms the one-time explainer for the switch to the device's own calendar
+    // visibility (#75), which the wizard then carries as a step of its own.
     LaunchedEffect(hasPermission) {
-        if (hasPermission) visibilityNotice.reconcile()
+        if (hasPermission) onboarding.reconcileCalendarVisibility()
     }
 
     val current = plan
@@ -112,10 +108,6 @@ fun RootScreen(
         current == null -> RootTarget.Loading
         current.current == null -> RootTarget.App
         else -> RootTarget.Step(current.current)
-    }
-
-    if (target is RootTarget.App && noticePending) {
-        CalendarVisibilityNoticeDialog(onDismiss = visibilityNotice::dismiss)
     }
 
     // Which way the flow is moving, so a step-back slides back. The app sits

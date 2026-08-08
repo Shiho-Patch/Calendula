@@ -107,6 +107,11 @@ be known before the grant, so it is assumed until the calendar list can be
 read: the flow may shrink after the grant, never sprout a step the counter
 had not accounted for.
 
+The flow closes on an "all set" screen, and the one-time calendar-visibility
+notice (#75) is a step in front of it rather than a dialog over the app — it
+is the only optional step an *already onboarded* install can be given, which
+is why it alone is not gated on the wizard being armed.
+
 ## Recurring writes
 
 The provider's invariants drive the design (learned the hard way, verified

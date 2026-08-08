@@ -98,7 +98,7 @@ private fun RationaleContent(
         modifier = modifier,
         progress = progress,
         topSpacing = OnboardingSpace.lg,
-        hero = { BrandHero(denied = false) },
+        hero = { BrandHero() },
         actions = {
             Button(
                 onClick = onRequest,
@@ -157,7 +157,7 @@ private fun DeniedContent(
     OnboardingScaffold(
         modifier = modifier,
         progress = progress,
-        hero = { BrandHero(denied = true) },
+        hero = { BrandHero(HeroBadge.Denied) },
         actions = {
             Button(
                 onClick = {

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -23,14 +24,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
 
+/** What, if anything, the brand mark is wearing in its corner. */
+internal enum class HeroBadge { Denied, Done }
+
 /**
  * The app's adaptive launcher mark, reconstructed as a large branded squircle —
  * the hero of the onboarding screens (floret-kit's OnboardingScaffold supplies
  * the shell; the mark stays app-local so each sibling keeps its own identity).
- * A lock badge overlays the corner when permission has been [denied].
+ * A [badge] overlays the corner where the screen has a verdict to give: blocked,
+ * or finished.
  */
 @Composable
-internal fun BrandHero(denied: Boolean) {
+internal fun BrandHero(badge: HeroBadge? = null) {
     Box(contentAlignment = Alignment.Center) {
         Box(
             modifier = Modifier
@@ -44,21 +49,31 @@ internal fun BrandHero(denied: Boolean) {
                 modifier = Modifier.fillMaxSize(),
             )
         }
-        if (denied) {
-            // A small lock badge sits over the corner to signal "blocked".
+        if (badge != null) {
+            val container = when (badge) {
+                HeroBadge.Denied -> MaterialTheme.colorScheme.errorContainer
+                HeroBadge.Done -> MaterialTheme.colorScheme.primaryContainer
+            }
+            val onContainer = when (badge) {
+                HeroBadge.Denied -> MaterialTheme.colorScheme.onErrorContainer
+                HeroBadge.Done -> MaterialTheme.colorScheme.onPrimaryContainer
+            }
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .offset(x = 10.dp, y = 10.dp)
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.errorContainer),
+                    .background(container),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Lock,
+                    imageVector = when (badge) {
+                        HeroBadge.Denied -> Icons.Filled.Lock
+                        HeroBadge.Done -> Icons.Filled.Check
+                    },
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
+                    tint = onContainer,
                     modifier = Modifier.size(24.dp),
                 )
             }

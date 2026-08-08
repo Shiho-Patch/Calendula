@@ -18,6 +18,9 @@ class OnboardingPlanTest {
         viewDone: Boolean = false,
         monthStyleDone: Boolean = false,
         backupApplies: Boolean? = null,
+        visibilityArmed: Boolean = false,
+        visibilityDone: Boolean = false,
+        doneShown: Boolean = false,
     ) = onboardingPlan(
         hasPermission = hasPermission,
         remindersDone = remindersDone,
@@ -26,6 +29,9 @@ class OnboardingPlanTest {
         viewDone = viewDone,
         monthStyleDone = monthStyleDone,
         backupApplies = backupApplies,
+        visibilityArmed = visibilityArmed,
+        visibilityDone = visibilityDone,
+        doneShown = doneShown,
     )
 
     @Test
@@ -47,6 +53,7 @@ class OnboardingPlanTest {
             OnboardingStep.Backup,
             OnboardingStep.View,
             OnboardingStep.MonthStyle,
+            OnboardingStep.Done,
         ).inOrder()
         assertThat(granted.current).isEqualTo(OnboardingStep.Reminders)
         assertThat(granted.index).isEqualTo(2)
@@ -62,7 +69,7 @@ class OnboardingPlanTest {
         )
         assertThat(synced.steps).doesNotContain(OnboardingStep.Backup)
         assertThat(synced.current).isEqualTo(OnboardingStep.View)
-        assertThat(synced.total).isEqualTo(4)
+        assertThat(synced.total).isEqualTo(5)
     }
 
     @Test
@@ -106,6 +113,7 @@ class OnboardingPlanTest {
             viewDone = true,
             monthStyleDone = true,
             backupApplies = true,
+            doneShown = true,
         )
         assertThat(done.current).isNull()
         assertThat(done.index).isEqualTo(0)
@@ -159,8 +167,62 @@ class OnboardingPlanTest {
             viewDone = true,
             monthStyleDone = true,
             backupApplies = true,
+            doneShown = true,
         )
         assertThat(done.previous).isNull()
         assertThat(done.canGoBack).isFalse()
+    }
+
+    @Test
+    fun `the wizard ends on its closing screen`() {
+        val lastAnswer = plan(
+            hasPermission = true,
+            remindersDone = true,
+            wizardArmed = true,
+            backupDone = true,
+            viewDone = true,
+            monthStyleDone = true,
+            backupApplies = true,
+        )
+        assertThat(lastAnswer.current).isEqualTo(OnboardingStep.Done)
+        assertThat(lastAnswer.index).isEqualTo(lastAnswer.total)
+    }
+
+    @Test
+    fun `the visibility notice is asked before the closing screen`() {
+        val armed = plan(
+            hasPermission = true,
+            remindersDone = true,
+            wizardArmed = true,
+            backupDone = true,
+            viewDone = true,
+            monthStyleDone = true,
+            backupApplies = true,
+            visibilityArmed = true,
+        )
+        assertThat(armed.current).isEqualTo(OnboardingStep.Visibility)
+        assertThat(armed.steps.last()).isEqualTo(OnboardingStep.Done)
+    }
+
+    @Test
+    fun `an onboarded install owing only the notice gets one screen and no counter`() {
+        // The notice is the one step an existing install can still be given —
+        // and on its own it is not a wizard, so there is nothing to conclude.
+        val notice = plan(hasPermission = true, remindersDone = true, visibilityArmed = true)
+        assertThat(notice.steps).containsExactly(OnboardingStep.Visibility)
+        assertThat(notice.current).isEqualTo(OnboardingStep.Visibility)
+        assertThat(notice.showsProgress).isFalse()
+        assertThat(notice.canGoBack).isFalse()
+    }
+
+    @Test
+    fun `reading the notice ends an otherwise onboarded flow`() {
+        val read = plan(
+            hasPermission = true,
+            remindersDone = true,
+            visibilityArmed = true,
+            visibilityDone = true,
+        )
+        assertThat(read.current).isNull()
     }
 }
