@@ -1,4 +1,4 @@
-package de.jeanlucmakiola.calendula.ui.permission
+package de.jeanlucmakiola.calendula.ui.onboarding
 
 sealed interface PermissionUiState {
     data object Rationale : PermissionUiState

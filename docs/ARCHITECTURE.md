@@ -27,7 +27,7 @@ the package list (recurring writes, save conflicts, reminder delivery).
 ```mermaid
 flowchart TD
     subgraph UI ["ui/ — Compose screens + ViewModels"]
-        Screens["Month / Week / Day\nDetail / Edit / Settings\nPermission + Reminder onboarding"]
+        Screens["Month / Week / Day\nDetail / Edit / Settings\nOnboarding wizard"]
     end
     subgraph Data ["data/"]
         Repo["CalendarRepository\n(interface + impl, Flow-based, io-dispatched)"]
@@ -78,14 +78,32 @@ flowchart TD
 ## Navigation
 
 There is no navigation library. `MainActivity` hosts `RootScreen`, which
-gates on the calendar permission and the one-time reminder onboarding, then
-shows `CalendarHost`. `CalendarHost` holds the active view (month/week/day)
+gates on the first-launch wizard (`ui/onboarding/`), then shows
+`CalendarHost`. `CalendarHost` holds the active view (month/week/day)
 plus overlay state for detail, edit, and settings — full-screen overlays
 driven by `AnimatedVisibility` with a *held-key* pattern: the last shown
 key stays alive through the slide-out so content never flashes empty.
 A tapped reminder notification routes through `MainActivity` (`singleTop` +
 `onNewIntent`) as an external detail key that `CalendarHost` consumes
 exactly like an event tap.
+
+### First-launch wizard
+
+`ui/onboarding/` is a plan, not a navigation graph: `onboardingPlan()` is a
+pure function of the stored answers that returns the whole flow *plus* the
+step it is on, and `RootScreen` renders that step. Two rules make it work:
+
+- The plan keeps **completed** steps, so finishing one never renumbers the
+  counter under the user.
+- The optional steps (backup, view) only exist for an install that went
+  through the grant in-app — recorded by `armOnboardingWizard()`, which
+  refuses to arm if the reminder step was already answered, so an existing
+  user who revokes and re-grants the permission is not re-onboarded.
+
+Whether the backup step applies (nothing writable is synced anywhere) cannot
+be known before the grant, so it is assumed until the calendar list can be
+read: the flow may shrink after the grant, never sprout a step the counter
+had not accounted for.
 
 ## Recurring writes
 

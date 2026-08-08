@@ -555,6 +555,40 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * Whether this install went through the calendar grant in-app, i.e. is a
+     * fresh one that owes the wizard's optional steps (#163). Set at the grant
+     * and only for an install that had not finished the reminder step, so an
+     * existing user who revokes and re-grants the permission isn't re-onboarded.
+     */
+    val onboardingWizardArmed: Flow<Boolean> = store.data.map { prefs ->
+        prefs[ONBOARDING_WIZARD_ARMED_KEY] ?: false
+    }
+
+    suspend fun armOnboardingWizard() {
+        store.edit { prefs ->
+            if (prefs[REMINDER_ONBOARDING_KEY] != true) prefs[ONBOARDING_WIZARD_ARMED_KEY] = true
+        }
+    }
+
+    /** Whether the wizard's backup step has been answered (or skipped). */
+    val onboardingBackupDone: Flow<Boolean> = store.data.map { prefs ->
+        prefs[ONBOARDING_BACKUP_KEY] ?: false
+    }
+
+    suspend fun setOnboardingBackupDone() {
+        store.edit { it[ONBOARDING_BACKUP_KEY] = true }
+    }
+
+    /** Whether the wizard's view step has been answered (or skipped). */
+    val onboardingViewDone: Flow<Boolean> = store.data.map { prefs ->
+        prefs[ONBOARDING_VIEW_KEY] ?: false
+    }
+
+    suspend fun setOnboardingViewDone() {
+        store.edit { it[ONBOARDING_VIEW_KEY] = true }
+    }
+
+    /**
      * The default reminder lead times (minutes before start) prefilled on new
      * **timed** events. The empty list = no default reminder — the prior
      * behaviour, kept as the factory default so existing users aren't surprised by
@@ -882,6 +916,9 @@ class SettingsPrefs @Inject constructor(
         internal const val MAX_EVENT_DURATION = 1_440
         internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")
         internal val REMINDER_ONBOARDING_KEY = booleanPreferencesKey("reminder_onboarding_done")
+        internal val ONBOARDING_WIZARD_ARMED_KEY = booleanPreferencesKey("onboarding_wizard_armed")
+        internal val ONBOARDING_BACKUP_KEY = booleanPreferencesKey("onboarding_backup_done")
+        internal val ONBOARDING_VIEW_KEY = booleanPreferencesKey("onboarding_view_done")
         internal val ALLOW_COLOR_UNSUPPORTED_KEY =
             booleanPreferencesKey("allow_color_unsupported_calendars")
         internal val DEFAULT_REMINDER_KEY = stringPreferencesKey("default_reminder_minutes")

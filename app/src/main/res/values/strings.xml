@@ -268,6 +268,21 @@
     <!-- Shared event strings -->
     <string name="event_untitled">(No title)</string>
 
+    <!-- First-launch wizard (#163) -->
+    <string name="onboarding_step_counter">Step %1$d of %2$d</string>
+    <string name="onboarding_backup_title">Your events live only here</string>
+    <string name="onboarding_backup_body">Nothing on this phone syncs to an account, so losing it would lose your calendar. Calendula can write a backup for you.</string>
+    <string name="onboarding_backup_benefit_folder_title">A folder you choose</string>
+    <string name="onboarding_backup_benefit_folder_body">Backups are plain .ics files — put them somewhere that syncs, or on an SD card.</string>
+    <string name="onboarding_backup_benefit_daily_title">Once a day, by itself</string>
+    <string name="onboarding_backup_benefit_daily_body">Calendula exports your local calendars in the background. Change how often in Settings.</string>
+    <string name="onboarding_backup_benefit_restore_title">Restore anytime</string>
+    <string name="onboarding_backup_benefit_restore_body">Open a backup file to bring the events back — on this phone or a new one.</string>
+    <string name="onboarding_backup_enable_button">Choose folder and back up</string>
+    <string name="onboarding_backup_skip_button">Not now</string>
+    <string name="onboarding_view_title">What should Calendula open on?</string>
+    <string name="onboarding_view_continue_button">Continue</string>
+
     <!-- Reminder notifications (v1.4) -->
     <string name="reminder_channel_name">Event reminders</string>
     <string name="reminder_channel_description">Notifications at the reminder times of your events</string>

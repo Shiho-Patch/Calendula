@@ -148,7 +148,7 @@ private val ALL_DAY_VERTICAL_PADDING = 6.dp
 private val COLUMN_GAP = 2.dp
 
 /** Total all-day strip height for a week (0 when there are no all-day events). */
-private fun WeekUiState.Success.allDayStripHeight(): Dp {
+internal fun WeekUiState.Success.allDayStripHeight(): Dp {
     if (allDaySpans.isEmpty()) return 0.dp
     val lanes = allDaySpans.maxOf { it.lane } + 1
     return ALL_DAY_ROW_HEIGHT * lanes + ALL_DAY_VERTICAL_PADDING * 2
@@ -402,7 +402,7 @@ private fun WeekContent(
 }
 
 @Composable
-private fun WeekSuccess(
+internal fun WeekSuccess(
     state: WeekUiState.Success,
     topSectionColor: Color,
     scrollState: ScrollState,

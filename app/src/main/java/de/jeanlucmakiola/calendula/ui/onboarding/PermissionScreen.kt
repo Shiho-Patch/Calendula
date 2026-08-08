@@ -1,4 +1,4 @@
-package de.jeanlucmakiola.calendula.ui.permission
+package de.jeanlucmakiola.calendula.ui.onboarding
 
 import de.jeanlucmakiola.floret.components.BenefitRow
 import de.jeanlucmakiola.floret.components.OnboardingScaffold
@@ -52,6 +52,7 @@ private val CALENDAR_PERMISSIONS = arrayOf(
 fun PermissionScreen(
     onGranted: () -> Unit,
     modifier: Modifier = Modifier,
+    progress: (@Composable () -> Unit)? = null,
     viewModel: PermissionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -76,6 +77,7 @@ fun PermissionScreen(
     when (state) {
         is PermissionUiState.Rationale -> RationaleContent(
             onRequest = { launcher.launch(CALENDAR_PERMISSIONS) },
+            progress = progress,
             modifier = modifier,
         )
         is PermissionUiState.Denied -> DeniedContent(
@@ -83,6 +85,7 @@ fun PermissionScreen(
                 viewModel.onRetry()
                 launcher.launch(CALENDAR_PERMISSIONS)
             },
+            progress = progress,
             modifier = modifier,
         )
         is PermissionUiState.Granted -> {
@@ -94,10 +97,12 @@ fun PermissionScreen(
 @Composable
 private fun RationaleContent(
     onRequest: () -> Unit,
+    progress: (@Composable () -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     OnboardingScaffold(
         modifier = modifier,
+        progress = progress,
         hero = { BrandHero(denied = false) },
         actions = {
             Button(
@@ -164,11 +169,13 @@ private fun RationaleContent(
 @Composable
 private fun DeniedContent(
     onRetry: () -> Unit,
+    progress: (@Composable () -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     OnboardingScaffold(
         modifier = modifier,
+        progress = progress,
         hero = { BrandHero(denied = true) },
         actions = {
             Button(

@@ -1,4 +1,4 @@
-package de.jeanlucmakiola.calendula.ui.permission
+package de.jeanlucmakiola.calendula.ui.onboarding
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -62,5 +63,27 @@ internal fun BrandHero(denied: Boolean) {
                 )
             }
         }
+    }
+}
+
+/**
+ * A single [icon] in the brand squircle — the same silhouette as [BrandHero],
+ * for the wizard steps that stand for a feature rather than for the app itself.
+ */
+@Composable
+internal fun IconHero(icon: ImageVector) {
+    Box(
+        modifier = Modifier
+            .size(128.dp)
+            .clip(RoundedCornerShape(34.dp))
+            .background(MaterialTheme.colorScheme.primaryContainer),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.size(56.dp),
+        )
     }
 }

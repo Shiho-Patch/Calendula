@@ -131,7 +131,7 @@ private val ALL_DAY_ROW_HEIGHT = 24.dp
 private val ALL_DAY_VERTICAL_PADDING = 6.dp
 
 /** Total all-day strip height for the day (0 when there are no all-day events). */
-private fun DayUiState.Success.allDayStripHeight(): Dp {
+internal fun DayUiState.Success.allDayStripHeight(): Dp {
     if (allDay.isEmpty()) return 0.dp
     val lanes = allDay.maxOf { it.lane } + 1
     return ALL_DAY_ROW_HEIGHT * lanes + ALL_DAY_VERTICAL_PADDING * 2
@@ -366,7 +366,7 @@ private fun DayContent(
 }
 
 @Composable
-private fun DaySuccess(
+internal fun DaySuccess(
     state: DayUiState.Success,
     topSectionColor: Color,
     scrollState: ScrollState,
