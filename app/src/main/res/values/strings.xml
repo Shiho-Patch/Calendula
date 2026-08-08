@@ -318,6 +318,26 @@
     <string name="search_idle_hint">Search your events by title, location or notes.</string>
     <string name="search_empty">No events match “%1$s”.</string>
 
+    <!-- Selecting search results to delete several at once (#80) -->
+    <plurals name="search_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="search_in_descriptions">Found in descriptions</string>
+    <string name="search_selection_close">Cancel selection</string>
+    <string name="search_select_all">Select all</string>
+    <string name="search_delete_selected">Delete selected</string>
+    <plurals name="search_delete_title">
+        <item quantity="one">Delete %d event?</item>
+        <item quantity="other">Delete %d events?</item>
+    </plurals>
+    <plurals name="search_delete_done">
+        <item quantity="one">%d event deleted</item>
+        <item quantity="other">%d events deleted</item>
+    </plurals>
+    <string name="search_delete_partial">%1$d deleted, %2$d couldn\'t be</string>
+    <string name="search_delete_denied_partial">%1$d deleted, then write access was withdrawn</string>
+
     <!-- Home-screen widgets -->
     <string name="widget_agenda_title">Upcoming</string>
     <string name="widget_agenda_label">Calendula agenda</string>

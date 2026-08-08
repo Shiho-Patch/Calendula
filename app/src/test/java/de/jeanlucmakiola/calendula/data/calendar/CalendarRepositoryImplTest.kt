@@ -11,6 +11,7 @@ import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.SearchCandidate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.LocalDate
@@ -451,15 +452,15 @@ class CalendarRepositoryImplTest {
             calendarsResult = listOf(makeCal(1L), makeCal(2L, visible = false), makeCal(3L))
             searchResult = {
                 listOf(
-                    makeEvent(10L, "Shown", calendarId = 1L),
-                    makeEvent(11L, "Switched off", calendarId = 2L),
-                    makeEvent(12L, "Hidden", calendarId = 3L),
+                    SearchCandidate(makeEvent(10L, "Shown", calendarId = 1L)),
+                    SearchCandidate(makeEvent(11L, "Switched off", calendarId = 2L)),
+                    SearchCandidate(makeEvent(12L, "Hidden", calendarId = 3L)),
                 )
             }
         }
         val repo = CalendarRepositoryImpl(fake, prefs, newSettings(tempDir), Dispatchers.Unconfined)
 
-        assertThat(repo.searchEvents("e").map { it.title }).containsExactly("Shown")
+        assertThat(repo.searchEvents("e").map { it.event.title }).containsExactly("Shown")
     }
 
     @Test

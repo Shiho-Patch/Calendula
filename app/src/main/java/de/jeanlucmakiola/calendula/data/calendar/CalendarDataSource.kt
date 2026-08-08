@@ -27,8 +27,10 @@ import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.curatedForPicker
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.EventSearch
 import de.jeanlucmakiola.calendula.domain.EventStatus
 import de.jeanlucmakiola.calendula.domain.Reminder
+import de.jeanlucmakiola.calendula.domain.SearchCandidate
 import de.jeanlucmakiola.calendula.domain.contacts.MANAGED_UID_PREFIX
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.domain.ics.IcsEvent
@@ -62,12 +64,14 @@ interface CalendarDataSource {
     fun eventDetail(eventId: Long, allDayReminderTimeMinutes: Int): EventDetail?
 
     /**
-     * Master/one-off events whose title, description or location contains
-     * [query] (case-insensitive), across all calendars, newest first. Reads the
-     * Events table directly so the search is unbounded in time; exception rows
-     * are excluded (see [SearchProjection]). [query] is assumed non-blank.
+     * Master/one-off events that may match [query], across all calendars: every
+     * whitespace-separated token has to appear in the title, description or
+     * location. Reads the Events table directly so the search is unbounded in
+     * time; exception rows are excluded (see [SearchProjection]). A deliberate
+     * superset — [EventSearch] makes the final call and orders the hits.
+     * [query] is assumed non-blank.
      */
-    fun searchEvents(query: String): List<EventInstance>
+    fun searchEvents(query: String): List<SearchCandidate>
 
     /**
      * The event-colour palette the calendar's account publishes
@@ -585,20 +589,23 @@ class AndroidCalendarDataSource @Inject constructor(
         )?.use { c -> c.mapAllNotNull { CursorColumnReader(c).toEventInstance() } } ?: emptyList()
     }
 
-    override fun searchEvents(query: String): List<EventInstance> {
+    override fun searchEvents(query: String): List<SearchCandidate> {
         ensureObserversRegistered()
-        val trimmed = query.trim()
-        if (trimmed.isEmpty()) return emptyList()
-        // Escape the SQL LIKE wildcards so a literal % or _ in the query matches
-        // itself instead of acting as a wildcard.
-        val escaped = trimmed
-            .replace("\\", "\\\\")
-            .replace("%", "\\%")
-            .replace("_", "\\_")
-        val like = "%$escaped%"
-        val match = "${CalendarContract.Events.TITLE} LIKE ? ESCAPE '\\' OR " +
-            "${CalendarContract.Events.DESCRIPTION} LIKE ? ESCAPE '\\' OR " +
-            "${CalendarContract.Events.EVENT_LOCATION} LIKE ? ESCAPE '\\'"
+        val tokens = EventSearch.tokenize(query).take(MAX_SEARCH_TOKENS)
+        if (tokens.isEmpty()) return emptyList()
+        // Only a pre-filter: EventSearch re-checks every token, including the
+        // ones the cap above dropped.
+        val patterns = tokens.map { likePatterns(it) }
+        val match = patterns.joinToString(" AND ") { variants ->
+            variants.joinToString(" OR ", prefix = "(", postfix = ")") {
+                "${CalendarContract.Events.TITLE} LIKE ? ESCAPE '\\' OR " +
+                    "${CalendarContract.Events.DESCRIPTION} LIKE ? ESCAPE '\\' OR " +
+                    "${CalendarContract.Events.EVENT_LOCATION} LIKE ? ESCAPE '\\'"
+            }
+        }
+        val args = patterns
+            .flatMap { variants -> variants.flatMap { pattern -> List(3) { pattern } } }
+            .toTypedArray()
         val selection = "($match) AND " +
             "${CalendarContract.Events.DELETED} = 0 AND " +
             "${CalendarContract.Events.ORIGINAL_ID} IS NULL"
@@ -606,19 +613,17 @@ class AndroidCalendarDataSource @Inject constructor(
             CalendarContract.Events.CONTENT_URI,
             SearchProjection.COLUMNS,
             selection,
-            arrayOf(like, like, like),
+            args,
             CalendarContract.Events.DTSTART + " DESC",
         )?.use { c ->
             val reader = CursorColumnReader(c)
-            val out = ArrayList<EventInstance>(c.count)
+            val out = ArrayList<SearchCandidate>(c.count)
             while (c.moveToNext()) {
+                val description = reader.getString(SearchProjection.IDX_DESCRIPTION)
                 val base = reader.toSearchResult() ?: continue
-                // A recurring master's DTSTART is the series start; show its
-                // nearest occurrence instead so the date is the one the user
-                // actually cares about (and sorting reflects it).
-                val recurring = !reader.getString(SearchProjection.IDX_RRULE).isNullOrEmpty() ||
-                    !reader.getString(SearchProjection.IDX_RDATE).isNullOrEmpty()
-                out += if (recurring) {
+                // A recurring master's DTSTART is the series start; date the row
+                // by its nearest occurrence instead.
+                val event = if (base.isRecurring) {
                     nearestOccurrenceMillis(base.eventId)?.let { (begin, end) ->
                         base.copy(
                             start = begin.toKotlinInstantFromEpochMillis(),
@@ -628,9 +633,42 @@ class AndroidCalendarDataSource @Inject constructor(
                 } else {
                     base
                 }
+                // The raw title, so matching can't catch on the placeholder an
+                // untitled event is drawn with.
+                out += SearchCandidate(
+                    event = event,
+                    description = description,
+                    title = reader.getString(SearchProjection.IDX_TITLE),
+                )
             }
             out
         } ?: emptyList()
+    }
+
+    /**
+     * One token as the `LIKE` patterns to OR together. SQLite folds case for
+     * ASCII only, so a token with cased non-ASCII letters is also queried lower-,
+     * upper- and title-cased, which is how "ärzte" reaches "Ärzte". Wildcarding
+     * those letters away instead would make "москва" `%______%` — a full scan.
+     */
+    private fun likePatterns(token: String): List<String> {
+        if (token.none { it.code > 127 && (it.isUpperCase() || it.isLowerCase()) }) {
+            return listOf(likePattern(token))
+        }
+        val lower = token.lowercase()
+        return listOf(token, lower, token.uppercase(), lower.replaceFirstChar(Char::uppercaseChar))
+            .distinct()
+            .map(::likePattern)
+    }
+
+    private fun likePattern(token: String): String {
+        val sb = StringBuilder("%")
+        for (c in token) {
+            // A literal wildcard from the query matches itself.
+            if (c == '%' || c == '_' || c == '\\') sb.append('\\')
+            sb.append(c)
+        }
+        return sb.append('%').toString()
     }
 
     /**
@@ -1593,5 +1631,12 @@ class AndroidCalendarDataSource @Inject constructor(
          * next fires beyond it falls back to its series-start date.
          */
         const val OCCURRENCE_WINDOW_MILLIS = 2L * 365 * 24 * 60 * 60 * 1000
+
+        /**
+         * Tokens the SQL pre-filter is built from. Bounds the statement for a
+         * pasted paragraph; the ranker still requires every token, so a capped
+         * search returns fewer rows to check, never more hits.
+         */
+        const val MAX_SEARCH_TOKENS = 8
     }
 }

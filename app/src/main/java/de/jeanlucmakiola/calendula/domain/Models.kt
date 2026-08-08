@@ -62,6 +62,11 @@ data class EventInstance(
     val isAllDay: Boolean,
     val color: Int,
     val location: String?,
+    /**
+     * Only search results, which read the series master, fill this in — the
+     * Instances query already yields one row per occurrence.
+     */
+    val isRecurring: Boolean = false,
 )
 
 /**
