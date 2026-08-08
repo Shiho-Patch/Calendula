@@ -42,6 +42,8 @@ data class SearchHit(
  * sat in that field (whole-field start > word start > mid-word), and an event
  * ranks by the *weakest* field the query needed — one token findable only in the
  * description drags the whole event below the title matches, however soon it is.
+ * Equal scores are separated by how much of the title the match covers, so an
+ * exact title beats one that merely begins the same way, and only then by date.
  */
 object EventSearchRanker {
 
@@ -86,6 +88,7 @@ object EventSearchRanker {
             .sortedWith(
                 compareByDescending<Scored> { it.weakest }
                     .thenByDescending { it.total }
+                    .thenByDescending { it.titleCoverage }
                     .thenBy { if (it.hit.event.end >= now) 0 else 1 }
                     .thenComparator { a, b ->
                         val aStart = a.hit.event.start
@@ -121,10 +124,11 @@ object EventSearchRanker {
         }
 
         val descriptionSpans = description?.let { spansIn(it, tokens) }.orEmpty()
+        val titleSpans = spansIn(title, tokens)
         return Scored(
             hit = SearchHit(
                 event = candidate.event,
-                titleSpans = spansIn(title, tokens),
+                titleSpans = titleSpans,
                 locationSpans = location?.let { spansIn(it, tokens) }.orEmpty(),
                 descriptionSnippet = description
                     ?.takeIf { descriptionSpans.isNotEmpty() }
@@ -132,7 +136,19 @@ object EventSearchRanker {
             ),
             weakest = weakest,
             total = total,
+            titleCoverage = coverage(title, titleSpans),
         )
+    }
+
+    /**
+     * How much of [text] the match accounts for — 1.0 when the query *is* the
+     * title. What separates an exact hit from one that merely starts the same
+     * way: "test" and "test2" score identically otherwise, and the shorter title
+     * is the closer answer whichever of the two happens to be sooner.
+     */
+    private fun coverage(text: String, spans: List<MatchSpan>): Double {
+        if (text.isEmpty() || spans.isEmpty()) return 0.0
+        return spans.sumOf { it.end - it.start }.toDouble() / text.length
     }
 
     /** The best a single token does across the fields, or null if it is absent. */
@@ -217,5 +233,10 @@ object EventSearchRanker {
         return DescriptionSnippet(text, rebased)
     }
 
-    private data class Scored(val hit: SearchHit, val weakest: Int, val total: Int)
+    private data class Scored(
+        val hit: SearchHit,
+        val weakest: Int,
+        val total: Int,
+        val titleCoverage: Double,
+    )
 }

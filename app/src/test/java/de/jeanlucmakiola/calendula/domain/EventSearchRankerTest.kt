@@ -122,6 +122,28 @@ class EventSearchRankerTest {
     }
 
     @Test
+    fun `an exact title beats one that only starts the same way, whenever it is`() {
+        // Reported: "test" at 19:00 had already passed and "test2" at 23:00 was
+        // still to come, so the date key put the inexact match first.
+        val exact = candidate(1L, "test", startMillis = now.toEpochMilliseconds() - 3 * 3_600_000L)
+        val longer = candidate(2L, "test2", startMillis = now.toEpochMilliseconds() + 3_600_000L)
+
+        assertThat(titlesFor(longer, exact, query = "test"))
+            .containsExactly("test", "test2")
+            .inOrder()
+    }
+
+    @Test
+    fun `a shorter title wins when both merely contain the query`() {
+        val shorter = candidate(1L, "Team Meeting")
+        val longer = candidate(2L, "Team Meeting with the whole department")
+
+        assertThat(titlesFor(longer, shorter, query = "meeting"))
+            .containsExactly("Team Meeting", "Team Meeting with the whole department")
+            .inOrder()
+    }
+
+    @Test
     fun `ties keep the nearest-first order, upcoming before past`() {
         val soon = candidate(1L, "Test", startMillis = now.toEpochMilliseconds() + 86_400_000L)
         val later = candidate(2L, "Test", startMillis = now.toEpochMilliseconds() + 5 * 86_400_000L)
