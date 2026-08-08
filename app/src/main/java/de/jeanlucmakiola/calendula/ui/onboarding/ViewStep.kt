@@ -163,6 +163,9 @@ private fun StepPickerScaffold(
         navigationIcon = navigationIcon,
         topSpacing = OnboardingSpace.xs,
         contentPadding = 0.dp,
+        // The preview is worth more than a screenful of certainty: it gets the
+        // room it needs and Continue scrolls in under the options with it.
+        scrollingActions = true,
         hero = {
             Text(
                 text = title,
@@ -203,12 +206,8 @@ private fun <T> StepPreview(selected: T, content: @Composable (T) -> Unit) {
 }
 
 /**
- * Sized so the preview plus its frame occupies what the unframed preview used to:
- * the bezel comes out of the picture, not out of the step, which still has to fit
- * without scrolling.
- *
- * Smaller than the Settings chooser's preview: this screen also carries the step
- * counter and the Continue button, and the whole step has to fit without
- * scrolling.
+ * The same size the Settings chooser gives it. The step no longer tries to fit a
+ * screen: showing the view properly is what the step is for, and a picture too
+ * small to read would cost more than the scroll does.
  */
-private val PREVIEW_HEIGHT: Dp = 184.dp
+private val PREVIEW_HEIGHT: Dp = 280.dp
