@@ -43,7 +43,7 @@ internal fun WeekStartPicker(
         ViewPreviewFrame(
             selected = resolved,
             label = "week-start-preview",
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(vertical = 8.dp),
         ) { day ->
             MonthStylePreview(
                 style = monthStyle,

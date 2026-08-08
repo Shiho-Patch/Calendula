@@ -47,7 +47,7 @@ internal fun MonthViewStylePicker(
         ViewPreviewFrame(
             selected = selected,
             label = "month-style-preview",
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(vertical = 8.dp),
         ) { shown ->
             MonthStylePreview(
                 style = shown,

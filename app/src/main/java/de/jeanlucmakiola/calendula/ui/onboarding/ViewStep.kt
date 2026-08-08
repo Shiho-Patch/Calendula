@@ -197,10 +197,7 @@ private fun <T> StepPreview(selected: T, content: @Composable (T) -> Unit) {
     ViewPreviewFrame(
         selected = selected,
         label = "step-preview",
-        modifier = Modifier.padding(
-            horizontal = 12.dp,
-            vertical = OnboardingSpace.xs,
-        ).padding(bottom = OnboardingSpace.sm),
+        modifier = Modifier.padding(top = OnboardingSpace.xs, bottom = OnboardingSpace.md),
         content = content,
     )
 }

@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import de.jeanlucmakiola.floret.components.GroupedListInset
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import kotlin.math.roundToInt
 
@@ -97,13 +98,17 @@ internal fun ScaledViewPreview(
 }
 
 /**
- * The bezel every preview picker frames its preview with, cross-fading as
- * [selected] changes.
+ * The stage every preview picker sets its preview on, cross-fading as [selected]
+ * changes.
  *
  * A preview draws the app's own surface, so on a chooser screen — which draws the
- * same surface — it had no edge of its own and dissolved into the page. The tonal
- * ring gives it one: the preview reads as a screen being shown rather than as
- * part of the screen showing it.
+ * same surface — it had no edge of its own and dissolved into the page. A tonal
+ * plate gives it one: the preview reads as a screen being shown rather than as
+ * part of the screen showing it. The plate takes the width and the outer radius
+ * of the grouped rows underneath, so the two read as one stack.
+ *
+ * Only vertical spacing is the caller's to pass — the horizontal inset is the
+ * rows' own, and the alignment is the point.
  */
 @Composable
 internal fun <T> ViewPreviewFrame(
@@ -114,35 +119,35 @@ internal fun <T> ViewPreviewFrame(
 ) {
     val reduceMotion = rememberReduceMotion()
     Box(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = GroupedListInset)
+            .clip(FRAME_SHAPE)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(FRAME_INSET),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .clip(FRAME_SHAPE)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(FRAME_INSET),
-        ) {
-            Crossfade(
-                targetState = selected,
-                animationSpec = if (reduceMotion) snap() else tween(durationMillis = 250),
-                label = label,
-            ) { shown ->
-                // Each preview renders the real view at phone size and scales it
-                // down, so its own corners are square — the frame rounds them.
-                Box(
-                    modifier = Modifier
-                        .clip(PREVIEW_SHAPE)
-                        .background(MaterialTheme.colorScheme.surface)
-                        .clipToBounds(),
-                ) {
-                    content(shown)
-                }
+        Crossfade(
+            targetState = selected,
+            animationSpec = if (reduceMotion) snap() else tween(durationMillis = 250),
+            label = label,
+        ) { shown ->
+            // Each preview renders the real view at phone size and scales it
+            // down, so its own corners are square — the plate rounds them.
+            Box(
+                modifier = Modifier
+                    .clip(PREVIEW_SHAPE)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clipToBounds(),
+            ) {
+                content(shown)
             }
         }
     }
 }
 
 private val FRAME_INSET = 8.dp
-private val FRAME_SHAPE = RoundedCornerShape(20.dp)
+
+/** The grouped rows' own outer radius, so the stack shares one silhouette. */
+private val FRAME_SHAPE = RoundedCornerShape(22.dp)
 private val PREVIEW_SHAPE = RoundedCornerShape(12.dp)
