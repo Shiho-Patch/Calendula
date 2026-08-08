@@ -28,6 +28,9 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import javax.inject.Inject
 
@@ -100,10 +103,13 @@ class SearchViewModel @Inject constructor(
             if (q.length < MIN_QUERY_LENGTH) {
                 SearchUiState.Idle
             } else {
+                val now = Clock.System.now()
+                val zone = TimeZone.currentSystemDefault()
                 val hits = EventSearchRanker.rank(
                     candidates = repository.searchEvents(q),
                     query = q,
-                    now = Clock.System.now(),
+                    now = now,
+                    todayStart = now.toLocalDateTime(zone).date.atStartOfDayIn(zone),
                 )
                 if (hits.isEmpty()) {
                     SearchUiState.Empty(q)

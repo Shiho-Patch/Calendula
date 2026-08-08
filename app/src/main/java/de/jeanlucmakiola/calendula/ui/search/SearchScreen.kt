@@ -53,6 +53,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -88,6 +89,7 @@ import de.jeanlucmakiola.floret.components.SnackChip
 import de.jeanlucmakiola.floret.components.SnackChipHeight
 import de.jeanlucmakiola.floret.components.SnackChipMargin
 import de.jeanlucmakiola.floret.locale.currentLocale
+import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.RecurringScopeDialog
 import de.jeanlucmakiola.calendula.ui.common.eventAccent
@@ -453,7 +455,9 @@ private fun SearchResultRow(
         color = if (selected) Color.Unspecified else MaterialTheme.colorScheme.primary,
     )
     GroupedRow(
-        modifier = modifier,
+        // Faded like a past event anywhere else in the app: search reaches back
+        // through the whole history, so an old hit has to read as over.
+        modifier = if (hit.isPast) modifier.alpha(EventDimAlpha) else modifier,
         title = marked(event.title, hit.titleSpans, highlight),
         summary = searchSummary(hit, highlight),
         position = position,

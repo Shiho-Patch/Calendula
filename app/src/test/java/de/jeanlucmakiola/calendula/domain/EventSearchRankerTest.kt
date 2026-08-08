@@ -12,6 +12,11 @@ class EventSearchRankerTest {
 
     private val now = Instant.fromEpochMilliseconds(1_800_000_000_000L)
 
+    /** Midnight of [now]'s day in UTC — the ranker's current/past boundary. */
+    private val todayStart = Instant.fromEpochMilliseconds(
+        1_800_000_000_000L / 86_400_000L * 86_400_000L,
+    )
+
     private fun candidate(
         id: Long,
         title: String,
@@ -33,8 +38,11 @@ class EventSearchRankerTest {
         description = description,
     )
 
+    private fun rank(candidates: List<SearchCandidate>, query: String) =
+        EventSearchRanker.rank(candidates, query, now, todayStart)
+
     private fun titlesFor(vararg candidates: SearchCandidate, query: String): List<String> =
-        EventSearchRanker.rank(candidates.toList(), query, now).map { it.event.title }
+        rank(candidates.toList(), query).map { it.event.title }
 
     @Test
     fun `a title match outranks a description match even when it is further off`() {
@@ -84,11 +92,7 @@ class EventSearchRankerTest {
             .containsExactly("Büro aufräumen", "Frühstück", "Frühstück")
             .inOrder()
         // The location hit ranks above the description one.
-        val ranked = EventSearchRanker.rank(
-            listOf(inDescription, inLocation, inTitle),
-            "büro",
-            now,
-        )
+        val ranked = rank(listOf(inDescription, inLocation, inTitle), "büro")
         assertThat(ranked.map { it.event.eventId }).containsExactly(3L, 2L, 1L).inOrder()
     }
 
@@ -105,7 +109,7 @@ class EventSearchRankerTest {
         val both = candidate(1L, "Zahnarzt", description = "Termin bestätigen")
         val onlyOne = candidate(2L, "Zahnarzt")
 
-        val ranked = EventSearchRanker.rank(listOf(both, onlyOne), "termin zahnarzt", now)
+        val ranked = rank(listOf(both, onlyOne), "termin zahnarzt")
 
         assertThat(ranked.map { it.event.eventId }).containsExactly(1L)
     }
@@ -122,15 +126,43 @@ class EventSearchRankerTest {
     }
 
     @Test
-    fun `an exact title beats one that only starts the same way, whenever it is`() {
+    fun `an exact title beats one that only starts the same way, within the day`() {
         // Reported: "test" at 19:00 had already passed and "test2" at 23:00 was
-        // still to come, so the date key put the inexact match first.
+        // still to come, so the date key put the inexact match first. Both are
+        // today's business, so exactness decides.
         val exact = candidate(1L, "test", startMillis = now.toEpochMilliseconds() - 3 * 3_600_000L)
         val longer = candidate(2L, "test2", startMillis = now.toEpochMilliseconds() + 3_600_000L)
 
         assertThat(titlesFor(longer, exact, query = "test"))
             .containsExactly("test", "test2")
             .inOrder()
+    }
+
+    @Test
+    fun `a match still to come beats an equally scoring one from a closed day`() {
+        // Across days the exactness is not enough: "test2" tomorrow is the one
+        // that can still be acted on, "test" yesterday is history.
+        val yesterday =
+            candidate(1L, "test", startMillis = now.toEpochMilliseconds() - 86_400_000L)
+        val tomorrow =
+            candidate(2L, "test2", startMillis = now.toEpochMilliseconds() + 86_400_000L)
+
+        assertThat(titlesFor(yesterday, tomorrow, query = "test"))
+            .containsExactly("test2", "test")
+            .inOrder()
+    }
+
+    @Test
+    fun `a hit that has already finished is marked past, including earlier today`() {
+        val earlierToday =
+            candidate(1L, "test", startMillis = now.toEpochMilliseconds() - 3 * 3_600_000L)
+        val laterToday =
+            candidate(2L, "test", startMillis = now.toEpochMilliseconds() + 3_600_000L)
+
+        val ranked = rank(listOf(earlierToday, laterToday), "test").associateBy { it.event.eventId }
+
+        assertThat(ranked.getValue(1L).isPast).isTrue()
+        assertThat(ranked.getValue(2L).isPast).isFalse()
     }
 
     @Test
@@ -152,7 +184,7 @@ class EventSearchRankerTest {
         val longAgo =
             candidate(4L, "Test", startMillis = now.toEpochMilliseconds() - 90 * 86_400_000L)
 
-        val ranked = EventSearchRanker.rank(listOf(longAgo, later, recentPast, soon), "test", now)
+        val ranked = rank(listOf(longAgo, later, recentPast, soon), "test")
 
         assertThat(ranked.map { it.event.eventId }).containsExactly(1L, 2L, 3L, 4L).inOrder()
     }
@@ -161,7 +193,7 @@ class EventSearchRankerTest {
     fun `the title carries the spans to highlight, merged where they overlap`() {
         val event = candidate(1L, "Test the tester")
 
-        val hit = EventSearchRanker.rank(listOf(event), "test", now).single()
+        val hit = rank(listOf(event), "test").single()
 
         assertThat(hit.titleSpans).containsExactly(MatchSpan(0, 4), MatchSpan(9, 13)).inOrder()
     }
@@ -171,7 +203,7 @@ class EventSearchRankerTest {
         val long = "x".repeat(300) + " geheimwort " + "y".repeat(300)
         val event = candidate(1L, "Notiz", description = long)
 
-        val snippet = EventSearchRanker.rank(listOf(event), "geheimwort", now)
+        val snippet = rank(listOf(event), "geheimwort")
             .single()
             .descriptionSnippet
 
@@ -188,7 +220,7 @@ class EventSearchRankerTest {
     fun `a title-only match carries no description snippet`() {
         val event = candidate(1L, "Test", description = "nothing relevant here")
 
-        assertThat(EventSearchRanker.rank(listOf(event), "test", now).single().descriptionSnippet)
+        assertThat(rank(listOf(event), "test").single().descriptionSnippet)
             .isNull()
     }
 
@@ -196,7 +228,7 @@ class EventSearchRankerTest {
     fun `a multi-line description matches and snippets as one line`() {
         val event = candidate(1L, "Notiz", description = "erste Zeile\n\n  zweite Zeile")
 
-        val snippet = EventSearchRanker.rank(listOf(event), "zweite", now).single().descriptionSnippet
+        val snippet = rank(listOf(event), "zweite").single().descriptionSnippet
 
         requireNotNull(snippet)
         assertThat(snippet.text).isEqualTo("erste Zeile zweite Zeile")
@@ -204,6 +236,6 @@ class EventSearchRankerTest {
 
     @Test
     fun `a blank query matches nothing`() {
-        assertThat(EventSearchRanker.rank(listOf(candidate(1L, "Test")), "   ", now)).isEmpty()
+        assertThat(rank(listOf(candidate(1L, "Test")), "   ")).isEmpty()
     }
 }

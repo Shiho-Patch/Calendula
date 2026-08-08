@@ -26,6 +26,8 @@ data class SearchHit(
     val titleSpans: List<MatchSpan> = emptyList(),
     val locationSpans: List<MatchSpan> = emptyList(),
     val descriptionSnippet: DescriptionSnippet? = null,
+    /** Already over, so the row can say so. Finished-today counts. */
+    val isPast: Boolean = false,
 )
 
 /**
@@ -42,8 +44,12 @@ data class SearchHit(
  * sat in that field (whole-field start > word start > mid-word), and an event
  * ranks by the *weakest* field the query needed — one token findable only in the
  * description drags the whole event below the title matches, however soon it is.
- * Equal scores are separated by how much of the title the match covers, so an
- * exact title beats one that merely begins the same way, and only then by date.
+ * Equally-scoring events are then split by time: everything from today onwards
+ * comes before what is already behind us, so a match tomorrow outranks an
+ * equally good one from yesterday. The boundary is the *day*, not the moment —
+ * an event earlier today is still today's business, and ties inside a day fall
+ * to how much of the title the match covers, so an exact title beats one that
+ * merely begins the same way.
  */
 object EventSearchRanker {
 
@@ -72,40 +78,43 @@ object EventSearchRanker {
 
     /**
      * Rank [candidates] against [query], dropping any that don't carry every
-     * token. Ties fall back to the previous ordering — soonest upcoming (and
-     * ongoing) first, then the most recent past — measured against [now].
+     * token. [now] marks an individual event as over; [todayStart] is where the
+     * ordering splits current from past, so everything still on today's page
+     * ranks with the upcoming events.
      */
     fun rank(
         candidates: List<SearchCandidate>,
         query: String,
         now: Instant,
+        todayStart: Instant,
     ): List<SearchHit> {
         val tokens = tokenize(query)
         if (tokens.isEmpty()) return emptyList()
 
-        val scored = candidates.mapNotNull { candidate -> score(candidate, tokens) }
+        val scored = candidates.mapNotNull { candidate -> score(candidate, tokens, now, todayStart) }
         return scored
             .sortedWith(
                 compareByDescending<Scored> { it.weakest }
                     .thenByDescending { it.total }
+                    .thenBy { if (it.current) 0 else 1 }
                     .thenByDescending { it.titleCoverage }
-                    .thenBy { if (it.hit.event.end >= now) 0 else 1 }
                     .thenComparator { a, b ->
                         val aStart = a.hit.event.start
                         val bStart = b.hit.event.start
-                        // Same side of now by the key above: upcoming reads
-                        // forwards, the past backwards from today.
-                        if (a.hit.event.end >= now) {
-                            aStart.compareTo(bStart)
-                        } else {
-                            bStart.compareTo(aStart)
-                        }
+                        // Same side of today by the key above: what is left reads
+                        // forwards, what is behind us backwards from today.
+                        if (a.current) aStart.compareTo(bStart) else bStart.compareTo(aStart)
                     },
             )
             .map { it.hit }
     }
 
-    private fun score(candidate: SearchCandidate, tokens: List<String>): Scored? {
+    private fun score(
+        candidate: SearchCandidate,
+        tokens: List<String>,
+        now: Instant,
+        todayStart: Instant,
+    ): Scored? {
         val title = candidate.event.title
         val location = candidate.event.location?.takeIf { it.isNotBlank() }
         // Collapsed once so a multi-line description matches and snippets the
@@ -133,10 +142,12 @@ object EventSearchRanker {
                 descriptionSnippet = description
                     ?.takeIf { descriptionSpans.isNotEmpty() }
                     ?.let { snippet(it, descriptionSpans) },
+                isPast = candidate.event.end < now,
             ),
             weakest = weakest,
             total = total,
             titleCoverage = coverage(title, titleSpans),
+            current = candidate.event.end >= todayStart,
         )
     }
 
@@ -238,5 +249,7 @@ object EventSearchRanker {
         val weakest: Int,
         val total: Int,
         val titleCoverage: Double,
+        /** Still on today's page or later, as opposed to a closed day. */
+        val current: Boolean,
     )
 }
