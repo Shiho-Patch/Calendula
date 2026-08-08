@@ -56,11 +56,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
@@ -70,7 +75,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.MatchSpan
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
+import de.jeanlucmakiola.calendula.domain.SearchHit
 import de.jeanlucmakiola.floret.identity.animateItemMotion
 import de.jeanlucmakiola.floret.identity.fadeThrough
 import de.jeanlucmakiola.floret.identity.predictiveBack
@@ -406,7 +413,7 @@ private fun SearchResults(
             val event = hit.event
             val deletable = results.isDeletable(event)
             SearchResultRow(
-                event = event,
+                hit = hit,
                 position = positionOf(index, hits.size),
                 modifier = animateItemMotion(),
                 selected = event.eventId in selection,
@@ -427,7 +434,7 @@ private fun SearchResults(
 
 @Composable
 private fun SearchResultRow(
-    event: EventInstance,
+    hit: SearchHit,
     position: Position,
     modifier: Modifier = Modifier,
     selected: Boolean = false,
@@ -436,12 +443,19 @@ private fun SearchResultRow(
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)? = null,
 ) {
+    val event = hit.event
     val dark = isSystemInDarkTheme()
     val soften = LocalSoftenColors.current
+    // On a picked row the headline is already recoloured for the secondary
+    // container, so the match is carried by weight alone there.
+    val highlight = SpanStyle(
+        fontWeight = FontWeight.Bold,
+        color = if (selected) Color.Unspecified else MaterialTheme.colorScheme.primary,
+    )
     GroupedRow(
         modifier = modifier,
-        title = event.title,
-        summary = searchSummary(event),
+        title = marked(event.title, hit.titleSpans, highlight),
+        summary = searchSummary(hit, highlight),
         position = position,
         minHeight = 64.dp,
         selected = selected,
@@ -517,9 +531,26 @@ private fun DeleteOutcomeChip(
     }
 }
 
-/** "Wed, 17 Jun 2026 · 09:00 · Office" — date, then time (or All day), then location. */
+/** [text] with every matched run emphasised. */
+private fun marked(text: String, spans: List<MatchSpan>, style: SpanStyle): AnnotatedString =
+    if (spans.isEmpty()) {
+        AnnotatedString(text)
+    } else {
+        buildAnnotatedString {
+            append(text)
+            spans.forEach { addStyle(style, it.start, it.end) }
+        }
+    }
+
+/**
+ * "Wed, 17 Jun 2026 · 09:00 · Office" — date, then time (or All day), then
+ * location, with a second line excerpting the description when that is where the
+ * query matched. Without it a description-only hit reads as though it arrived
+ * from nowhere.
+ */
 @Composable
-private fun searchSummary(event: EventInstance): String {
+private fun searchSummary(hit: SearchHit, highlight: SpanStyle): AnnotatedString {
+    val event = hit.event
     val locale = currentLocale()
     val zone = remember { ZoneId.systemDefault() }
     val start = remember(event.start, zone) {
@@ -538,8 +569,23 @@ private fun searchSummary(event: EventInstance): String {
     } else {
         remember(locale, use24Hour) { timeOfDayFormatter(use24Hour, locale) }.format(start)
     }
-    val base = "$dateText · $timeText"
-    return event.location?.takeIf { it.isNotBlank() }?.let { "$base · $it" } ?: base
+    return buildAnnotatedString {
+        append("$dateText · $timeText")
+        event.location?.takeIf { it.isNotBlank() }?.let { location ->
+            append(" · ")
+            val offset = length
+            append(location)
+            hit.locationSpans.forEach {
+                addStyle(highlight, offset + it.start, offset + it.end)
+            }
+        }
+        hit.descriptionSnippet?.let { snippet ->
+            append("\n")
+            val offset = length
+            append(snippet.text)
+            snippet.spans.forEach { addStyle(highlight, offset + it.start, offset + it.end) }
+        }
+    }
 }
 
 @Composable
