@@ -203,6 +203,30 @@ class SearchViewModelTest {
         }
 
     @Test
+    fun `a permission revoked mid-batch still reports what already went`(@TempDir tempDir: Path) =
+        runTest(dispatcher) {
+            val fake = FakeCalendarDataSource().apply {
+                calendarsResult = listOf(cal(1L))
+                searchResult = { listOf(hit(1L), hit(2L), hit(3L)) }
+                writeError = SecurityException("revoked")
+                deletesBeforeError = 1
+            }
+            val vm = viewModel(tempDir, fake)
+            val job = activate(vm)
+
+            vm.setQuery("standup")
+            advanceUntilIdle()
+            vm.selectAll()
+            vm.deleteSelected(RecurringWriteScope.AllEvents)
+            advanceUntilIdle()
+
+            assertThat(fake.deletedEventIds).hasSize(1)
+            assertThat(vm.deleteState.value)
+                .isEqualTo(BulkDeleteUiState.NeedsPermission(deleted = 1))
+            job.cancel()
+        }
+
+    @Test
     fun `changing the query drops the selection`(@TempDir tempDir: Path) = runTest(dispatcher) {
         val fake = FakeCalendarDataSource().apply {
             calendarsResult = listOf(cal(1L))

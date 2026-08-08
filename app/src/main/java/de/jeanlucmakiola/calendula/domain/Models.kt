@@ -63,9 +63,8 @@ data class EventInstance(
     val color: Int,
     val location: String?,
     /**
-     * Whether this row's event carries a recurrence rule. Only search results
-     * (which read the series master) fill this in — the Instances query already
-     * yields one row per occurrence, so it stays false there.
+     * Only search results, which read the series master, fill this in — the
+     * Instances query already yields one row per occurrence.
      */
     val isRecurring: Boolean = false,
 )

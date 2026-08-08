@@ -47,11 +47,7 @@ sealed interface SearchUiState {
     /** Matches by month — see [de.jeanlucmakiola.calendula.domain.EventSearch]. */
     data class Results(
         val results: SearchResults,
-        /**
-         * Calendars among the results that can't be written to (WebCal, birthday
-         * mirrors, …). Their rows are excluded from selection rather than failing
-         * at delete time.
-         */
+        /** Rows from these are kept out of selection rather than failing later. */
         val readOnlyCalendarIds: Set<Long> = emptySet(),
     ) : SearchUiState {
         val events: List<EventInstance> get() = results.allHits.map { it.event }
@@ -70,8 +66,8 @@ sealed interface BulkDeleteUiState {
     /** Terminal: [deleted] events went, [failed] wouldn't. */
     data class Done(val deleted: Int, val failed: Int) : BulkDeleteUiState
 
-    /** WRITE_CALENDAR was revoked mid-flight; nothing further was attempted. */
-    data object NeedsPermission : BulkDeleteUiState
+    /** WRITE_CALENDAR was revoked after [deleted] went; the rest wasn't tried. */
+    data class NeedsPermission(val deleted: Int) : BulkDeleteUiState
 }
 
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
@@ -148,10 +144,7 @@ class SearchViewModel @Inject constructor(
         _selection.value = emptySet()
     }
 
-    /**
-     * Whether the current selection contains a recurring event, i.e. whether the
-     * batch needs a [RecurringWriteScope] decision before it can run.
-     */
+    /** Whether the batch needs a [RecurringWriteScope] decision before it runs. */
     fun selectionHasRecurring(): Boolean {
         val results = state.value as? SearchUiState.Results ?: return false
         val picked = _selection.value
@@ -159,10 +152,9 @@ class SearchViewModel @Inject constructor(
     }
 
     /**
-     * Delete every selected event. [scope] applies to the recurring ones only —
-     * a one-off is always removed whole, whatever the batch decision was. Runs
-     * one event at a time so a single failure doesn't take the rest with it;
-     * the tally lands in [deleteState].
+     * Delete every selected event. [scope] reaches the recurring ones only; a
+     * one-off always goes whole. One at a time, so a single failure doesn't take
+     * the rest with it — the tally lands in [deleteState].
      */
     fun deleteSelected(scope: RecurringWriteScope) {
         if (_deleteState.value == BulkDeleteUiState.Deleting) return
@@ -192,7 +184,7 @@ class SearchViewModel @Inject constructor(
             _selection.value = emptySet()
             _reload.value += 1
             _deleteState.value = if (denied) {
-                BulkDeleteUiState.NeedsPermission
+                BulkDeleteUiState.NeedsPermission(deleted = deleted)
             } else {
                 BulkDeleteUiState.Done(deleted = deleted, failed = failed)
             }

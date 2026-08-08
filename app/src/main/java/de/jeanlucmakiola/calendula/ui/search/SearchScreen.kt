@@ -114,11 +114,9 @@ import java.time.format.FormatStyle
 private const val CHIP_MILLIS = 4_000L
 
 /**
- * Full-text event search (top-bar entry). Type a query → matching events
- * (title / location / description) across the whole calendar, newest-relevant
- * first; tap a result to open its detail. Long-press a result to enter selection
- * mode and delete several at once (#80). A full-screen overlay hosted by
- * [de.jeanlucmakiola.calendula.ui.CalendarHost].
+ * Full-text event search over title / location / description: tap a result to
+ * open its detail, long-press to select several and delete them at once (#80).
+ * A full-screen overlay hosted by [de.jeanlucmakiola.calendula.ui.CalendarHost].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -138,12 +136,20 @@ fun SearchScreen(
     val inSelection = selection.isNotEmpty()
     var showDeleteDialog by remember { mutableStateOf(false) }
 
-    // Each fresh open starts blank and straight into typing. The ViewModel is
-    // activity-scoped so it outlives the overlay; clearing on (re)enter is what
-    // resets a previous search. Peeking a result doesn't re-run this (the screen
-    // stays composed under the detail), so backing out keeps the query.
+    // The ViewModel is activity-scoped, so a re-enter is what resets the last
+    // search, its selection and any delete receipt still up. Peeking a result
+    // doesn't re-run this — the screen stays composed under the detail.
     LaunchedEffect(Unit) {
         viewModel.setQuery("")
+        viewModel.clearSelection()
+        viewModel.consumeDeleteResult()
+    }
+    // The field only exists out of selection mode, so a recreation that lands
+    // mid-selection has to wait for the clear above before it can be focused.
+    var focusPending by remember { mutableStateOf(true) }
+    LaunchedEffect(inSelection) {
+        if (inSelection || !focusPending) return@LaunchedEffect
+        focusPending = false
         focusRequester.requestFocus()
         keyboard?.show()
     }
@@ -170,9 +176,9 @@ fun SearchScreen(
         }
     }
 
-    // Back leaves selection mode before it leaves the screen — and without the
-    // predictive-back scale-out, which would read as closing search only to have
-    // it snap back. The two handlers are mutually exclusive on [inSelection].
+    // Back leaves selection mode before it leaves the screen, and without the
+    // predictive-back scale-out — that would read as search closing and snapping
+    // back. The two handlers are mutually exclusive on [inSelection].
     BackHandler(enabled = inSelection) { viewModel.clearSelection() }
 
     Scaffold(
@@ -193,9 +199,8 @@ fun SearchScreen(
             )
         },
     ) { padding ->
-        // imePadding shrinks the content by the keyboard, so the centered
-        // idle/empty message re-centres in the space above it (and the results
-        // list lifts clear of the keyboard too).
+        // imePadding so the idle/empty message re-centres above the keyboard and
+        // the results list lifts clear of it.
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -271,9 +276,8 @@ fun SearchScreen(
 }
 
 /**
- * The search field and the contextual selection bar as one bar: entering or
- * leaving selection mode keeps the bar itself in place, eases its container
- * colour and fades its slots through, rather than cutting between two bars.
+ * The search field and the contextual selection bar as one bar: the bar stays
+ * in place across the swap, easing its colour and fading its slots through.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -298,8 +302,8 @@ private fun SearchTopBar(
         animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
         label = "search-top-bar-color",
     )
-    // Held past the selection emptying so the count has something to draw while
-    // it fades out — by then the set is already at zero.
+    // Held past the selection emptying, so the count has something to draw while
+    // it fades out.
     var lastCount by remember { mutableIntStateOf(0) }
     if (selectedCount > 0) lastCount = selectedCount
 
@@ -408,8 +412,7 @@ private fun SearchResults(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        // No horizontal inset here: GroupedRow already insets itself, and adding
-        // another 16dp made the results narrower than every other list.
+        // No horizontal inset: GroupedRow already insets itself.
         contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
     ) {
         results.results.months.forEach { month ->
@@ -418,8 +421,7 @@ private fun SearchResults(
             }
             hitRows(month.hits, results, selection, inSelection, onEventClick, onToggle)
         }
-        // Held back from the calendar above: these matched nothing in the name or
-        // the place, only somewhere in the notes.
+        // Held back from the calendar above: matched only in the notes.
         if (results.results.inDescriptions.isNotEmpty()) {
             stickyHeader(key = "in-descriptions") {
                 SearchSectionHeader(text = stringResource(R.string.search_in_descriptions))
@@ -514,8 +516,8 @@ private fun SearchResultRow(
         color = if (selected) Color.Unspecified else MaterialTheme.colorScheme.primary,
     )
     GroupedRow(
-        // Faded like a past event anywhere else in the app: search reaches back
-        // through the whole history, so an old hit has to read as over.
+        // Faded like a past event anywhere else in the app — search reaches back
+        // through the whole history.
         modifier = if (hit.isPast) modifier.alpha(EventDimAlpha) else modifier,
         title = marked(event.title, hit.titleSpans, highlight),
         summary = searchSummary(hit, highlight),
@@ -547,9 +549,8 @@ private fun SearchResultRow(
 }
 
 /**
- * The batch's receipt: how many events went, and whether any refused. Sits on
- * the FAB band so the shortened list stays visible behind it. Deletes aren't
- * reversible through the provider, so this carries no Undo.
+ * The batch's receipt: how many went, and whether any refused. No Undo — the
+ * provider can't put a deleted event back.
  */
 @Composable
 private fun DeleteOutcomeChip(
@@ -570,7 +571,11 @@ private fun DeleteOutcomeChip(
                 deleteState.deleted,
             )
         }
-        BulkDeleteUiState.NeedsPermission -> stringResource(R.string.event_delete_write_denied)
+        is BulkDeleteUiState.NeedsPermission -> if (deleteState.deleted > 0) {
+            stringResource(R.string.search_delete_denied_partial, deleteState.deleted)
+        } else {
+            stringResource(R.string.event_delete_write_denied)
+        }
         else -> null
     }
     // Held past the state being consumed so the chip has something to draw while
@@ -606,10 +611,8 @@ private fun marked(text: String, spans: List<MatchSpan>, style: SpanStyle): Anno
     }
 
 /**
- * "Wed, 17 Jun 2026 · 09:00 · Office" — date, then time (or All day), then
- * location, with a second line excerpting the description when that is where the
- * query matched. Without it a description-only hit reads as though it arrived
- * from nowhere.
+ * "Wed, 17 Jun 2026 · 09:00 · Office", with a second line excerpting the
+ * description when that is where the query matched.
  */
 @Composable
 private fun searchSummary(hit: SearchHit, highlight: SpanStyle): AnnotatedString {
@@ -619,9 +622,8 @@ private fun searchSummary(hit: SearchHit, highlight: SpanStyle): AnnotatedString
     val start = remember(event.start, zone) {
         JavaInstant.ofEpochMilli(event.start.toEpochMilliseconds()).atZone(zone)
     }
-    // From the shared span rule, not [start]: an all-day event sits at UTC
-    // midnight and would name the day before west of UTC (#82). The clock time
-    // below stays device-zone — it is only rendered for timed events.
+    // From the span rule, not [start]: an all-day event sits at UTC midnight and
+    // would name the day before west of UTC (#82).
     val dateText = remember(event.start, event.end, event.isAllDay, locale) {
         DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale)
             .format(event.spanFirstDay(TimeZone.currentSystemDefault()).toJavaLocalDate())

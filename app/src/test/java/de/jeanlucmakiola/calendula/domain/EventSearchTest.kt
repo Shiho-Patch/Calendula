@@ -42,6 +42,24 @@ class EventSearchTest {
         )
     }
 
+    /** [day] is the event's own date; all-day events sit at UTC midnight. */
+    private fun allDayCandidate(title: String, day: String): SearchCandidate {
+        val begin = Instant.parse("${day}T00:00:00Z")
+        return SearchCandidate(
+            event = EventInstance(
+                instanceId = nextId,
+                eventId = nextId++,
+                calendarId = 1L,
+                title = title,
+                start = begin,
+                end = begin.plus(kotlin.time.Duration.parse("24h")),
+                isAllDay = true,
+                color = 0,
+                location = null,
+            ),
+        )
+    }
+
     private fun search(vararg candidates: SearchCandidate, query: String): SearchResults =
         EventSearch.search(candidates.toList(), query, now, todayStart, zone)
 
@@ -187,6 +205,50 @@ class EventSearchTest {
         )
 
         assertThat(results.months.single().let { it.year to it.monthNumber }).isEqualTo(2027 to 2)
+    }
+
+    @Test
+    fun `an all-day event that has passed does not rank as still to come`() {
+        // Ahead of UTC its UTC-midnight end lands after the local day started, so
+        // comparing raw instants floated yesterday's holiday above today's events.
+        val berlin = TimeZone.of("Europe/Berlin")
+        val yesterday = allDayCandidate("Test holiday", "2027-01-14")
+        val tomorrow = candidate("Test soon", start = "2027-01-16T09:00:00Z")
+
+        val results = EventSearch.search(
+            listOf(yesterday, tomorrow),
+            "test",
+            Instant.parse("2027-01-15T07:00:00Z"),
+            Instant.parse("2027-01-14T23:00:00Z"),
+            berlin,
+        )
+
+        assertThat(datedTitles(results)).containsExactly("Test soon", "Test holiday").inOrder()
+        assertThat(results.allHits.last().isPast).isTrue()
+    }
+
+    @Test
+    fun `an all-day event is not past until its own day is over`() {
+        // 21:00 in Los Angeles, where the event's UTC-midnight end is already gone.
+        val results = EventSearch.search(
+            listOf(allDayCandidate("Test holiday", "2027-01-15")),
+            "test",
+            Instant.parse("2027-01-16T05:00:00Z"),
+            Instant.parse("2027-01-15T08:00:00Z"),
+            TimeZone.of("America/Los_Angeles"),
+        )
+
+        assertThat(results.allHits.single().isPast).isFalse()
+    }
+
+    @Test
+    fun `an untitled event's placeholder is not something the query can match`() {
+        val untitled = candidate("(Ohne Titel)", description = "Titel folgt noch").copy(title = null)
+
+        val results = search(untitled, query = "titel")
+
+        assertThat(datedTitles(results)).isEmpty()
+        assertThat(results.inDescriptions.single().titleSpans).isEmpty()
     }
 
     @Test

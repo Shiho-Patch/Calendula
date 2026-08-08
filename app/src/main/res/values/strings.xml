@@ -336,6 +336,7 @@
         <item quantity="other">%d events deleted</item>
     </plurals>
     <string name="search_delete_partial">%1$d deleted, %2$d couldn\'t be</string>
+    <string name="search_delete_denied_partial">%1$d deleted, then write access was withdrawn</string>
 
     <!-- Home-screen widgets -->
     <string name="widget_agenda_title">Upcoming</string>

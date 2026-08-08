@@ -30,6 +30,10 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     var existingUidsResult: Set<String> = emptySet()
     /** Set to make the next write call throw. */
     var writeError: Exception? = null
+
+    /** Deletes let through before [writeError] applies, for part-way failures. */
+    var deletesBeforeError: Int = 0
+    private var deletes = 0
     /** Id returned by the next [insertEvent]. */
     var nextInsertId: Long = 100L
 
@@ -197,7 +201,7 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     }
 
     override fun deleteEvent(eventId: Long) {
-        writeError?.let { throw it }
+        writeError?.let { if (deletes++ >= deletesBeforeError) throw it }
         deletedEventIds += eventId
         managedEvents.values.forEach { rows -> rows.removeAll { it.eventId == eventId } }
     }

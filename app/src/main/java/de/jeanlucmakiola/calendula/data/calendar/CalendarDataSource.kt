@@ -593,15 +593,19 @@ class AndroidCalendarDataSource @Inject constructor(
         ensureObserversRegistered()
         val tokens = EventSearch.tokenize(query).take(MAX_SEARCH_TOKENS)
         if (tokens.isEmpty()) return emptyList()
-        // Every token has to appear somewhere, so the groups are ANDed. This is
-        // only a pre-filter — EventSearch re-checks each token with proper
-        // case folding, and re-checks the tokens dropped by the cap above.
-        val match = tokens.joinToString(" AND ") {
-            "(${CalendarContract.Events.TITLE} LIKE ? ESCAPE '\\' OR " +
-                "${CalendarContract.Events.DESCRIPTION} LIKE ? ESCAPE '\\' OR " +
-                "${CalendarContract.Events.EVENT_LOCATION} LIKE ? ESCAPE '\\')"
+        // Only a pre-filter: EventSearch re-checks every token, including the
+        // ones the cap above dropped.
+        val patterns = tokens.map { likePatterns(it) }
+        val match = patterns.joinToString(" AND ") { variants ->
+            variants.joinToString(" OR ", prefix = "(", postfix = ")") {
+                "${CalendarContract.Events.TITLE} LIKE ? ESCAPE '\\' OR " +
+                    "${CalendarContract.Events.DESCRIPTION} LIKE ? ESCAPE '\\' OR " +
+                    "${CalendarContract.Events.EVENT_LOCATION} LIKE ? ESCAPE '\\'"
+            }
         }
-        val args = tokens.flatMap { token: String -> List(3) { likePattern(token) } }.toTypedArray()
+        val args = patterns
+            .flatMap { variants -> variants.flatMap { pattern -> List(3) { pattern } } }
+            .toTypedArray()
         val selection = "($match) AND " +
             "${CalendarContract.Events.DELETED} = 0 AND " +
             "${CalendarContract.Events.ORIGINAL_ID} IS NULL"
@@ -617,9 +621,8 @@ class AndroidCalendarDataSource @Inject constructor(
             while (c.moveToNext()) {
                 val description = reader.getString(SearchProjection.IDX_DESCRIPTION)
                 val base = reader.toSearchResult() ?: continue
-                // A recurring master's DTSTART is the series start; show its
-                // nearest occurrence instead so the date is the one the user
-                // actually cares about (and sorting reflects it).
+                // A recurring master's DTSTART is the series start; date the row
+                // by its nearest occurrence instead.
                 val event = if (base.isRecurring) {
                     nearestOccurrenceMillis(base.eventId)?.let { (begin, end) ->
                         base.copy(
@@ -630,28 +633,40 @@ class AndroidCalendarDataSource @Inject constructor(
                 } else {
                     base
                 }
-                out += SearchCandidate(event = event, description = description)
+                // The raw title, so matching can't catch on the placeholder an
+                // untitled event is drawn with.
+                out += SearchCandidate(
+                    event = event,
+                    description = description,
+                    title = reader.getString(SearchProjection.IDX_TITLE),
+                )
             }
             out
         } ?: emptyList()
     }
 
     /**
-     * One token as a `LIKE` pattern. SQLite folds case for ASCII only, so a
-     * non-ASCII cased letter is substituted with the single-character wildcard
-     * `_` — "ärzte" queries as `%_rzte%` and so still reaches "Ärzte". That
-     * matches more than it should on purpose; [EventSearch] does the real
-     * comparison. Uncased scripts stay literal, keeping the filter selective.
+     * One token as the `LIKE` patterns to OR together. SQLite folds case for
+     * ASCII only, so a token with cased non-ASCII letters is also queried lower-,
+     * upper- and title-cased, which is how "ärzte" reaches "Ärzte". Wildcarding
+     * those letters away instead would make "москва" `%______%` — a full scan.
      */
+    private fun likePatterns(token: String): List<String> {
+        if (token.none { it.code > 127 && (it.isUpperCase() || it.isLowerCase()) }) {
+            return listOf(likePattern(token))
+        }
+        val lower = token.lowercase()
+        return listOf(token, lower, token.uppercase(), lower.replaceFirstChar(Char::uppercaseChar))
+            .distinct()
+            .map(::likePattern)
+    }
+
     private fun likePattern(token: String): String {
         val sb = StringBuilder("%")
         for (c in token) {
-            when {
-                c.code > 127 && (c.isUpperCase() || c.isLowerCase()) -> sb.append('_')
-                // A literal wildcard from the query matches itself.
-                c == '%' || c == '_' || c == '\\' -> sb.append('\\').append(c)
-                else -> sb.append(c)
-            }
+            // A literal wildcard from the query matches itself.
+            if (c == '%' || c == '_' || c == '\\') sb.append('\\')
+            sb.append(c)
         }
         return sb.append('%').toString()
     }

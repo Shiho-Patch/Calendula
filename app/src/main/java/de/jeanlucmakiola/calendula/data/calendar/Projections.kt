@@ -180,8 +180,7 @@ internal object SearchProjection {
         // display its nearest occurrence, not the series-start DTSTART.
         CalendarContract.Events.RRULE,
         CalendarContract.Events.RDATE,
-        // Ranked and excerpted, not just filtered on: a description-only hit has
-        // to be able to show what it matched.
+        // Excerpted, not just filtered on: a hit has to show what it matched.
         CalendarContract.Events.DESCRIPTION,
     )
 
