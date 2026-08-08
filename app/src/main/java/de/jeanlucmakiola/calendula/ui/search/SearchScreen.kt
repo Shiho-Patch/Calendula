@@ -395,7 +395,9 @@ private fun SearchResults(
     val events = results.events
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+        // No horizontal inset here: GroupedRow already insets itself, and adding
+        // another 16dp made the results narrower than every other list.
+        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
     ) {
         itemsIndexed(
             items = events,
