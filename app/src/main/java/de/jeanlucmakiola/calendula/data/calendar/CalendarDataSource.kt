@@ -27,7 +27,7 @@ import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.curatedForPicker
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
-import de.jeanlucmakiola.calendula.domain.EventSearchRanker
+import de.jeanlucmakiola.calendula.domain.EventSearch
 import de.jeanlucmakiola.calendula.domain.EventStatus
 import de.jeanlucmakiola.calendula.domain.Reminder
 import de.jeanlucmakiola.calendula.domain.SearchCandidate
@@ -68,7 +68,7 @@ interface CalendarDataSource {
      * whitespace-separated token has to appear in the title, description or
      * location. Reads the Events table directly so the search is unbounded in
      * time; exception rows are excluded (see [SearchProjection]). A deliberate
-     * superset — [EventSearchRanker] makes the final call and orders the hits.
+     * superset — [EventSearch] makes the final call and orders the hits.
      * [query] is assumed non-blank.
      */
     fun searchEvents(query: String): List<SearchCandidate>
@@ -591,17 +591,17 @@ class AndroidCalendarDataSource @Inject constructor(
 
     override fun searchEvents(query: String): List<SearchCandidate> {
         ensureObserversRegistered()
-        val tokens = EventSearchRanker.tokenize(query).take(MAX_SEARCH_TOKENS)
+        val tokens = EventSearch.tokenize(query).take(MAX_SEARCH_TOKENS)
         if (tokens.isEmpty()) return emptyList()
         // Every token has to appear somewhere, so the groups are ANDed. This is
-        // only a pre-filter — EventSearchRanker re-checks each token with proper
+        // only a pre-filter — EventSearch re-checks each token with proper
         // case folding, and re-checks the tokens dropped by the cap above.
         val match = tokens.joinToString(" AND ") {
             "(${CalendarContract.Events.TITLE} LIKE ? ESCAPE '\\' OR " +
                 "${CalendarContract.Events.DESCRIPTION} LIKE ? ESCAPE '\\' OR " +
                 "${CalendarContract.Events.EVENT_LOCATION} LIKE ? ESCAPE '\\')"
         }
-        val args = tokens.flatMap { token -> List(3) { likePattern(token) } }.toTypedArray()
+        val args = tokens.flatMap { token: String -> List(3) { likePattern(token) } }.toTypedArray()
         val selection = "($match) AND " +
             "${CalendarContract.Events.DELETED} = 0 AND " +
             "${CalendarContract.Events.ORIGINAL_ID} IS NULL"
@@ -640,7 +640,7 @@ class AndroidCalendarDataSource @Inject constructor(
      * One token as a `LIKE` pattern. SQLite folds case for ASCII only, so a
      * non-ASCII cased letter is substituted with the single-character wildcard
      * `_` — "ärzte" queries as `%_rzte%` and so still reaches "Ärzte". That
-     * matches more than it should on purpose; [EventSearchRanker] does the real
+     * matches more than it should on purpose; [EventSearch] does the real
      * comparison. Uncased scripts stay literal, keeping the filter selective.
      */
     private fun likePattern(token: String): String {

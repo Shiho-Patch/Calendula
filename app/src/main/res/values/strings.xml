@@ -323,6 +323,7 @@
         <item quantity="one">%d selected</item>
         <item quantity="other">%d selected</item>
     </plurals>
+    <string name="search_in_descriptions">Found in descriptions</string>
     <string name="search_selection_close">Cancel selection</string>
     <string name="search_select_all">Select all</string>
     <string name="search_delete_selected">Delete selected</string>

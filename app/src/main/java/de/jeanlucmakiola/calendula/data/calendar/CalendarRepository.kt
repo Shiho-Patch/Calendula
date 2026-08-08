@@ -21,7 +21,7 @@ interface CalendarRepository {
      * Candidate matches for [query] with hidden calendars removed; empty when
      * [query] is blank. Searches the whole history/future (see
      * [CalendarDataSource.searchEvents]) and leaves ranking to
-     * [de.jeanlucmakiola.calendula.domain.EventSearchRanker].
+     * [de.jeanlucmakiola.calendula.domain.EventSearch].
      */
     suspend fun searchEvents(query: String): List<SearchCandidate>
 

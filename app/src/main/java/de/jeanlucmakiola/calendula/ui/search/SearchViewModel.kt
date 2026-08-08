@@ -6,9 +6,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.domain.EventInstance
-import de.jeanlucmakiola.calendula.domain.EventSearchRanker
+import de.jeanlucmakiola.calendula.domain.EventSearch
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
-import de.jeanlucmakiola.calendula.domain.SearchHit
+import de.jeanlucmakiola.calendula.domain.SearchResults
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,9 +44,9 @@ sealed interface SearchUiState {
     /** A query ran but matched nothing. */
     data class Empty(val query: String) : SearchUiState
 
-    /** Matches, best first — see [de.jeanlucmakiola.calendula.domain.EventSearchRanker]. */
+    /** Matches by month — see [de.jeanlucmakiola.calendula.domain.EventSearch]. */
     data class Results(
-        val hits: List<SearchHit>,
+        val results: SearchResults,
         /**
          * Calendars among the results that can't be written to (WebCal, birthday
          * mirrors, …). Their rows are excluded from selection rather than failing
@@ -54,7 +54,7 @@ sealed interface SearchUiState {
          */
         val readOnlyCalendarIds: Set<Long> = emptySet(),
     ) : SearchUiState {
-        val events: List<EventInstance> get() = hits.map { it.event }
+        val events: List<EventInstance> get() = results.allHits.map { it.event }
 
         fun isDeletable(event: EventInstance): Boolean =
             event.calendarId !in readOnlyCalendarIds
@@ -105,17 +105,18 @@ class SearchViewModel @Inject constructor(
             } else {
                 val now = Clock.System.now()
                 val zone = TimeZone.currentSystemDefault()
-                val hits = EventSearchRanker.rank(
+                val results = EventSearch.search(
                     candidates = repository.searchEvents(q),
                     query = q,
                     now = now,
                     todayStart = now.toLocalDateTime(zone).date.atStartOfDayIn(zone),
+                    zone = zone,
                 )
-                if (hits.isEmpty()) {
+                if (results.isEmpty) {
                     SearchUiState.Empty(q)
                 } else {
                     SearchUiState.Results(
-                        hits = hits,
+                        results = results,
                         readOnlyCalendarIds = readOnlyCalendarIds(),
                     )
                 }

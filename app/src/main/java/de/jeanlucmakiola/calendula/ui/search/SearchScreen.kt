@@ -22,7 +22,9 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -79,6 +81,7 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.MatchSpan
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.SearchHit
+import de.jeanlucmakiola.calendula.domain.SearchMonth
 import de.jeanlucmakiola.floret.identity.animateItemMotion
 import de.jeanlucmakiola.floret.identity.fadeThrough
 import de.jeanlucmakiola.floret.identity.predictiveBack
@@ -89,6 +92,7 @@ import de.jeanlucmakiola.floret.components.SnackChip
 import de.jeanlucmakiola.floret.components.SnackChipHeight
 import de.jeanlucmakiola.floret.components.SnackChipMargin
 import de.jeanlucmakiola.floret.locale.currentLocale
+import de.jeanlucmakiola.floret.locale.localizedDateFormatter
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.RecurringScopeDialog
@@ -393,6 +397,7 @@ private fun SearchTopBar(
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SearchResults(
     results: SearchUiState.Results,
@@ -401,36 +406,90 @@ private fun SearchResults(
     onEventClick: (EventInstance) -> Unit,
     onToggle: (Long) -> Unit,
 ) {
-    val hits = results.hits
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         // No horizontal inset here: GroupedRow already insets itself, and adding
         // another 16dp made the results narrower than every other list.
         contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
     ) {
-        itemsIndexed(
-            items = hits,
-            key = { _, hit -> hit.event.eventId },
-        ) { index, hit ->
-            val event = hit.event
-            val deletable = results.isDeletable(event)
-            SearchResultRow(
-                hit = hit,
-                position = positionOf(index, hits.size),
-                modifier = animateItemMotion(),
-                selected = event.eventId in selection,
-                // A read-only calendar's row can't join a batch, so in selection
-                // mode it goes quiet rather than offering a checkbox that fails.
-                inSelection = inSelection,
-                selectable = deletable,
-                onClick = when {
-                    inSelection && deletable -> ({ onToggle(event.eventId) })
-                    inSelection -> null
-                    else -> ({ onEventClick(event) })
-                },
-                onLongClick = { onToggle(event.eventId) }.takeIf { deletable && !inSelection },
+        results.results.months.forEach { month ->
+            stickyHeader(key = "month-${month.year}-${month.monthNumber}") {
+                SearchSectionHeader(text = monthLabel(month))
+            }
+            hitRows(month.hits, results, selection, inSelection, onEventClick, onToggle)
+        }
+        // Held back from the calendar above: these matched nothing in the name or
+        // the place, only somewhere in the notes.
+        if (results.results.inDescriptions.isNotEmpty()) {
+            stickyHeader(key = "in-descriptions") {
+                SearchSectionHeader(text = stringResource(R.string.search_in_descriptions))
+            }
+            hitRows(
+                results.results.inDescriptions,
+                results,
+                selection,
+                inSelection,
+                onEventClick,
+                onToggle,
             )
         }
+    }
+}
+
+/** One section's rows, sharing a grouped-card run. */
+private fun LazyListScope.hitRows(
+    hits: List<SearchHit>,
+    results: SearchUiState.Results,
+    selection: Set<Long>,
+    inSelection: Boolean,
+    onEventClick: (EventInstance) -> Unit,
+    onToggle: (Long) -> Unit,
+) {
+    itemsIndexed(
+        items = hits,
+        key = { _, hit -> hit.event.eventId },
+    ) { index, hit ->
+        val event = hit.event
+        val deletable = results.isDeletable(event)
+        SearchResultRow(
+            hit = hit,
+            position = positionOf(index, hits.size),
+            modifier = animateItemMotion(),
+            selected = event.eventId in selection,
+            // A read-only calendar's row can't join a batch, so in selection
+            // mode it goes quiet rather than offering a checkbox that fails.
+            inSelection = inSelection,
+            selectable = deletable,
+            onClick = when {
+                inSelection && deletable -> ({ onToggle(event.eventId) })
+                inSelection -> null
+                else -> ({ onEventClick(event) })
+            },
+            onLongClick = { onToggle(event.eventId) }.takeIf { deletable && !inSelection },
+        )
+    }
+}
+
+/** Pinned section label, styled like the agenda's day headers. */
+@Composable
+private fun SearchSectionHeader(text: String) {
+    Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 28.dp, end = 28.dp, top = 16.dp, bottom = 8.dp),
+        )
+    }
+}
+
+/** "August 2026" in the locale's own field order. */
+@Composable
+private fun monthLabel(month: SearchMonth): String {
+    val locale = currentLocale()
+    return remember(month.year, month.monthNumber, locale) {
+        localizedDateFormatter(locale, "LLLLy")
+            .format(java.time.LocalDate.of(month.year, month.monthNumber, 1))
     }
 }
 
