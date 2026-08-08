@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -20,7 +19,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.floret.components.BenefitRow
 import de.jeanlucmakiola.floret.components.OnboardingScaffold
@@ -52,6 +50,7 @@ internal fun BackupStep(
     OnboardingScaffold(
         modifier = modifier,
         progress = progress,
+        topSpacing = OnboardingSpace.lg,
         hero = { IconHero(Icons.Filled.CloudOff) },
         actions = {
             Button(
@@ -72,13 +71,6 @@ internal fun BackupStep(
         },
     ) {
         Text(
-            text = stringResource(R.string.app_name).uppercase(),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            letterSpacing = 2.sp,
-        )
-        Spacer(Modifier.height(OnboardingSpace.xs))
-        Text(
             text = stringResource(R.string.onboarding_backup_title),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center,
@@ -91,7 +83,7 @@ internal fun BackupStep(
             textAlign = TextAlign.Center,
         )
 
-        Spacer(Modifier.height(OnboardingSpace.xl))
+        Spacer(Modifier.height(OnboardingSpace.lg))
 
         BenefitRow(
             icon = Icons.Filled.FolderOpen,
@@ -103,12 +95,6 @@ internal fun BackupStep(
             icon = Icons.Filled.Schedule,
             title = stringResource(R.string.onboarding_backup_benefit_daily_title),
             body = stringResource(R.string.onboarding_backup_benefit_daily_body),
-        )
-        Spacer(Modifier.height(OnboardingSpace.sm))
-        BenefitRow(
-            icon = Icons.Filled.Restore,
-            title = stringResource(R.string.onboarding_backup_benefit_restore_title),
-            body = stringResource(R.string.onboarding_backup_benefit_restore_body),
         )
     }
 }

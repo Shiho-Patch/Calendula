@@ -18,16 +18,20 @@
 
     <!-- Permission flow (F1) -->
     <string name="permission_rationale_title">See all your events, beautifully</string>
-    <string name="permission_rationale_body">Calendula needs access to your calendar to show and manage your events. That\'s all it asks for up front — and nothing ever leaves your device.</string>
+    <string name="permission_rationale_body">Calendula needs access to your calendar to show and manage your events.</string>
     <string name="permission_request_button">Grant calendar access</string>
     <string name="permission_denied_title">Calendar access denied</string>
     <string name="permission_denied_body">Calendula cannot show events without calendar access. You can grant it again in the system settings.</string>
     <string name="permission_open_settings_button">Open system settings</string>
     <string name="permission_retry_button">Try again</string>
-    <string name="permission_benefit_private_title">Stays on your device</string>
-    <string name="permission_benefit_private_body">Your calendars are read locally and never leave the phone.</string>
+    <string name="permission_benefit_private_title">Private by design</string>
+    <string name="permission_benefit_private_body">No internet permission, no telemetry — nothing ever leaves your phone.</string>
     <string name="permission_benefit_sync_title">All your calendars, together</string>
     <string name="permission_benefit_sync_body">Google, CalDAV, local — anything synced to the device just appears.</string>
+    <!-- Unused since the wizard trim (#163) — the privacy point is now
+         permission_benefit_private_*. Kept until Weblate drops them from the
+         translations: removing a base key a translation still carries is a
+         fatal ExtraTranslation. -->
     <string name="permission_benefit_privacy_title">No tracking, ever</string>
     <string name="permission_benefit_privacy_body">Zero telemetry, zero analytics, no ads.</string>
     <string name="permission_privacy_footnote">Stays on your device · no internet permission</string>
@@ -276,8 +280,6 @@
     <string name="onboarding_backup_benefit_folder_body">Backups are plain .ics files — put them somewhere that syncs, or on an SD card.</string>
     <string name="onboarding_backup_benefit_daily_title">Once a day, by itself</string>
     <string name="onboarding_backup_benefit_daily_body">Calendula exports your local calendars in the background. Change how often in Settings.</string>
-    <string name="onboarding_backup_benefit_restore_title">Restore anytime</string>
-    <string name="onboarding_backup_benefit_restore_body">Open a backup file to bring the events back — on this phone or a new one.</string>
     <string name="onboarding_backup_enable_button">Choose folder and back up</string>
     <string name="onboarding_backup_skip_button">Not now</string>
     <string name="onboarding_view_title">What should Calendula open on?</string>
@@ -292,6 +294,7 @@
     <string name="reminder_benefit_delivery_body">Every reminder on your events arrives as a notification, right on time.</string>
     <string name="reminder_benefit_duplicates_title">Using a second calendar app?</string>
     <string name="reminder_benefit_duplicates_body">If another app also posts reminders, you\'ll see them twice — turn them off there or here.</string>
+    <!-- Unused since the wizard trim (#163); see the note above. -->
     <string name="reminder_benefit_reversible_title">Change it anytime</string>
     <string name="reminder_benefit_reversible_body">The switch lives in Settings, under Notifications.</string>
     <string name="reminder_onboarding_enable_button">Turn on reminders</string>

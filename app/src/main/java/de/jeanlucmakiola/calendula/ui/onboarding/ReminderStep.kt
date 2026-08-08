@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -24,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import de.jeanlucmakiola.calendula.R
 
 /**
@@ -50,6 +48,7 @@ fun ReminderStep(
     OnboardingScaffold(
         modifier = modifier,
         progress = progress,
+        topSpacing = OnboardingSpace.lg,
         hero = { IconHero(Icons.Filled.NotificationsActive) },
         actions = {
             Button(
@@ -76,13 +75,6 @@ fun ReminderStep(
         },
     ) {
         Text(
-            text = stringResource(R.string.app_name).uppercase(),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            letterSpacing = 2.sp,
-        )
-        Spacer(Modifier.height(OnboardingSpace.xs))
-        Text(
             text = stringResource(R.string.reminder_onboarding_title),
             style = MaterialTheme.typography.headlineMedium,
             textAlign = TextAlign.Center,
@@ -95,7 +87,7 @@ fun ReminderStep(
             textAlign = TextAlign.Center,
         )
 
-        Spacer(Modifier.height(OnboardingSpace.xl))
+        Spacer(Modifier.height(OnboardingSpace.lg))
 
         BenefitRow(
             icon = Icons.Filled.NotificationsActive,
@@ -107,12 +99,6 @@ fun ReminderStep(
             icon = Icons.Filled.ContentCopy,
             title = stringResource(R.string.reminder_benefit_duplicates_title),
             body = stringResource(R.string.reminder_benefit_duplicates_body),
-        )
-        Spacer(Modifier.height(OnboardingSpace.sm))
-        BenefitRow(
-            icon = Icons.Filled.Tune,
-            title = stringResource(R.string.reminder_benefit_reversible_title),
-            body = stringResource(R.string.reminder_benefit_reversible_body),
         )
     }
 }
