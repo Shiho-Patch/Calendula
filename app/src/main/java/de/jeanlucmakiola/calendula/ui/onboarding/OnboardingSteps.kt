@@ -1,5 +1,10 @@
 package de.jeanlucmakiola.calendula.ui.onboarding
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -20,9 +25,6 @@ fun OnboardingSteps(
     onPermissionGranted: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Positioned from the step being drawn, not from the plan's own current
-    // step: mid-crossfade the outgoing screen would otherwise jump to the
-    // incoming one's number.
     // Coerced because the outgoing half of a transition may be a step the live
     // plan has since dropped — the backup step goes once the calendars say it
     // does not apply — and a "Step 0 of 3" flash is worse than a stale number.
@@ -39,6 +41,22 @@ fun OnboardingSteps(
         }
     }
 
+    // The system back gesture does the same thing as the button, and stays off
+    // on the first step so back still leaves the app.
+    BackHandler(enabled = plan.canGoBack) { viewModel.goBack() }
+    val navigationIcon: (@Composable () -> Unit)? = if (!plan.canGoBack) {
+        null
+    } else {
+        {
+            IconButton(onClick = viewModel::goBack) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(R.string.onboarding_back),
+                )
+            }
+        }
+    }
+
     when (step) {
         OnboardingStep.Permission -> PermissionScreen(
             onGranted = onPermissionGranted,
@@ -49,25 +67,40 @@ fun OnboardingSteps(
             onFinished = viewModel::finishReminders,
             modifier = modifier,
             progress = progress,
+            navigationIcon = navigationIcon,
         )
         OnboardingStep.Backup -> BackupStep(
             onEnable = viewModel::enableAutoBackup,
             onSkip = viewModel::skipBackup,
             modifier = modifier,
             progress = progress,
+            navigationIcon = navigationIcon,
         )
+        // The choice is null only until DataStore's first emission; rendering
+        // nothing for that frame beats a preview built on the wrong defaults.
         OnboardingStep.View -> {
-            // Null only until DataStore's first emission; rendering nothing for
-            // that frame beats a preview built on the wrong defaults.
             val choice by viewModel.viewChoice.collectAsStateWithLifecycle()
             choice?.let {
                 ViewStep(
                     choice = it,
-                    onSelectView = viewModel::setDefaultView,
-                    onSelectMonthStyle = viewModel::setMonthViewStyle,
+                    onSelect = viewModel::setDefaultView,
                     onFinished = viewModel::finishView,
                     modifier = modifier,
                     progress = progress,
+                    navigationIcon = navigationIcon,
+                )
+            }
+        }
+        OnboardingStep.MonthStyle -> {
+            val choice by viewModel.viewChoice.collectAsStateWithLifecycle()
+            choice?.let {
+                MonthStyleStep(
+                    choice = it,
+                    onSelect = viewModel::setMonthViewStyle,
+                    onFinished = viewModel::finishMonthStyle,
+                    modifier = modifier,
+                    progress = progress,
+                    navigationIcon = navigationIcon,
                 )
             }
         }

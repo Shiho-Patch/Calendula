@@ -94,7 +94,9 @@ pure function of the stored answers that returns the whole flow *plus* the
 step it is on, and `RootScreen` renders that step. Two rules make it work:
 
 - The plan keeps **completed** steps, so finishing one never renumbers the
-  counter under the user.
+  counter under the user, and stepping *back* is just clearing the previous
+  step's answer — there is no separate back stack. The calendar grant is the
+  one step with nothing to return to, so back stops there.
 - The optional steps (backup, view) only exist for an install that went
   through the grant in-app — recorded by `armOnboardingWizard()`, which
   refuses to arm if the reminder step was already answered, so an existing

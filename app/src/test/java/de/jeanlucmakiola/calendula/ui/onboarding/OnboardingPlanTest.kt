@@ -16,6 +16,7 @@ class OnboardingPlanTest {
         wizardArmed: Boolean = false,
         backupDone: Boolean = false,
         viewDone: Boolean = false,
+        monthStyleDone: Boolean = false,
         backupApplies: Boolean? = null,
     ) = onboardingPlan(
         hasPermission = hasPermission,
@@ -23,6 +24,7 @@ class OnboardingPlanTest {
         wizardArmed = wizardArmed,
         backupDone = backupDone,
         viewDone = viewDone,
+        monthStyleDone = monthStyleDone,
         backupApplies = backupApplies,
     )
 
@@ -44,6 +46,7 @@ class OnboardingPlanTest {
             OnboardingStep.Reminders,
             OnboardingStep.Backup,
             OnboardingStep.View,
+            OnboardingStep.MonthStyle,
         ).inOrder()
         assertThat(granted.current).isEqualTo(OnboardingStep.Reminders)
         assertThat(granted.index).isEqualTo(2)
@@ -59,7 +62,7 @@ class OnboardingPlanTest {
         )
         assertThat(synced.steps).doesNotContain(OnboardingStep.Backup)
         assertThat(synced.current).isEqualTo(OnboardingStep.View)
-        assertThat(synced.total).isEqualTo(3)
+        assertThat(synced.total).isEqualTo(4)
     }
 
     @Test
@@ -101,9 +104,63 @@ class OnboardingPlanTest {
             wizardArmed = true,
             backupDone = true,
             viewDone = true,
+            monthStyleDone = true,
             backupApplies = true,
         )
         assertThat(done.current).isNull()
         assertThat(done.index).isEqualTo(0)
+    }
+
+    @Test
+    fun `the month style is asked whatever view was chosen`() {
+        // Month is reachable from the drawer whatever opens first, and making
+        // the step conditional would move the counter on the step before it.
+        val afterView = plan(
+            hasPermission = true,
+            wizardArmed = true,
+            remindersDone = true,
+            backupDone = true,
+            viewDone = true,
+            backupApplies = true,
+        )
+        assertThat(afterView.current).isEqualTo(OnboardingStep.MonthStyle)
+    }
+
+    @Test
+    fun `back steps to the previous answered step`() {
+        val onView = plan(
+            hasPermission = true,
+            wizardArmed = true,
+            remindersDone = true,
+            backupDone = true,
+            backupApplies = true,
+        )
+        assertThat(onView.current).isEqualTo(OnboardingStep.View)
+        assertThat(onView.previous).isEqualTo(OnboardingStep.Backup)
+        assertThat(onView.canGoBack).isTrue()
+    }
+
+    @Test
+    fun `back is refused where the previous step is the system grant`() {
+        // The permission is the system's to give; there is nothing to return to.
+        val onReminders = plan(hasPermission = true, wizardArmed = true, backupApplies = true)
+        assertThat(onReminders.previous).isEqualTo(OnboardingStep.Permission)
+        assertThat(onReminders.canGoBack).isFalse()
+    }
+
+    @Test
+    fun `back is refused on the first step and once the flow is done`() {
+        assertThat(plan().canGoBack).isFalse()
+        val done = plan(
+            hasPermission = true,
+            remindersDone = true,
+            wizardArmed = true,
+            backupDone = true,
+            viewDone = true,
+            monthStyleDone = true,
+            backupApplies = true,
+        )
+        assertThat(done.previous).isNull()
+        assertThat(done.canGoBack).isFalse()
     }
 }

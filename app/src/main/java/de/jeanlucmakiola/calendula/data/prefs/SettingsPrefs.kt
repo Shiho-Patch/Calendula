@@ -550,8 +550,9 @@ class SettingsPrefs @Inject constructor(
         prefs[REMINDER_ONBOARDING_KEY] ?: false
     }
 
-    suspend fun setReminderOnboardingDone() {
-        store.edit { it[REMINDER_ONBOARDING_KEY] = true }
+    /** Cleared, not just set: the wizard's back button re-asks a step (#163). */
+    suspend fun setReminderOnboardingDone(done: Boolean = true) {
+        store.edit { it[REMINDER_ONBOARDING_KEY] = done }
     }
 
     /**
@@ -575,17 +576,26 @@ class SettingsPrefs @Inject constructor(
         prefs[ONBOARDING_BACKUP_KEY] ?: false
     }
 
-    suspend fun setOnboardingBackupDone() {
-        store.edit { it[ONBOARDING_BACKUP_KEY] = true }
+    suspend fun setOnboardingBackupDone(done: Boolean = true) {
+        store.edit { it[ONBOARDING_BACKUP_KEY] = done }
     }
 
-    /** Whether the wizard's view step has been answered (or skipped). */
+    /** Whether the wizard's default-view step has been answered (or skipped). */
     val onboardingViewDone: Flow<Boolean> = store.data.map { prefs ->
         prefs[ONBOARDING_VIEW_KEY] ?: false
     }
 
-    suspend fun setOnboardingViewDone() {
-        store.edit { it[ONBOARDING_VIEW_KEY] = true }
+    suspend fun setOnboardingViewDone(done: Boolean = true) {
+        store.edit { it[ONBOARDING_VIEW_KEY] = done }
+    }
+
+    /** Whether the wizard's month-style step has been answered (or skipped). */
+    val onboardingMonthStyleDone: Flow<Boolean> = store.data.map { prefs ->
+        prefs[ONBOARDING_MONTH_STYLE_KEY] ?: false
+    }
+
+    suspend fun setOnboardingMonthStyleDone(done: Boolean = true) {
+        store.edit { it[ONBOARDING_MONTH_STYLE_KEY] = done }
     }
 
     /**
@@ -919,6 +929,8 @@ class SettingsPrefs @Inject constructor(
         internal val ONBOARDING_WIZARD_ARMED_KEY = booleanPreferencesKey("onboarding_wizard_armed")
         internal val ONBOARDING_BACKUP_KEY = booleanPreferencesKey("onboarding_backup_done")
         internal val ONBOARDING_VIEW_KEY = booleanPreferencesKey("onboarding_view_done")
+        internal val ONBOARDING_MONTH_STYLE_KEY =
+            booleanPreferencesKey("onboarding_month_style_done")
         internal val ALLOW_COLOR_UNSUPPORTED_KEY =
             booleanPreferencesKey("allow_color_unsupported_calendars")
         internal val DEFAULT_REMINDER_KEY = stringPreferencesKey("default_reminder_minutes")

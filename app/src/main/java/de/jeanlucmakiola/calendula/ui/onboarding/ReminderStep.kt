@@ -40,6 +40,7 @@ fun ReminderStep(
     onFinished: (remindersEnabled: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     progress: (@Composable () -> Unit)? = null,
+    navigationIcon: (@Composable () -> Unit)? = null,
 ) {
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -48,6 +49,7 @@ fun ReminderStep(
     OnboardingScaffold(
         modifier = modifier,
         progress = progress,
+        navigationIcon = navigationIcon,
         topSpacing = OnboardingSpace.lg,
         hero = { IconHero(Icons.Filled.NotificationsActive) },
         actions = {

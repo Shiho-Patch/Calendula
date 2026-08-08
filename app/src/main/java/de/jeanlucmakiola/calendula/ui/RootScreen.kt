@@ -9,6 +9,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -116,6 +118,18 @@ fun RootScreen(
         CalendarVisibilityNoticeDialog(onDismiss = visibilityNotice::dismiss)
     }
 
+    // Which way the flow is moving, so a step-back slides back. The app sits
+    // after every step and the blank first frame before them, so finishing the
+    // wizard reads as one more move forward.
+    val ordinal = when (target) {
+        RootTarget.Loading -> Int.MIN_VALUE
+        RootTarget.App -> Int.MAX_VALUE
+        is RootTarget.Step -> current?.steps?.indexOf(target.step) ?: 0
+    }
+    var lastOrdinal by remember { mutableIntStateOf(ordinal) }
+    val slideDir = if (ordinal < lastOrdinal) -1 else 1
+    SideEffect { lastOrdinal = ordinal }
+
     // The wizard advances along M3's shared-axis X, the same transition adjacent
     // months and weeks use: the outgoing step slides and fades one way while the
     // next arrives from the other. A plain cross-fade read as a smear here —
@@ -133,7 +147,7 @@ fun RootScreen(
                 fadeIn(fadeSpec).togetherWith(fadeOut(fadeSpec))
             } else {
                 calendarSlideTransition(
-                    slideDir = 1,
+                    slideDir = slideDir,
                     spec = slideSpec,
                     fadeSpec = fadeSpec,
                     reduceMotion = reduceMotion,

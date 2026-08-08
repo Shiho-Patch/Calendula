@@ -38,6 +38,7 @@ internal fun BackupStep(
     onSkip: () -> Unit,
     modifier: Modifier = Modifier,
     progress: (@Composable () -> Unit)? = null,
+    navigationIcon: (@Composable () -> Unit)? = null,
 ) {
     val pickFolder = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree(),
@@ -50,6 +51,7 @@ internal fun BackupStep(
     OnboardingScaffold(
         modifier = modifier,
         progress = progress,
+        navigationIcon = navigationIcon,
         topSpacing = OnboardingSpace.lg,
         hero = { IconHero(Icons.Filled.CloudOff) },
         actions = {

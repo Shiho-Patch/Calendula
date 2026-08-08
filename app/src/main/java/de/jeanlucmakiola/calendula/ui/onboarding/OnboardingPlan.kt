@@ -11,8 +11,11 @@ enum class OnboardingStep {
     /** Only when nothing you write to is synced anywhere — offers a backup. */
     Backup,
 
-    /** Default view + month style, chosen from live previews. */
+    /** Which view the app opens on, chosen from a live preview. */
     View,
+
+    /** How the Month view lays itself out, chosen from a live preview. */
+    MonthStyle,
 }
 
 /**
@@ -31,6 +34,16 @@ data class OnboardingPlan(
 
     /** A one-step flow is not a wizard: there is nothing to count down. */
     val showsProgress: Boolean get() = total > 1
+
+    /** The step before [current], or null at the start (and once finished). */
+    val previous: OnboardingStep? get() = steps.getOrNull(index - 2).takeIf { current != null }
+
+    /**
+     * Whether the wizard can step back. Everything is re-askable except the
+     * calendar grant, which belongs to the system — once given there is nothing
+     * for a back press to return to.
+     */
+    val canGoBack: Boolean get() = previous != null && previous != OnboardingStep.Permission
 }
 
 /**
@@ -46,6 +59,11 @@ data class OnboardingPlan(
  * whole permission step. The backup step is assumed to apply until proven
  * otherwise, so the flow can only ever get shorter — never sprout a step the
  * counter had not accounted for.
+ *
+ * The month-style step is *not* conditional on Month being the chosen view:
+ * Month is reachable from the drawer whatever opens first, and making the step
+ * appear and disappear as the view is picked would move the counter under the
+ * user on the step right before it.
  */
 fun onboardingPlan(
     hasPermission: Boolean,
@@ -53,6 +71,7 @@ fun onboardingPlan(
     wizardArmed: Boolean,
     backupDone: Boolean,
     viewDone: Boolean,
+    monthStyleDone: Boolean,
     backupApplies: Boolean?,
 ): OnboardingPlan {
     val fresh = wizardArmed || (!hasPermission && !remindersDone)
@@ -60,7 +79,10 @@ fun onboardingPlan(
         if (!hasPermission || fresh) add(OnboardingStep.Permission)
         if (!remindersDone || fresh) add(OnboardingStep.Reminders)
         if (fresh && backupApplies != false) add(OnboardingStep.Backup)
-        if (fresh) add(OnboardingStep.View)
+        if (fresh) {
+            add(OnboardingStep.View)
+            add(OnboardingStep.MonthStyle)
+        }
     }
     val current = steps.firstOrNull { step ->
         when (step) {
@@ -68,6 +90,7 @@ fun onboardingPlan(
             OnboardingStep.Reminders -> !remindersDone
             OnboardingStep.Backup -> !backupDone
             OnboardingStep.View -> !viewDone
+            OnboardingStep.MonthStyle -> !monthStyleDone
         }
     }
     return OnboardingPlan(steps, current)

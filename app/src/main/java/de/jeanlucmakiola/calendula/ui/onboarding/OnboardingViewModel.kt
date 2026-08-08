@@ -74,6 +74,7 @@ class OnboardingViewModel @Inject constructor(
         prefs.onboardingWizardArmed,
         prefs.onboardingBackupDone,
         prefs.onboardingViewDone,
+        prefs.onboardingMonthStyleDone,
         ::OnboardingFlags,
     )
 
@@ -86,6 +87,7 @@ class OnboardingViewModel @Inject constructor(
                     wizardArmed = stored.wizardArmed,
                     backupDone = stored.backupDone,
                     viewDone = stored.viewDone,
+                    monthStyleDone = stored.monthStyleDone,
                     backupApplies = backup,
                 )
             }
@@ -132,6 +134,24 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Re-ask the step before the current one, by clearing its answer. The plan
+     * derives the position from those answers, so un-setting one *is* the back
+     * navigation. The calendar grant belongs to the system and cannot be
+     * returned to, which [OnboardingPlan.canGoBack] already refuses.
+     */
+    fun goBack() {
+        viewModelScope.launch {
+            when (plan.value?.previous) {
+                OnboardingStep.Reminders -> prefs.setReminderOnboardingDone(false)
+                OnboardingStep.Backup -> prefs.setOnboardingBackupDone(false)
+                OnboardingStep.View -> prefs.setOnboardingViewDone(false)
+                OnboardingStep.MonthStyle -> prefs.setOnboardingMonthStyleDone(false)
+                OnboardingStep.Permission, null -> Unit
+            }
+        }
+    }
+
     /** Close the backup step without setting anything up. */
     fun skipBackup() {
         viewModelScope.launch { prefs.setOnboardingBackupDone() }
@@ -172,9 +192,13 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch { prefs.setMonthViewStyle(style) }
     }
 
-    /** Close the view step — the choices themselves are saved as they are made. */
+    /** Close a picker step — the choice itself is saved as it is made. */
     fun finishView() {
         viewModelScope.launch { prefs.setOnboardingViewDone() }
+    }
+
+    fun finishMonthStyle() {
+        viewModelScope.launch { prefs.setOnboardingMonthStyleDone() }
     }
 }
 
@@ -184,6 +208,7 @@ private data class OnboardingFlags(
     val wizardArmed: Boolean,
     val backupDone: Boolean,
     val viewDone: Boolean,
+    val monthStyleDone: Boolean,
 )
 
 /** What the view step starts from, and renders its previews with. */
