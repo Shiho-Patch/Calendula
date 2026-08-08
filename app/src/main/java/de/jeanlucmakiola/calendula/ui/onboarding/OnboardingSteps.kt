@@ -23,7 +23,10 @@ fun OnboardingSteps(
     // Positioned from the step being drawn, not from the plan's own current
     // step: mid-crossfade the outgoing screen would otherwise jump to the
     // incoming one's number.
-    val index = plan.steps.indexOf(step) + 1
+    // Coerced because the outgoing half of a transition may be a step the live
+    // plan has since dropped — the backup step goes once the calendars say it
+    // does not apply — and a "Step 0 of 3" flash is worse than a stale number.
+    val index = (plan.steps.indexOf(step) + 1).coerceAtLeast(1)
     val progress: (@Composable () -> Unit)? = if (!plan.showsProgress) {
         null
     } else {

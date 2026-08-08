@@ -2,9 +2,10 @@ package de.jeanlucmakiola.calendula.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
-import androidx.compose.animation.Crossfade
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -24,9 +25,13 @@ import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
 import de.jeanlucmakiola.calendula.data.contacts.hasContactsPermission
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarVisibilityNoticeDialog
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarVisibilityNoticeViewModel
+import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
+import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
+import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.onboarding.OnboardingStep
 import de.jeanlucmakiola.calendula.ui.onboarding.OnboardingSteps
 import de.jeanlucmakiola.calendula.ui.onboarding.OnboardingViewModel
+import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 
 /** What the root is showing: a wizard step, the app, or neither yet. */
 private sealed interface RootTarget {
@@ -36,7 +41,6 @@ private sealed interface RootTarget {
     data class Step(val step: OnboardingStep) : RootTarget
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RootScreen(
     modifier: Modifier = Modifier,
@@ -112,11 +116,32 @@ fun RootScreen(
         CalendarVisibilityNoticeDialog(onDismiss = visibilityNotice::dismiss)
     }
 
-    // Cross-fade the one-time onboarding gates so granting permission / finishing
-    // a step eases into the next screen instead of snapping. A fade carries no
-    // spatial motion, so it stays appropriate under "remove animations" too.
-    val gateSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-    Crossfade(targetState = target, animationSpec = gateSpec, label = "onboardingGate") { shown ->
+    // The wizard advances along M3's shared-axis X, the same transition adjacent
+    // months and weeks use: the outgoing step slides and fades one way while the
+    // next arrives from the other. A plain cross-fade read as a smear here —
+    // both steps are opaque full-screen scaffolds, so their text dissolved
+    // through each other with nothing to say which way the flow was going.
+    val slideSpec = rememberCalendarSlideSpec()
+    val fadeSpec = rememberCalendarFadeSpec()
+    val reduceMotion = rememberReduceMotion()
+    AnimatedContent(
+        targetState = target,
+        transitionSpec = {
+            // Coming off the blank first frame is not a step change — the app
+            // has only just opened, so the first screen simply appears.
+            if (initialState == RootTarget.Loading) {
+                fadeIn(fadeSpec).togetherWith(fadeOut(fadeSpec))
+            } else {
+                calendarSlideTransition(
+                    slideDir = 1,
+                    spec = slideSpec,
+                    fadeSpec = fadeSpec,
+                    reduceMotion = reduceMotion,
+                )
+            }
+        },
+        label = "onboardingGate",
+    ) { shown ->
         when (shown) {
             RootTarget.Loading -> Unit
             RootTarget.App -> CalendarHost(
@@ -134,8 +159,8 @@ fun RootScreen(
                 onEditKeyConsumed = onEditKeyConsumed,
             )
             // The plan the outgoing step was drawn with is gone by the time the
-            // fade ends, so the live one carries it — its counter is what the
-            // incoming step should already show.
+            // transition ends, so the live one carries both halves; each reads
+            // its own position out of it.
             is RootTarget.Step -> current?.let { plan ->
                 OnboardingSteps(
                     step = shown.step,
