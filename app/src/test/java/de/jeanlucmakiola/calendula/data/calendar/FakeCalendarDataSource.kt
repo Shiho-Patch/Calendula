@@ -6,6 +6,7 @@ import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.SearchCandidate
 import de.jeanlucmakiola.calendula.domain.contacts.SpecialDateType
 import de.jeanlucmakiola.calendula.domain.ics.IcsEvent
 import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
@@ -19,7 +20,7 @@ internal class FakeCalendarDataSource : CalendarDataSource {
 
     var calendarsResult: List<CalendarSource> = emptyList()
     var instancesResult: (Long, Long) -> List<EventInstance> = { _, _ -> emptyList() }
-    var searchResult: (String) -> List<EventInstance> = { _ -> emptyList() }
+    var searchResult: (String) -> List<SearchCandidate> = { _ -> emptyList() }
     var eventDetailResult: (Long) -> EventDetail? = { null }
     var eventColorPaletteResult: (Long) -> List<EventColorOption> = { emptyList() }
     var exportableEventsResult: List<IcsEvent> = emptyList()
@@ -71,7 +72,7 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     }
     override fun instances(beginMillis: Long, endMillis: Long): List<EventInstance> =
         instancesResult(beginMillis, endMillis)
-    override fun searchEvents(query: String): List<EventInstance> = searchResult(query)
+    override fun searchEvents(query: String): List<SearchCandidate> = searchResult(query)
     override fun eventDetail(eventId: Long, allDayReminderTimeMinutes: Int): EventDetail? =
         eventDetailResult(eventId)
     override fun eventColorPalette(calendarId: Long): List<EventColorOption> =

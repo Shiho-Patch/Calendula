@@ -5,6 +5,7 @@ import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.SearchCandidate
 import de.jeanlucmakiola.calendula.domain.ics.IcsEvent
 import de.jeanlucmakiola.calendula.domain.ics.IcsImportSummary
 import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
@@ -17,11 +18,12 @@ interface CalendarRepository {
     suspend fun eventDetail(eventId: Long): EventDetail
 
     /**
-     * Events whose title, description or location contains [query], with hidden
-     * calendars removed and newest first. Empty when [query] is blank. Searches
-     * the whole history/future (see [CalendarDataSource.searchEvents]).
+     * Candidate matches for [query] with hidden calendars removed; empty when
+     * [query] is blank. Searches the whole history/future (see
+     * [CalendarDataSource.searchEvents]) and leaves ranking to
+     * [de.jeanlucmakiola.calendula.domain.EventSearchRanker].
      */
-    suspend fun searchEvents(query: String): List<EventInstance>
+    suspend fun searchEvents(query: String): List<SearchCandidate>
 
     /**
      * The event-colour palette a calendar's account publishes; empty when it

@@ -392,7 +392,7 @@ private fun SearchResults(
     onEventClick: (EventInstance) -> Unit,
     onToggle: (Long) -> Unit,
 ) {
-    val events = results.events
+    val hits = results.hits
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         // No horizontal inset here: GroupedRow already insets itself, and adding
@@ -400,13 +400,14 @@ private fun SearchResults(
         contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
     ) {
         itemsIndexed(
-            items = events,
-            key = { _, event -> event.eventId },
-        ) { index, event ->
+            items = hits,
+            key = { _, hit -> hit.event.eventId },
+        ) { index, hit ->
+            val event = hit.event
             val deletable = results.isDeletable(event)
             SearchResultRow(
                 event = event,
-                position = positionOf(index, events.size),
+                position = positionOf(index, hits.size),
                 modifier = animateItemMotion(),
                 selected = event.eventId in selection,
                 // A read-only calendar's row can't join a batch, so in selection

@@ -180,6 +180,9 @@ internal object SearchProjection {
         // display its nearest occurrence, not the series-start DTSTART.
         CalendarContract.Events.RRULE,
         CalendarContract.Events.RDATE,
+        // Ranked and excerpted, not just filtered on: a description-only hit has
+        // to be able to show what it matched.
+        CalendarContract.Events.DESCRIPTION,
     )
 
     const val IDX_ID = 0
@@ -194,6 +197,7 @@ internal object SearchProjection {
     const val IDX_LOCATION = 9
     const val IDX_RRULE = 10
     const val IDX_RDATE = 11
+    const val IDX_DESCRIPTION = 12
 }
 
 /**

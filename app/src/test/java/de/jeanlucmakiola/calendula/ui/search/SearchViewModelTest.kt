@@ -9,6 +9,7 @@ import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
+import de.jeanlucmakiola.calendula.domain.SearchCandidate
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,11 +52,13 @@ class SearchViewModelTest {
         calendarId: Long = 1L,
         recurring: Boolean = false,
         startMillis: Long = begin,
-    ) = EventInstance(
-        instanceId = id, eventId = id, calendarId = calendarId, title = "Standup $id",
-        start = Instant.fromEpochMilliseconds(startMillis),
-        end = Instant.fromEpochMilliseconds(startMillis + 3_600_000L),
-        isAllDay = false, color = 0xFF000000.toInt(), location = null, isRecurring = recurring,
+    ) = SearchCandidate(
+        EventInstance(
+            instanceId = id, eventId = id, calendarId = calendarId, title = "Standup $id",
+            start = Instant.fromEpochMilliseconds(startMillis),
+            end = Instant.fromEpochMilliseconds(startMillis + 3_600_000L),
+            isAllDay = false, color = 0xFF000000.toInt(), location = null, isRecurring = recurring,
+        ),
     )
 
     private fun viewModel(tempDir: Path, fake: FakeCalendarDataSource): SearchViewModel {

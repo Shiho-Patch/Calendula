@@ -6,7 +6,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import de.jeanlucmakiola.calendula.data.calendar.CalendarRepository
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.EventSearchRanker
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
+import de.jeanlucmakiola.calendula.domain.SearchHit
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,9 +41,9 @@ sealed interface SearchUiState {
     /** A query ran but matched nothing. */
     data class Empty(val query: String) : SearchUiState
 
-    /** Matches, ordered nearest-to-today first (upcoming ascending, then past descending). */
+    /** Matches, best first — see [de.jeanlucmakiola.calendula.domain.EventSearchRanker]. */
     data class Results(
-        val events: List<EventInstance>,
+        val hits: List<SearchHit>,
         /**
          * Calendars among the results that can't be written to (WebCal, birthday
          * mirrors, …). Their rows are excluded from selection rather than failing
@@ -49,6 +51,8 @@ sealed interface SearchUiState {
          */
         val readOnlyCalendarIds: Set<Long> = emptySet(),
     ) : SearchUiState {
+        val events: List<EventInstance> get() = hits.map { it.event }
+
         fun isDeletable(event: EventInstance): Boolean =
             event.calendarId !in readOnlyCalendarIds
     }
@@ -96,12 +100,16 @@ class SearchViewModel @Inject constructor(
             if (q.length < MIN_QUERY_LENGTH) {
                 SearchUiState.Idle
             } else {
-                val results = repository.searchEvents(q)
-                if (results.isEmpty()) {
+                val hits = EventSearchRanker.rank(
+                    candidates = repository.searchEvents(q),
+                    query = q,
+                    now = Clock.System.now(),
+                )
+                if (hits.isEmpty()) {
                     SearchUiState.Empty(q)
                 } else {
                     SearchUiState.Results(
-                        events = sortNearestFirst(results),
+                        hits = hits,
                         readOnlyCalendarIds = readOnlyCalendarIds(),
                     )
                 }
@@ -206,11 +214,4 @@ class SearchViewModel @Inject constructor(
             .filterNot { it.canModifyContents }
             .map { it.id }
             .toSet()
-
-    /** Soonest upcoming (and ongoing) first, then the most recent past. */
-    private fun sortNearestFirst(events: List<EventInstance>): List<EventInstance> {
-        val now = Clock.System.now()
-        val (upcoming, past) = events.partition { it.end >= now }
-        return upcoming.sortedBy { it.start } + past.sortedByDescending { it.start }
-    }
 }
