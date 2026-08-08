@@ -5,12 +5,15 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,6 +34,7 @@ import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +47,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,6 +72,7 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.floret.identity.animateItemMotion
+import de.jeanlucmakiola.floret.identity.fadeThrough
 import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
@@ -160,51 +166,18 @@ fun SearchScreen(
         modifier = modifier.predictiveBack(onBack = onBack, enabled = !inSelection),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
-            if (inSelection) {
-                SelectionTopBar(
-                    count = selection.size,
-                    onClose = viewModel::clearSelection,
-                    onSelectAll = viewModel::selectAll,
-                    onDelete = { requireWrite { showDeleteDialog = true } },
-                )
-            } else {
-                TopAppBar(
-                    title = {
-                        InlineTextField(
-                            value = query,
-                            onValueChange = viewModel::setQuery,
-                            placeholder = stringResource(R.string.search_hint),
-                            capitalization = KeyboardCapitalization.None,
-                            imeAction = ImeAction.Search,
-                            onImeAction = { keyboard?.hide() },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester),
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.search_back),
-                            )
-                        }
-                    },
-                    actions = {
-                        if (query.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.setQuery("") }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = stringResource(R.string.search_clear),
-                                )
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
-                )
-            }
+            SearchTopBar(
+                inSelection = inSelection,
+                query = query,
+                selectedCount = selection.size,
+                focusRequester = focusRequester,
+                onQueryChange = viewModel::setQuery,
+                onImeAction = { keyboard?.hide() },
+                onBack = onBack,
+                onCloseSelection = viewModel::clearSelection,
+                onSelectAll = viewModel::selectAll,
+                onDelete = { requireWrite { showDeleteDialog = true } },
+            )
         },
     ) { padding ->
         // imePadding shrinks the content by the keyboard, so the centered
@@ -284,43 +257,130 @@ fun SearchScreen(
     }
 }
 
-/** Contextual bar replacing the search field while results are picked. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The search field and the contextual selection bar as one bar: entering or
+ * leaving selection mode keeps the bar itself in place, eases its container
+ * colour and fades its slots through, rather than cutting between two bars.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun SelectionTopBar(
-    count: Int,
-    onClose: () -> Unit,
+private fun SearchTopBar(
+    inSelection: Boolean,
+    query: String,
+    selectedCount: Int,
+    focusRequester: FocusRequester,
+    onQueryChange: (String) -> Unit,
+    onImeAction: () -> Unit,
+    onBack: () -> Unit,
+    onCloseSelection: () -> Unit,
     onSelectAll: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val container by animateColorAsState(
+        targetValue = if (inSelection) {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        animationSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
+        label = "search-top-bar-color",
+    )
+    // Held past the selection emptying so the count has something to draw while
+    // it fades out — by then the set is already at zero.
+    var lastCount by remember { mutableIntStateOf(0) }
+    if (selectedCount > 0) lastCount = selectedCount
+
+    // Read here so the non-composable transitionSpec lambdas can capture it.
+    val slotSwap = fadeThrough()
+
     TopAppBar(
-        title = { Text(pluralStringResource(R.plurals.search_selected_count, count, count)) },
+        title = {
+            AnimatedContent(
+                targetState = inSelection,
+                transitionSpec = { slotSwap },
+                label = "search-top-bar-title",
+            ) { selecting ->
+                if (selecting) {
+                    Text(
+                        pluralStringResource(
+                            R.plurals.search_selected_count,
+                            lastCount,
+                            lastCount,
+                        ),
+                    )
+                } else {
+                    InlineTextField(
+                        value = query,
+                        onValueChange = onQueryChange,
+                        placeholder = stringResource(R.string.search_hint),
+                        capitalization = KeyboardCapitalization.None,
+                        imeAction = ImeAction.Search,
+                        onImeAction = onImeAction,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester),
+                    )
+                }
+            }
+        },
         navigationIcon = {
-            IconButton(onClick = onClose) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = stringResource(R.string.search_selection_close),
-                )
+            AnimatedContent(
+                targetState = inSelection,
+                transitionSpec = { slotSwap },
+                label = "search-top-bar-navigation",
+            ) { selecting ->
+                if (selecting) {
+                    IconButton(onClick = onCloseSelection) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.search_selection_close),
+                        )
+                    }
+                } else {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.search_back),
+                        )
+                    }
+                }
             }
         },
         actions = {
-            IconButton(onClick = onSelectAll) {
-                Icon(
-                    imageVector = Icons.Default.SelectAll,
-                    contentDescription = stringResource(R.string.search_select_all),
-                )
-            }
-            IconButton(onClick = onDelete) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = stringResource(R.string.search_delete_selected),
-                    tint = MaterialTheme.colorScheme.error,
-                )
+            AnimatedContent(
+                targetState = inSelection,
+                transitionSpec = { slotSwap },
+                label = "search-top-bar-actions",
+            ) { selecting ->
+                Row {
+                    if (selecting) {
+                        IconButton(onClick = onSelectAll) {
+                            Icon(
+                                imageVector = Icons.Default.SelectAll,
+                                contentDescription = stringResource(R.string.search_select_all),
+                            )
+                        }
+                        IconButton(onClick = onDelete) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(
+                                    R.string.search_delete_selected,
+                                ),
+                                tint = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    } else if (query.isNotEmpty()) {
+                        IconButton(onClick = { onQueryChange("") }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.search_clear),
+                            )
+                        }
+                    }
+                }
             }
         },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-        ),
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = container),
     )
 }
 
