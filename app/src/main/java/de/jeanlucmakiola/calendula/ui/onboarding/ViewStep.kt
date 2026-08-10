@@ -37,13 +37,9 @@ import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.floret.locale.currentLocale
 
 /**
- * Wizard step: which view the app opens on (#163).
- *
- * Built like the Settings pickers it mirrors — a live preview over connected
- * grouped rows — so the choice is made by looking rather than by reading four
- * names and guessing, and so the same choice looks the same wherever it is
- * made. Selecting applies immediately and leaves the step open; the preview
- * above is the confirmation.
+ * Wizard step: which view the app opens on (#163). Built like the Settings
+ * picker it mirrors — a live preview over connected grouped rows. Selecting
+ * applies immediately and leaves the step open; the preview is the confirmation.
  */
 @Composable
 internal fun ViewStep(
@@ -163,8 +159,8 @@ private fun StepPickerScaffold(
         navigationIcon = navigationIcon,
         topSpacing = OnboardingSpace.xs,
         contentPadding = 0.dp,
-        // The preview is worth more than a screenful of certainty: it gets the
-        // room it needs and Continue scrolls in under the options with it.
+        // The preview gets the room it needs; Continue scrolls in under the
+        // options rather than pinning to the bottom.
         scrollingActions = true,
         hero = {
             Text(
@@ -178,8 +174,8 @@ private fun StepPickerScaffold(
         actions = {
             Button(
                 onClick = onFinished,
-                // The step is full-bleed, so the button takes the grouped rows'
-                // own inset and ends up as wide as the options above it.
+                // Full-bleed step: the button takes the grouped rows' own inset
+                // and ends up as wide as the options above it.
                 modifier = Modifier
                     .padding(horizontal = GroupedListInset)
                     .fillMaxWidth()
@@ -196,9 +192,8 @@ private fun StepPickerScaffold(
 }
 
 /**
- * The live preview, framed like the picker's. The gap under it is wider than the
- * one above: the rows below are the things to tap, and they need to look like a
- * group of their own rather than the preview's caption.
+ * The live preview, framed like the picker's. The wider gap below keeps the rows
+ * reading as a group of their own rather than as the preview's caption.
  */
 @Composable
 private fun <T> StepPreview(selected: T, content: @Composable (T) -> Unit) {
@@ -210,9 +205,5 @@ private fun <T> StepPreview(selected: T, content: @Composable (T) -> Unit) {
     )
 }
 
-/**
- * The same size the Settings chooser gives it. The step no longer tries to fit a
- * screen: showing the view properly is what the step is for, and a picture too
- * small to read would cost more than the scroll does.
- */
+/** The same size the Settings chooser gives it. */
 private val PREVIEW_HEIGHT: Dp = 280.dp

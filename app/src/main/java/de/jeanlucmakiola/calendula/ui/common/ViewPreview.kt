@@ -39,18 +39,14 @@ internal val PREVIEW_VIEWPORT_HEIGHT = 440.dp
 
 /**
  * Renders [content] at a full phone viewport and shrinks the finished layout
- * into a box [height] tall, for the settings and onboarding choosers.
+ * into a box [height] tall, for the settings and onboarding choosers. Callers
+ * pass the *real* view composables, so a preview cannot drift from what it
+ * depicts.
  *
- * Previews render the *real* view composables rather than a drawing of them, so
- * they cannot drift from the thing they depict: change a cell's shape or an
- * event block's colour and every preview follows. The trick is the [layout]
- * below — it ignores the incoming constraints, so the view lays itself out at a
- * plausible phone viewport, and a [graphicsLayer] scale shrinks the result.
- *
- * `Modifier.requiredSize` would be the obvious way to force the larger
- * measurement, but it *centres* content that overflows the incoming constraints
- * — which pushes the view to a negative offset and leaves only its bottom-right
- * corner inside the clip.
+ * The [layout] below ignores the incoming constraints so the view measures at a
+ * phone viewport, and a [graphicsLayer] scale shrinks the result.
+ * `Modifier.requiredSize` is the obvious alternative but *centres* content that
+ * overflows its constraints, leaving only the bottom-right corner in the clip.
  */
 @Composable
 internal fun ScaledViewPreview(
@@ -99,13 +95,9 @@ internal fun ScaledViewPreview(
 
 /**
  * The stage every preview picker sets its preview on, cross-fading as [selected]
- * changes.
- *
- * A preview draws the app's own surface, so on a chooser screen — which draws the
- * same surface — it had no edge of its own and dissolved into the page. A tonal
- * plate gives it one: the preview reads as a screen being shown rather than as
- * part of the screen showing it. The plate takes the width and the outer radius
- * of the grouped rows underneath, so the two read as one stack.
+ * changes. A preview draws the app's own surface, so a tonal plate gives it the
+ * edge it would otherwise lack on a chooser screen; the plate takes the width
+ * and outer radius of the grouped rows underneath so the two read as one stack.
  *
  * Only vertical spacing is the caller's to pass — the horizontal inset is the
  * rows' own, and the alignment is the point.

@@ -28,9 +28,8 @@ import de.jeanlucmakiola.floret.components.OnboardingSpace
  * Wizard step shown only when everything you write to is a device-only calendar
  * (#163): the events exist nowhere but this phone, so losing it loses them.
  *
- * The primary action picks a folder and switches automatic backup on in one go
- * — the step changes something rather than pointing at Settings. Everything it
- * sets is a normal Backup setting, so it stays adjustable afterwards.
+ * The primary action picks a folder and switches automatic backup on in one go.
+ * Everything it sets is a normal Backup setting, adjustable afterwards.
  */
 @Composable
 internal fun BackupStep(
@@ -43,8 +42,7 @@ internal fun BackupStep(
     val pickFolder = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree(),
     ) { uri ->
-        // Cancelling the picker leaves the step open: nothing was decided, and
-        // "Not now" is right there for the user who meant to decline.
+        // Cancelling the picker decides nothing and leaves the step open.
         uri?.let(onEnable)
     }
 

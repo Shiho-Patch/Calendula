@@ -60,9 +60,8 @@ class OnboardingViewModel @Inject constructor(
 
     /**
      * The grant as the rest of the flow sees it: published only once the wizard
-     * has been armed for it. Arming is a stored write, so announcing the grant
-     * first would leave a few frames in which the install looks neither fresh
-     * nor permission-less and the plan collapses to its one-step form.
+     * has been armed for it, since arming is a stored write and the frames
+     * before it lands would collapse the plan to its one-step form.
      */
     private val hasPermission: StateFlow<Boolean?> = permissionReported
         .mapLatest { granted ->
@@ -78,9 +77,9 @@ class OnboardingViewModel @Inject constructor(
     /**
      * Whether the backup step applies: something of yours is worth exporting and
      * nothing you write to is synced anywhere. Null while the calendar list
-     * cannot be read, which is every frame before the grant — and any frame the
-     * provider read fails, since an empty list is also how a null cursor
-     * arrives. Guessing false there would drop the step for the whole session.
+     * cannot be read: every frame before the grant, and any read that fails —
+     * an empty list is also how a null cursor arrives, and guessing false there
+     * would drop the step for the whole session.
      */
     private val backupApplies: Flow<Boolean?> = hasPermission.flatMapLatest { granted ->
         if (granted != true) {
@@ -152,8 +151,7 @@ class OnboardingViewModel @Inject constructor(
      * Arm the wizard for an install that has yet to answer the reminder step,
      * whatever route the grant took. Gating this on the in-app grant would
      * strand anyone who granted on Android's own settings screen and came back
-     * to a restarted process: they hold the permission at launch, so nothing
-     * would ever arm and the flow would silently shrink to the reminder step.
+     * to a restarted process, leaving them the reminder step alone.
      */
     private suspend fun armWizardIfFresh() {
         if (!prefs.reminderOnboardingDone.first()) prefs.armOnboardingWizard()
@@ -252,9 +250,8 @@ class OnboardingViewModel @Inject constructor(
     fun finishVisibility() {
         viewModelScope.launch {
             prefs.setOnboardingVisibilityDone()
-            // Retiring the notice drops the step from the plan, so it waits
-            // until nothing follows it — otherwise the count would fall from
-            // under the user on the way to the closing screen.
+            // Retiring the notice drops its step, so it waits until nothing
+            // follows — the count must not fall on the way to a later screen.
             if (plan.value?.steps?.last() == OnboardingStep.Visibility) retireVisibilityNotice()
         }
     }
@@ -268,9 +265,9 @@ class OnboardingViewModel @Inject constructor(
     }
 
     /**
-     * Put the one-time visibility notice away for good. Nothing else clears it
-     * now that the wizard has taken the notice over, and left standing it would
-     * keep its step in every later plan — padding the counter on a re-grant.
+     * Put the one-time visibility notice away for good — nothing else clears it
+     * now that the wizard owns it, and left standing it would keep its step in
+     * every later plan.
      */
     private suspend fun retireVisibilityNotice() {
         if (calendarPrefs.visibilityNoticePending.first() == true) {

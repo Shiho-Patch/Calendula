@@ -97,10 +97,11 @@ step it is on, and `RootScreen` renders that step. Two rules make it work:
   counter under the user, and stepping *back* is just clearing the previous
   step's answer — there is no separate back stack. The calendar grant is the
   one step with nothing to return to, so back stops there.
-- The optional steps (backup, view) only exist for an install that went
-  through the grant in-app — recorded by `armOnboardingWizard()`, which
-  refuses to arm if the reminder step was already answered, so an existing
-  user who revokes and re-grants the permission is not re-onboarded.
+- The optional steps (backup, view) only exist for an install still on its
+  first run — `armOnboardingWizard()` arms on any launch holding the calendar
+  permission but refuses if the reminder step was already answered, and the
+  closing screen clears the flag again, so revoking and re-granting the
+  permission later never re-onboards anyone.
 
 Whether the backup step applies (nothing writable is synced anywhere) cannot
 be known before the grant, so it is assumed until the calendar list can be

@@ -91,9 +91,8 @@ fun RootScreen(
     val onboarding: OnboardingViewModel = hiltViewModel()
     val plan by onboarding.plan.collectAsStateWithLifecycle()
     // The grant is reported however it was taken, including via Android's
-    // app-settings screen (caught by the ON_RESUME above) — arming the wizard
-    // hangs off that, not off the callback. Only a grant made during this
-    // session owes the re-scan.
+    // app-settings screen (caught by the ON_RESUME above); arming the wizard
+    // hangs off that, not off the in-app callback.
     LaunchedEffect(hasPermission) {
         onboarding.setHasPermission(hasPermission)
         if (hasPermission && !grantedAtLaunch) onboarding.onPermissionGranted()
@@ -112,9 +111,8 @@ fun RootScreen(
         else -> RootTarget.Step(current.current)
     }
 
-    // Which way the flow is moving, so a step-back slides back. The app sits
-    // after every step and the blank first frame before them, so finishing the
-    // wizard reads as one more move forward.
+    // Which way the flow is moving, so a step-back slides back. The app sorts
+    // after every step, so finishing the wizard reads as one more move forward.
     val ordinal = when (target) {
         RootTarget.Loading -> Int.MIN_VALUE
         RootTarget.App -> Int.MAX_VALUE
@@ -124,17 +122,13 @@ fun RootScreen(
     val slideDir = if (ordinal < lastOrdinal) -1 else 1
     SideEffect { lastOrdinal = ordinal }
 
-    // The wizard swipes: the steps sit side by side and the whole width travels,
-    // so the flow reads as moving through a stack of screens rather than as one
-    // screen redrawing itself.
     val slideSpec = rememberOnboardingSlideSpec()
     val fadeSpec = rememberCalendarFadeSpec()
     val reduceMotion = rememberReduceMotion()
     AnimatedContent(
         targetState = target,
         transitionSpec = {
-            // Coming off the blank first frame is not a step change — the app
-            // has only just opened, so the first screen simply appears.
+            // Coming off the blank first frame is not a step change.
             if (initialState == RootTarget.Loading) {
                 fadeIn(fadeSpec).togetherWith(fadeOut(fadeSpec))
             } else {
@@ -164,9 +158,8 @@ fun RootScreen(
                 requestedEditKey = requestedEditKey,
                 onEditKeyConsumed = onEditKeyConsumed,
             )
-            // The plan the outgoing step was drawn with is gone by the time the
-            // transition ends, so the live one carries both halves; each reads
-            // its own position out of it.
+            // Both halves of a transition read their position out of the live
+            // plan; the one the outgoing step was drawn with is already gone.
             is RootTarget.Step -> current?.let { plan ->
                 OnboardingSteps(
                     step = shown.step,

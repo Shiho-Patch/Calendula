@@ -106,8 +106,7 @@ class OnboardingPlanTest {
     @Test
     fun `re-granting after the wizard itself ran does not re-enter it`() {
         // The closing screen clears the armed flag, so someone the wizard did
-        // onboard is in the same position as anyone else who revokes the
-        // permission: one screen, no counter.
+        // onboard ends up where any other revoker does: one screen, no counter.
         val revoked = plan(remindersDone = true, wizardArmed = false, doneShown = true)
         assertThat(revoked.steps).containsExactly(OnboardingStep.Permission)
         assertThat(revoked.showsProgress).isFalse()

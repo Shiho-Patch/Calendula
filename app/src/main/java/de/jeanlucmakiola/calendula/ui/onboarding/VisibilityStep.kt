@@ -21,10 +21,8 @@ import de.jeanlucmakiola.floret.components.OnboardingSpace
  * Wizard step for the one-time notice that Calendula now follows the device's
  * own per-calendar visibility and some of yours are switched off (#75, #163).
  *
- * It used to be a dialog thrown over the app once onboarding had finished, which
- * put the one thing that explains a changed behaviour outside the flow that
- * explains everything else. Nothing to decide here — the app does not switch
- * those calendars back on, since that would un-hide them everywhere else too.
+ * Nothing to decide here — the app does not switch those calendars back on,
+ * since that would un-hide them everywhere else too.
  */
 @Composable
 internal fun VisibilityStep(

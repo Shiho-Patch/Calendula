@@ -55,31 +55,27 @@ data class OnboardingPlan(
 /**
  * Work out the flow from what is stored.
  *
- * The optional steps are only for installs that are still working through their
- * first run — an existing user sees nothing new. Before the grant that can only
- * be guessed, so an install that has not answered the reminder step either is
- * treated as fresh, which is the same condition
+ * The optional steps belong to installs still working through their first run.
+ * Before the grant that can only be guessed, so one that has not answered the
+ * reminder step either counts as fresh — the same condition
  * [de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs.armOnboardingWizard]
- * commits to storage a moment later. The flag is cleared again on the closing
- * screen, so revoking and re-granting the permission years later is only ever
- * the permission step.
+ * commits to storage a moment later, and clears again on the closing screen so
+ * a later re-grant is only the permission step.
  *
  * [backupApplies] is null until the calendar list can be read, i.e. for the
- * whole permission step. The backup step is assumed to apply until proven
+ * whole permission step; the backup step is assumed to apply until proven
  * otherwise, so the flow can only ever get shorter — never sprout a step the
  * counter had not accounted for.
  *
  * The month-style step is *not* conditional on Month being the chosen view:
- * Month is reachable from the drawer whatever opens first, and making the step
- * appear and disappear as the view is picked would move the counter under the
- * user on the step right before it.
+ * Month is reachable from the drawer whatever opens first, and a step that came
+ * and went as the view is picked would move the counter under the user on the
+ * step right before it.
  *
  * [visibilityArmed] carries the one-time notice that the device is hiding some
- * calendars (#75). It is a step rather than a dialog over the app so that an
- * install owing both meets it inside the flow instead of straight after it —
- * and it is the only optional step an *existing* install can be given, which is
- * why it is not gated on `fresh`. The closing screen is: there is nothing to
- * conclude for someone who was only shown one notice.
+ * calendars (#75) — the only optional step an *existing* install can be given,
+ * which is why it is not gated on `fresh`, and on its own it earns no closing
+ * screen.
  */
 fun onboardingPlan(
     hasPermission: Boolean,

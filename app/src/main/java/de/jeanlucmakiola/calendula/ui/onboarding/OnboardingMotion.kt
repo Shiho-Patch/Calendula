@@ -28,12 +28,9 @@ internal fun rememberOnboardingSlideSpec(): FiniteAnimationSpec<IntOffset> =
  * width swipes across, position on a spring so the arriving step settles with a
  * little give rather than stopping dead.
  *
- * No cross-fade, unlike the calendar's shared-axis paging. Adjacent months are
- * near-identical grids, so there the fade does the swapping and a short slide
- * only hints the direction; here the two steps have nothing in common and fading
- * one through the other read as a smear. Both steps are opaque and travel in
- * lockstep, so a full-width slide shows one screen pushing the other off with no
- * seam between them.
+ * No cross-fade, unlike the calendar's shared-axis paging: two steps have
+ * nothing in common, so fading one through the other smears. Both are opaque and
+ * travel in lockstep, showing one screen pushing the other off.
  *
  * @param slideDir     +1 = forward (incoming from the right), -1 = back.
  * @param spec         spatial spec, typically [rememberOnboardingSlideSpec].

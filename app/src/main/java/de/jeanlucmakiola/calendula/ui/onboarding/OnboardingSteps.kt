@@ -26,8 +26,7 @@ fun OnboardingSteps(
     modifier: Modifier = Modifier,
 ) {
     // Collected for every step, not just the two that draw a preview: starting
-    // it when the picker composes would leave the step blank for the frames the
-    // first stored emission takes to arrive — right as it slides in.
+    // it when the picker composes would leave that step blank as it slides in.
     val choice by viewModel.viewChoice.collectAsStateWithLifecycle()
 
     // Coerced because the outgoing half of a transition may be a step the live

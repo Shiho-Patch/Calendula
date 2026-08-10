@@ -623,9 +623,8 @@ class SettingsPrefs @Inject constructor(
 
     /**
      * Close the wizard for good: the closing screen has been seen and the
-     * install stops counting as fresh, so a later revoke-and-re-grant of the
-     * calendar permission is only ever the permission screen. One edit, so the
-     * plan can never observe a half-closed wizard.
+     * install stops counting as fresh, so a later revoke-and-re-grant is only
+     * the permission screen. One edit, so the plan can't see it half-closed.
      */
     suspend fun finishOnboardingWizard() {
         store.edit { prefs ->
