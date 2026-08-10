@@ -2356,7 +2356,12 @@ private fun MonthBar(
             text = title,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            // No "…" (#164): the chip is narrow enough that the ellipsis costs a
+            // couple of readable characters. softWrap is off with it — left on,
+            // a clipped line breaks at the last whole word instead of running to
+            // the chip's edge, which reads as *less* title, not more.
+            overflow = TextOverflow.Clip,
+            softWrap = false,
             color = eventInk(fill),
         )
     }

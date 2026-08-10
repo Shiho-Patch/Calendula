@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Month-view event titles no longer end in an ellipsis. The "…" took the width
+  of a couple of characters and told you nothing you couldn't already see, so
+  the title now simply runs to the edge of its chip — a few more letters per
+  cell, which is often the difference between two events you can tell apart and
+  two you can't ([#164]).
+
 ## [2.19.1] — 2026-08-11
 
 ### Added
@@ -1414,3 +1421,4 @@ automatically, with zero telemetry and no internet permission.
 [#123]: https://codeberg.org/jlmakiola/calendula/issues/123
 [#163]: https://codeberg.org/jlmakiola/calendula/issues/163
 [#173]: https://codeberg.org/jlmakiola/calendula/issues/173
+[#164]: https://codeberg.org/jlmakiola/calendula/issues/164
