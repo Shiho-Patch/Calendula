@@ -276,7 +276,7 @@ private fun AgendaRangeBanner(
 }
 
 @Composable
-private fun AgendaContent(
+internal fun AgendaContent(
     state: AgendaUiState,
     pastDisplay: PastEventDisplay,
     showToday: Boolean,

@@ -1,4 +1,4 @@
-package de.jeanlucmakiola.calendula.ui.permission
+package de.jeanlucmakiola.calendula.ui.onboarding
 
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel

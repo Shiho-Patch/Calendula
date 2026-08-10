@@ -2,12 +2,15 @@ package de.jeanlucmakiola.calendula.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
-import androidx.compose.animation.Crossfade
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -22,13 +25,22 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
 import de.jeanlucmakiola.calendula.data.contacts.hasContactsPermission
-import de.jeanlucmakiola.calendula.ui.calendars.CalendarVisibilityNoticeDialog
-import de.jeanlucmakiola.calendula.ui.calendars.CalendarVisibilityNoticeViewModel
-import de.jeanlucmakiola.calendula.ui.permission.PermissionScreen
-import de.jeanlucmakiola.calendula.ui.permission.ReminderOnboardingScreen
-import de.jeanlucmakiola.calendula.ui.permission.ReminderOnboardingViewModel
+import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
+import de.jeanlucmakiola.calendula.ui.onboarding.OnboardingStep
+import de.jeanlucmakiola.calendula.ui.onboarding.OnboardingSteps
+import de.jeanlucmakiola.calendula.ui.onboarding.OnboardingViewModel
+import de.jeanlucmakiola.calendula.ui.onboarding.onboardingSlideTransition
+import de.jeanlucmakiola.calendula.ui.onboarding.rememberOnboardingSlideSpec
+import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+/** What the root is showing: a wizard step, the app, or neither yet. */
+private sealed interface RootTarget {
+    /** DataStore has not emitted yet — render nothing rather than the wrong screen. */
+    data object Loading : RootTarget
+    data object App : RootTarget
+    data class Step(val step: OnboardingStep) : RootTarget
+}
+
 @Composable
 fun RootScreen(
     modifier: Modifier = Modifier,
@@ -76,58 +88,87 @@ fun RootScreen(
         onDispose { lifecycle.removeObserver(obs) }
     }
 
-    // Cross-fade the one-time onboarding gates so granting permission / finishing
-    // onboarding eases into the next screen instead of snapping. A fade carries no
-    // spatial motion, so it stays appropriate under "remove animations" too.
-    val gateSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-    Crossfade(targetState = hasPermission, animationSpec = gateSpec, label = "permissionGate") { granted ->
-        if (granted) {
-            // Second onboarding gate (v1.4, one-time): reminder notifications.
-            // Null until DataStore's first emission — render nothing for that
-            // frame instead of flashing the wrong screen.
-            val reminderOnboarding: ReminderOnboardingViewModel = hiltViewModel()
-            val onboardingDone by reminderOnboarding.onboardingDone.collectAsStateWithLifecycle()
-            // One-time explainer for the switch to the device's own calendar
-            // visibility (#75), armed by the reconciler.
-            val visibilityNotice: CalendarVisibilityNoticeViewModel = hiltViewModel()
-            val noticePending by visibilityNotice.pending.collectAsStateWithLifecycle()
-            // Runs on entry however the permission was granted, including via
-            // Android's app-settings screen (caught by the ON_RESUME above).
-            LaunchedEffect(Unit) {
-                visibilityNotice.reconcile()
-                if (!grantedAtLaunch) reminderOnboarding.rearmAfterGrant()
+    val onboarding: OnboardingViewModel = hiltViewModel()
+    val plan by onboarding.plan.collectAsStateWithLifecycle()
+    // The grant is reported however it was taken, including via Android's
+    // app-settings screen (caught by the ON_RESUME above); arming the wizard
+    // hangs off that, not off the in-app callback.
+    LaunchedEffect(hasPermission) {
+        onboarding.setHasPermission(hasPermission)
+        if (hasPermission && !grantedAtLaunch) onboarding.onPermissionGranted()
+    }
+
+    // Arms the one-time explainer for the switch to the device's own calendar
+    // visibility (#75), which the wizard then carries as a step of its own.
+    LaunchedEffect(hasPermission) {
+        if (hasPermission) onboarding.reconcileCalendarVisibility()
+    }
+
+    val current = plan
+    val target: RootTarget = when {
+        current == null -> RootTarget.Loading
+        current.current == null -> RootTarget.App
+        else -> RootTarget.Step(current.current)
+    }
+
+    // Which way the flow is moving, so a step-back slides back. The app sorts
+    // after every step, so finishing the wizard reads as one more move forward.
+    val ordinal = when (target) {
+        RootTarget.Loading -> Int.MIN_VALUE
+        RootTarget.App -> Int.MAX_VALUE
+        is RootTarget.Step -> current?.steps?.indexOf(target.step) ?: 0
+    }
+    var lastOrdinal by remember { mutableIntStateOf(ordinal) }
+    val slideDir = if (ordinal < lastOrdinal) -1 else 1
+    SideEffect { lastOrdinal = ordinal }
+
+    val slideSpec = rememberOnboardingSlideSpec()
+    val fadeSpec = rememberCalendarFadeSpec()
+    val reduceMotion = rememberReduceMotion()
+    AnimatedContent(
+        targetState = target,
+        transitionSpec = {
+            // Coming off the blank first frame is not a step change.
+            if (initialState == RootTarget.Loading) {
+                fadeIn(fadeSpec).togetherWith(fadeOut(fadeSpec))
+            } else {
+                onboardingSlideTransition(
+                    slideDir = slideDir,
+                    spec = slideSpec,
+                    fadeSpec = fadeSpec,
+                    reduceMotion = reduceMotion,
+                )
             }
-            if (onboardingDone == true && noticePending) {
-                CalendarVisibilityNoticeDialog(onDismiss = visibilityNotice::dismiss)
-            }
-            Crossfade(targetState = onboardingDone, animationSpec = gateSpec, label = "onboardingGate") { done ->
-                when (done) {
-                    true -> CalendarHost(
-                        modifier = modifier,
-                        requestedDetailKey = requestedDetailKey,
-                        onDetailKeyConsumed = onDetailKeyConsumed,
-                        widgetNavRequest = widgetNavRequest,
-                        onWidgetNavConsumed = onWidgetNavConsumed,
-                        requestedImportUri = requestedImportUri,
-                        onImportConsumed = onImportConsumed,
-                        requestedInsertForm = requestedInsertForm,
-                        requestedInsertSource = requestedInsertSource,
-                        onInsertConsumed = onInsertConsumed,
-                        requestedEditKey = requestedEditKey,
-                        onEditKeyConsumed = onEditKeyConsumed,
-                    )
-                    false -> ReminderOnboardingScreen(
-                        onFinished = reminderOnboarding::finish,
-                        modifier = modifier,
-                    )
-                    null -> {}
-                }
-            }
-        } else {
-            PermissionScreen(
-                onGranted = { hasPermission = true },
+        },
+        label = "onboardingGate",
+    ) { shown ->
+        when (shown) {
+            RootTarget.Loading -> Unit
+            RootTarget.App -> CalendarHost(
                 modifier = modifier,
+                requestedDetailKey = requestedDetailKey,
+                onDetailKeyConsumed = onDetailKeyConsumed,
+                widgetNavRequest = widgetNavRequest,
+                onWidgetNavConsumed = onWidgetNavConsumed,
+                requestedImportUri = requestedImportUri,
+                onImportConsumed = onImportConsumed,
+                requestedInsertForm = requestedInsertForm,
+                requestedInsertSource = requestedInsertSource,
+                onInsertConsumed = onInsertConsumed,
+                requestedEditKey = requestedEditKey,
+                onEditKeyConsumed = onEditKeyConsumed,
             )
+            // Both halves of a transition read their position out of the live
+            // plan; the one the outgoing step was drawn with is already gone.
+            is RootTarget.Step -> current?.let { plan ->
+                OnboardingSteps(
+                    step = shown.step,
+                    plan = plan,
+                    viewModel = onboarding,
+                    onPermissionGranted = { hasPermission = true },
+                    modifier = modifier,
+                )
+            }
         }
     }
 }

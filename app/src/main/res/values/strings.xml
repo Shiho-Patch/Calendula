@@ -18,16 +18,20 @@
 
     <!-- Permission flow (F1) -->
     <string name="permission_rationale_title">See all your events, beautifully</string>
-    <string name="permission_rationale_body">Calendula needs access to your calendar to show and manage your events. That\'s all it asks for up front — and nothing ever leaves your device.</string>
+    <string name="permission_rationale_body">Calendula needs access to your calendar to show and manage your events.</string>
     <string name="permission_request_button">Grant calendar access</string>
     <string name="permission_denied_title">Calendar access denied</string>
     <string name="permission_denied_body">Calendula cannot show events without calendar access. You can grant it again in the system settings.</string>
     <string name="permission_open_settings_button">Open system settings</string>
     <string name="permission_retry_button">Try again</string>
-    <string name="permission_benefit_private_title">Stays on your device</string>
-    <string name="permission_benefit_private_body">Your calendars are read locally and never leave the phone.</string>
+    <string name="permission_benefit_private_title">Private by design</string>
+    <string name="permission_benefit_private_body">No internet permission, no telemetry — nothing ever leaves your phone.</string>
     <string name="permission_benefit_sync_title">All your calendars, together</string>
     <string name="permission_benefit_sync_body">Google, CalDAV, local — anything synced to the device just appears.</string>
+    <!-- Unused since the wizard trim (#163) — the privacy point is now
+         permission_benefit_private_*. Kept until Weblate drops them from the
+         translations: removing a base key a translation still carries is a
+         fatal ExtraTranslation. -->
     <string name="permission_benefit_privacy_title">No tracking, ever</string>
     <string name="permission_benefit_privacy_body">Zero telemetry, zero analytics, no ads.</string>
     <string name="permission_privacy_footnote">Stays on your device · no internet permission</string>
@@ -268,6 +272,25 @@
     <!-- Shared event strings -->
     <string name="event_untitled">(No title)</string>
 
+    <!-- First-launch wizard (#163) -->
+    <string name="onboarding_step_counter">Step %1$d of %2$d</string>
+    <string name="onboarding_backup_title">Your events live only here</string>
+    <string name="onboarding_backup_body">Nothing on this phone syncs to an account, so losing it would lose your calendar. Calendula can write a backup for you.</string>
+    <string name="onboarding_backup_benefit_folder_title">A folder you choose</string>
+    <string name="onboarding_backup_benefit_folder_body">Backups are plain .ics files — put them somewhere that syncs, or on an SD card.</string>
+    <string name="onboarding_backup_benefit_daily_title">Once a day, by itself</string>
+    <string name="onboarding_backup_benefit_daily_body">Calendula exports your local calendars in the background. Change how often in Settings.</string>
+    <string name="onboarding_backup_enable_button">Choose folder and back up</string>
+    <string name="onboarding_backup_skip_button">Not now</string>
+    <string name="onboarding_view_title">What should open first?</string>
+    <string name="onboarding_month_style_title">How should Month look?</string>
+    <string name="onboarding_view_continue_button">Continue</string>
+    <string name="onboarding_back">Back</string>
+    <string name="onboarding_visibility_button">Got it</string>
+    <string name="onboarding_done_title">You\'re all set</string>
+    <string name="onboarding_done_body">Your calendars are ready. Everything you just chose can be changed later in Settings.</string>
+    <string name="onboarding_done_button">Open my calendar</string>
+
     <!-- Reminder notifications (v1.4) -->
     <string name="reminder_channel_name">Event reminders</string>
     <string name="reminder_channel_description">Notifications at the reminder times of your events</string>
@@ -277,6 +300,7 @@
     <string name="reminder_benefit_delivery_body">Every reminder on your events arrives as a notification, right on time.</string>
     <string name="reminder_benefit_duplicates_title">Using a second calendar app?</string>
     <string name="reminder_benefit_duplicates_body">If another app also posts reminders, you\'ll see them twice — turn them off there or here.</string>
+    <!-- Unused since the wizard trim (#163); see the note above. -->
     <string name="reminder_benefit_reversible_title">Change it anytime</string>
     <string name="reminder_benefit_reversible_body">The switch lives in Settings, under Notifications.</string>
     <string name="reminder_onboarding_enable_button">Turn on reminders</string>
@@ -597,7 +621,7 @@
     <string name="calendars_visibility_hint">Turn a calendar off to hide it on this device — its events disappear from the app and it stops reminding you. This is the same switch your other calendar apps use, so they hide it too. Nothing is deleted, no other device is affected, and you can turn it back on here anytime.</string>
     <string name="calendars_visibility_a11y">Show \"%1$s\"</string>
     <string name="calendars_visibility_notice_title">Some calendars are switched off</string>
-    <string name="calendars_visibility_notice_message">Calendula now shows the calendars that are switched on for this device, so what you see and what reminds you can no longer disagree. Some of yours are currently off — they were switched off here or in another calendar app. Turn any of them back on in Settings → Calendars.</string>
+    <string name="calendars_visibility_notice_message">Calendula shows the calendars that are switched on for this device, and some of yours are off. To see their events, switch them on under Settings → Calendars.</string>
     <!-- Footer row under the event-form and .ics import calendar pickers. -->
     <string name="calendar_picker_missing_title">Missing a calendar?</string>
     <string name="calendar_picker_missing_summary">It may be switched off, read-only, or filled from your contacts — manage your calendars here.</string>
