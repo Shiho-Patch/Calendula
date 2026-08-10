@@ -1,0 +1,2 @@
+Corretto
+• Vista settimana e giorno: toccando uno spazio libero l'evento viene creato all'ora toccata, anche dopo aver ingrandito la linea temporale o cambiato l'altezza dell'ora.

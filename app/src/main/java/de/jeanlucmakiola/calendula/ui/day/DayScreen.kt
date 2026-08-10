@@ -46,6 +46,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -117,6 +118,7 @@ import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.common.GUTTER_WIDTH
 import de.jeanlucmakiola.calendula.ui.common.HourGutter
 import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
+import de.jeanlucmakiola.calendula.ui.common.tappedMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.week.TimedBlock
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -623,6 +625,12 @@ private fun DayColumnCard(
     LaunchedEffect(blocks, dragController.settling) {
         dragController.noteGrid(date, blocks)
     }
+    // The tap detector outlives the composition that installed it — a pinch or a
+    // Settings change moves the hour height without restarting it — so it reads
+    // the height and the callback through state handles instead of capturing
+    // them, or taps land on the scale the column had before the zoom (#148).
+    val currentHourPx = rememberUpdatedState(hourPx)
+    val currentOnCreateAt = rememberUpdatedState(onCreateAt)
     Card(
         // Plain rectangular column — the soft corners come from the outer
         // rounded scroll viewport, so inner rounding would look odd at the edges.
@@ -643,8 +651,10 @@ private fun DayColumnCard(
                 // only fires on the column background. Snaps to the tapped hour.
                 .pointerInput(date) {
                     detectTapGestures { offset ->
-                        val hour = (offset.y / hourPx).toInt().coerceIn(0, 23)
-                        onCreateAt(date, hour * 60)
+                        currentOnCreateAt.value(
+                            date,
+                            tappedMinuteOfDay(offset.y, currentHourPx.value),
+                        )
                     }
                 },
         ) {
