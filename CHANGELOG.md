@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.0] — 2026-08-10
+
+### Added
+- **Drag an event to reschedule it.** Press and hold an event in the month,
+  week or day view and drop it on another time or day — the only way to move an
+  appointment used to be opening it and editing its start and end by hand. The
+  block follows your finger, the timeline scrolls when you carry it to an edge,
+  and the event's length is preserved: a 90-minute meeting dropped on 09:00 ends
+  at 10:30. In week and day view the drop snaps to 15-minute steps; in month
+  view it moves the event to the day you dropped it on and leaves the time
+  alone. A confirmation names the new slot and offers **Undo** wherever the move
+  can be taken back in one step. Events you can't edit — read-only calendars, and
+  birthdays and anniversaries mirrored from your contacts — can't be picked up.
+  Rescheduling isn't pointer-only: a screen reader gets a **Move…** action on
+  every event that can be moved ([#68]).
+- Dragging a **recurring** event asks what it should apply to, the same *this
+  event / this and following / all events* choice a save does. Where moving the
+  whole series would change which weekday it falls on, the rule is rewritten to
+  match — a weekly Monday event dropped on a Wednesday becomes a weekly
+  Wednesday event. Where it can't be rewritten safely, the prompt says so and
+  offers to move just the one occurrence, rather than quietly leaving the
+  series behind ([#68]).
+- **Delete several search results at once.** Long-press a hit in search to enter
+  selection mode, tap the rest (or **Select all**), and delete the lot in one
+  action — finding and removing, say, every leftover event with the same title
+  no longer means opening them one at a time. Recurring hits in the batch ask
+  once for the whole selection instead of once each, results on read-only
+  calendars can't be selected, and the deletion is confirmed before it runs
+  ([#80]).
+
+### Changed
+- **First launch is now a short wizard** instead of a single permission screen.
+  It counts its steps, each one can be stepped back out of, and beyond granting
+  calendar access it offers two things worth deciding once: turning on automatic
+  backup — chosen inline, folder picker and all, since events that live only on
+  the phone are lost with it — and choosing which view Calendula opens on, with
+  a live preview of the month, week, day and agenda layouts rather than four
+  names in a list. Both are skippable, everything chosen is changeable in
+  Settings afterwards, and the backup step is offered only where nothing
+  writable is being synced anywhere. Existing installs are not re-onboarded —
+  revoking and re-granting the calendar permission later does not restart the
+  wizard ([#163]).
+- The one-time notice about calendars switched off for this device is now a step
+  in the flow rather than a dialog thrown over the app on first open.
+
+### Fixed
+- Removed the deprecated `statusBarColor` / `navigationBarColor` theme
+  attributes the Play Console flags on Android 15 and up, where they no longer
+  do anything. The launch backdrop now picks its status-bar icons from the
+  light/dark resource instead, so they stay legible over it either way
+  ([#123]).
+
 ## [2.18.1] — 2026-08-06
 
 ### Fixed
@@ -1333,3 +1385,7 @@ automatically, with zero telemetry and no internet permission.
 [#56]: https://codeberg.org/jlmakiola/calendula/issues/56
 [#114]: https://codeberg.org/jlmakiola/calendula/issues/114
 [#148]: https://codeberg.org/jlmakiola/calendula/issues/148
+[#68]: https://codeberg.org/jlmakiola/calendula/issues/68
+[#80]: https://codeberg.org/jlmakiola/calendula/issues/80
+[#123]: https://codeberg.org/jlmakiola/calendula/issues/123
+[#163]: https://codeberg.org/jlmakiola/calendula/issues/163

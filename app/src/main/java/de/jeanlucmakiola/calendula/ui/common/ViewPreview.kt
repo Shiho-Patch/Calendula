@@ -1,0 +1,145 @@
+package de.jeanlucmakiola.calendula.ui.common
+
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import de.jeanlucmakiola.floret.components.GroupedListInset
+import de.jeanlucmakiola.floret.identity.rememberReduceMotion
+import kotlin.math.roundToInt
+
+/**
+ * The viewport a view preview pretends to be: a phone's width by the height a
+ * calendar view gets under the top bar. Scaling every preview from one fixed
+ * height keeps them comparable — each shows the same slice of screen.
+ */
+internal val PREVIEW_VIEWPORT_HEIGHT = 440.dp
+
+/**
+ * Renders [content] at a full phone viewport and shrinks the finished layout
+ * into a box [height] tall, for the settings and onboarding choosers. Callers
+ * pass the *real* view composables, so a preview cannot drift from what it
+ * depicts.
+ *
+ * The [layout] below ignores the incoming constraints so the view measures at a
+ * phone viewport, and a [graphicsLayer] scale shrinks the result.
+ * `Modifier.requiredSize` is the obvious alternative but *centres* content that
+ * overflows its constraints, leaving only the bottom-right corner in the clip.
+ */
+@Composable
+internal fun ScaledViewPreview(
+    height: Dp,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val scale = height.value / PREVIEW_VIEWPORT_HEIGHT.value
+
+    Box(
+        modifier = modifier
+            .clipToBounds()
+            .background(MaterialTheme.colorScheme.surface)
+            // A preview is a picture, not a control: swallow touches before the
+            // view's own clickables see them, and give screen readers one label
+            // instead of six weeks of day cells.
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent(PointerEventPass.Initial).changes
+                            .forEach { it.consume() }
+                    }
+                }
+            }
+            .clearAndSetSemantics { }
+            // Measure at a full phone viewport but report the scaled size, so the
+            // node occupies exactly what it draws.
+            .layout { measurable, _ ->
+                val fullWidth = screenWidth.roundToPx()
+                val fullHeight = PREVIEW_VIEWPORT_HEIGHT.roundToPx()
+                val placeable = measurable.measure(Constraints.fixed(fullWidth, fullHeight))
+                layout((fullWidth * scale).roundToInt(), (fullHeight * scale).roundToInt()) {
+                    placeable.place(0, 0)
+                }
+            }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                transformOrigin = TransformOrigin(0f, 0f)
+            },
+    ) {
+        Column(Modifier.fillMaxSize()) { content() }
+    }
+}
+
+/**
+ * The stage every preview picker sets its preview on, cross-fading as [selected]
+ * changes. A preview draws the app's own surface, so a tonal plate gives it the
+ * edge it would otherwise lack on a chooser screen; the plate takes the width
+ * and outer radius of the grouped rows underneath so the two read as one stack.
+ *
+ * Only vertical spacing is the caller's to pass — the horizontal inset is the
+ * rows' own, and the alignment is the point.
+ */
+@Composable
+internal fun <T> ViewPreviewFrame(
+    selected: T,
+    label: String,
+    modifier: Modifier = Modifier,
+    content: @Composable (T) -> Unit,
+) {
+    val reduceMotion = rememberReduceMotion()
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = GroupedListInset)
+            .clip(FRAME_SHAPE)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(FRAME_INSET),
+        contentAlignment = Alignment.Center,
+    ) {
+        Crossfade(
+            targetState = selected,
+            animationSpec = if (reduceMotion) snap() else tween(durationMillis = 250),
+            label = label,
+        ) { shown ->
+            // Each preview renders the real view at phone size and scales it
+            // down, so its own corners are square — the plate rounds them.
+            Box(
+                modifier = Modifier
+                    .clip(PREVIEW_SHAPE)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .clipToBounds(),
+            ) {
+                content(shown)
+            }
+        }
+    }
+}
+
+private val FRAME_INSET = 8.dp
+
+/** The grouped rows' own outer radius, so the stack shares one silhouette. */
+private val FRAME_SHAPE = RoundedCornerShape(22.dp)
+private val PREVIEW_SHAPE = RoundedCornerShape(12.dp)

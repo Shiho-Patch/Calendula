@@ -338,6 +338,32 @@ class SettingsPrefsTest {
     }
 
     @Test
+    fun `the wizard arms on a first run`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        prefs.armOnboardingWizard()
+        assertThat(prefs.onboardingWizardArmed.first()).isTrue()
+    }
+
+    @Test
+    fun `the wizard does not arm once the reminder step is answered`(@TempDir tempDir: Path) = runTest {
+        // An existing install re-granting the permission is not re-onboarded.
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        prefs.setReminderOnboardingDone()
+        prefs.armOnboardingWizard()
+        assertThat(prefs.onboardingWizardArmed.first()).isFalse()
+    }
+
+    @Test
+    fun `closing the wizard disarms it`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        prefs.armOnboardingWizard()
+
+        prefs.finishOnboardingWizard()
+        assertThat(prefs.onboardingDoneShown.first()).isTrue()
+        assertThat(prefs.onboardingWizardArmed.first()).isFalse()
+    }
+
+    @Test
     fun `default reminder is empty until set`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
         assertThat(prefs.defaultReminderMinutes.first()).isEmpty()

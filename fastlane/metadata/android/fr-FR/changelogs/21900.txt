@@ -1,0 +1,6 @@
+Nouveautés
+• Déplacez un événement par glisser-déposer : appuyez longuement dessus en vue mois, semaine ou jour, puis déposez-le à une autre heure ou un autre jour. Pour un événement récurrent, la portée du déplacement est demandée.
+• Supprimez plusieurs résultats de recherche d'un coup : un appui long lance la sélection.
+
+Modifié
+• Le premier lancement est désormais un court assistant. Il peut aussi activer la sauvegarde automatique et vous laisser choisir la vue d'ouverture, avec aperçu.

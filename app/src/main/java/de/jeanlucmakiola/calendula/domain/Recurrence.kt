@@ -138,7 +138,7 @@ fun SimpleRecurrence.toRRule(zone: TimeZone = TimeZone.currentSystemDefault()): 
     }
 }
 
-private val RRULE_DAY_CODES: Map<DayOfWeek, String> = mapOf(
+internal val RRULE_DAY_CODES: Map<DayOfWeek, String> = mapOf(
     DayOfWeek.MONDAY to "MO",
     DayOfWeek.TUESDAY to "TU",
     DayOfWeek.WEDNESDAY to "WE",

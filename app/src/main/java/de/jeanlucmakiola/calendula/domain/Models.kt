@@ -62,6 +62,11 @@ data class EventInstance(
     val isAllDay: Boolean,
     val color: Int,
     val location: String?,
+    /**
+     * Only search results, which read the series master, fill this in — the
+     * Instances query already yields one row per occurrence.
+     */
+    val isRecurring: Boolean = false,
 )
 
 /**
@@ -124,6 +129,12 @@ data class EventDetail(
     val eventColor: Int? = null,
     /** The event's `Events.EVENT_COLOR_KEY` (a calendar-palette key), or null. */
     val eventColorKey: String? = null,
+    /**
+     * True when this row is a modified occurrence of a series (`ORIGINAL_ID` is
+     * set) rather than a master, so a reschedule takes the plain whole-row path
+     * whatever [rrule] a sync adapter left on it.
+     */
+    val isException: Boolean = false,
 )
 
 /**

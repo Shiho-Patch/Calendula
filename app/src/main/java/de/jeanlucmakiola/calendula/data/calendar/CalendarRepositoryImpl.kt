@@ -9,6 +9,7 @@ import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventDetail
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.SearchCandidate
 import de.jeanlucmakiola.calendula.domain.ics.IcsImportSummary
 import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
 import kotlinx.coroutines.CoroutineDispatcher
@@ -162,13 +163,13 @@ class CalendarRepositoryImpl @Inject constructor(
             ?: throw NoSuchEventException(eventId)
     }
 
-    override suspend fun searchEvents(query: String): List<EventInstance> = withContext(io) {
+    override suspend fun searchEvents(query: String): List<SearchCandidate> = withContext(io) {
         if (query.isBlank()) return@withContext emptyList()
         val excluded = prefs.hiddenCalendarIds.first() +
             prefs.pendingDisabledCalendarIds.first() +
             invisibleCalendarIds()
         dataSource.searchEvents(query)
-            .let { if (excluded.isEmpty()) it else it.filterNot { e -> e.calendarId in excluded } }
+            .let { if (excluded.isEmpty()) it else it.filterNot { c -> c.event.calendarId in excluded } }
     }
 
     override suspend fun eventColorPalette(calendarId: Long): List<EventColorOption> =

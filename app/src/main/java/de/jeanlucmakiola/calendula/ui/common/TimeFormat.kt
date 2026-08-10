@@ -17,6 +17,7 @@ val LocalUse24HourFormat = staticCompositionLocalOf { true }
 private const val PATTERN_24 = "HH:mm"
 private const val PATTERN_12 = "h:mm a"
 private const val HOUR_PATTERN_12 = "h a"
+private const val HOUR_MINUTE_PATTERN_12 = "h:mm"
 
 /** A time-of-day [DateTimeFormatter] for the resolved convention and [locale]. */
 fun timeOfDayFormatter(is24Hour: Boolean, locale: Locale): DateTimeFormatter =
@@ -40,6 +41,18 @@ fun formatMinuteOfDay(minutes: Int, is24Hour: Boolean, locale: Locale): String =
     minutes >= MINUTES_PER_DAY && is24Hour -> "24:00"
     minutes >= MINUTES_PER_DAY -> formatTimeOfDay(0, 0, is24Hour = false, locale)
     else -> formatTimeOfDay(minutes / 60, minutes % 60, is24Hour, locale)
+}
+
+/**
+ * The time shown in the timeline gutter while a block is dragged: 24h →
+ * "09:15", 12h → "9:15". The meridiem is dropped — the hour labels around it
+ * already carry it, and the gutter is too narrow.
+ */
+fun formatGutterTime(minutes: Int, is24Hour: Boolean, locale: Locale): String {
+    val clamped = minutes.coerceIn(0, MINUTES_PER_DAY - 1)
+    val pattern = if (is24Hour) PATTERN_24 else HOUR_MINUTE_PATTERN_12
+    return LocalTime.of(clamped / 60, clamped % 60)
+        .format(DateTimeFormatter.ofPattern(pattern, locale))
 }
 
 /**

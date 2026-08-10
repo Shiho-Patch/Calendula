@@ -1,4 +1,4 @@
-package de.jeanlucmakiola.calendula.ui.permission
+package de.jeanlucmakiola.calendula.ui.onboarding
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule

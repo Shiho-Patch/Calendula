@@ -1,0 +1,6 @@
+Novità
+• Trascina un evento per spostarlo a un altro orario o giorno: tienilo premuto nella vista mese, settimana o giorno e rilascialo. Per gli eventi ricorrenti viene chiesto a cosa si applica lo spostamento.
+• Elimina più risultati di ricerca in una volta: tieni premuto un risultato per iniziare a selezionare.
+
+Modifiche
+• Il primo avvio è ora una breve procedura guidata. Può anche attivare il backup automatico e farti scegliere la vista iniziale, entrambi con anteprima.

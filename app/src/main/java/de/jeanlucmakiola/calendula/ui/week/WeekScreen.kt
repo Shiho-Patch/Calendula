@@ -47,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -63,13 +64,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -85,6 +90,20 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
+import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
+import de.jeanlucmakiola.calendula.ui.common.animatedBlockPlacement
+import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
+import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
+import de.jeanlucmakiola.calendula.ui.common.MoveRequest
+import de.jeanlucmakiola.calendula.ui.common.MoveTarget
+import de.jeanlucmakiola.calendula.ui.common.TimelineDragController
+import de.jeanlucmakiola.calendula.ui.common.TimelineDragOverlay
+import de.jeanlucmakiola.calendula.ui.common.TimelineDrop
+import de.jeanlucmakiola.calendula.ui.common.beginsOn
+import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
+import de.jeanlucmakiola.calendula.ui.common.rememberEventDragSource
+import de.jeanlucmakiola.calendula.ui.common.rememberTimelineDragController
+import de.jeanlucmakiola.calendula.ui.common.startInstant
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventFill
@@ -105,8 +124,10 @@ import de.jeanlucmakiola.calendula.ui.common.MIN_TITLE_WRAP_WIDTH
 import de.jeanlucmakiola.calendula.ui.common.SECONDARY_INK_ALPHA
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
-import de.jeanlucmakiola.calendula.ui.common.formatHourLabel
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
+import de.jeanlucmakiola.calendula.ui.common.GUTTER_CONTENT_START_INSET
+import de.jeanlucmakiola.calendula.ui.common.GUTTER_WIDTH
+import de.jeanlucmakiola.calendula.ui.common.HourGutter
 import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
 import de.jeanlucmakiola.calendula.ui.common.tappedMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
@@ -123,16 +144,13 @@ import kotlin.time.Clock
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
-private val GUTTER_WIDTH = 48.dp
-/** Start inset for the gutter's content (week badge + hour labels) so it centres
- *  on the top bar's hamburger: with a 48dp gutter, 8dp lands the centre at 28dp
- *  (the app bar's 4dp inset + 24dp half icon button). */
-private val GUTTER_CONTENT_START_INSET = 8.dp
 private val ALL_DAY_ROW_HEIGHT = 24.dp
 private val ALL_DAY_VERTICAL_PADDING = 6.dp
+/** Gap between day columns; part of the column pitch a drag maps positions through. */
+private val COLUMN_GAP = 2.dp
 
 /** Total all-day strip height for a week (0 when there are no all-day events). */
-private fun WeekUiState.Success.allDayStripHeight(): Dp {
+internal fun WeekUiState.Success.allDayStripHeight(): Dp {
     if (allDaySpans.isEmpty()) return 0.dp
     val lanes = allDaySpans.maxOf { it.lane } + 1
     return ALL_DAY_ROW_HEIGHT * lanes + ALL_DAY_VERTICAL_PADDING * 2
@@ -333,44 +351,69 @@ private fun WeekContent(
     // gestures coexist without fighting.
     val swipeModifier = rememberCalendarPageSwipe(onSwipeNext, onSwipePrev)
 
-    AnimatedContent(
-        targetState = state,
-        modifier = modifier.then(swipeModifier),
-        contentKey = { s ->
+    // Above the AnimatedContent: a page change mid-drag would strand the
+    // floating block inside the outgoing page.
+    val dragController = rememberTimelineDragController()
+    val move = LocalEventMove.current
+    val zone = remember { TimeZone.currentSystemDefault() }
+
+    Box(modifier = modifier) {
+        AnimatedContent(
+            targetState = state,
+            modifier = Modifier.fillMaxSize().then(swipeModifier),
+            contentKey = { s ->
+                when (s) {
+                    is WeekUiState.Success -> "success-${s.weekStart}"
+                    is WeekUiState.Failure -> "failure-${s.reason}"
+                    WeekUiState.Loading -> "loading"
+                }
+            },
+            transitionSpec = { calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion) },
+            label = "week-transition",
+        ) { s ->
             when (s) {
-                is WeekUiState.Success -> "success-${s.weekStart}"
-                is WeekUiState.Failure -> "failure-${s.reason}"
-                WeekUiState.Loading -> "loading"
+                WeekUiState.Loading -> WeekLoading()
+                is WeekUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
+                is WeekUiState.Success -> WeekSuccess(
+                    state = s,
+                    topSectionColor = topSectionColor,
+                    scrollState = scrollState,
+                    allDayHeight = allDayHeight,
+                    dragController = dragController,
+                    onEventClick = onEventClick,
+                    onOpenDay = onOpenDay,
+                    onCreateAt = onCreateAt,
+                    onDrop = { drop ->
+                        val took = move?.move(
+                            MoveRequest(
+                                eventId = drop.event.eventId,
+                                beginMillis = drop.event.start.toEpochMilliseconds(),
+                                endMillis = drop.event.end.toEpochMilliseconds(),
+                                target = MoveTarget.Start(drop.startInstant(zone)),
+                            ),
+                        )
+                        // Refused, so nothing will land: let the copy go now
+                        // rather than hold it out for a settle that never comes.
+                        if (took != true) dragController.release()
+                    },
+                )
             }
-        },
-        transitionSpec = { calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion) },
-        label = "week-transition",
-    ) { s ->
-        when (s) {
-            WeekUiState.Loading -> WeekLoading()
-            is WeekUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
-            is WeekUiState.Success -> WeekSuccess(
-                state = s,
-                topSectionColor = topSectionColor,
-                scrollState = scrollState,
-                allDayHeight = allDayHeight,
-                onEventClick = onEventClick,
-                onOpenDay = onOpenDay,
-                onCreateAt = onCreateAt,
-            )
         }
+        TimelineDragOverlay(dragController)
     }
 }
 
 @Composable
-private fun WeekSuccess(
+internal fun WeekSuccess(
     state: WeekUiState.Success,
     topSectionColor: Color,
     scrollState: ScrollState,
     allDayHeight: Dp,
+    dragController: TimelineDragController,
     onEventClick: (EventInstance) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -387,8 +430,10 @@ private fun WeekSuccess(
         Timeline(
             state = state,
             scrollState = scrollState,
+            dragController = dragController,
             onEventClick = onEventClick,
             onCreateAt = onCreateAt,
+            onDrop = onDrop,
         )
     }
 }
@@ -624,13 +669,15 @@ private fun AllDayBar(
 private fun Timeline(
     state: WeekUiState.Success,
     scrollState: ScrollState,
+    dragController: TimelineDragController,
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
-    val use24Hour = LocalUse24HourFormat.current
-    val locale = currentLocale()
     val zoom = LocalTimelineZoom.current
+    val density = LocalDensity.current
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
     // BoxWithConstraints rather than Box: the fit-the-whole-day scale needs the
     // timeline's own viewport height, which is only known here — below the top
@@ -650,45 +697,39 @@ private fun Timeline(
         Row(modifier = Modifier.fillMaxSize().then(pinch)) {
             // Hour gutter (scrolls in sync with the day columns). Same start inset
             // as the header badge so the labels sit under it and on the hamburger.
-            Column(
-                modifier = Modifier
-                    .width(GUTTER_WIDTH)
-                    .padding(start = GUTTER_CONTENT_START_INSET)
-                    .fillMaxHeight()
-                    .verticalScroll(scrollState),
-            ) {
-                (0 until 24).forEach { h ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(hourHeight),
-                    ) {
-                        if (h > 0) {
-                            Text(
-                                text = formatHourLabel(h, use24Hour, locale),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .offset(y = (-6).dp),
-                            )
-                        }
-                    }
-                }
-            }
+            HourGutter(
+                scrollState = scrollState,
+                hourHeight = hourHeight,
+                dragController = dragController,
+            )
             // Day columns: rounded, clipped scroll viewport (permanent corners).
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(16.dp))
-                    .verticalScroll(scrollState),
+                    .verticalScroll(scrollState)
+                    .onGloballyPositioned { dragController.geometry.viewport = it },
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(totalHeight),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        .height(totalHeight)
+                        // The scrolling content itself, so its root position
+                        // already folds in the scroll offset.
+                        .onGloballyPositioned { coords ->
+                            val gap = with(density) { COLUMN_GAP.toPx() }
+                            dragController.geometry.let {
+                                it.grid = coords
+                                it.scroll = scrollState
+                                it.hourPx = with(density) { hourHeight.toPx() }
+                                it.columnGapPx = gap
+                                it.columnWidthPx = (coords.size.width + gap) / state.days.size
+                                it.days = state.days
+                                it.isRtl = isRtl
+                            }
+                        },
+                    horizontalArrangement = Arrangement.spacedBy(COLUMN_GAP),
                 ) {
                     state.days.forEach { day ->
                         DayColumnCard(
@@ -697,8 +738,10 @@ private fun Timeline(
                             date = day,
                             today = state.today,
                             hourHeight = hourHeight,
+                            dragController = dragController,
                             onEventClick = onEventClick,
                             onCreateAt = onCreateAt,
+                            onDrop = onDrop,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight(),
@@ -717,13 +760,19 @@ private fun DayColumnCard(
     date: LocalDate,
     today: LocalDate,
     hourHeight: Dp,
+    dragController: TimelineDragController,
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val hourPx = with(LocalDensity.current) { hourHeight.toPx() }
     val showHourLines = LocalShowHourLines.current
     val hourLineColor = MaterialTheme.colorScheme.outlineVariant
+    // Tells a settled drop when this column has caught up with it.
+    LaunchedEffect(blocks, dragController.settling) {
+        dragController.noteGrid(date, blocks)
+    }
     // The tap detector outlives the composition that installed it — a pinch or a
     // Settings change moves the hour height without restarting it — so it reads
     // the height and the callback through state handles instead of capturing
@@ -758,23 +807,39 @@ private fun DayColumnCard(
         ) {
             val colWidth = maxWidth
             val minEventHeight = hourHeight * MIN_EVENT_FRACTION
+            // Keyed by event, so a block that changes time or lane is the *same*
+            // composable afterwards and tweens there. The ordinal disambiguates
+            // a column holding two occurrences of one series.
+            val ordinals = mutableMapOf<Long, Int>()
             blocks.forEach { block ->
-                val laneWidth = colWidth / block.laneCount
-                val top = hourHeight * (block.startMin / 60f)
-                val rawHeight = hourHeight * ((block.endMin - block.startMin) / 60f)
-                val height = if (rawHeight < minEventHeight) minEventHeight else rawHeight
-                EventBlock(
-                    block = block,
-                    dark = dark,
-                    height = height,
-                    width = laneWidth,
-                    onClick = { onEventClick(block.event) },
-                    modifier = Modifier
-                        .offset(x = laneWidth * block.lane, y = top)
-                        .width(laneWidth)
-                        .height(height)
-                        .padding(horizontal = 1.dp),
-                )
+                val ordinal = ordinals.merge(block.event.eventId, 1, Int::plus)!! - 1
+                key(block.event.eventId, ordinal) {
+                    val laneWidth = colWidth / block.laneCount
+                    val top = hourHeight * (block.startMin / 60f)
+                    val rawHeight = hourHeight * ((block.endMin - block.startMin) / 60f)
+                    val height = if (rawHeight < minEventHeight) minEventHeight else rawHeight
+                    val place = animatedBlockPlacement(
+                        x = laneWidth * block.lane,
+                        y = top,
+                        width = laneWidth,
+                        height = height,
+                    )
+                    EventBlock(
+                        block = block,
+                        dark = dark,
+                        height = place.height,
+                        width = place.width,
+                        date = date,
+                        dragController = dragController,
+                        onClick = { onEventClick(block.event) },
+                        onDrop = onDrop,
+                        modifier = Modifier
+                            .offset(x = place.x, y = place.y)
+                            .width(place.width)
+                            .height(place.height)
+                            .padding(horizontal = 1.dp),
+                    )
+                }
             }
             // Current-time line, on top of the events, only on today's column.
             if (date == today) {
@@ -790,7 +855,10 @@ private fun EventBlock(
     dark: Boolean,
     height: Dp,
     width: Dp,
+    date: LocalDate,
+    dragController: TimelineDragController,
     onClick: () -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val title = block.event.title.ifBlank { stringResource(R.string.event_untitled) }
@@ -833,12 +901,35 @@ private fun EventBlock(
     val dimmed = dimCutoff != null && block.event.hasEnded(dimCutoff)
     val soften = LocalSoftenColors.current
     val fill = eventFill(block.event.color, dark, soften)
+    val zone = remember { TimeZone.currentSystemDefault() }
+    val moveAction = eventMoveAction(block.event)
+    // A block clipped at the top continues from the previous day: its top edge
+    // is midnight, not the event's start, so dragging it would invent a time.
+    val draggable = moveAction != null && block.beginsOn(date, zone)
+    val dragModifier = rememberEventDragSource(
+        enabled = draggable,
+        key = block.event.instanceId,
+        onPickUp = { pointer, blockRoot, _ -> dragController.begin(block, pointer, blockRoot) },
+        onMove = dragController::move,
+        onDrop = { dragController.finish()?.let(onDrop) },
+        onCancel = dragController::cancel,
+    )
+    val lifted = draggable && dragController.ghosts(block, date)
+    val ghost = ghostAlpha(lifted)
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
+            // The source stays put as a ghost while its floating copy travels.
+            .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
             .background(fill, RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
+            // After clickable, so it is the inner node and wins the main pass;
+            // the tap still works, since a drag consumes the up.
+            .then(dragModifier)
             .padding(horizontal = 4.dp, vertical = 2.dp)
-            .semantics { contentDescription = "$title, $timeLabel" },
+            .semantics {
+                contentDescription = "$title, $timeLabel"
+                if (moveAction != null) customActions = listOf(moveAction)
+            },
     ) {
         Column {
             if (showTitle) {
@@ -851,11 +942,8 @@ private fun EventBlock(
                 )
             }
             if (showTime) {
-                Text(
-                    text = timeLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                BlockTimeLabel(
+                    label = timeLabel,
                     color = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
                 )
             }

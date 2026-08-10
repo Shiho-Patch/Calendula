@@ -1,0 +1,6 @@
+Novedades
+• Arrastra un evento para cambiarlo de hora o de día: mantenlo pulsado en la vista de mes, semana o día y suéltalo donde quieras. En los eventos periódicos se pregunta a qué afecta el cambio.
+• Elimina varios resultados de búsqueda a la vez: mantén pulsado un resultado para empezar a seleccionar.
+
+Cambios
+• El primer inicio es ahora un breve asistente. También puede activar la copia de seguridad automática y dejarte elegir la vista inicial, ambas con vista previa.
