@@ -11,7 +11,7 @@ composeBom = "2026.06.01"
 # Material 3 Expressive APIs currently live only in the 1.5 alpha line.
 # Pin explicitly to override the BOM (which ships stable 1.4.0).
 # Re-evaluate when 1.5.0 stable lands.
-material3 = "1.5.0-alpha24"
+material3 = "1.5.0-alpha25"
 datastore = "1.2.1"
 junit = "6.1.2"
 junitPlatform = "6.1.2"
