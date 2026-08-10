@@ -90,8 +90,10 @@ fun RootScreen(
 
     val onboarding: OnboardingViewModel = hiltViewModel()
     val plan by onboarding.plan.collectAsStateWithLifecycle()
-    // Runs however the permission was granted, including via Android's
-    // app-settings screen (caught by the ON_RESUME above).
+    // The grant is reported however it was taken, including via Android's
+    // app-settings screen (caught by the ON_RESUME above) — arming the wizard
+    // hangs off that, not off the callback. Only a grant made during this
+    // session owes the re-scan.
     LaunchedEffect(hasPermission) {
         onboarding.setHasPermission(hasPermission)
         if (hasPermission && !grantedAtLaunch) onboarding.onPermissionGranted()

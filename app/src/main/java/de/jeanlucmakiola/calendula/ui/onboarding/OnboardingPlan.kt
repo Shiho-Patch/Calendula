@@ -55,11 +55,14 @@ data class OnboardingPlan(
 /**
  * Work out the flow from what is stored.
  *
- * The optional steps are only for installs that went through the grant in-app —
- * an existing user sees nothing new. Before the grant that can only be guessed,
- * so an install that has not answered the reminder step either is treated as
- * fresh, which is the same condition [de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs.armOnboardingWizard]
- * commits to storage a moment later.
+ * The optional steps are only for installs that are still working through their
+ * first run — an existing user sees nothing new. Before the grant that can only
+ * be guessed, so an install that has not answered the reminder step either is
+ * treated as fresh, which is the same condition
+ * [de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs.armOnboardingWizard]
+ * commits to storage a moment later. The flag is cleared again on the closing
+ * screen, so revoking and re-granting the permission years later is only ever
+ * the permission step.
  *
  * [backupApplies] is null until the calendar list can be read, i.e. for the
  * whole permission step. The backup step is assumed to apply until proven

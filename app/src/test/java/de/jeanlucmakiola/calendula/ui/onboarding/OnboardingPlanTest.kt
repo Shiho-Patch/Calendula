@@ -104,6 +104,25 @@ class OnboardingPlanTest {
     }
 
     @Test
+    fun `re-granting after the wizard itself ran does not re-enter it`() {
+        // The closing screen clears the armed flag, so someone the wizard did
+        // onboard is in the same position as anyone else who revokes the
+        // permission: one screen, no counter.
+        val revoked = plan(remindersDone = true, wizardArmed = false, doneShown = true)
+        assertThat(revoked.steps).containsExactly(OnboardingStep.Permission)
+        assertThat(revoked.showsProgress).isFalse()
+    }
+
+    @Test
+    fun `a read notice leaves nothing behind in a later plan`() {
+        // The notice is retired once read, so its step stops padding the count
+        // on a later re-grant.
+        val later = plan(remindersDone = true, visibilityArmed = false, visibilityDone = true)
+        assertThat(later.steps).containsExactly(OnboardingStep.Permission)
+        assertThat(later.showsProgress).isFalse()
+    }
+
+    @Test
     fun `answering every step ends the flow`() {
         val done = plan(
             hasPermission = true,

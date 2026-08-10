@@ -556,10 +556,11 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
-     * Whether this install went through the calendar grant in-app, i.e. is a
-     * fresh one that owes the wizard's optional steps (#163). Set at the grant
-     * and only for an install that had not finished the reminder step, so an
-     * existing user who revokes and re-grants the permission isn't re-onboarded.
+     * Whether this install is a fresh one still owing the wizard's optional
+     * steps (#163). Armed on any launch that holds the calendar permission and
+     * has not finished the reminder step, and cleared again by
+     * [finishOnboardingWizard], so an existing user who revokes and re-grants
+     * the permission isn't re-onboarded.
      */
     val onboardingWizardArmed: Flow<Boolean> = store.data.map { prefs ->
         prefs[ONBOARDING_WIZARD_ARMED_KEY] ?: false
@@ -618,6 +619,19 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setOnboardingDoneShown(shown: Boolean = true) {
         store.edit { it[ONBOARDING_DONE_KEY] = shown }
+    }
+
+    /**
+     * Close the wizard for good: the closing screen has been seen and the
+     * install stops counting as fresh, so a later revoke-and-re-grant of the
+     * calendar permission is only ever the permission screen. One edit, so the
+     * plan can never observe a half-closed wizard.
+     */
+    suspend fun finishOnboardingWizard() {
+        store.edit { prefs ->
+            prefs[ONBOARDING_DONE_KEY] = true
+            prefs[ONBOARDING_WIZARD_ARMED_KEY] = false
+        }
     }
 
     /**

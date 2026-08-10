@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -55,20 +56,39 @@ class OnboardingViewModel @Inject constructor(
 ) : ViewModel() {
 
     /** Null until the host reports it — assuming either way would flash a screen. */
-    private val hasPermission = MutableStateFlow<Boolean?>(null)
+    private val permissionReported = MutableStateFlow<Boolean?>(null)
+
+    /**
+     * The grant as the rest of the flow sees it: published only once the wizard
+     * has been armed for it. Arming is a stored write, so announcing the grant
+     * first would leave a few frames in which the install looks neither fresh
+     * nor permission-less and the plan collapses to its one-step form.
+     */
+    private val hasPermission: StateFlow<Boolean?> = permissionReported
+        .mapLatest { granted ->
+            if (granted == true) armWizardIfFresh()
+            granted
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = null,
+        )
 
     /**
      * Whether the backup step applies: something of yours is worth exporting and
      * nothing you write to is synced anywhere. Null while the calendar list
-     * cannot be read, which is every frame before the grant.
+     * cannot be read, which is every frame before the grant — and any frame the
+     * provider read fails, since an empty list is also how a null cursor
+     * arrives. Guessing false there would drop the step for the whole session.
      */
     private val backupApplies: Flow<Boolean?> = hasPermission.flatMapLatest { granted ->
         if (granted != true) {
             flowOf(null)
         } else {
             repository.calendars()
-                .catch { emit(emptyList()) }
-                .map { calendars -> calendars.backupApplies() }
+                .map { calendars -> if (calendars.isEmpty()) null else calendars.backupApplies() }
+                .catch { emit(null) }
                 .flowOn(io)
         }
     }
@@ -125,7 +145,18 @@ class OnboardingViewModel @Inject constructor(
     )
 
     fun setHasPermission(granted: Boolean) {
-        hasPermission.value = granted
+        permissionReported.value = granted
+    }
+
+    /**
+     * Arm the wizard for an install that has yet to answer the reminder step,
+     * whatever route the grant took. Gating this on the in-app grant would
+     * strand anyone who granted on Android's own settings screen and came back
+     * to a restarted process: they hold the permission at launch, so nothing
+     * would ever arm and the flow would silently shrink to the reminder step.
+     */
+    private suspend fun armWizardIfFresh() {
+        if (!prefs.reminderOnboardingDone.first()) prefs.armOnboardingWizard()
     }
 
     /**
@@ -134,7 +165,6 @@ class OnboardingViewModel @Inject constructor(
      * daily worker.
      */
     fun onPermissionGranted() {
-        viewModelScope.launch { prefs.armOnboardingWizard() }
         scanner.scanInBackground()
     }
 
@@ -220,12 +250,32 @@ class OnboardingViewModel @Inject constructor(
 
     /** Acknowledge the calendar-visibility notice (#75). */
     fun finishVisibility() {
-        viewModelScope.launch { prefs.setOnboardingVisibilityDone() }
+        viewModelScope.launch {
+            prefs.setOnboardingVisibilityDone()
+            // Retiring the notice drops the step from the plan, so it waits
+            // until nothing follows it — otherwise the count would fall from
+            // under the user on the way to the closing screen.
+            if (plan.value?.steps?.last() == OnboardingStep.Visibility) retireVisibilityNotice()
+        }
     }
 
     /** Close the wizard from its last screen. */
     fun finishOnboarding() {
-        viewModelScope.launch { prefs.setOnboardingDoneShown() }
+        viewModelScope.launch {
+            prefs.finishOnboardingWizard()
+            retireVisibilityNotice()
+        }
+    }
+
+    /**
+     * Put the one-time visibility notice away for good. Nothing else clears it
+     * now that the wizard has taken the notice over, and left standing it would
+     * keep its step in every later plan — padding the counter on a re-grant.
+     */
+    private suspend fun retireVisibilityNotice() {
+        if (calendarPrefs.visibilityNoticePending.first() == true) {
+            calendarPrefs.setVisibilityNoticePending(false)
+        }
     }
 
     /**

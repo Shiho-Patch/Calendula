@@ -25,6 +25,11 @@ fun OnboardingSteps(
     onPermissionGranted: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Collected for every step, not just the two that draw a preview: starting
+    // it when the picker composes would leave the step blank for the frames the
+    // first stored emission takes to arrive — right as it slides in.
+    val choice by viewModel.viewChoice.collectAsStateWithLifecycle()
+
     // Coerced because the outgoing half of a transition may be a step the live
     // plan has since dropped — the backup step goes once the calendars say it
     // does not apply — and a "Step 0 of 3" flash is worse than a stale number.
@@ -78,31 +83,25 @@ fun OnboardingSteps(
         )
         // The choice is null only until DataStore's first emission; rendering
         // nothing for that frame beats a preview built on the wrong defaults.
-        OnboardingStep.View -> {
-            val choice by viewModel.viewChoice.collectAsStateWithLifecycle()
-            choice?.let {
-                ViewStep(
-                    choice = it,
-                    onSelect = viewModel::setDefaultView,
-                    onFinished = viewModel::finishView,
-                    modifier = modifier,
-                    progress = progress,
-                    navigationIcon = navigationIcon,
-                )
-            }
+        OnboardingStep.View -> choice?.let {
+            ViewStep(
+                choice = it,
+                onSelect = viewModel::setDefaultView,
+                onFinished = viewModel::finishView,
+                modifier = modifier,
+                progress = progress,
+                navigationIcon = navigationIcon,
+            )
         }
-        OnboardingStep.MonthStyle -> {
-            val choice by viewModel.viewChoice.collectAsStateWithLifecycle()
-            choice?.let {
-                MonthStyleStep(
-                    choice = it,
-                    onSelect = viewModel::setMonthViewStyle,
-                    onFinished = viewModel::finishMonthStyle,
-                    modifier = modifier,
-                    progress = progress,
-                    navigationIcon = navigationIcon,
-                )
-            }
+        OnboardingStep.MonthStyle -> choice?.let {
+            MonthStyleStep(
+                choice = it,
+                onSelect = viewModel::setMonthViewStyle,
+                onFinished = viewModel::finishMonthStyle,
+                modifier = modifier,
+                progress = progress,
+                navigationIcon = navigationIcon,
+            )
         }
         OnboardingStep.Visibility -> VisibilityStep(
             onFinished = viewModel::finishVisibility,
