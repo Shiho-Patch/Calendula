@@ -1,0 +1,6 @@
+Novidades
+• Arraste um evento para outra hora ou dia: mantenha-o premido na vista de mês, semana ou dia e largue-o onde quiser. Nos eventos recorrentes, é perguntado a que se aplica a alteração.
+• Elimine vários resultados de pesquisa de uma vez: mantenha um resultado premido para começar a selecionar.
+
+Alterações
+• O primeiro arranque é agora um breve assistente. Também pode ativar a cópia de segurança automática e deixá-lo escolher a vista inicial, ambas com pré-visualização.

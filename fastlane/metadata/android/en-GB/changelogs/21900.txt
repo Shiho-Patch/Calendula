@@ -1,0 +1,6 @@
+New
+• Drag an event to reschedule it — press and hold it in month, week or day view and drop it on another time or day. Recurring events ask what the move applies to.
+• Delete several search results at once: long-press a hit to start selecting, then delete them in one action.
+
+Changed
+• First launch is now a short wizard. It can also set up automatic backup and let you pick the view Calendula opens on, both with previews.

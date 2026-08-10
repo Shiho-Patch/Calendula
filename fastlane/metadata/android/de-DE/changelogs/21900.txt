@@ -1,0 +1,6 @@
+Neu
+• Termine per Drag & Drop verschieben: in der Monats-, Wochen- oder Tagesansicht lange gedrückt halten und zu einer anderen Zeit oder einem anderen Tag ablegen. Bei Serienterminen wird nachgefragt, wofür sie gilt.
+• Mehrere Suchergebnisse auf einmal löschen: langer Druck auf einen Treffer startet die Auswahl.
+
+Geändert
+• Der erste Start ist jetzt ein kurzer Assistent. Er kann auch die automatische Sicherung einrichten und dich die Startansicht wählen lassen – beides mit Vorschau.

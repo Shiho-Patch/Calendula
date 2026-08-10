@@ -1,0 +1,6 @@
+Novidades
+• Arraste um evento para outro horário ou dia: mantenha-o pressionado na visualização de mês, semana ou dia e solte-o onde quiser. Em eventos recorrentes, você escolhe a que a alteração se aplica.
+• Exclua vários resultados da busca de uma vez: mantenha um resultado pressionado para começar a selecionar.
+
+Alterações
+• A primeira execução agora é um breve assistente. Ele também pode ativar o backup automático e deixar você escolher a visualização inicial, ambos com prévia.

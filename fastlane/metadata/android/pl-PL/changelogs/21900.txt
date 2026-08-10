@@ -1,0 +1,6 @@
+Nowości
+• Przeciągnij wydarzenie, aby zmienić jego godzinę lub dzień: przytrzymaj je w widoku miesiąca, tygodnia lub dnia i upuść w nowym miejscu. Przy wydarzeniach cyklicznych pojawi się pytanie, czego dotyczy zmiana.
+• Usuwaj wiele wyników wyszukiwania naraz: przytrzymaj wynik, aby rozpocząć zaznaczanie.
+
+Zmiany
+• Pierwsze uruchomienie to teraz krótki kreator. Może też włączyć automatyczną kopię zapasową i pozwolić wybrać widok startowy – oba z podglądem.
