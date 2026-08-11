@@ -608,4 +608,7 @@
     <string name="event_access_private_summary">Andere sehen nur das du beschäftigt bist</string>
     <string name="event_edit_recurrence_next">Als nächstes: %1$s</string>
     <string name="event_edit_recurrence_incomplete">Gebe eine Zahl zwischen 1 und 999 ein</string>
+    <string name="timeline_scale_custom">Benutzerdefiniert</string>
+    <string name="settings_calendar_duration_inherits">Standard (%1$s)</string>
+    <string name="settings_group_about">Über</string>
 </resources>
