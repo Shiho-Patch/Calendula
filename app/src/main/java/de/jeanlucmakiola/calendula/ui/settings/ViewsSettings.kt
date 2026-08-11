@@ -114,7 +114,7 @@ internal fun ViewsScreen(
         GroupedRow(
             title = stringResource(R.string.settings_dim_completed),
             summary = stringResource(R.string.settings_dim_completed_summary),
-            position = Position.Bottom,
+            position = Position.Middle,
             trailing = {
                 Switch(
                     checked = state.dimCompletedEvents,
@@ -122,6 +122,18 @@ internal fun ViewsScreen(
                 )
             },
             onClick = { viewModel.setDimCompletedEvents(!state.dimCompletedEvents) },
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_drag_to_reschedule),
+            summary = stringResource(R.string.settings_drag_to_reschedule_summary),
+            position = Position.Bottom,
+            trailing = {
+                Switch(
+                    checked = state.dragToReschedule,
+                    onCheckedChange = viewModel::setDragToReschedule,
+                )
+            },
+            onClick = { viewModel.setDragToReschedule(!state.dragToReschedule) },
         )
 
         Spacer(Modifier.height(8.dp))

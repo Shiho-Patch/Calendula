@@ -2172,7 +2172,7 @@ private fun monthChipDragModifier(
     rowHeightPx: Float,
     isRtl: Boolean,
 ): Modifier = rememberDragSurface(
-    enabled = moveScope != null && controller != null,
+    enabled = moveScope?.dragEnabled == true && controller != null,
     key = week.days.first(),
     onPickUp = { local, pointerInRoot, nodeInRoot, size ->
         val bandTop = band[0]?.takeIf { it.isAttached }?.positionInRoot()?.y

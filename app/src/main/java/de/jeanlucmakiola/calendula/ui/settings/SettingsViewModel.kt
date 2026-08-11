@@ -145,9 +145,15 @@ class SettingsViewModel @Inject constructor(
                     prefs.showWeekNumbers,
                     prefs.agendaShowToday,
                     prefs.softenCalendarColors,
-                    prefs.todayButtonInToolbar,
-                ) { hourLines, weekNumbers, showToday, soften, todayInToolbar ->
-                    DisplayToggles(hourLines, weekNumbers, showToday, soften, todayInToolbar)
+                    combine(
+                        prefs.todayButtonInToolbar,
+                        prefs.dragToReschedule,
+                        ::Pair,
+                    ),
+                ) { hourLines, weekNumbers, showToday, soften, (todayInToolbar, dragToMove) ->
+                    DisplayToggles(
+                        hourLines, weekNumbers, showToday, soften, todayInToolbar, dragToMove,
+                    )
                 },
             ) { view, screenRange, widgetRange, timeFormat, toggles ->
                 ViewSettings(
@@ -157,6 +163,7 @@ class SettingsViewModel @Inject constructor(
                     agendaShowToday = toggles.agendaShowToday,
                     softenColors = toggles.softenColors,
                     todayButtonInToolbar = toggles.todayButtonInToolbar,
+                    dragToReschedule = toggles.dragToReschedule,
                 )
             },
             combine(
@@ -189,6 +196,7 @@ class SettingsViewModel @Inject constructor(
                 agendaShowToday = views.agendaShowToday,
                 softenColors = views.softenColors,
                 todayButtonInToolbar = views.todayButtonInToolbar,
+                dragToReschedule = views.dragToReschedule,
                 agendaShowRangeBar = misc.showRangeBar,
                 autofocusEventTitle = misc.autofocusEventTitle,
                 pastEventDisplay = misc.pastEventDisplay,
@@ -289,6 +297,7 @@ class SettingsViewModel @Inject constructor(
         val agendaShowToday: Boolean,
         val softenColors: Boolean,
         val todayButtonInToolbar: Boolean,
+        val dragToReschedule: Boolean,
     )
 
     private data class DisplayToggles(
@@ -297,6 +306,7 @@ class SettingsViewModel @Inject constructor(
         val agendaShowToday: Boolean,
         val softenColors: Boolean,
         val todayButtonInToolbar: Boolean,
+        val dragToReschedule: Boolean,
     )
 
     private data class MiscSettings(
@@ -532,6 +542,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setTodayButtonInToolbar(enabled: Boolean) {
         viewModelScope.launch { prefs.setTodayButtonInToolbar(enabled) }
+    }
+
+    fun setDragToReschedule(enabled: Boolean) {
+        viewModelScope.launch { prefs.setDragToReschedule(enabled) }
     }
 
     /**

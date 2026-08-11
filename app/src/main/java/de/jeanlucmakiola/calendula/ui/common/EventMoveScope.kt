@@ -29,6 +29,12 @@ class EventMoveScope(
      * the repository writes whatever it is handed — so this gate is load-bearing.
      */
     val movableCalendarIds: Set<Long>,
+    /**
+     * Whether the *gesture* is on (#173). Off gates the drag alone: [edit] and the
+     * TalkBack action below stay, since invoking a menu item can't cause the
+     * accidental drags the setting exists to stop.
+     */
+    val dragEnabled: Boolean,
     /** False when the drop was refused outright, so nothing will be written. */
     val move: (MoveRequest) -> Boolean,
     /**
@@ -90,6 +96,17 @@ fun ghostAlpha(lifted: Boolean): Float = animateFloatAsState(
     targetValue = if (lifted) GHOST_ALPHA else 1f,
     label = "ghost-alpha",
 ).value
+
+/**
+ * Whether [event] can be picked up and dragged — its calendar allows moving and
+ * the gesture is switched on. Not the same question as [eventMoveAction], which
+ * survives the setting.
+ */
+@Composable
+fun eventDragAllowed(event: EventInstance): Boolean {
+    val move = LocalEventMove.current ?: return false
+    return move.dragEnabled && move.allows(event)
+}
 
 /**
  * A TalkBack action that opens [event] in the edit form, so rescheduling isn't
