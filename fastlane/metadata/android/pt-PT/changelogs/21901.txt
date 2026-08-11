@@ -1,2 +1,3 @@
 Novidades
 • Já é possível desativar o mover eventos arrastando: Definições → Vistas → «Arrastar para reagendar». Continua ativo por predefinição; desativado, os eventos deixam de poder ser arrastados nas vistas de mês, semana e dia.
+• O Calendula fala agora português do Brasil, graças a uma tradução da comunidade. Escolha em Definições → Idioma.

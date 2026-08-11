@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reschedule*, on by default. Off, no event can be picked up in the month, week
   or day view — for anyone who kept moving appointments by accident while
   scrolling ([#173]).
+- An early Brazilian Portuguese translation. Calendula has started speaking
+  Brazilian Portuguese, contributed as a community translation through
+  [Calendula's Weblate](https://weblate.dev.jeanlucmakiola.de/projects/calendula/).
+  About a third of the app is covered, so the rest still shows in English — you
+  can pick it under Settings → Language or in Android's per-app language
+  settings. Thanks to
+  [bkrz](https://weblate.dev.jeanlucmakiola.de/user/bkrz/) for getting it
+  started; help finishing it is very welcome.
 
 ## [2.19.0] — 2026-08-10
 

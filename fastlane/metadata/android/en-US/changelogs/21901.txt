@@ -1,2 +1,3 @@
 Added
 • Drag to reschedule can now be turned off: Settings → Views → “Drag to reschedule”. It stays on by default; switched off, events can no longer be picked up in the month, week or day view.
+• Calendula now speaks Brazilian Portuguese, thanks to a community translation. Pick it under Settings → Language.

@@ -1,2 +1,3 @@
 Novedades
 • Ahora se puede desactivar el mover eventos arrastrando: Ajustes → Vistas → «Arrastrar para reprogramar». Sigue activado por defecto; desactivado, los eventos ya no se pueden arrastrar en las vistas de mes, semana y día.
+• Calendula ya habla portugués de Brasil, gracias a una traducción de la comunidad. Elígelo en Ajustes → Idioma.

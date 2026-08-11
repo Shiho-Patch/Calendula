@@ -1,2 +1,3 @@
 Nouveautés
 • Le déplacement par glisser-déposer peut désormais être désactivé : Réglages → Vues → « Glisser pour déplacer ». Il reste activé par défaut ; désactivé, les événements ne peuvent plus être saisis en vue mois, semaine ou jour.
+• Calendula parle désormais le portugais brésilien, grâce à une traduction de la communauté. À choisir dans Réglages → Langue.
