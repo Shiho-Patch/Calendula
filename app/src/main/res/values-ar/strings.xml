@@ -542,4 +542,85 @@
     <string name="timeline_scale_regular">العادي</string>
     <string name="timeline_scale_comfortable_summary">مجموعات أوسع، تمرير أكثر</string>
     <string name="timeline_scale_custom_summary">الارتفاع الذي قمت بضغظت المخطط الزمني إليه</string>
+    <string name="about_privacy_url" translatable="false"></string>
+    <string name="event_edit_conflict_overwrite_hint"></string>
+    <string name="duration_hours_minutes"></string>
+    <string name="agenda_empty_title"></string>
+    <string name="font_atkinson_hyperlegible"></string>
+    <string name="font_lora"></string>
+    <string name="font_jetbrains_mono"></string>
+    <string name="settings_font_specimen_heading"></string>
+    <string name="settings_font_specimen_body"></string>
+    <string name="settings_past_events_sample_morning"></string>
+    <string name="settings_past_events_sample_midday"></string>
+    <string name="settings_past_events_sample_evening"></string>
+    <string name="settings_agenda_range_hint"></string>
+    <string name="settings_agenda_widget_range"></string>
+    <string name="settings_agenda_widget_range_hint"></string>
+    <string name="settings_widget_size"></string>
+    <string name="settings_widget_size_hint"></string>
+    <string name="settings_widget_size_summary"></string>
+    <string name="settings_quick_switch_hint"></string>
+    <string name="settings_drawer_order_header"></string>
+    <string name="settings_drawer_order_hint"></string>
+    <string name="reorder_drag_handle"></string>
+    <string name="agenda_range_override_hint"></string>
+    <string name="settings_calendar_durations_title"></string>
+    <string name="settings_calendar_durations_hint"></string>
+    <string name="settings_allday_reminder_fires_at"></string>
+    <string name="settings_calendar_reminders_title"></string>
+    <string name="settings_default_reminder_allday"></string>
+    <string name="settings_allday_reminder_time"></string>
+    <string name="settings_allday_reminder_time_hint"></string>
+    <string name="settings_calendar_reminders_hint"></string>
+    <string name="settings_reliable_delivery"></string>
+    <string name="settings_reliable_delivery_hint"></string>
+    <string name="settings_reliable_delivery_exempt"></string>
+    <string name="settings_widgets_subtitle"></string>
+    <string name="settings_backup_subtitle"></string>
+    <string name="settings_section_widgets"></string>
+    <string name="settings_widgets_hint"></string>
+    <string name="settings_views_all_header"></string>
+    <string name="settings_special_dates_type_anniversary"></string>
+    <string name="settings_special_dates_template"></string>
+    <string name="settings_special_dates_template_hint"></string>
+    <string name="settings_license_value"></string>
+    <string name="calendars_visibility_hint"></string>
+    <string name="calendars_account_from_source"></string>
+    <string name="settings_special_dates_show_year"></string>
+    <string name="settings_special_dates_show_year_hint"></string>
+    <string name="settings_special_dates_last_synced"></string>
+    <string name="settings_special_dates_calendar_hint"></string>
+    <string name="settings_calendar_reminders_managed_hint"></string>
+    <string name="settings_special_dates_paused_title"></string>
+    <string name="settings_special_dates_disable_all_message"></string>
+    <string name="settings_special_dates_disable_type_message"></string>
+    <string name="import_warning_attendees"></string>
+    <string name="about_source_url" translatable="false"></string>
+    <string name="about_license_url" translatable="false"></string>
+    <string name="about_support_url" translatable="false"></string>
+    <string name="about_translate_url" translatable="false"></string>
+    <string name="crash_dialog_report"></string>
+    <string name="report_issue_url" translatable="false"></string>
+    <string name="report_issue_choose_url" translatable="false"></string>
+    <string name="special_dates_calendar_anniversary"></string>
+    <string name="special_dates_default_title_anniversary"></string>
+    <string name="special_dates_default_title_custom"></string>
+    <string name="reminder_none"></string>
+    <string name="event_access_confidential_summary"></string>
+    <string name="import_warning_timezone"></string>
+    <plurals name="import_title_count">
+    </plurals>
+    <plurals name="import_event_count">
+    </plurals>
+    <plurals name="import_action">
+    </plurals>
+    <plurals name="import_done_imported">
+    </plurals>
+    <plurals name="import_done_skipped">
+    </plurals>
+    <string name="crash_dialog_message"></string>
+    <string name="special_dates_default_title_birthday"></string>
+    <string name="app_name_calendar_alias" translatable="false"></string>
+    <string name="event_edit_timezone_device_summary"></string>
 </resources>
