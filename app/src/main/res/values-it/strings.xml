@@ -499,4 +499,111 @@
         <item quantity="many">Importando %d eventi</item>
         <item quantity="other">Importando %d eventi</item>
     </plurals>
+    <string name="settings_group_about"></string>
+    <string name="calendars_visibility_a11y"></string>
+    <string name="calendars_managed_delete_locked"></string>
+    <string name="about_source_url" translatable="false"></string>
+    <string name="settings_default_view_hint"></string>
+    <string name="month_style_paged"></string>
+    <string name="calendars_account_from_source"></string>
+    <string name="app_name_calendar_alias" translatable="false"></string>
+    <string name="event_edit_timezone_device"></string>
+    <string name="event_edit_timezone_device_summary"></string>
+    <string name="event_edit_timezone_search"></string>
+    <string name="event_edit_timezone_recent"></string>
+    <string name="event_edit_timezone_all"></string>
+    <string name="event_edit_timezone_none"></string>
+    <string name="event_edit_timezone_local_time"></string>
+    <string name="event_edit_recurrence_incomplete"></string>
+    <string name="settings_app_name"></string>
+    <string name="agenda_span_ends"></string>
+    <string name="event_edit_recurrence_next"></string>
+    <string name="event_edit_recurrence_next_none"></string>
+    <string name="event_access_default_summary"></string>
+    <string name="event_access_public_summary"></string>
+    <string name="event_access_private_summary"></string>
+    <string name="event_access_confidential_summary"></string>
+    <string name="today_jump_action"></string>
+    <string name="settings_theme_hint"></string>
+    <string name="settings_theme_system_summary"></string>
+    <string name="settings_font_specimen_heading"></string>
+    <string name="settings_font_specimen_body"></string>
+    <string name="settings_week_start_auto_summary"></string>
+    <string name="settings_today_toolbar"></string>
+    <string name="settings_time_format_auto_summary"></string>
+    <string name="settings_past_events_sample_morning"></string>
+    <string name="settings_group_app"></string>
+    <string name="duration_hours_minutes"></string>
+    <string name="duration_custom_max"></string>
+    <string name="agenda_span_starts"></string>
+    <string name="settings_today_toolbar_summary"></string>
+    <string name="settings_app_name_summary"></string>
+    <string name="settings_timeline_scale"></string>
+    <string name="settings_timeline_scale_hint"></string>
+    <string name="timeline_scale_fit_day"></string>
+    <string name="timeline_scale_fit_day_summary"></string>
+    <string name="timeline_scale_compact"></string>
+    <string name="timeline_scale_compact_summary"></string>
+    <string name="timeline_scale_regular"></string>
+    <string name="timeline_scale_regular_summary"></string>
+    <string name="timeline_scale_comfortable"></string>
+    <string name="timeline_scale_comfortable_summary"></string>
+    <string name="timeline_scale_custom"></string>
+    <string name="timeline_scale_custom_summary"></string>
+    <string name="settings_past_events_sample_midday"></string>
+    <string name="settings_past_events_sample_evening"></string>
+    <string name="settings_widget_size"></string>
+    <string name="settings_widget_size_hint"></string>
+    <string name="settings_widget_size_small"></string>
+    <string name="settings_widget_size_medium"></string>
+    <string name="settings_widget_size_large"></string>
+    <string name="settings_widget_size_extra_large"></string>
+    <string name="settings_widget_size_summary"></string>
+    <string name="settings_month_header"></string>
+    <string name="settings_month_view_style"></string>
+    <string name="month_style_paged_summary"></string>
+    <string name="month_style_continuous"></string>
+    <string name="month_style_continuous_summary"></string>
+    <string name="month_style_dense"></string>
+    <string name="month_style_dense_summary"></string>
+    <string name="month_style_split"></string>
+    <string name="month_style_split_summary"></string>
+    <string name="month_split_no_events"></string>
+    <string name="month_split_expand"></string>
+    <string name="month_split_collapse"></string>
+    <string name="settings_event_duration"></string>
+    <string name="settings_event_duration_hint"></string>
+    <string name="settings_calendar_durations_title"></string>
+    <string name="settings_calendar_durations_hint"></string>
+    <string name="settings_calendar_duration_inherits"></string>
+    <string name="settings_calendar_duration_use_default"></string>
+    <string name="settings_allday_reminder_fires_at"></string>
+    <string name="settings_group_look"></string>
+    <string name="settings_group_data"></string>
+    <string name="settings_widgets_subtitle"></string>
+    <string name="settings_backup_subtitle"></string>
+    <string name="settings_section_widgets"></string>
+    <string name="settings_widgets_hint"></string>
+    <string name="settings_section_backup"></string>
+    <string name="settings_views_all_header"></string>
+    <string name="settings_week_day_header"></string>
+    <string name="settings_week_start_hint"></string>
+    <string name="settings_time_format_hint"></string>
+    <string name="settings_past_events_hint"></string>
+    <string name="settings_dynamic_color_summary"></string>
+    <string name="settings_about_privacy"></string>
+    <string name="calendars_visibility_hint"></string>
+    <string name="calendars_visibility_notice_title"></string>
+    <string name="calendars_visibility_notice_message"></string>
+    <string name="calendar_picker_missing_title"></string>
+    <string name="calendar_picker_missing_summary"></string>
+    <string name="calendars_state_read_only"></string>
+    <string name="calendars_state_not_synced"></string>
+    <string name="calendars_state_managed"></string>
+    <string name="about_license_url" translatable="false"></string>
+    <string name="about_privacy_url" translatable="false"></string>
+    <string name="about_support_url" translatable="false"></string>
+    <string name="about_translate_url" translatable="false"></string>
+    <string name="report_issue_url" translatable="false"></string>
+    <string name="report_issue_choose_url" translatable="false"></string>
 </resources>
