@@ -514,4 +514,5 @@
     <string name="timeline_scale_custom">Benutzerdefiniert</string>
     <string name="settings_calendar_duration_inherits">Standard (%1$s)</string>
     <string name="settings_group_about">Über</string>
+    <string name="event_move_gone">Dieser Termin existiert nicht mehr.</string>
 </resources>
