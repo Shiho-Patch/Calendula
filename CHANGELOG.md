@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [bkrz](https://weblate.dev.jeanlucmakiola.de/user/bkrz/) for getting it
   started; help finishing it is very welcome.
 
+### Fixed
+- **The language picker forgot which language was picked.** Android hands the
+  applied language back with its script filled in — Simplified Chinese goes in
+  as `zh-CN` and comes out as `zh-Hans-CN` — so after a restart no entry in
+  Settings → Language showed as selected, and the row above it named the
+  language the long way round. Only languages that imply a script were
+  affected.
+
 ## [2.19.0] — 2026-08-10
 
 ### Added
