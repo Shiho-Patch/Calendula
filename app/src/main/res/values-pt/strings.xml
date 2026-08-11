@@ -557,4 +557,5 @@
     <string name="settings_special_dates_disable_title"></string>
     <string name="settings_special_dates_disable_all_message"></string>
     <string name="settings_special_dates_disable_type_message"></string>
+    <string name="font_jetbrains_mono"></string>
 </resources>
