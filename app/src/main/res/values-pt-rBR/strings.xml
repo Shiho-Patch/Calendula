@@ -6,4 +6,13 @@
         <item>Days</item>
         <item>Weeks</item>
     </string-array>
+    <string name="state_loading">Carregando…</string>
+    <string name="app_name">Calendula</string>
+    <string name="state_failure_permission">Acesso ao Calendário é necessário.</string>
+    <string name="state_failure_no_calendars">Nenhum calendário configurado.</string>
+    <string name="state_failure_no_calendars_action">Abrir configurações do calendário do sistema</string>
+    <string name="state_retry">Tentar novamente</string>
+    <string name="state_failure_permission_action">Conceder acesso</string>
+    <string name="app_tagline">Um calendário moderno.</string>
+    <string name="state_failure_unknown">Algo deu errado.</string>
 </resources>
