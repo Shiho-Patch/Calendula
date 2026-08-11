@@ -1,0 +1,2 @@
+Neu
+• Verschieben per Drag & Drop lässt sich abschalten: Einstellungen → Ansichten → „Per Ziehen verschieben“. Standardmäßig bleibt es an; abgeschaltet lassen sich Termine in der Monats-, Wochen- und Tagesansicht nicht mehr aufnehmen.

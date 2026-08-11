@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.1] — 2026-08-11
+
+### Added
+- **Drag to reschedule can be turned off.** Settings → Views → *Drag to
+  reschedule*, on by default. Off, no event can be picked up in the month, week
+  or day view — for anyone who kept moving appointments by accident while
+  scrolling ([#173]).
+
 ## [2.19.0] — 2026-08-10
 
 ### Added
@@ -1389,3 +1397,4 @@ automatically, with zero telemetry and no internet permission.
 [#80]: https://codeberg.org/jlmakiola/calendula/issues/80
 [#123]: https://codeberg.org/jlmakiola/calendula/issues/123
 [#163]: https://codeberg.org/jlmakiola/calendula/issues/163
+[#173]: https://codeberg.org/jlmakiola/calendula/issues/173

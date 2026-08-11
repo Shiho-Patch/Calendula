@@ -1,0 +1,2 @@
+Novità
+• Ora lo spostamento con il trascinamento si può disattivare: Impostazioni → Viste → «Trascina per spostare». Resta attivo di default; disattivato, gli eventi non si possono più trascinare nelle viste mese, settimana e giorno.
