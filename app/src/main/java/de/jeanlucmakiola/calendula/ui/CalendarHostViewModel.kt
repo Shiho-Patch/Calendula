@@ -53,4 +53,12 @@ class CalendarHostViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = false,
         )
+
+    /** Whether events may be dragged to another slot to reschedule them (#68, #173). */
+    val dragToReschedule: StateFlow<Boolean> = prefs.dragToReschedule
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = true,
+        )
 }

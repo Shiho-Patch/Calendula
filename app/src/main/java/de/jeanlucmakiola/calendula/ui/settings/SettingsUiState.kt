@@ -42,6 +42,8 @@ data class SettingsUiState(
     val showWeekNumbers: Boolean = false,
     /** Whether the jump-to-today control sits in the top bar instead of the FAB (#60). */
     val todayButtonInToolbar: Boolean = false,
+    /** Whether events can be dragged to another slot to reschedule them (#68, #173). */
+    val dragToReschedule: Boolean = true,
     /** How far ahead the in-app Agenda screen shows events (v2.11). */
     val agendaScreenRange: AgendaRange = AgendaRange.Month,
     /** How far ahead the agenda widget shows events (v2.11). */
