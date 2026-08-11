@@ -54,11 +54,17 @@ class CalendarHostViewModel @Inject constructor(
             initialValue = false,
         )
 
-    /** Whether events may be dragged to another slot to reschedule them (#68, #173). */
+    /**
+     * Whether events may be dragged to another slot to reschedule them (#68, #173).
+     * Off until the stored value arrives, even though the preference itself defaults
+     * on: the wrong guess costs an enabled user a gesture for the few frames a cold
+     * start takes to read DataStore, but re-arms the one thing a disabled user
+     * switched off to be rid of.
+     */
     val dragToReschedule: StateFlow<Boolean> = prefs.dragToReschedule
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = true,
+            initialValue = false,
         )
 }

@@ -312,12 +312,13 @@ fun CalendarHost(
         heldEditKey = key
         editKey = key
     }
-    // Off by preference (#173) means no scope at all: every block then registers
-    // no drag gesture, and the edit form stays the way to reschedule.
+    // Off by preference (#173) switches off the gesture, not the scope: blocks
+    // register no drag, while the edit form and its TalkBack action stay put.
     val dragToReschedule = viewModel.dragToReschedule.collectAsStateWithLifecycle().value
-    val moveScope = remember(movableCalendarIds, reschedule) {
+    val moveScope = remember(movableCalendarIds, reschedule, dragToReschedule) {
         EventMoveScope(
             movableCalendarIds = movableCalendarIds,
+            dragEnabled = dragToReschedule,
             move = reschedule::move,
             inFlight = reschedule.inFlight,
             undoStarted = reschedule.undoStarted,
@@ -342,7 +343,7 @@ fun CalendarHost(
         // navigation, so it fades through rather than sliding — paging *within* a
         // view keeps the directional slide. AnimatedContent keyed on the view type.
         val viewSwitch = fadeThrough()
-        CompositionLocalProvider(LocalEventMove provides moveScope.takeIf { dragToReschedule }) {
+        CompositionLocalProvider(LocalEventMove provides moveScope) {
         AnimatedContent(
             targetState = view,
             transitionSpec = { viewSwitch },

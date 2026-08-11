@@ -92,6 +92,7 @@ import de.jeanlucmakiola.calendula.ui.common.TimelineDragController
 import de.jeanlucmakiola.calendula.ui.common.TimelineDragOverlay
 import de.jeanlucmakiola.calendula.ui.common.TimelineDrop
 import de.jeanlucmakiola.calendula.ui.common.beginsOn
+import de.jeanlucmakiola.calendula.ui.common.eventDragAllowed
 import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
 import de.jeanlucmakiola.calendula.ui.common.rememberEventDragSource
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelineDragController
@@ -737,7 +738,7 @@ private fun EventBlock(
     val moveAction = eventMoveAction(block.event)
     // A block clipped at the top continues from the previous day: its top edge
     // is midnight, not the event's start, so dragging it would invent a time.
-    val draggable = moveAction != null && block.beginsOn(date, zone)
+    val draggable = eventDragAllowed(block.event) && block.beginsOn(date, zone)
     val dragModifier = rememberEventDragSource(
         enabled = draggable,
         key = block.event.instanceId,
