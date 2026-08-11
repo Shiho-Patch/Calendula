@@ -312,9 +312,13 @@ fun CalendarHost(
         heldEditKey = key
         editKey = key
     }
-    val moveScope = remember(movableCalendarIds, reschedule) {
+    // Off by preference (#173) switches off the gesture, not the scope: blocks
+    // register no drag, while the edit form and its TalkBack action stay put.
+    val dragToReschedule = viewModel.dragToReschedule.collectAsStateWithLifecycle().value
+    val moveScope = remember(movableCalendarIds, reschedule, dragToReschedule) {
         EventMoveScope(
             movableCalendarIds = movableCalendarIds,
+            dragEnabled = dragToReschedule,
             move = reschedule::move,
             inFlight = reschedule.inFlight,
             undoStarted = reschedule.undoStarted,

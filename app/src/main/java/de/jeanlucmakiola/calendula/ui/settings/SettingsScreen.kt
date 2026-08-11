@@ -302,13 +302,14 @@ private fun ReportProblemRow(position: Position) {
 @Composable
 private fun LanguageRow(position: Position) {
     val context = LocalContext.current
+    val supported = remember { AppLanguage.supportedTags(context, R.xml.locales_config) }
     // Setting a locale recreates the activity; mirror the choice locally so the
     // row updates instantly even before the recreation lands.
-    var current by remember { mutableStateOf(AppLanguage.currentTag()) }
+    var current by remember { mutableStateOf(AppLanguage.currentTag(supported)) }
     var showDialog by remember { mutableStateOf(false) }
 
     // null = follow the system; the rest are BCP-47 tags from locales_config.xml.
-    val options = remember { listOf<String?>(null) + AppLanguage.supportedTags(context, R.xml.locales_config) }
+    val options = remember(supported) { listOf<String?>(null) + supported }
 
     GroupedRow(
         title = stringResource(R.string.settings_language),

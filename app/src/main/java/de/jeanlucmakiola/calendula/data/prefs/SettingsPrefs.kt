@@ -302,6 +302,19 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
+     * Whether events can be dragged to another slot in the calendar views (#68,
+     * #173). Defaults to ON. Off means no block registers a drag gesture at all;
+     * rescheduling then goes through the edit form.
+     */
+    val dragToReschedule: Flow<Boolean> = store.data.map { prefs ->
+        prefs[DRAG_TO_RESCHEDULE_KEY] ?: true
+    }
+
+    suspend fun setDragToReschedule(enabled: Boolean) {
+        store.edit { it[DRAG_TO_RESCHEDULE_KEY] = enabled }
+    }
+
+    /**
      * How far ahead the in-app Agenda screen shows events (v2.11). Defaults to
      * [AgendaRange.Month] — a month of upcoming events. Independent of the
      * widget's [agendaWidgetRange].
@@ -945,6 +958,7 @@ class SettingsPrefs @Inject constructor(
         internal val MONTH_VIEW_STYLE_KEY = stringPreferencesKey("month_view_style")
         internal val TIMELINE_SCALE_KEY = stringPreferencesKey("timeline_scale")
         internal val TODAY_BUTTON_IN_TOOLBAR_KEY = booleanPreferencesKey("today_button_in_toolbar")
+        internal val DRAG_TO_RESCHEDULE_KEY = booleanPreferencesKey("drag_to_reschedule")
         internal val DEFAULT_VIEW_KEY = stringPreferencesKey("default_view")
         internal val QUICK_SWITCH_VIEWS_KEY = stringPreferencesKey("quick_switch_views")
         internal val DRAWER_VIEW_ORDER_KEY = stringPreferencesKey("drawer_view_order")

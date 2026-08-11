@@ -1,0 +1,3 @@
+Nowości
+• Przenoszenie wydarzeń przeciąganiem można teraz wyłączyć: Ustawienia → Widoki → „Przeciągnij, aby przenieść”. Domyślnie pozostaje włączone; po wyłączeniu wydarzeń nie da się już chwycić w widoku miesiąca, tygodnia i dnia.
+• Calendula mówi teraz po portugalsku (Brazylia) dzięki tłumaczeniu społeczności. Wybierzesz je w Ustawienia → Język.

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.1] — 2026-08-11
+
+### Added
+- **Drag to reschedule can be turned off.** Settings → Views → *Drag to
+  reschedule*, on by default. Off, no event can be picked up in the month, week
+  or day view — for anyone who kept moving appointments by accident while
+  scrolling ([#173]).
+- An early Brazilian Portuguese translation. Calendula has started speaking
+  Brazilian Portuguese, contributed as a community translation through
+  [Calendula's Weblate](https://weblate.dev.jeanlucmakiola.de/projects/calendula/).
+  About a third of the app is covered, so the rest still shows in English — you
+  can pick it under Settings → Language or in Android's per-app language
+  settings. Thanks to
+  [bkrz](https://weblate.dev.jeanlucmakiola.de/user/bkrz/) for getting it
+  started; help finishing it is very welcome.
+
+### Fixed
+- **The language picker forgot which language was picked.** Android hands the
+  applied language back with its script filled in — Simplified Chinese goes in
+  as `zh-CN` and comes out as `zh-Hans-CN` — so after a restart no entry in
+  Settings → Language showed as selected, and the row above it named the
+  language the long way round. Only languages that imply a script were
+  affected.
+
 ## [2.19.0] — 2026-08-10
 
 ### Added
@@ -1389,3 +1413,4 @@ automatically, with zero telemetry and no internet permission.
 [#80]: https://codeberg.org/jlmakiola/calendula/issues/80
 [#123]: https://codeberg.org/jlmakiola/calendula/issues/123
 [#163]: https://codeberg.org/jlmakiola/calendula/issues/163
+[#173]: https://codeberg.org/jlmakiola/calendula/issues/173
