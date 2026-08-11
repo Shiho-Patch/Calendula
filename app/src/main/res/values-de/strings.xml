@@ -312,7 +312,7 @@
     <!-- Hub category subtitles -->
     <string name="settings_appearance_subtitle">Design, Standardansicht, Wochenstart</string>
     <string name="settings_event_form_subtitle">Standardfelder für neue Termine</string>
-    <string name="settings_notifications_subtitle">Termin-Erinnerungen</string>
+    <string name="settings_notifications_subtitle">Erinnerungen und Übertragung</string>
     <string name="settings_section_about">Über</string>
     <string name="settings_license">Lizenz</string>
     <string name="settings_license_value">MIT</string>
@@ -595,4 +595,17 @@
     <string name="event_access_default_summary"></string>
     <string name="event_access_confidential_summary"></string>
     <string name="event_edit_recurrence_next_none"></string>
+    <plurals name="import_reminder_prompt_body_existing">
+        <item quantity="one">Dieses Event wurde mit %1$d Erinnerung importiert.</item>
+        <item quantity="other">Dieses Event wurde mit %1$d Erinnerungen importiert.</item>
+    </plurals>
+    <string name="settings_widget_size">Agenda-Widget-Größe</string>
+    <string name="import_reminder_prompt_body_none">Dieser Termin wurde ohne eine Erinnerung importiert.</string>
+    <string name="import_reminder_prompt_apply">Standart anwenden</string>
+    <string name="settings_widgets_subtitle">Agenda widget, Schnelleinstellungen-Kachel</string>
+    <string name="import_reminder_prompt_keep">unverändert lassen</string>
+    <string name="event_access_public_summary">Jeder mit Zugriff sieht jedes Detail</string>
+    <string name="event_access_private_summary">Andere sehen nur das du beschäftigt bist</string>
+    <string name="event_edit_recurrence_next">Als nächstes: %1$s</string>
+    <string name="event_edit_recurrence_incomplete">Gebe eine Zahl zwischen 1 und 999 ein</string>
 </resources>
