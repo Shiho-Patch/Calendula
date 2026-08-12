@@ -16,7 +16,7 @@
     <string name="state_failure_no_calendars_action">فتح إعدادات تقويم النظام</string>
     <string name="state_failure_provider">تعذّر قراءة التقويم.</string>
     <string name="permission_rationale_title">شاهد جميع أحداثك، بشكل جميل</string>
-    <string name="permission_rationale_body">Calendula يحتاج للوصول إلى تقويمك لعرض و إدارة أحداثك. هذا كل ما يطلبه مقدمًا — ولا يخرج أي شيء من جهازك على الإطلاق.</string>
+    <string name="permission_rationale_body">Calendula يحتاج للوصول إلى تقويمك لعرض و إدارة أحداثك.</string>
     <string name="permission_request_button">منح الوصول إلى التقويم</string>
     <string name="permission_denied_title">رُفِض الوصول إلى التقويم</string>
     <string name="permission_denied_body">Calendula لا يمكنه عرض الأحداث بدون الوصول إلى التقويم. يمكنك منحه مُجددًا في إعدادات النظام.</string>
@@ -126,6 +126,7 @@
     <string name="event_edit_recurrence_none">لا يتكرر</string>
     <string name="import_reminder_prompt_body_none">تم استيراد هذا الحدث بدون أي تذكير.</string>
     <plurals name="import_reminder_prompt_body_existing">
+        <item quantity="zero">تم استيراد هذا الحدث مع (%1$d) لا تذكيرات.</item>
         <item quantity="one">تم استيراد هذا الحدث مع %1$d تذكير.</item>
         <item quantity="two">تم استيراد هذا الحدث مع %1$d تذكيران.</item>
         <item quantity="few">تم استيراد هذا الحدث مع %1$d تذكيرات.</item>
@@ -242,7 +243,7 @@
     <string name="agenda_range_this_week">هذا الأسبوع</string>
     <string name="settings_past_events_show">إظهار</string>
     <string name="settings_past_events_hide">إخفاء</string>
-    <string name="settings_agenda_header">جدول</string>
+    <string name="settings_agenda_header">الجدول</string>
     <string name="event_edit_timezone_device">المنطقة الزمنية للجهاز</string>
     <string name="event_edit_timezone_search">البحث عن المناطق الزمنية</string>
     <string name="event_edit_timezone_all">جميع المناطق الزمنية</string>
@@ -252,7 +253,7 @@
     <string name="event_edit_recurrence_incomplete">أدخل رقمًا من ١ إلى ٩٩٩</string>
     <plurals name="duration_minutes">
         <item quantity="zero">(%d) لا دقائق</item>
-        <item quantity="one">(%d) دقيقة واحده</item>
+        <item quantity="one">%d دقيقة واحده</item>
         <item quantity="two">%d دقيقتان</item>
         <item quantity="few">%d دقائق</item>
         <item quantity="many">%d دقيقة</item>
@@ -260,7 +261,7 @@
     </plurals>
     <plurals name="duration_hours">
         <item quantity="zero">(%d) لا ساعات</item>
-        <item quantity="one">(%d) ساعة واحده</item>
+        <item quantity="one">%d ساعة واحده</item>
         <item quantity="two">%d ساعتان</item>
         <item quantity="few">%d ساعات</item>
         <item quantity="many">%d ساعة</item>
@@ -268,7 +269,7 @@
     </plurals>
     <plurals name="duration_days">
         <item quantity="zero">(%d) لا أيام</item>
-        <item quantity="one">(%d) يوم واحد</item>
+        <item quantity="one">%d يوم واحد</item>
         <item quantity="two">%d يومان</item>
         <item quantity="few">%d أيام</item>
         <item quantity="many">%d يوم</item>
@@ -276,7 +277,7 @@
     </plurals>
     <plurals name="duration_weeks">
         <item quantity="zero">(%d) لا أسابيع</item>
-        <item quantity="one">(%d) أسبوع واحد</item>
+        <item quantity="one">%d أسبوع واحد</item>
         <item quantity="two">%d أسبوعان</item>
         <item quantity="few">%d أسابيع</item>
         <item quantity="many">%d أسبوع</item>
@@ -329,7 +330,7 @@
     <string name="settings_widget_size_extra_large">كبير جدًا</string>
     <plurals name="agenda_range_days">
         <item quantity="zero">(%d) لا أيام</item>
-        <item quantity="one">(%d) يوم واحد</item>
+        <item quantity="one">%d يوم واحد</item>
         <item quantity="two">%d يومان</item>
         <item quantity="few">%d أيام</item>
         <item quantity="many">%d يوم</item>
@@ -383,7 +384,7 @@
     <string name="event_edit_recurrence_next">التالي: %1$s</string>
     <plurals name="reminder_minutes">
         <item quantity="zero">(%d) لا دقائق قبل</item>
-        <item quantity="one">(%d) دقيقة واحده قبل</item>
+        <item quantity="one">%d دقيقة واحده قبل</item>
         <item quantity="two">%d دقيقتان قبل</item>
         <item quantity="few">%d دقائق قبل</item>
         <item quantity="many">%d دقيقة قبل</item>
@@ -391,7 +392,7 @@
     </plurals>
     <plurals name="reminder_hours">
         <item quantity="zero">(%d) لا ساعات قبل</item>
-        <item quantity="one">(%d) ساعة واحده قبل</item>
+        <item quantity="one">%d ساعة واحده قبل</item>
         <item quantity="two">%d ساعتان قبل</item>
         <item quantity="few">%d ساعات قبل</item>
         <item quantity="many">%d ساعة قبل</item>
@@ -399,7 +400,7 @@
     </plurals>
     <plurals name="reminder_days">
         <item quantity="zero">(%d) لا أيام قبل</item>
-        <item quantity="one">(%d) يوم واحد قبل</item>
+        <item quantity="one">%d يوم واحد قبل</item>
         <item quantity="two">%d يومان قبل</item>
         <item quantity="few">%d أيام قبل</item>
         <item quantity="many">%d يوم قبل</item>
@@ -407,7 +408,7 @@
     </plurals>
     <plurals name="reminder_weeks">
         <item quantity="zero">(%d) لا أسابيع قبل</item>
-        <item quantity="one">(%d) أسبوع واحد قبل</item>
+        <item quantity="one">%d أسبوع واحد قبل</item>
         <item quantity="two">%d أسبوعان قبل</item>
         <item quantity="few">%d أسابيع قبل</item>
         <item quantity="many">%d أسبوع قبل</item>
@@ -472,7 +473,7 @@
     <string name="calendars_backup_failed">تعذّر تصدير النسخة الاحتياطية.</string>
     <plurals name="calendars_backup_done">
         <item quantity="zero">تم تصدير (%d) لا أحداث.</item>
-        <item quantity="one">تم تصدير (%d) حدث واحد.</item>
+        <item quantity="one">تم تصدير %d حدث واحد.</item>
         <item quantity="two">تم تصدير %d حدثان.</item>
         <item quantity="few">تم تصدير %d أحداث.</item>
         <item quantity="many">تم تصدير %d حدث.</item>
@@ -520,7 +521,7 @@
     <string name="settings_past_events_hint">ما الذي يفعله جدول بالأحداث التي انتهت بالفعل.</string>
     <string name="calendars_visibility_a11y">إظهار \"%1$s\"</string>
     <string name="calendars_visibility_notice_title">بعض التقويمات متوقفة</string>
-    <string name="calendars_visibility_notice_message">Calendula يعرض الآن التقويمات التي تم تشغيلها لهذا الجهاز، لذلك ما تراه وما يذكرك لم يعد بإمكانه أن يختلف. بعض تقويماتك متوقفة حاليًا — تم إيقافها هنا أو في تطبيق تقويم آخر. أعد تشغيل أي منها في الإعدادات ← التقويمات.</string>
+    <string name="calendars_visibility_notice_message">Calendula يعرض التقويمات التي تم تشغيلها لهذا الجهاز، وبعض من خاصتك متوقفة. لرؤية أحداثهم، قم بتشغيلهم ضمن الإعدادات ← التقويمات.</string>
     <string name="calendar_picker_missing_title">تفتقد تقويمًا؟</string>
     <string name="calendar_picker_missing_summary">قد يكون متوقفًا عن التشغيل، للقراءة فقط أو مملوءًا من جهات الاتصال الخاصة بك — يمكنك إدارة تقويماتك هنا.</string>
     <string name="calendars_state_read_only">للقراءة فقط</string>
@@ -542,4 +543,118 @@
     <string name="timeline_scale_regular">العادي</string>
     <string name="timeline_scale_comfortable_summary">مجموعات أوسع، تمرير أكثر</string>
     <string name="timeline_scale_custom_summary">الارتفاع الذي قمت بضغظت المخطط الزمني إليه</string>
+    <string name="event_edit_timezone_device_summary">يتابعك أينما كنت</string>
+    <string name="event_access_confidential_summary">مُعَلَّم كـ سري؛ ما يعنيه ذلك متروك لحساب التقويم</string>
+    <string name="settings_widget_size_summary">نص الحدث %1$d%%</string>
+    <string name="settings_calendar_durations_hint">امنح تقويم طوله الافتراضي خاص به — للمثال. ٨ ساعات لمناوبات العمل.</string>
+    <string name="settings_backup_subtitle">تصدير، استيراد، النسخ الاحتياطي التلقائي</string>
+    <string name="settings_views_all_header">كل طُرق العرض</string>
+    <string name="settings_calendar_durations_title">المدة لكل تقويم</string>
+    <string name="event_move_done">تم النقل إلى %1$s</string>
+    <string name="event_move_undo">تراجع</string>
+    <string name="event_move_undone">تم التراجع عن النقل</string>
+    <string name="event_move_failed">تعذّر نقل الحدث</string>
+    <string name="event_move_write_denied">Calendula يحتاج إلى صلاحية للكتابة لنقل الأحداث</string>
+    <string name="event_move_gone">لم يعد هذا الحدث موجودًا</string>
+    <string name="onboarding_step_counter">الخطوة %1$d من %2$d</string>
+    <string name="onboarding_backup_title">أحداثك تعيش فقط هنا</string>
+    <string name="onboarding_backup_body">لا شئ على هذا الهاتف تتم مزامنته لحساب، لذلك فقدانها سيؤدي لفقدان تقويمك. Calendula يمكنه كتابة نسخة احتياطية لك.</string>
+    <string name="onboarding_backup_benefit_folder_body">النسخ الاحتياطية هي ملفات .ics عادية — ضعها في مكان ما يزامن، أو على بطاقة SD.</string>
+    <string name="onboarding_backup_benefit_daily_title">مرة واحدة يوميًا، من تلقاء نفسه</string>
+    <string name="onboarding_backup_benefit_daily_body">Calendula يقم بتصدير تقويماتك المحلية في الخلفية. يمكنك تغيير مدى المرات في الإعدادات.</string>
+    <string name="onboarding_backup_enable_button">اختر مجلد وانسخ احتياطيًا</string>
+    <string name="onboarding_backup_skip_button">ليس الآن</string>
+    <string name="onboarding_view_title">ما الذي يجب أن يفتح أولاً؟</string>
+    <string name="onboarding_month_style_title">كيف يجب أن يبدو الشهر؟</string>
+    <string name="onboarding_view_continue_button">متابعة</string>
+    <string name="onboarding_back">رجوع</string>
+    <string name="onboarding_visibility_button">فهمت</string>
+    <string name="onboarding_done_title">تم إعدادك بالكامل</string>
+    <string name="onboarding_done_body">تقويماتك جاهزه. يمكن تغيير كل ما اخترته للتو لاحقًا في الإعدادات.</string>
+    <string name="onboarding_done_button">افتح تقويمي</string>
+    <plurals name="search_selected_count">
+        <item quantity="zero">تم تحديد (%d)</item>
+        <item quantity="one">تم تحديد %d</item>
+        <item quantity="two">تم تحديد %d</item>
+        <item quantity="few">تم تحديد %d</item>
+        <item quantity="many">تم تحديد %d</item>
+        <item quantity="other">تم تحديد %d</item>
+    </plurals>
+    <string name="search_in_descriptions">عُثِر في الأوصاف</string>
+    <string name="search_selection_close">إلغاء التحديد</string>
+    <string name="search_select_all">تحديد الكل</string>
+    <string name="search_delete_selected">حذف المُحدّد</string>
+    <plurals name="search_delete_title">
+        <item quantity="zero">حذف (%d) حدث؟</item>
+        <item quantity="one">حذف %d حدث واحد؟</item>
+        <item quantity="two">حذف %d حدثان؟</item>
+        <item quantity="few">حذف %d أحداث؟</item>
+        <item quantity="many">حذف %d حدث؟</item>
+        <item quantity="other">حذف %d حدث؟</item>
+    </plurals>
+    <plurals name="search_delete_done">
+        <item quantity="zero">تم حذف (%d) لا حدث</item>
+        <item quantity="one">تم حذف %d حدث واحد</item>
+        <item quantity="two">تم حذف %d حدثان</item>
+        <item quantity="few">تم حذف %d أحداث</item>
+        <item quantity="many">تم حذف %d حدث</item>
+        <item quantity="other">تم حذف %d حدث</item>
+    </plurals>
+    <string name="search_delete_partial">تم حذف %1$d، وتعذّر حذف %2$d</string>
+    <string name="search_delete_denied_partial">تم حذف %1$d، ثم تم سحب صلاحية للكتابة</string>
+    <plurals name="import_done_skipped">
+        <item quantity="zero">تم تخطي (%d) بالفعل في هذا التقويم.</item>
+        <item quantity="one">تم تخطي %d بالفعل في هذا التقويم.</item>
+        <item quantity="two">تم تخطي %d بالفعل في هذا التقويم.</item>
+        <item quantity="few">تم تخطي %d بالفعل في هذا التقويم.</item>
+        <item quantity="many">تم تخطي %d بالفعل في هذا التقويم.</item>
+        <item quantity="other">تم تخطي %d بالفعل في هذا التقويم.</item>
+    </plurals>
+    <plurals name="import_done_imported">
+        <item quantity="zero">تم استيراد (%d) لا أحداث.</item>
+        <item quantity="one">تم استيراد %d حدث واحد.</item>
+        <item quantity="two">تم استيراد %d حدثان.</item>
+        <item quantity="few">تم استيراد %d أحداث.</item>
+        <item quantity="many">تم استيراد %d حدث.</item>
+        <item quantity="other">تم استيراد %d حدث.</item>
+    </plurals>
+    <plurals name="import_action">
+        <item quantity="zero">استيراد (%d) لا أحداث</item>
+        <item quantity="one">استيراد %d حدث واحد</item>
+        <item quantity="two">استيراد %d حدثان</item>
+        <item quantity="few">استيراد %d أحداث</item>
+        <item quantity="many">استيراد %d حدث</item>
+        <item quantity="other">استيراد %d حدث</item>
+    </plurals>
+    <plurals name="import_event_count">
+        <item quantity="zero">(%d) لا أحداث في هذا الملف.</item>
+        <item quantity="one">%d حدث واحد في هذا الملف.</item>
+        <item quantity="two">%d حدثان في هذا الملف.</item>
+        <item quantity="few">%d أحداث في هذا الملف.</item>
+        <item quantity="many">%d حدث في هذا الملف.</item>
+        <item quantity="other">%d حدث في هذا الملف.</item>
+    </plurals>
+    <plurals name="import_title_count">
+        <item quantity="zero">يتم استيراد (%d) لا أحداث</item>
+        <item quantity="one">يتم استيراد %d حدث واحد</item>
+        <item quantity="two">يتم استيراد %d حدثان</item>
+        <item quantity="few">يتم استيراد %d أحداث</item>
+        <item quantity="many">يتم استيراد %d حدث</item>
+        <item quantity="other">يتم استيراد %d حدث</item>
+    </plurals>
+    <string name="event_move_recurring_title">نقل الحدث المتكرر</string>
+    <string name="event_edit_conflict_overwrite_hint">فقط الحقول التي عدلتها هي التي ستحل محل التغيير الخارجي</string>
+    <string name="reorder_drag_handle">اسحب لإعادة الترتيب</string>
+    <string name="settings_drawer_order_hint">اسحب لإعادة ترتيب طرق العرض المدرجة في قائمة التنقل.</string>
+    <string name="settings_drawer_order_header">قائمة التنقل</string>
+    <string name="settings_default_reminder_allday">أحداث يوم كامل</string>
+    <string name="settings_allday_reminder_time">وقت تذكير اليوم الكامل</string>
+    <string name="reminder_none">لا شئ</string>
+    <string name="settings_reliable_delivery_hint">أندرويد قد يؤخر التذكيرات لتوفير البطارية. استثنِ Calendula لكي تصل في الوقت المحدد.</string>
+    <string name="settings_calendar_reminders_title">التذكيرات لكل تقويم</string>
+    <string name="settings_license_value">MIT</string>
+    <string name="settings_special_dates_paused_title">متوقف</string>
+    <string name="settings_special_dates_calendar_hint">اضبط لون كل تقويم وإمكانية ظهوره في إعدادات التقويمات.</string>
+    <string name="calendars_visibility_hint">قم بإيقاف تقويم لإخفائه على هذا الجهاز — تختفي أحداثه من التطبيق ويتوقف عن تذكيرك. هذا هو المفتاح نفسه الذي تستخدمه تطبيقات التقويم الأخرى، لذلك تقوم بإخفائه أيضًا. لا يتم حذف أي شيء، ولا يتأثر أي جهاز آخر، ويمكنك إعادة تشغيله هنا في أي وقت.</string>
+    <string name="settings_allday_reminder_fires_at">يتم الإشعار في %1$s</string>
 </resources>
