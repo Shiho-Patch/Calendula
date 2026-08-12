@@ -423,7 +423,7 @@
     <string name="settings_font_choose_file">Scegli file…</string>
     <string name="settings_font_custom_selected">Font personalizzato</string>
     <string name="settings_font_import_failed">Impossibile leggere il file come font</string>
-    <string name="settings_section_views">Viste</string>
+    <string name="settings_section_views">Vista</string>
     <string name="settings_quick_switch_header">Pulsante di cambio rapido</string>
     <string name="settings_quick_switch_hint">Scegli attraverso quali viste scorrere col pulsante in alto a destra, trascinale per riordinarle. Le viste disattivate rimangono raggiungibili dal menù di navigazione.</string>
     <string name="settings_drawer_order_header">Menù di navigazione</string>
@@ -506,7 +506,7 @@
     <string name="event_move_undone">Ripianificazione annullata</string>
     <string name="event_move_failed">Impossibile ripianificare l\'evento</string>
     <string name="event_move_write_denied">Calendula ha bisogno dei permessi di scrittura per ripianificare gli eventi</string>
-    <string name="event_move_gone">Questo evento è stato cancellato</string>
+    <string name="event_move_gone">Questo evento è stato eliminato.</string>
     <string name="event_move_blocked_series_end">Non è possibile ripianificare un evento oltre la data di fine della sua serie</string>
     <string name="event_edit_timezone_device">Fuso orario del dispositivo</string>
     <string name="event_edit_timezone_device_summary">Segue il fuso orario in cui ti trovi</string>
@@ -554,14 +554,12 @@
     <string name="search_select_all">Seleziona tutti</string>
     <string name="search_delete_selected">Elimina i selezionati</string>
     <plurals name="search_delete_title">
-        <item quantity="one">Eliminare %d evento?</item>
-        <item quantity="many">Eliminare %d eventi?</item>
-        <item quantity="other">Eliminare %d eventi?</item>
+        <item quantity="one">Eliminare l\'evento?</item>
+        <item quantity="other">Eliminare l\'evento?</item>
     </plurals>
     <plurals name="search_delete_done">
-        <item quantity="one">%d evento eliminato</item>
-        <item quantity="many">%d eventi eliminati</item>
-        <item quantity="other">%d eventi eliminati</item>
+        <item quantity="one">Evento eliminato</item>
+        <item quantity="other">Evento eliminato</item>
     </plurals>
     <string name="search_delete_partial">%1$d eliminati, %2$d no</string>
     <string name="search_delete_denied_partial">%1$d eliminati, poi permessi di scrittura negati</string>
@@ -586,7 +584,7 @@
     <string name="timeline_scale_regular_summary">La spaziatura standard</string>
     <string name="timeline_scale_comfortable">Comodo</string>
     <string name="timeline_scale_comfortable_summary">Blocchi più ampi, più scrolling</string>
-    <string name="timeline_scale_custom">Personalizzato</string>
+    <string name="timeline_scale_custom">Personalizza</string>
     <string name="timeline_scale_custom_summary">L\'altezza a cui hai portato la timeline</string>
     <string name="settings_drag_to_reschedule">Trascina per ripianificare</string>
     <string name="settings_drag_to_reschedule_summary">Ripianifica un evento trascinandolo in un altro giorno o ora</string>
@@ -637,7 +635,7 @@
     <string name="settings_group_look">Aspetto e Comportamento</string>
     <string name="settings_group_data">Dati</string>
     <string name="settings_group_app">App</string>
-    <string name="settings_group_about">A riguardo</string>
+    <string name="settings_group_about">A proposito</string>
     <string name="settings_widgets_subtitle">Widget Agenda e riquadro Impostazioni rapide</string>
     <string name="settings_backup_subtitle">Export, Import, backup automatici</string>
     <string name="settings_section_widgets">Widget &amp; Riquardi</string>
