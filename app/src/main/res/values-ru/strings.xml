@@ -17,14 +17,14 @@
     <string name="state_failure_no_calendars_action">Перейти в системные настройки календаря</string>
     <string name="state_failure_provider">Не удалось просмотреть календарь.</string>
     <string name="permission_rationale_title">Следите за всеми своими событиями. С красотой</string>
-    <string name="permission_rationale_body">Calendula требуется доступ к вашему календарю, чтобы показывать и управлять вашими событиями. Это всё, что приложение требует с самого начала – и никакая информация не покидает ваш девайс.</string>
+    <string name="permission_rationale_body">Calendula требуется доступ к вашему календарю, чтобы показывать и управлять вашими событиями. Это всё, что приложение требует с самого начала – и никакая информация не покидает ваше устройство.</string>
     <string name="permission_request_button">Дать доступ к календарю</string>
     <string name="permission_denied_title">В доступе к календарю отказано</string>
     <string name="permission_denied_body">Calendula не может показать события без доступа к календарю. Предоставьте его снова в настройках телефона.</string>
     <string name="permission_open_settings_button">Открыть настройки телефона</string>
     <string name="permission_retry_button">Попытайтесь снова</string>
     <string name="permission_benefit_private_title">Остаётся на вашем устройстве</string>
-    <string name="permission_benefit_private_body">Ваши календари просматриваются локально и информация никогда не покидает устройство.</string>
+    <string name="permission_benefit_private_body">Нет доступа к интернету, нету телеметрии — ничто не покидает ваше устройство.</string>
     <string name="permission_benefit_sync_title">Все ваши календари. Вместе</string>
     <string name="permission_benefit_sync_body">Google, CalDAV, локальный календарь – всё синхронизированное с устройством просто подключается.</string>
     <string name="permission_benefit_privacy_title">Никакого отслеживания. Никогда</string>
@@ -62,4 +62,8 @@
     <string name="event_edit_close">Закрыть</string>
     <string name="event_edit_save">Сохранить</string>
     <string name="event_edit_title_hint">Добавить имя</string>
+    <string name="event_move_action">Перенести…</string>
+    <string name="event_move_recurring_title">Перенести повторяющиеся события</string>
+    <string name="event_move_done">Перенесено на %1$s</string>
+    <string name="event_move_undo">Отменить</string>
 </resources>
