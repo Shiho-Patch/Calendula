@@ -2352,6 +2352,11 @@ private fun MonthBar(
             },
         contentAlignment = Alignment.CenterStart,
     ) {
+        // Clipping only keeps the start of the title in an LTR layout: with
+        // softWrap off Compose lays the line out at its full width and clips to
+        // the chip's *left* edge, which in RTL is the end of the string. So RTL
+        // keeps the ellipsis, which truncates at the logical end either way.
+        val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
         Text(
             text = title,
             style = MaterialTheme.typography.labelSmall,
@@ -2360,8 +2365,8 @@ private fun MonthBar(
             // couple of readable characters. softWrap is off with it — left on,
             // a clipped line breaks at the last whole word instead of running to
             // the chip's edge, which reads as *less* title, not more.
-            overflow = TextOverflow.Clip,
-            softWrap = false,
+            overflow = if (rtl) TextOverflow.Ellipsis else TextOverflow.Clip,
+            softWrap = rtl,
             color = eventInk(fill),
         )
     }
