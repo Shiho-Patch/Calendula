@@ -452,13 +452,13 @@
     <string name="settings_special_dates_grant">منح الوصول</string>
     <string name="calendars_backup_action">تصدير كملف ‎.ics</string>
     <string name="calendars_export_title">تصدير التقويمات</string>
-    <string name="calendars_export_hint">اختر التقويمات التي تريد تضمينها في ‎.ics الملف.</string>
+    <string name="calendars_export_hint">اختر التقويمات التي تريد تضمينها في ملف ‎.ics.</string>
     <string name="calendars_export_action">تصدير</string>
     <string name="calendars_restore_header">استعادة</string>
     <string name="calendars_restore_action">استعادة من ملف ‎.ics</string>
     <string name="calendars_restore_hint">استيراد الأحداث من نسخة احتياطية أو تطبيق تقويم آخر.</string>
     <string name="calendars_auto_backup">النسخ الاحتياطي التلقائي</string>
-    <string name="calendars_auto_backup_hint">قم بتصدير تقويماتك المحلية بشكل دوري إلى مجلد كـ ‎.ics الملف.</string>
+    <string name="calendars_auto_backup_hint">قم بتصدير تقويماتك المحلية بشكل دوري إلى مجلد كـ ملف ‎.ics.</string>
     <string name="calendars_auto_backup_folder">مجلد النسخ الاحتياطي</string>
     <string name="calendars_auto_backup_folder_unset">اضغط لاختيار مجلد</string>
     <string name="calendars_auto_backup_every">كل %1$s</string>
@@ -657,4 +657,7 @@
     <string name="settings_special_dates_calendar_hint">اضبط لون كل تقويم وإمكانية ظهوره في إعدادات التقويمات.</string>
     <string name="calendars_visibility_hint">قم بإيقاف تقويم لإخفائه على هذا الجهاز — تختفي أحداثه من التطبيق ويتوقف عن تذكيرك. هذا هو المفتاح نفسه الذي تستخدمه تطبيقات التقويم الأخرى، لذلك تقوم بإخفائه أيضًا. لا يتم حذف أي شيء، ولا يتأثر أي جهاز آخر، ويمكنك إعادة تشغيله هنا في أي وقت.</string>
     <string name="settings_allday_reminder_fires_at">يتم الإشعار في %1$s</string>
+    <string name="settings_agenda_widget_range">نطاق ودجت الجدول</string>
+    <string name="settings_widget_size">حجم ودجت الجدول</string>
+    <string name="settings_widgets_subtitle">ودجت الجدول، عنصر الإعدادات السريعة</string>
 </resources>
