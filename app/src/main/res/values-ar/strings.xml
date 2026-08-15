@@ -22,8 +22,8 @@
     <string name="permission_denied_body">Calendula لا يمكنه عرض الأحداث بدون الوصول إلى التقويم. يمكنك منحه مُجددًا في إعدادات النظام.</string>
     <string name="permission_retry_button">أعِد المحاولة</string>
     <string name="permission_open_settings_button">فتح إعدادات النظام</string>
-    <string name="permission_benefit_private_title">يبقى على جهازك</string>
-    <string name="permission_benefit_private_body">تقويماتك تتِم قراءتها محليًا ولا تُغادر الهاتف أبدًا.</string>
+    <string name="permission_benefit_private_title">الخصوصية حسب التصميم</string>
+    <string name="permission_benefit_private_body">لا يوجد إذن بالإنترنت، ولا تتبع عن بُعد — لا شيء يغادر هاتفك أبدًا.</string>
     <string name="permission_benefit_sync_title">جميع تقويماتك، مع بعض</string>
     <string name="permission_benefit_sync_body">جوجل، CalDAV، محلي — أي شيء تمت مزامنته مع الجهاز يظهر فورًا.</string>
     <string name="permission_benefit_privacy_title">لا تتبع، أبدًا</string>
@@ -178,7 +178,7 @@
     <string name="reminder_channel_name">تذكيرات الحدث</string>
     <string name="reminder_channel_description">الإشعارات في أوقات التذكير الخاصه بأحداثك</string>
     <string name="reminder_onboarding_title">لا تفوّت أي حدث أبدًا</string>
-    <string name="reminder_onboarding_body">Android لا يعرض تذكيرات الأحداث من نفسه — بل يجب أن يقوم تطبيق تقويم بذلك. دع Calendula يتولى هذه المهمة.</string>
+    <string name="reminder_onboarding_body">أندرويد لا يعرض تذكيرات الأحداث من نفسه — بل يجب أن يقوم تطبيق تقويم بذلك. دع Calendula يتولى هذه المهمة.</string>
     <string name="reminder_benefit_delivery_body">كل تذكير لأحداثك يصِل كإشعار، في الوقت المحدد تمامًا.</string>
     <string name="reminder_benefit_duplicates_title">هل تستخدم تطبيق تقويم ثانٍ؟</string>
     <string name="reminder_benefit_duplicates_body">إذا تطبيق آخر أيضًا ينشر تذكيرات، فستراهم مرتين — قم بإيقاف تشغيلهم هناك أو هنا.</string>
@@ -247,7 +247,7 @@
     <string name="event_edit_timezone_device">المنطقة الزمنية للجهاز</string>
     <string name="event_edit_timezone_search">البحث عن المناطق الزمنية</string>
     <string name="event_edit_timezone_all">جميع المناطق الزمنية</string>
-    <string name="event_edit_timezone_none">لا منطقة زمنية تطابق \"%1$s\"</string>
+    <string name="event_edit_timezone_none">لا منطقة زمنية تطابق ”%1$s“</string>
     <string name="event_edit_timezone_local_time">%1$s توقيتك</string>
     <string name="event_edit_timezone_recent">الأحدث</string>
     <string name="event_edit_recurrence_incomplete">أدخل رقمًا من ١ إلى ٩٩٩</string>
@@ -292,7 +292,7 @@
     <string name="settings_dim_completed_summary">تعتيم الأحداث التي انتهت بالفعل في عرض الشهر والأسبوع</string>
     <string name="settings_today_toolbar">زر اليوم في شريط الأدوات</string>
     <string name="settings_today_toolbar_summary">إظهار زر الانتقال إلى اليوم في شريط الأدوات بدلاً من زر عائم</string>
-    <string name="settings_app_name_summary">اعرض Calendula كـ \"Calendar\" في مشغّل التطبيقات الخاص بك. فقط الاسم في المشغّل يتغير؛ وقد ينتقل الرمز إلى مكان جديد بعد التبديل.</string>
+    <string name="settings_app_name_summary">اعرض Calendula كـ ”Calendar“ في مشغّل التطبيقات الخاص بك. فقط الاسم في المشغّل يتغير؛ وقد ينتقل الرمز إلى مكان جديد بعد التبديل.</string>
     <string name="settings_past_events_dim">تعتيم</string>
     <string name="settings_past_events">الأحداث السابقة</string>
     <string name="settings_agenda_range">مدى الجدول</string>
@@ -315,7 +315,7 @@
     <string name="settings_form_fields_hint">الخانات المعروضة افتراضيًا — كل شيء آخر موجود ضمن \"المزيد من الخانات\"</string>
     <string name="settings_section_event_form">نموذج حدث جديد</string>
     <string name="settings_quick_switch_header">زر التبديل السريع</string>
-    <string name="app_name">التقويم</string>
+    <string name="app_name"></string>
     <string name="settings_theme_system_summary">الحالي %1$s</string>
     <string name="settings_theme_hint">سواء التطبيق فاتحًا أو داكنًا. الاختيار يُطبق على الفور.</string>
     <string name="settings_week_start_auto_summary">الحالي %1$s</string>
@@ -414,7 +414,7 @@
         <item quantity="many">%d أسبوع قبل</item>
         <item quantity="other">%d أسبوع قبل</item>
     </plurals>
-    <string name="reminder_benefit_reversible_body">يوجد المفتاح في الإعدادات، ضمن الإشعارات.</string>
+    <string name="reminder_benefit_reversible_body">يوجد مفتاح التبديل في الإعدادات، ضمن الإشعارات.</string>
     <string name="reminder_custom_amount">القيمة</string>
     <string name="settings_manage_calendars_hint">إنشاء تقويمات محلية؛ إدارة التقويمات المتزامنة</string>
     <string name="settings_snooze_duration">مدة التأجيل</string>
@@ -655,9 +655,28 @@
     <string name="settings_license_value">MIT</string>
     <string name="settings_special_dates_paused_title">متوقف</string>
     <string name="settings_special_dates_calendar_hint">اضبط لون كل تقويم وإمكانية ظهوره في إعدادات التقويمات.</string>
-    <string name="calendars_visibility_hint">قم بإيقاف تقويم لإخفائه على هذا الجهاز — تختفي أحداثه من التطبيق ويتوقف عن تذكيرك. هذا هو المفتاح نفسه الذي تستخدمه تطبيقات التقويم الأخرى، لذلك تقوم بإخفائه أيضًا. لا يتم حذف أي شيء، ولا يتأثر أي جهاز آخر، ويمكنك إعادة تشغيله هنا في أي وقت.</string>
+    <string name="calendars_visibility_hint">قم بإيقاف تقويم لإخفائه على هذا الجهاز — تختفي أحداثه من التطبيق ويتوقف عن تذكيرك. هذا هو مفتاح التبديل نفسه الذي تستخدمه تطبيقات التقويم الأخرى خاصتك، لذلك تقوم بإخفائه أيضًا. لا شيء يتم حذفه، ولا يتأثر أي جهاز آخر، ويمكنك إعادة تشغيله من هنا في أي وقت.</string>
     <string name="settings_allday_reminder_fires_at">يتم الإشعار في %1$s</string>
     <string name="settings_agenda_widget_range">نطاق ودجت الجدول</string>
     <string name="settings_widget_size">حجم ودجت الجدول</string>
     <string name="settings_widgets_subtitle">ودجت الجدول، عنصر الإعدادات السريعة</string>
+    <string name="settings_drag_to_reschedule">السحب لتعديل الموعد</string>
+    <string name="settings_drag_to_reschedule_summary">انقل حدثًا عن طريق سحبه إلى يوم أو وقت آخر</string>
+    <string name="event_move_blocked_series_end">لا يمكن نقل حدث بعد نهاية سلسلته</string>
+    <string name="crash_dialog_report">تقرير</string>
+    <string name="settings_quick_switch_hint">اختر أي طُرق العرض التي يتم التنقل بينها باستخدام الزر الموجود في أعلى اليمين، واسحب لإعادة ترتيبها. تظل طرق العرض التي تم إيقاف تشغيلها متاحة من قائمة التنقل.</string>
+    <string name="calendars_account_from_source">%1$s (%2$s)</string>
+    <string name="duration_hours_minutes">%1$s %2$s</string>
+    <string name="settings_widgets_hint">إعدادات لوجدتز الشاشة الرئيسية وعنصر لوحة الإعدادات السريعة. أضف وجدت عن طريق الضغط لفترة طويلة على شاشتك الرئيسية.</string>
+    <string name="import_warning_attendees">لم يتم استيراد قوائم الضيوف.</string>
+    <string name="settings_reliable_delivery_exempt">معفى من تحسين البطارية — تصل التذكيرات في الوقت المحدد.</string>
+    <string name="settings_reliable_delivery">توصيل موثوق</string>
+    <string name="settings_allday_reminder_time_hint">تنطلق التذكيرات لأحداث التي تستمر طوال اليوم عند %1$s</string>
+    <string name="agenda_range_override_hint">فقط للآن — يعيد التعيين إلى المدى المحفوظ الخاص بك عند إعادة فتح Calendula.</string>
+    <string name="settings_past_events_sample_morning">مراجعة الفريق</string>
+    <string name="settings_past_events_sample_midday">غداء مع روبن</string>
+    <string name="settings_past_events_sample_evening">ممارسة الجوقة</string>
+    <string name="settings_special_dates_last_synced">آخر مزامنة %1$s</string>
+    <string name="settings_special_dates_disable_type_message">يؤدي هذا لحذف التقويم ”%1$s“ وأحداثه. سيتم فقدان أي تذكيرات أو ملاحظات أضفتها إليه.</string>
+    <string name="special_dates_default_title_birthday">عيد ميلاد {name} ({year})</string>
 </resources>
