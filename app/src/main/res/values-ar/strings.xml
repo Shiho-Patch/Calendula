@@ -315,7 +315,6 @@
     <string name="settings_form_fields_hint">الخانات المعروضة افتراضيًا — كل شيء آخر موجود ضمن \"المزيد من الخانات\"</string>
     <string name="settings_section_event_form">نموذج حدث جديد</string>
     <string name="settings_quick_switch_header">زر التبديل السريع</string>
-    <string name="app_name"></string>
     <string name="settings_theme_system_summary">الحالي %1$s</string>
     <string name="settings_theme_hint">سواء التطبيق فاتحًا أو داكنًا. الاختيار يُطبق على الفور.</string>
     <string name="settings_week_start_auto_summary">الحالي %1$s</string>
