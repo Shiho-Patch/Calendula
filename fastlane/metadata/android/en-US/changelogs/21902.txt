@@ -1,0 +1,8 @@
+Fixed
+• Tapping an event in month view now opens the event instead of its day.
+• An edit shows straight away when you re-open the event.
+• The month widget's arrows no longer die after a few taps — an oversized update was killing the launcher's widget host.
+• Jump-to-today in seamless weeks lands on the current week, and day/week view no longer run flush against the right edge.
+
+Changed
+• A meeting you declined is struck through everywhere and no longer reminds you.
