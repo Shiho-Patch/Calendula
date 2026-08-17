@@ -25,7 +25,6 @@ import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.updateAppWidgetState
-import androidx.glance.appwidget.updateAll
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
@@ -118,7 +117,17 @@ class MonthWidget : GlanceAppWidget() {
     }
 }
 
-/** Step the displayed month by the `delta` action parameter (±1). */
+/**
+ * Step the displayed month by the `delta` action parameter (±1).
+ *
+ * Redrawn through [GlanceAppWidget.update] with the id the callback was handed,
+ * never `updateAll`. `updateAll` resolves its targets through the provider-name
+ * -> app-widget-id map Glance persists for the *receiver*, and in a process that
+ * has done nothing else yet — the one a tap wakes after a reboot — that lookup
+ * comes back empty and the redraw is dropped: the state write lands, nothing
+ * recomposes, and the arrows read as dead until something else opens the app and
+ * starts a session (#18). The tapped widget's own id needs no lookup.
+ */
 class ShiftMonthAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val delta = parameters[deltaKey] ?: 0
@@ -126,7 +135,7 @@ class ShiftMonthAction : ActionCallback {
             val cur = prefs[MONTH_INDEX_KEY] ?: currentMonthIndex(systemZone())
             prefs[MONTH_INDEX_KEY] = cur + delta
         }
-        MonthWidget().updateAll(context.applicationContext)
+        MonthWidget().update(context.applicationContext, glanceId)
     }
 
     companion object {
@@ -134,11 +143,11 @@ class ShiftMonthAction : ActionCallback {
     }
 }
 
-/** Jump the displayed month back to the current month. */
+/** Jump the displayed month back to the current month. See [ShiftMonthAction]. */
 class ResetMonthAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         updateAppWidgetState(context, glanceId) { prefs -> prefs.remove(MONTH_INDEX_KEY) }
-        MonthWidget().updateAll(context.applicationContext)
+        MonthWidget().update(context.applicationContext, glanceId)
     }
 }
 

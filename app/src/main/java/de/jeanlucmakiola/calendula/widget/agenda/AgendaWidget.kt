@@ -24,7 +24,6 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.lazy.LazyColumn
 import androidx.glance.appwidget.lazy.items
 import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.updateAll
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.state.PreferencesGlanceStateDefinition
@@ -135,10 +134,14 @@ class AgendaWidget : GlanceAppWidget() {
     }
 }
 
-/** Re-reads the calendar and redraws the widget (header refresh button). */
+/**
+ * Re-reads the calendar and redraws the widget (header refresh button). Targets
+ * the tapped widget's own id rather than `updateAll`, whose provider-name lookup
+ * is empty in a process a tap woke from cold — see `ShiftMonthAction` (#18).
+ */
 class RefreshAgendaAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        AgendaWidget().updateAll(context.applicationContext)
+        AgendaWidget().update(context.applicationContext, glanceId)
     }
 }
 
