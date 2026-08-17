@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.2] — 2026-08-17
+
+### Changed
+- **A meeting you declined is now struck through** wherever it appears — month,
+  week, day, agenda, search and both widgets — and no longer schedules a
+  reminder. Declining an invitation in Google Calendar left the event looking
+  like any other in Calendula, and it still notified you about a meeting you had
+  said no to. It stays visible rather than disappearing: the organiser still
+  expects an answer from you, and the slot is still spoken for ([#180]).
+
+### Fixed
+- **Tapping an event in month view opens the event**, not the day it sits on.
+  Every month style is affected — page, rolling, seamless weeks — and until now
+  the only way to reach an event from the month was to open its day first and
+  find it again there. Tapping anywhere else in the cell still opens the day
+  ([#187]).
+- **An edit made to an event now shows the moment you re-open it.** Adding a
+  description to an event and opening it again showed the sheet as it was before
+  the save, because the detail was only re-read when a different occurrence was
+  opened ([#196]).
+- **The month widget's arrows stopped working after a couple of taps.** The grid
+  was serialised as roughly 740 views, and one update ran to half a megabyte —
+  more than the launcher's buffer takes. The third update overran it, and Android
+  responded by dropping the whole widget host, which killed updates for *every*
+  widget on the home screen, ours and other apps', until the launcher rebound.
+  The grid now draws 192 views, and a resized widget reflows to its new size
+  instead of clipping ([#214]).
+- Tapping a widget's refresh or month arrows redraws that widget by its own id
+  instead of asking Android to update all of them, which does nothing in a
+  process the tap has just woken from cold ([#18]).
+- **Jump-to-today in seamless weeks lands on the current week** instead of
+  leaving a sliver of the previous row on screen ([#191]).
+- Day and week view no longer run their events flush against the right edge
+  ([#192]).
+
 ## [2.19.1] — 2026-08-11
 
 ### Added
@@ -1414,3 +1449,9 @@ automatically, with zero telemetry and no internet permission.
 [#123]: https://codeberg.org/jlmakiola/calendula/issues/123
 [#163]: https://codeberg.org/jlmakiola/calendula/issues/163
 [#173]: https://codeberg.org/jlmakiola/calendula/issues/173
+[#180]: https://codeberg.org/jlmakiola/calendula/issues/180
+[#187]: https://codeberg.org/jlmakiola/calendula/issues/187
+[#191]: https://codeberg.org/jlmakiola/calendula/issues/191
+[#192]: https://codeberg.org/jlmakiola/calendula/issues/192
+[#196]: https://codeberg.org/jlmakiola/calendula/issues/196
+[#214]: https://codeberg.org/jlmakiola/calendula/issues/214

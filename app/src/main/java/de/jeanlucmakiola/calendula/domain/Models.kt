@@ -67,6 +67,13 @@ data class EventInstance(
      * Instances query already yields one row per occurrence.
      */
     val isRecurring: Boolean = false,
+    /**
+     * This device user answered "no" to the invitation
+     * (`Events.SELF_ATTENDEE_STATUS`). The event stays on the calendar — it is
+     * still an appointment someone expects an answer about — but every surface
+     * strikes it through, and it plans no reminders (#180).
+     */
+    val isDeclined: Boolean = false,
 )
 
 /**

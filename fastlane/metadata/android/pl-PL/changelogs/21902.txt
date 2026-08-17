@@ -1,0 +1,8 @@
+Poprawki
+• Dotknięcie wydarzenia w widoku miesiąca otwiera wydarzenie, a nie jego dzień.
+• Zmiana jest widoczna od razu po ponownym otwarciu wydarzenia.
+• Strzałki widżetu miesiąca nie zamierają już po kilku dotknięciach – zbyt duża aktualizacja kładła host widżetów launchera.
+• „Dziś” w ciągłych tygodniach trafia dokładnie w bieżący tydzień, a widoki dnia i tygodnia znów mają margines z prawej.
+
+Zmiany
+• Odrzucone wydarzenie jest wszędzie przekreślone i nie przypomina o sobie.

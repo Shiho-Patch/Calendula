@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.widget.month
 
+import de.jeanlucmakiola.calendula.widget.glanceDeclinedDecoration
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
@@ -25,7 +26,6 @@ import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.updateAppWidgetState
-import androidx.glance.appwidget.updateAll
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.layout.Alignment
@@ -33,6 +33,7 @@ import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -97,10 +98,27 @@ private fun yearMonthOf(index: Int): YearMonth =
  * inter-cell seam, with rounded end caps. The displayed month lives in Glance
  * state and is read reactively in the composition ([currentState]) so the arrows
  * move it via plain recomposition, not a (here-unreliable) widget session reload.
+ *
+ * Everything here is written to keep the published `RemoteViews` small. A widget
+ * update reaches the launcher as a *oneway* binder call, and the host's async
+ * buffer is 1 MB for all of it; overrun throws `TransactionTooLargeException` and
+ * the system drops the whole host, freezing every widget on the home screen until
+ * the launcher rebinds. [SizeMode.Exact] serialises the grid once per size the
+ * host reports, so the ceiling arrives at half the view count you would expect: a
+ * grid that emitted a view per cell blew past it after three taps (#214). Every
+ * row here emits only what it fills.
  */
 class MonthWidget : GlanceAppWidget() {
 
     override val stateDefinition = PreferencesGlanceStateDefinition
+
+    /**
+     * Exact rather than [SizeMode.Single] or [SizeMode.Responsive], both of which
+     * return early from `GlanceAppWidget.resize` — under those the grid is never
+     * recomposed for a new size and a resized widget clips instead of reflowing.
+     * Exact costs one serialised copy per host size, which is affordable now that
+     * a rendering is ~190 views rather than ~740.
+     */
     override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -118,7 +136,17 @@ class MonthWidget : GlanceAppWidget() {
     }
 }
 
-/** Step the displayed month by the `delta` action parameter (±1). */
+/**
+ * Step the displayed month by the `delta` action parameter (±1).
+ *
+ * Redrawn through [GlanceAppWidget.update] with the id the callback was handed,
+ * never `updateAll`. `updateAll` resolves its targets through the provider-name
+ * -> app-widget-id map Glance persists for the *receiver*, and in a process that
+ * has done nothing else yet — the one a tap wakes after a reboot — that lookup
+ * comes back empty and the redraw is dropped: the state write lands, nothing
+ * recomposes, and the arrows read as dead until something else opens the app and
+ * starts a session (#18). The tapped widget's own id needs no lookup.
+ */
 class ShiftMonthAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         val delta = parameters[deltaKey] ?: 0
@@ -126,7 +154,7 @@ class ShiftMonthAction : ActionCallback {
             val cur = prefs[MONTH_INDEX_KEY] ?: currentMonthIndex(systemZone())
             prefs[MONTH_INDEX_KEY] = cur + delta
         }
-        MonthWidget().updateAll(context.applicationContext)
+        MonthWidget().update(context.applicationContext, glanceId)
     }
 
     companion object {
@@ -134,11 +162,11 @@ class ShiftMonthAction : ActionCallback {
     }
 }
 
-/** Jump the displayed month back to the current month. */
+/** Jump the displayed month back to the current month. See [ShiftMonthAction]. */
 class ResetMonthAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
         updateAppWidgetState(context, glanceId) { prefs -> prefs.remove(MONTH_INDEX_KEY) }
-        MonthWidget().updateAll(context.applicationContext)
+        MonthWidget().update(context.applicationContext, glanceId)
     }
 }
 
@@ -286,27 +314,73 @@ private fun WeekRow(
     colW: Dp,
     modifier: GlanceModifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        // Day numbers.
-        Row(modifier = GlanceModifier.fillMaxWidth()) {
+    val context = LocalContext.current
+    val hidden = week.hiddenPerDay()
+    Box(modifier = modifier.fillMaxWidth()) {
+        // Day-open targets, one full-height strip per column, sitting *under* the
+        // content: a tap anywhere in a day still opens it, as in the app, without
+        // every cell in the column carrying a click target of its own. The content
+        // above is not clickable, so touches fall through to this layer; only an
+        // event bar opts out to open its own detail.
+        Row(modifier = GlanceModifier.fillMaxSize()) {
             week.days.forEach { date ->
-                DayNumber(
-                    date = date,
-                    isToday = date == today,
-                    inMonth = date.month == currentMonth,
-                    colW = colW,
-                )
+                Box(
+                    modifier = GlanceModifier
+                        .width(colW)
+                        .fillMaxHeight()
+                        .clickable(openDayAction(context, date)),
+                ) {}
             }
         }
-        Spacer(GlanceModifier.height(2.dp))
-        // One lane row per event row. A multi-day span is a single Box spanning
-        // its columns (colW * n) so it's connected with no seam and rounded ends.
-        repeat(MAX_LANES) { lane ->
-            LaneRow(week = week, lane = lane, dark = dark, soften = soften, colW = colW)
-            Spacer(GlanceModifier.height(1.dp))
+        Column(modifier = GlanceModifier.fillMaxWidth()) {
+            // Day numbers. Fixed height so every week's number row lines up whether
+            // or not it holds today's larger pill.
+            Row(
+                modifier = GlanceModifier.fillMaxWidth().height(DAY_NUMBER_HEIGHT),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                week.days.forEach { date ->
+                    DayNumber(
+                        date = date,
+                        isToday = date == today,
+                        inMonth = date.month == currentMonth,
+                        colW = colW,
+                    )
+                }
+            }
+            Spacer(GlanceModifier.height(2.dp))
+            // One lane row per event row. A multi-day span is a single Box spanning
+            // its columns (colW * n) so it's connected with no seam and rounded ends.
+            // Lanes past the last one this week fills emit nothing at all.
+            repeat(week.usedLanes()) { lane ->
+                LaneRow(week = week, lane = lane, dark = dark, soften = soften, colW = colW)
+                Spacer(GlanceModifier.height(1.dp))
+            }
+            if (hidden.any { it > 0 }) OverflowRow(hidden = hidden, colW = colW)
         }
-        OverflowRow(week = week, colW = colW)
     }
+}
+
+/**
+ * How many lanes this week actually fills, counting from the top. The grid draws
+ * that many rows instead of a fixed [MAX_LANES]; an empty lane costs three views
+ * per day and most weeks leave the last two empty.
+ */
+private fun MonthWeek.usedLanes(): Int {
+    for (lane in MAX_LANES - 1 downTo 0) {
+        val filled = spans.any { it.lane == lane } ||
+            days.indices.any { col -> timedEventAt(this, lane, col, days[col]) != null }
+        if (filled) return lane + 1
+    }
+    return 0
+}
+
+/** Events per day that no lane had room for — the "+N" counts, 0 where all fit. */
+private fun MonthWeek.hiddenPerDay(): List<Int> = days.mapIndexed { col, date ->
+    val shownSpans = spans.count { col in it.startCol..it.endCol && it.lane < MAX_LANES }
+    val freeSlots = (MAX_LANES - shownSpans).coerceAtLeast(0)
+    val timedShown = minOf(freeSlots, timedByDay[date].orEmpty().size)
+    ((countByDay[date] ?: 0) - shownSpans - timedShown).coerceAtLeast(0)
 }
 
 /**
@@ -318,64 +392,93 @@ private fun WeekRow(
 private fun openDayAction(context: Context, date: LocalDate) =
     actionStartActivity(MainActivity.openDateIntent(context, date, CalendarView.Month))
 
+/**
+ * A day's number. Every day but today is a bare centred [Text] carrying the column
+ * width itself — a wrapping Box costs three views, and there are 42 of these.
+ * Today keeps its filled circle, which does need the Box.
+ */
 @Composable
 private fun DayNumber(date: LocalDate, isToday: Boolean, inMonth: Boolean, colW: Dp) {
-    val context = LocalContext.current
-    Box(
-        modifier = GlanceModifier
-            .width(colW)
-            .height(DAY_NUMBER_HEIGHT)
-            .clickable(openDayAction(context, date)),
-        contentAlignment = Alignment.Center,
-    ) {
+    val style = TextStyle(
+        color = when {
+            isToday -> GlanceTheme.colors.onPrimary
+            inMonth -> GlanceTheme.colors.onSurface
+            else -> GlanceTheme.colors.onSurfaceVariant
+        },
+        fontSize = 11.sp,
+        fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
+        textAlign = TextAlign.Center,
+    )
+    if (!isToday) {
+        Text(text = date.day.toString(), style = style, modifier = GlanceModifier.width(colW))
+        return
+    }
+    Box(modifier = GlanceModifier.width(colW), contentAlignment = Alignment.Center) {
         Box(
             modifier = GlanceModifier
                 .size(DAY_NUMBER_HEIGHT)
-                .then(if (isToday) GlanceModifier.cornerRadius(DAY_NUMBER_HEIGHT / 2).background(GlanceTheme.colors.primary) else GlanceModifier),
+                .cornerRadius(DAY_NUMBER_HEIGHT / 2)
+                .background(GlanceTheme.colors.primary),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = date.day.toString(),
-                style = TextStyle(
-                    color = when {
-                        isToday -> GlanceTheme.colors.onPrimary
-                        inMonth -> GlanceTheme.colors.onSurface
-                        else -> GlanceTheme.colors.onSurfaceVariant
-                    },
-                    fontSize = 11.sp,
-                    fontWeight = if (isToday) FontWeight.Bold else FontWeight.Normal,
-                ),
-            )
+            Text(text = date.day.toString(), style = style)
         }
     }
 }
 
+/** A bar occupying [cols] columns, or — with a null event — that many blank ones. */
+private data class LaneCell(val event: EventInstance?, val cols: Int)
+
+/**
+ * A lane split into bars and the gaps between them, with consecutive blank columns
+ * merged into one gap: the week's day-open taps come from the strip underneath, so
+ * a gap needs no per-column view and a mostly-empty lane collapses to a spacer.
+ */
+private fun MonthWeek.laneCells(lane: Int): List<LaneCell> {
+    val cells = mutableListOf<LaneCell>()
+    var gap = 0
+    var col = 0
+    fun closeGap() {
+        if (gap > 0) cells += LaneCell(null, gap)
+        gap = 0
+    }
+    while (col < 7) {
+        val span = spans.firstOrNull { it.lane == lane && col in it.startCol..it.endCol }
+        val timed = if (span == null) timedEventAt(this, lane, col, days[col]) else null
+        when {
+            span != null -> {
+                closeGap()
+                cells += LaneCell(span.event, span.endCol - col + 1)
+                col = span.endCol + 1
+            }
+            timed != null -> {
+                closeGap()
+                cells += LaneCell(timed, 1)
+                col += 1
+            }
+            else -> {
+                gap += 1
+                col += 1
+            }
+        }
+    }
+    closeGap()
+    return cells
+}
+
 @Composable
 private fun LaneRow(week: MonthWeek, lane: Int, dark: Boolean, soften: Boolean, colW: Dp) {
-    val context = LocalContext.current
     Row(modifier = GlanceModifier.fillMaxWidth()) {
-        var col = 0
-        while (col < 7) {
-            val span = week.spans.firstOrNull { it.lane == lane && col in it.startCol..it.endCol }
-            if (span != null) {
-                val cols = span.endCol - col + 1
-                SpanBar(event = span.event, dark = dark, soften = soften, width = colW * cols)
-                col = span.endCol + 1
+        week.laneCells(lane).forEach { cell ->
+            if (cell.event == null) {
+                Spacer(GlanceModifier.width(colW * cell.cols).height(LANE_HEIGHT))
             } else {
-                val timed = timedEventAt(week, lane, col, week.days[col])
-                if (timed != null) {
-                    SpanBar(event = timed, dark = dark, soften = soften, width = colW)
-                } else {
-                    // Empty lane cell: a tap opens that day, so blank space in a
-                    // day column is a day-open target just like the number is.
-                    Box(
-                        GlanceModifier
-                            .width(colW)
-                            .height(LANE_HEIGHT)
-                            .clickable(openDayAction(context, week.days[col])),
-                    ) {}
-                }
-                col += 1
+                SpanBar(
+                    event = cell.event,
+                    dark = dark,
+                    soften = soften,
+                    width = colW * cell.cols,
+                )
             }
         }
     }
@@ -414,41 +517,39 @@ private fun SpanBar(event: EventInstance, dark: Boolean, soften: Boolean, width:
             Text(
                 text = event.title.ifBlank { context.getString(R.string.event_untitled) },
                 maxLines = 1,
-                style = TextStyle(color = ColorProvider(eventInk(fill)), fontSize = 9.sp),
+                style = TextStyle(
+                    color = ColorProvider(eventInk(fill)),
+                    fontSize = 9.sp,
+                    textDecoration = glanceDeclinedDecoration(event.isDeclined),
+                ),
                 modifier = GlanceModifier.padding(horizontal = 3.dp),
             )
         }
     }
 }
 
+/** The "+N" row, drawn only for weeks that hide something, gaps merged as in a lane. */
 @Composable
-private fun OverflowRow(week: MonthWeek, colW: Dp) {
-    val context = LocalContext.current
+private fun OverflowRow(hidden: List<Int>, colW: Dp) {
     Row(modifier = GlanceModifier.fillMaxWidth()) {
-        week.days.forEachIndexed { col, date ->
-            val shownSpans = week.spans.count { col in it.startCol..it.endCol && it.lane < MAX_LANES }
-            val freeSlots = (MAX_LANES - shownSpans).coerceAtLeast(0)
-            val timedShown = minOf(freeSlots, week.timedByDay[date].orEmpty().size)
-            val hidden = (week.countByDay[date] ?: 0) - shownSpans - timedShown
-            // The overflow row is part of the day column too: tapping it (whether
-            // it shows "+N" or is blank) opens that day, same as the app.
-            Box(
-                modifier = GlanceModifier
-                    .width(colW)
-                    .height(LANE_HEIGHT)
-                    .clickable(openDayAction(context, date)),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                if (hidden > 0) {
-                    Text(
-                        text = "+$hidden",
-                        maxLines = 1,
-                        style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 9.sp),
-                        modifier = GlanceModifier.padding(start = 3.dp),
-                    )
-                }
+        var gap = 0
+        hidden.forEach { count ->
+            if (count == 0) {
+                gap += 1
+                return@forEach
             }
+            if (gap > 0) {
+                Spacer(GlanceModifier.width(colW * gap).height(LANE_HEIGHT))
+                gap = 0
+            }
+            Text(
+                text = "+$count",
+                maxLines = 1,
+                style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 9.sp),
+                modifier = GlanceModifier.width(colW).padding(start = 3.dp),
+            )
         }
+        if (gap > 0) Spacer(GlanceModifier.width(colW * gap).height(LANE_HEIGHT))
     }
 }
 

@@ -1,0 +1,8 @@
+Corretto
+• Toccare un evento nella vista mese apre l'evento, non il suo giorno.
+• Una modifica si vede subito riaprendo l'evento.
+• Le frecce del widget mese non muoiono più dopo pochi tocchi: un aggiornamento troppo grande abbatteva l'host dei widget del launcher.
+• «Oggi» nelle settimane continue arriva esattamente sulla settimana corrente, e le viste giorno e settimana hanno di nuovo un margine a destra.
+
+Modifiche
+• Un evento rifiutato è barrato ovunque e non invia più promemoria.

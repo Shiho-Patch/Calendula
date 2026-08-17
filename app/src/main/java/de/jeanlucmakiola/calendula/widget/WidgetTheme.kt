@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.glance.GlanceTheme
 import androidx.glance.material3.ColorProviders
+import androidx.glance.text.TextDecoration
 import de.jeanlucmakiola.calendula.ui.theme.CalendulaDarkFallback
 import de.jeanlucmakiola.calendula.ui.theme.CalendulaLightFallback
 
@@ -34,3 +35,10 @@ fun CalendulaGlanceTheme(content: @Composable () -> Unit) {
     }
     GlanceTheme(colors = colors, content = content)
 }
+
+/**
+ * Glance's counterpart to the app's `declinedDecoration`: a declined invitation
+ * reads the same on the home screen as it does inside the app (#180).
+ */
+fun glanceDeclinedDecoration(isDeclined: Boolean): TextDecoration =
+    if (isDeclined) TextDecoration.LineThrough else TextDecoration.None

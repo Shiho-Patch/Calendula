@@ -1,0 +1,8 @@
+Corrigé
+• Appuyer sur un événement en vue mois ouvre l'événement, pas sa journée.
+• Une modification apparaît dès que l'événement est rouvert.
+• Les flèches du widget mois ne meurent plus après quelques appuis : une mise à jour trop lourde emportait l'hôte de widgets du lanceur.
+• « Aujourd'hui » en semaines continues arrive pile sur la semaine en cours ; les vues jour et semaine ont de nouveau une marge à droite.
+
+Modifié
+• Un événement refusé est barré partout et ne vous rappelle plus rien.

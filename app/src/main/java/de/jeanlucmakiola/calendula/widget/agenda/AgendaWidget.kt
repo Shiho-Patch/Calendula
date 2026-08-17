@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.widget.agenda
 
+import de.jeanlucmakiola.calendula.widget.glanceDeclinedDecoration
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
@@ -24,7 +25,6 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.lazy.LazyColumn
 import androidx.glance.appwidget.lazy.items
 import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.updateAll
 import androidx.glance.background
 import androidx.glance.currentState
 import androidx.glance.state.PreferencesGlanceStateDefinition
@@ -75,11 +75,6 @@ import kotlin.time.Instant
 import java.util.Locale
 
 /**
- * "Upcoming" agenda widget — a continuously scrolling list of the next ~30 days
- * of events grouped under day headers (the Google "Schedule" widget model).
- * Reuses the app's [groupAgendaDays] grouping so it matches the in-app agenda.
- */
-/**
  * Per-instance Glance state key holding the agenda range (as [AgendaRange.storageValue]).
  * The range is read reactively in the composition ([currentState]) so a settings
  * change is reflected by plain recomposition — `updateAll` does NOT reliably
@@ -113,6 +108,11 @@ internal val AGENDA_SHOW_TODAY_STATE_KEY = booleanPreferencesKey("agenda_show_to
  */
 internal val AGENDA_SIZE_KEY = stringPreferencesKey("widget_size")
 
+/**
+ * "Upcoming" agenda widget — a continuously scrolling list of the next ~30 days
+ * of events grouped under day headers (the Google "Schedule" widget model).
+ * Reuses the app's [groupAgendaDays] grouping so it matches the in-app agenda.
+ */
 class AgendaWidget : GlanceAppWidget() {
 
     override val stateDefinition = PreferencesGlanceStateDefinition
@@ -135,17 +135,23 @@ class AgendaWidget : GlanceAppWidget() {
     }
 }
 
-/** Re-reads the calendar and redraws the widget (header refresh button). */
+/**
+ * Redraws the widget (header refresh button). Targets the tapped widget's own id
+ * rather than `updateAll`, whose provider-name lookup is empty in a process a tap
+ * woke from cold — see `ShiftMonthAction` (#18). A cold process re-reads the
+ * calendar in the `provideGlance` preamble; a live session only recomposes from
+ * the snapshot it already has (see [AGENDA_RANGE_KEY]).
+ */
 class RefreshAgendaAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        AgendaWidget().updateAll(context.applicationContext)
+        AgendaWidget().update(context.applicationContext, glanceId)
     }
 }
 
 /**
  * Upper bound on rows handed to the [LazyColumn], so the serialized RemoteViews
  * stays well inside the binder transaction limit regardless of range and calendar
- * size (see the [SizeMode.Exact] note above). Far more than fits on screen — a
+ * size (see the [SizeMode.Single] note above). Far more than fits on screen — a
  * user scrolling a home-screen widget past a hundred rows is not a case worth
  * risking a failed update for.
  */
@@ -416,7 +422,11 @@ private fun EventRow(
             Text(
                 text = title,
                 maxLines = 1,
-                style = TextStyle(color = titleColor, fontSize = metrics.eventTitle),
+                style = TextStyle(
+                    color = titleColor,
+                    fontSize = metrics.eventTitle,
+                    textDecoration = glanceDeclinedDecoration(event.isDeclined),
+                ),
             )
             Text(
                 text = eventTimeSummary(context, event, day, is24Hour),
