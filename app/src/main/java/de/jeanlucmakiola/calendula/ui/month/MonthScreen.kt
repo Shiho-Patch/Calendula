@@ -19,6 +19,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -111,6 +113,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -439,6 +442,7 @@ fun MonthScreen(
                             showWeekNumbers = showWeekNumbers,
                             onRetry = jumpToToday,
                             onOpenDay = onOpenDay,
+                            onEventClick = onEventClick,
                         )
                     } else if (viewStyle == MonthViewStyle.Split) {
                         SplitMonthContent(
@@ -463,6 +467,7 @@ fun MonthScreen(
                             onSwipePrev = goPrev,
                             onRetry = jumpToToday,
                             onOpenDay = onOpenDay,
+                            onEventClick = onEventClick,
                         )
                     }
                 }
@@ -573,6 +578,7 @@ private fun MonthContent(
     onSwipePrev: () -> Unit,
     onRetry: () -> Unit,
     onOpenDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
 ) {
     val slideSpec = rememberCalendarSlideSpec()
     val fadeSpec = rememberCalendarFadeSpec()
@@ -599,6 +605,7 @@ private fun MonthContent(
                 state = s,
                 showWeekNumbers = showWeekNumbers,
                 onOpenDay = onOpenDay,
+                onEventClick = onEventClick,
             )
         }
     }
@@ -617,6 +624,7 @@ private fun ContinuousMonthContent(
     showWeekNumbers: Boolean,
     onRetry: () -> Unit,
     onOpenDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
 ) {
     when (state) {
         // The scrolling styles get their own skeleton rather than the paged
@@ -631,6 +639,7 @@ private fun ContinuousMonthContent(
                 listState = listState,
                 showWeekNumbers = showWeekNumbers,
                 onOpenDay = onOpenDay,
+                onEventClick = onEventClick,
             )
         } else {
             ContinuousMonthGrid(
@@ -638,6 +647,7 @@ private fun ContinuousMonthContent(
                 listState = listState,
                 showWeekNumbers = showWeekNumbers,
                 onOpenDay = onOpenDay,
+                onEventClick = onEventClick,
             )
         }
     }
@@ -736,7 +746,8 @@ private val CELL_SHAPE = RoundedCornerShape(CELL_CORNER)
 
 /** Width of the split style's selected-day outline. */
 private val SPLIT_SELECTION_STROKE = 1.5.dp
-private const val MAX_EVENT_ROWS = 3
+/** Lanes of bars/pills a day cell draws before the rest become overflow dots. */
+internal const val MAX_EVENT_ROWS = 3
 
 /**
  * Row height in the continuous grid. The paged grid divides the viewport between
@@ -759,6 +770,7 @@ internal fun MonthGrid(
     state: MonthUiState.Success,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
     /** See [MonthWeekRow]'s `selected`: an anchor for the morph, never a mark. */
     selected: LocalDate? = null,
 ) {
@@ -779,6 +791,7 @@ internal fun MonthGrid(
                 inMonth = { it.month == month.month && it.year == month.year },
                 showWeekNumbers = showWeekNumbers,
                 onOpenDay = onOpenDay,
+                onEventClick = onEventClick,
                 selected = selected,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -809,6 +822,7 @@ internal fun ContinuousMonthGrid(
     listState: LazyListState,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val monthCount = remember { continuousMonthCount() }
@@ -836,6 +850,7 @@ internal fun ContinuousMonthGrid(
                     today = state.today,
                     showWeekNumbers = showWeekNumbers,
                     onOpenDay = onOpenDay,
+                    onEventClick = onEventClick,
                 )
             }
         }
@@ -855,6 +870,7 @@ private fun ContinuousMonthBlock(
     today: LocalDate,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
 ) {
     val rowCount = remember(month, weekStart) { weekRowsInMonth(month, weekStart) }
     Column(
@@ -877,6 +893,7 @@ private fun ContinuousMonthBlock(
                     blankOutside = true,
                     showWeekNumbers = showWeekNumbers,
                     onOpenDay = onOpenDay,
+                    onEventClick = onEventClick,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(CONTINUOUS_ROW_HEIGHT),
@@ -935,6 +952,7 @@ internal fun DenseMonthGrid(
     listState: LazyListState,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val weekCount = remember(state.weekStart) { continuousWeekCount(state.weekStart) }
@@ -960,6 +978,7 @@ internal fun DenseMonthGrid(
                     inMonth = { true },
                     showWeekNumbers = showWeekNumbers,
                     onOpenDay = onOpenDay,
+                    onEventClick = onEventClick,
                     labelMonthOnFirst = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1187,6 +1206,9 @@ private fun SplitMonthBody(
                 onSelectDay(it)
                 onSetExpanded(false)
             },
+            // A tapped chip is asking for that event, not for its day, so it
+            // opens the detail from here too rather than collapsing (#187).
+            onEventClick = onEventClick,
             onCollapse = { onSetExpanded(false) },
         )
     } else {
@@ -1287,6 +1309,7 @@ private fun SplitMonthExpanded(
     showWeekNumbers: Boolean,
     swipeModifier: Modifier,
     onPickDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
     onCollapse: () -> Unit,
 ) {
     val slideSpec = rememberCalendarSlideSpec()
@@ -1309,6 +1332,7 @@ private fun SplitMonthExpanded(
                 state = s,
                 showWeekNumbers = showWeekNumbers,
                 onOpenDay = onPickDay,
+                onEventClick = onEventClick,
                 selected = sel,
             )
         }
@@ -1837,6 +1861,7 @@ private fun MonthWeekRow(
     inMonth: (LocalDate) -> Boolean,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
     modifier: Modifier = Modifier,
     blankOutside: Boolean = false,
     labelMonthOnFirst: Boolean = false,
@@ -2135,11 +2160,17 @@ private fun MonthWeekRow(
                 }
             }
 
-            // Tap layer: in month view a tap on any day opens that day. Padded and
+            // Tap layer: a tap on a chip opens that event, anything else opens the
+            // day (#187). The chips take no pointer input of their own — this
+            // layer covers them — so the lane under the finger is resolved
+            // geometrically, exactly as the drag pickup above does it; the down
+            // position is read on the initial pass, which consumes nothing and so
+            // leaves both the click and a pickup in flight untouched. Padded and
             // clipped to the background pill so the ripple matches it. A blanked
             // cell isn't part of this month, so it takes no taps either.
+            val downY = remember(week.days.size) { FloatArray(week.days.size) }
             Row(Modifier.matchParentSize()) {
-                week.days.forEach { d ->
+                week.days.forEachIndexed { col, d ->
                     if (blankOutside && !inMonth(d)) {
                         Spacer(Modifier.weight(1f).fillMaxHeight())
                     } else {
@@ -2147,15 +2178,66 @@ private fun MonthWeekRow(
                             Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
+                                .pointerInput(col) {
+                                    awaitEachGesture {
+                                        downY[col] = awaitFirstDown(
+                                            requireUnconsumed = false,
+                                            pass = PointerEventPass.Initial,
+                                        ).position.y
+                                    }
+                                }
                                 .padding(horizontal = CELL_GAP, vertical = 1.dp)
                                 .clip(CELL_SHAPE)
-                                .clickable { onOpenDay(d) },
+                                .clickable {
+                                    val chip = week.chipAtCellY(
+                                        col = col,
+                                        cellY = downY[col],
+                                        bandTopInCell = bandTopInCell(
+                                            cellCoordinates,
+                                            bandCoordinates,
+                                        ),
+                                        rowHeightPx = rowHeightPx,
+                                    )
+                                    if (chip != null) onEventClick(chip) else onOpenDay(d)
+                                },
                         )
                     }
                 }
             }
         }
     }
+}
+
+/**
+ * How far the event band sits below the top of the row's day-column box, or null
+ * while either is unmeasured. Read off the live coordinates rather than summed
+ * from the padding constants, so it can't drift from what the row actually drew.
+ */
+private fun bandTopInCell(
+    cell: Array<LayoutCoordinates?>,
+    band: Array<LayoutCoordinates?>,
+): Float? {
+    val cellTop = cell[0]?.takeIf { it.isAttached }?.positionInRoot()?.y ?: return null
+    val bandTop = band[0]?.takeIf { it.isAttached }?.positionInRoot()?.y ?: return null
+    return bandTop - cellTop
+}
+
+/**
+ * The chip at [cellY] in column [col], where [cellY] is measured from the top of
+ * the row's day-column box. Null for a tap above the band (the day number), on an
+ * empty lane, or on the overflow dots — all of which mean "open the day", the
+ * dots included: their point is that the day holds more than fits.
+ */
+internal fun MonthWeek.chipAtCellY(
+    col: Int,
+    cellY: Float,
+    bandTopInCell: Float?,
+    rowHeightPx: Float,
+): EventInstance? {
+    if (bandTopInCell == null || rowHeightPx <= 0f) return null
+    val bandY = cellY - bandTopInCell
+    if (bandY < 0f) return null
+    return chipAt(col, (bandY / rowHeightPx).toInt(), MAX_EVENT_ROWS)
 }
 
 /**

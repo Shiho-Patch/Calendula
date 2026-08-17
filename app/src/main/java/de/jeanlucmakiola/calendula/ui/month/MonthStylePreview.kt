@@ -45,6 +45,7 @@ internal fun MonthStylePreview(
                 state = sample.month,
                 showWeekNumbers = false,
                 onOpenDay = {},
+                onEventClick = {},
             )
             MonthViewStyle.Continuous -> ContinuousMonthGrid(
                 state = sample.continuous,
@@ -55,6 +56,7 @@ internal fun MonthStylePreview(
                 ),
                 showWeekNumbers = false,
                 onOpenDay = {},
+                onEventClick = {},
             )
             MonthViewStyle.Dense -> DenseMonthGrid(
                 state = sample.continuous,
@@ -66,6 +68,7 @@ internal fun MonthStylePreview(
                 ),
                 showWeekNumbers = false,
                 onOpenDay = {},
+                onEventClick = {},
             )
             MonthViewStyle.Split -> {
                 SplitMonthGrid(
