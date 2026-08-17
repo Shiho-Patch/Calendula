@@ -118,6 +118,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.common.GUTTER_WIDTH
 import de.jeanlucmakiola.calendula.ui.common.HourGutter
+import de.jeanlucmakiola.calendula.ui.common.TIMELINE_CONTENT_END_INSET
 import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
 import de.jeanlucmakiola.calendula.ui.common.tappedMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.week.TimedBlock
@@ -471,7 +472,11 @@ private fun AllDayStrip(
             // Height is hoisted + animated so it resizes smoothly; padding sits
             // inside it so the content area is lanes * row height.
             .height(height)
-            .padding(vertical = ALL_DAY_VERTICAL_PADDING),
+            .padding(
+                top = ALL_DAY_VERTICAL_PADDING,
+                bottom = ALL_DAY_VERTICAL_PADDING,
+                end = TIMELINE_CONTENT_END_INSET,
+            ),
     ) {
         // Keep the gutter-width offset so the bars line up with the day column.
         Spacer(Modifier.width(GUTTER_WIDTH))
@@ -570,6 +575,7 @@ private fun Timeline(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    .padding(end = TIMELINE_CONTENT_END_INSET)
                     .clip(RoundedCornerShape(16.dp))
                     .verticalScroll(scrollState)
                     .onGloballyPositioned { dragController.geometry.viewport = it },
@@ -792,7 +798,12 @@ private fun DayLoading() {
         // Same scale resolution as the loaded timeline, so the skeleton's column
         // doesn't resize the moment the real day arrives.
         val totalHeight = scale.hourHeight(maxHeight) * 24
-        Row(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(end = TIMELINE_CONTENT_END_INSET)
+                .verticalScroll(scrollState),
+        ) {
             Spacer(Modifier.width(GUTTER_WIDTH))
             Box(
                 modifier = Modifier
