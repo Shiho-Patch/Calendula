@@ -2177,7 +2177,7 @@ private fun MonthWeekRow(
             // leaves both the click and a pickup in flight untouched. Padded and
             // clipped to the background pill so the ripple matches it. A blanked
             // cell isn't part of this month, so it takes no taps either.
-            val downY = remember(week.days.size) { FloatArray(week.days.size) }
+            val downY = remember(week.days.size) { FloatArray(week.days.size) { NO_DOWN_Y } }
             Row(Modifier.matchParentSize()) {
                 week.days.forEachIndexed { col, d ->
                     if (blankOutside && !inMonth(d)) {
@@ -2198,9 +2198,14 @@ private fun MonthWeekRow(
                                 .padding(horizontal = CELL_GAP, vertical = 1.dp)
                                 .clip(CELL_SHAPE)
                                 .clickable {
+                                    // Cleared on read: a click with no fresh down
+                                    // (TalkBack, D-pad) would otherwise resolve the
+                                    // previous tap's position and reopen its chip.
+                                    val cellY = downY[col]
+                                    downY[col] = NO_DOWN_Y
                                     val chip = week.chipAtCellY(
                                         col = col,
-                                        cellY = downY[col],
+                                        cellY = cellY,
                                         bandTopInCell = bandTopInCell(
                                             cellCoordinates,
                                             bandCoordinates,
@@ -2230,6 +2235,11 @@ private fun bandTopInCell(
     val bandTop = band[0]?.takeIf { it.isAttached }?.positionInRoot()?.y ?: return null
     return bandTop - cellTop
 }
+
+/**
+ * Stand-in [cellY] for "no touch down recorded", which resolves to no chip.
+ */
+private const val NO_DOWN_Y = Float.NEGATIVE_INFINITY
 
 /**
  * The chip at [cellY] in column [col], where [cellY] is measured from the top of
