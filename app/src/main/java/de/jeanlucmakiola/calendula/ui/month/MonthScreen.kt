@@ -765,6 +765,9 @@ private val CONTINUOUS_ROW_HEIGHT = 112.dp
  */
 private val CONTINUOUS_MONTH_GAP = 20.dp
 
+/** Gap between the weekday header and the seamless stream's first week row. */
+private val DENSE_HEADER_GAP = 4.dp
+
 @Composable
 internal fun MonthGrid(
     state: MonthUiState.Success,
@@ -960,10 +963,15 @@ internal fun DenseMonthGrid(
         state = listState,
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 8.dp),
+            // The gap under the weekday header is a real margin, not content
+            // padding: a lazy list scrolls its rows *through* the before-content
+            // padding, so scrolling to a week landed its row that far down with
+            // the tail of the previous one showing above it (#191).
+            .padding(horizontal = 8.dp)
+            .padding(top = DENSE_HEADER_GAP),
         verticalArrangement = Arrangement.spacedBy(2.dp),
         // Bottom inset clears the FAB stack so the last row stays tappable.
-        contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp),
+        contentPadding = PaddingValues(bottom = 96.dp),
     ) {
         items(count = weekCount, key = { it }) { index ->
             val week = state.weeksByIndex[index]
@@ -1813,7 +1821,7 @@ private fun ContinuousMonthSkeleton(dense: Boolean) {
                 modifier = Modifier.padding(bottom = 8.dp),
             )
         } else {
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(DENSE_HEADER_GAP))
         }
         // More rows than a viewport holds; the clip takes the overflow.
         repeat(6) {
