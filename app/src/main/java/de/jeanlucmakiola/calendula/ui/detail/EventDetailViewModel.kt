@@ -48,8 +48,13 @@ class EventDetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _target = MutableStateFlow<Target?>(null)
-    // Bumped by retry() to re-run the load for the same target.
+    // Bumped by retry() and by re-opening the target already shown, to re-run
+    // the load without changing the target.
     private val _reload = MutableStateFlow(0)
+
+    // Last target whose content is already on screen; a re-read of it skips the
+    // Loading skeleton so the sheet doesn't blank out between two identical reads.
+    private var loadedTarget: Target? = null
 
     private val _deleteState = MutableStateFlow<DeleteUiState>(DeleteUiState.Idle)
     val deleteState: StateFlow<DeleteUiState> = _deleteState.asStateFlow()
@@ -58,11 +63,14 @@ class EventDetailViewModel @Inject constructor(
         combine(_target, _reload) { target, _ -> target }
             .flatMapLatest { target ->
                 if (target == null) {
+                    loadedTarget = null
                     flowOf<EventDetailUiState>(EventDetailUiState.Loading)
                 } else {
                     flow {
-                        emit(EventDetailUiState.Loading)
-                        emit(loadDetail(target))
+                        if (loadedTarget != target) emit(EventDetailUiState.Loading)
+                        val loaded = loadDetail(target)
+                        loadedTarget = target.takeIf { loaded is EventDetailUiState.Success }
+                        emit(loaded)
                     }
                 }
             }

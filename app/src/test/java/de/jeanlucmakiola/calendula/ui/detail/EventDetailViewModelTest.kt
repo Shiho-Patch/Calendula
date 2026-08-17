@@ -32,6 +32,8 @@ import kotlin.time.Instant
 /**
  * Re-opening an occurrence must re-read it (#196): the view model outlives the
  * sheet, so an edit that changed no time would otherwise show the pre-save row.
+ * The re-read stays silent — the loaded content must not blink back to the
+ * skeleton on the way.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class EventDetailViewModelTest {
@@ -72,19 +74,20 @@ class EventDetailViewModelTest {
         return EventDetailViewModel(repo, IcsExporter(ContextWrapper(null)), dispatcher)
     }
 
+    private fun fakeSource(description: () -> String?) = FakeCalendarDataSource().apply {
+        calendarsResult = listOf(
+            CalendarSource(
+                id = 1L, displayName = "Cal", accountName = "acc@local", accountType = "LOCAL",
+                color = 0xFF112233.toInt(), isVisibleInSystem = true, canModifyContents = true,
+            ),
+        )
+        eventDetailResult = { detail(description()) }
+    }
+
     @Test
     fun `re-opening the same occurrence re-reads it`(@TempDir tempDir: Path) = runTest(dispatcher) {
         var stored: String? = null
-        val fake = FakeCalendarDataSource().apply {
-            calendarsResult = listOf(
-                CalendarSource(
-                    id = 1L, displayName = "Cal", accountName = "acc@local", accountType = "LOCAL",
-                    color = 0xFF112233.toInt(), isVisibleInSystem = true, canModifyContents = true,
-                ),
-            )
-            eventDetailResult = { detail(stored) }
-        }
-        val vm = viewModel(tempDir, fake)
+        val vm = viewModel(tempDir, fakeSource { stored })
         val collector = launch(Job()) { vm.state.collect {} }
 
         vm.open(42L, beginMillis, endMillis)
@@ -97,6 +100,24 @@ class EventDetailViewModelTest {
         advanceUntilIdle()
         assertThat((vm.state.value as EventDetailUiState.Success).detail.description)
             .isEqualTo("Bring the roadmap")
+
+        collector.cancel()
+    }
+
+    @Test
+    fun `the re-read does not fall back to the skeleton`(@TempDir tempDir: Path) = runTest(dispatcher) {
+        val vm = viewModel(tempDir, fakeSource { null })
+        val seen = mutableListOf<EventDetailUiState>()
+        val collector = launch(Job()) { vm.state.collect { seen += it } }
+
+        vm.open(42L, beginMillis, endMillis)
+        advanceUntilIdle()
+        assertThat(vm.state.value).isInstanceOf(EventDetailUiState.Success::class.java)
+
+        seen.clear()
+        vm.open(42L, beginMillis, endMillis)
+        advanceUntilIdle()
+        assertThat(seen).doesNotContain(EventDetailUiState.Loading)
 
         collector.cancel()
     }
