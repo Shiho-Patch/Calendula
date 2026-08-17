@@ -1,7 +1,6 @@
 package de.jeanlucmakiola.calendula.widget.month
 
 import de.jeanlucmakiola.calendula.widget.glanceDeclinedDecoration
-import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
@@ -20,7 +19,6 @@ import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
-import androidx.glance.appwidget.LocalAppWidgetOptions
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
@@ -95,31 +93,33 @@ private fun yearMonthOf(index: Int): YearMonth =
  * event bars and titled single-day pills (the in-app lane layout via
  * [layoutMonthWeeks]), and prev/next/today navigation.
  *
- * Columns are sized explicitly from [gridWidth] so a multi-day span renders as a
- * single Box spanning its columns — connected, no inter-cell seam, with rounded
- * end caps. The displayed month lives in Glance state and is read reactively in
- * the composition ([currentState]) so the arrows move it via plain recomposition,
- * not a (here-unreliable) widget session reload.
+ * Columns are sized explicitly from [LocalSize] (hence [SizeMode.Exact]) so a
+ * multi-day span renders as a single Box spanning its columns — connected, no
+ * inter-cell seam, with rounded end caps. The displayed month lives in Glance
+ * state and is read reactively in the composition ([currentState]) so the arrows
+ * move it via plain recomposition, not a (here-unreliable) widget session reload.
  *
  * Everything here is written to keep the published `RemoteViews` small. A widget
  * update reaches the launcher as a *oneway* binder call, and the host's async
  * buffer is 1 MB for all of it; overrun throws `TransactionTooLargeException` and
  * the system drops the whole host, freezing every widget on the home screen until
- * the launcher rebinds. A 6x7 grid is close enough to that ceiling to have hit it
- * (#214), so the grid emits no view it does not need.
+ * the launcher rebinds. [SizeMode.Exact] serialises the grid once per size the
+ * host reports, so the ceiling arrives at half the view count you would expect: a
+ * grid that emitted a view per cell blew past it after three taps (#214). Every
+ * row here emits only what it fills.
  */
 class MonthWidget : GlanceAppWidget() {
 
     override val stateDefinition = PreferencesGlanceStateDefinition
 
     /**
-     * [SizeMode.Exact] would serialise the whole grid once per size the host
-     * reports — two full copies of ~700 views on any launcher that offers a
-     * portrait and a landscape size, which is what pushed the payload over the
-     * binder ceiling (#214). One composition, sized from [gridWidth], which the
-     * host re-runs on resize and rotation via `onAppWidgetOptionsChanged`.
+     * Exact rather than [SizeMode.Single] or [SizeMode.Responsive], both of which
+     * return early from `GlanceAppWidget.resize` — under those the grid is never
+     * recomposed for a new size and a resized widget clips instead of reflowing.
+     * Exact costs one serialised copy per host size, which is affordable now that
+     * a rendering is ~190 views rather than ~740.
      */
-    override val sizeMode = SizeMode.Single
+    override val sizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val source = context.loadMonthWidgetSource()
@@ -188,7 +188,7 @@ private fun MonthWidgetBody(source: MonthWidgetSource, dark: Boolean, soften: Bo
                 val index = currentState(MONTH_INDEX_KEY) ?: currentMonthIndex(zone)
                 val ym = yearMonthOf(index)
                 // Column width from the live widget size, minus our H padding.
-                val colW = (gridWidth() - GRID_HPADDING * 2) / 7
+                val colW = (LocalSize.current.width - GRID_HPADDING * 2) / 7
                 val weeks = layoutMonthWeeks(ym, source.weekStart, source.instances, zone)
 
                 MonthHeader(label = monthLabel(ym, source.today.year))
@@ -208,28 +208,6 @@ private fun MonthWidgetBody(source: MonthWidgetSource, dark: Boolean, soften: Bo
             }
         }
     }
-}
-
-/**
- * The widget's current width. Under [SizeMode.Single] `LocalSize` is the provider's
- * declared minimum rather than the placed size, so read the host's own numbers —
- * min width in portrait, max width in landscape, the same pair Glance itself picks
- * from — and keep `LocalSize` only as a fallback for a host that reports neither.
- */
-@Composable
-private fun gridWidth(): Dp {
-    val options = LocalAppWidgetOptions.current
-    val landscape = LocalContext.current.resources.configuration.orientation ==
-        Configuration.ORIENTATION_LANDSCAPE
-    val width = options.getInt(
-        if (landscape) {
-            AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH
-        } else {
-            AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH
-        },
-        0,
-    )
-    return if (width > 0) width.dp else LocalSize.current.width
 }
 
 @Composable
