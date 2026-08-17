@@ -1,0 +1,8 @@
+Behoben
+• Ein Tippen auf einen Termin in der Monatsansicht öffnet ihn statt des Tages.
+• Eine Änderung ist sofort sichtbar, wenn der Termin neu geöffnet wird.
+• Die Pfeile des Monats-Widgets sterben nicht mehr nach wenigen Tipps – eine zu große Aktualisierung riss den Widget-Host mit.
+• „Heute“ springt in nahtlosen Wochen genau auf die aktuelle Woche; Wochen- und Tagesansicht haben rechts wieder Abstand.
+
+Geändert
+• Ein abgelehnter Termin ist überall durchgestrichen und erinnert nicht mehr.
