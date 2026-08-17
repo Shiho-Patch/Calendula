@@ -138,6 +138,7 @@ import de.jeanlucmakiola.calendula.ui.common.CALENDAR_SWIPE_THRESHOLD
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
+import de.jeanlucmakiola.calendula.ui.common.declinedDecoration
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventAccent
@@ -2358,6 +2359,7 @@ private fun MonthBar(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             color = eventInk(fill),
+            textDecoration = declinedDecoration(event.isDeclined),
         )
     }
 }

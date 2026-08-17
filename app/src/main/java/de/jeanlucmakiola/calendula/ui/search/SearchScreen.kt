@@ -85,6 +85,7 @@ import de.jeanlucmakiola.calendula.domain.SearchMonth
 import de.jeanlucmakiola.floret.identity.animateItemMotion
 import de.jeanlucmakiola.floret.identity.fadeThrough
 import de.jeanlucmakiola.floret.identity.predictiveBack
+import de.jeanlucmakiola.calendula.ui.common.declinedTitle
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.Position
@@ -519,7 +520,7 @@ private fun SearchResultRow(
         // Faded like a past event anywhere else in the app — search reaches back
         // through the whole history.
         modifier = if (hit.isPast) modifier.alpha(EventDimAlpha) else modifier,
-        title = marked(event.title, hit.titleSpans, highlight),
+        title = declinedTitle(marked(event.title, hit.titleSpans, highlight), event.isDeclined),
         summary = searchSummary(hit, highlight),
         position = position,
         minHeight = 64.dp,

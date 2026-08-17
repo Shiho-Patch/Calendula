@@ -1,6 +1,7 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
 import de.jeanlucmakiola.floret.time.toKotlinInstantFromEpochMillis
+import android.provider.CalendarContract
 import android.util.Log
 import de.jeanlucmakiola.calendula.domain.EventInstance
 
@@ -38,5 +39,7 @@ internal fun ColumnReader.toEventInstance(): EventInstance? {
         isAllDay = getInt(InstanceProjection.IDX_ALL_DAY) != 0,
         color = color,
         location = getString(InstanceProjection.IDX_LOCATION),
+        isDeclined = getInt(InstanceProjection.IDX_SELF_ATTENDEE_STATUS) ==
+            CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED,
     )
 }
