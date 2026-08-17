@@ -44,9 +44,16 @@ class ProviderReminderInstanceSource @Inject constructor(
         // `visible` is the flag the app's one visibility model writes (#75).
         // The status clause mirrors CalendarDataSource.instances: NULL means
         // "normal", so a bare `!= CANCELED` would drop every ordinary event.
+        // An invitation the user declined is answered — it stays on the calendar
+        // struck through, but it plans nothing (#180). NULL again means "no
+        // answer recorded", which is not a "no".
         val selection = "${CalendarContract.Calendars.VISIBLE} = 1 AND " +
             "(${CalendarContract.Instances.STATUS} IS NULL OR " +
-            "${CalendarContract.Instances.STATUS} != ${CalendarContract.Events.STATUS_CANCELED})"
+            "${CalendarContract.Instances.STATUS} != " +
+            "${CalendarContract.Events.STATUS_CANCELED}) AND " +
+            "(${CalendarContract.Instances.SELF_ATTENDEE_STATUS} IS NULL OR " +
+            "${CalendarContract.Instances.SELF_ATTENDEE_STATUS} != " +
+            "${CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED})"
         return context.contentResolver.query(
             uri, OCCURRENCE_PROJECTION, selection, null, null,
         )?.use { c ->
