@@ -36,6 +36,14 @@ val GUTTER_WIDTH = 48.dp
  */
 val GUTTER_CONTENT_START_INSET = 8.dp
 
+/**
+ * End inset for everything that lines up with the day columns — the week's day
+ * header, the all-day strip and the timeline itself. Without it the last column
+ * runs flush into the screen edge while the gutter gives the other side room
+ * (#192); 8dp mirrors [GUTTER_CONTENT_START_INSET].
+ */
+val TIMELINE_CONTENT_END_INSET = 8.dp
+
 private val BADGE_HEIGHT = 20.dp
 
 /** How far the fixed hour labels recede while a block is being dragged. */

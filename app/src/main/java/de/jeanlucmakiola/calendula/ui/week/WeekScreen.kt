@@ -129,6 +129,7 @@ import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.common.GUTTER_CONTENT_START_INSET
 import de.jeanlucmakiola.calendula.ui.common.GUTTER_WIDTH
 import de.jeanlucmakiola.calendula.ui.common.HourGutter
+import de.jeanlucmakiola.calendula.ui.common.TIMELINE_CONTENT_END_INSET
 import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
 import de.jeanlucmakiola.calendula.ui.common.tappedMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
@@ -506,7 +507,7 @@ private fun WeekDayHeader(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp, bottom = 8.dp),
+            .padding(top = 4.dp, bottom = 8.dp, end = TIMELINE_CONTENT_END_INSET),
     ) {
         // Mirror the day-column layout (empty weekday line + spacer) so the
         // badge lines up vertically with the date numbers. The start inset centres
@@ -602,7 +603,11 @@ private fun AllDayStrip(
             // Height is hoisted + animated so it slides and resizes smoothly;
             // padding sits inside it so the content area is lanes * row height.
             .height(height)
-            .padding(vertical = ALL_DAY_VERTICAL_PADDING),
+            .padding(
+                top = ALL_DAY_VERTICAL_PADDING,
+                bottom = ALL_DAY_VERTICAL_PADDING,
+                end = TIMELINE_CONTENT_END_INSET,
+            ),
     ) {
         // Keep the gutter-width offset so the bars line up with the day columns.
         Spacer(Modifier.width(GUTTER_WIDTH))
@@ -708,6 +713,7 @@ private fun Timeline(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    .padding(end = TIMELINE_CONTENT_END_INSET)
                     .clip(RoundedCornerShape(16.dp))
                     .verticalScroll(scrollState)
                     .onGloballyPositioned { dragController.geometry.viewport = it },
@@ -977,7 +983,12 @@ private fun WeekLoading() {
             // Same scale resolution as the loaded timeline, so the skeleton's
             // columns don't resize the moment the real week arrives.
             val totalHeight = scale.hourHeight(maxHeight) * 24
-            Row(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(end = TIMELINE_CONTENT_END_INSET)
+                    .verticalScroll(scrollState),
+            ) {
                 Spacer(Modifier.width(GUTTER_WIDTH))
                 repeat(7) {
                     Box(
