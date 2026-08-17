@@ -52,6 +52,7 @@ internal object InstanceProjection {
         CalendarContract.Instances.EVENT_COLOR,
         CalendarContract.Instances.CALENDAR_COLOR,
         CalendarContract.Instances.EVENT_LOCATION,
+        CalendarContract.Instances.SELF_ATTENDEE_STATUS,
     )
 
     const val IDX_INSTANCE_ID = 0
@@ -64,6 +65,7 @@ internal object InstanceProjection {
     const val IDX_EVENT_COLOR = 7
     const val IDX_CALENDAR_COLOR = 8
     const val IDX_LOCATION = 9
+    const val IDX_SELF_ATTENDEE_STATUS = 10
 }
 
 internal object EventDetailProjection {
@@ -182,6 +184,7 @@ internal object SearchProjection {
         CalendarContract.Events.RDATE,
         // Excerpted, not just filtered on: a hit has to show what it matched.
         CalendarContract.Events.DESCRIPTION,
+        CalendarContract.Events.SELF_ATTENDEE_STATUS,
     )
 
     const val IDX_ID = 0
@@ -197,6 +200,7 @@ internal object SearchProjection {
     const val IDX_RRULE = 10
     const val IDX_RDATE = 11
     const val IDX_DESCRIPTION = 12
+    const val IDX_SELF_ATTENDEE_STATUS = 13
 }
 
 /**

@@ -106,6 +106,7 @@ import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.eventInk
+import de.jeanlucmakiola.calendula.ui.common.declinedDecoration
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
@@ -530,6 +531,7 @@ private fun AllDayBar(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             color = eventInk(fill),
+            textDecoration = declinedDecoration(event.isDeclined),
         )
     }
 }
@@ -778,6 +780,7 @@ private fun EventBlock(
                     maxLines = if (showTime) 1 else 2,
                     overflow = TextOverflow.Ellipsis,
                     color = eventInk(fill, alpha = 0.85f),
+                    textDecoration = declinedDecoration(block.event.isDeclined),
                 )
             }
             if (showTime) {

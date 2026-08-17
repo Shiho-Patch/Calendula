@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.widget.agenda
 
+import de.jeanlucmakiola.calendula.widget.glanceDeclinedDecoration
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
@@ -419,7 +420,11 @@ private fun EventRow(
             Text(
                 text = title,
                 maxLines = 1,
-                style = TextStyle(color = titleColor, fontSize = metrics.eventTitle),
+                style = TextStyle(
+                    color = titleColor,
+                    fontSize = metrics.eventTitle,
+                    textDecoration = glanceDeclinedDecoration(event.isDeclined),
+                ),
             )
             Text(
                 text = eventTimeSummary(context, event, day, is24Hour),

@@ -24,11 +24,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
+import de.jeanlucmakiola.calendula.ui.common.declinedTitle
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.eventAccent
@@ -129,8 +131,8 @@ internal fun AgendaEventRow(
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     GroupedRow(
         modifier = if (dimmed) modifier.alpha(EventDimAlpha) else modifier,
-        title = title,
-        summary = agendaTimeSummary(event, day, zone),
+        title = declinedTitle(title, event.isDeclined),
+        summary = AnnotatedString(agendaTimeSummary(event, day, zone)),
         position = position,
         minHeight = 64.dp,
         leading = {

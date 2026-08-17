@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.widget.month
 
+import de.jeanlucmakiola.calendula.widget.glanceDeclinedDecoration
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.runtime.Composable
@@ -423,7 +424,11 @@ private fun SpanBar(event: EventInstance, dark: Boolean, soften: Boolean, width:
             Text(
                 text = event.title.ifBlank { context.getString(R.string.event_untitled) },
                 maxLines = 1,
-                style = TextStyle(color = ColorProvider(eventInk(fill)), fontSize = 9.sp),
+                style = TextStyle(
+                    color = ColorProvider(eventInk(fill)),
+                    fontSize = 9.sp,
+                    textDecoration = glanceDeclinedDecoration(event.isDeclined),
+                ),
                 modifier = GlanceModifier.padding(horizontal = 3.dp),
             )
         }

@@ -90,6 +90,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
+import de.jeanlucmakiola.calendula.ui.common.declinedDecoration
 import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.animatedBlockPlacement
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
@@ -667,6 +668,7 @@ private fun AllDayBar(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             color = eventInk(fill),
+            textDecoration = declinedDecoration(event.isDeclined),
         )
     }
 }
@@ -946,6 +948,7 @@ private fun EventBlock(
                     maxLines = titleMaxLines,
                     overflow = TextOverflow.Ellipsis,
                     color = eventInk(fill, alpha = 0.85f),
+                    textDecoration = declinedDecoration(block.event.isDeclined),
                 )
             }
             if (showTime) {
