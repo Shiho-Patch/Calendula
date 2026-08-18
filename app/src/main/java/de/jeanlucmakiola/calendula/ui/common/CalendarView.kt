@@ -57,7 +57,8 @@ fun CalendarView.next(available: List<CalendarView> = IMPLEMENTED_VIEWS): Calend
  * implemented view — the settings screen reorders the whole set — while [cycle]
  * is the subset the pill actually steps through, in [order]. The navigation
  * drawer keeps its own separate order and always lists every view, so a view
- * disabled here stays reachable there.
+ * disabled here stays reachable there — including when [cycle] is emptied and
+ * the pill disappears altogether.
  */
 data class QuickSwitchConfig(
     val order: List<CalendarView>,
@@ -67,14 +68,15 @@ data class QuickSwitchConfig(
     val cycle: List<CalendarView> get() = order.filter { it in enabled }
 
     companion object {
+        /**
+         * Fewest views that keep the switch meaningful. A single target is not a
+         * switch, so below this the pill is hidden rather than special-cased (#150);
+         * the drawer still reaches every view.
+         */
+        const val MIN_CYCLE = 2
+
         /** All views, in default order, all enabled. */
         val Default = QuickSwitchConfig(IMPLEMENTED_VIEWS, IMPLEMENTED_VIEWS.toSet())
-
-        /**
-         * Fewest views that keep the switch meaningful — a "switch" needs at
-         * least two targets, so the settings screen blocks disabling below this.
-         */
-        const val MIN_ENABLED = 2
     }
 }
 

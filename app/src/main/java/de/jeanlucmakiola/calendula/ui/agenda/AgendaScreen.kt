@@ -135,6 +135,7 @@ fun AgendaScreen(
                 AgendaTopBar(
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
+                    quickSwitchViews = quickSwitchViews,
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
                     showTodayButton = todayInToolbar,
@@ -409,6 +410,7 @@ private fun AgendaEmpty(modifier: Modifier = Modifier) {
 private fun AgendaTopBar(
     selectedView: CalendarView,
     onCycleView: () -> Unit,
+    quickSwitchViews: List<CalendarView>,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
     showTodayButton: Boolean,
@@ -440,6 +442,7 @@ private fun AgendaTopBar(
             }
             ViewSwitcherPill(
                 current = selectedView,
+                cycle = quickSwitchViews,
                 onCycle = onCycleView,
                 modifier = Modifier.padding(end = 8.dp),
             )

@@ -496,7 +496,7 @@
     <string name="month_split_expand">Show the whole month</string>
     <string name="month_split_collapse">Show the day\'s events</string>
     <string name="settings_quick_switch_header">Quick-switch button</string>
-    <string name="settings_quick_switch_hint">Choose which views the top-right button cycles through, and drag to reorder them. Turned-off views stay reachable from the navigation menu.</string>
+    <string name="settings_quick_switch_hint">Choose which views the top-right button cycles through, and drag to reorder them. With fewer than two views turned on the button is hidden. Turned-off views stay reachable from the navigation menu.</string>
     <string name="settings_drawer_order_header">Navigation menu</string>
     <string name="settings_drawer_order_hint">Drag to reorder the views listed in the navigation menu.</string>
     <string name="reorder_drag_handle">Drag to reorder</string>
