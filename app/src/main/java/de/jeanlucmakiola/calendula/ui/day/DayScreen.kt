@@ -243,6 +243,7 @@ fun DayScreen(
                     currentYear = currentYear,
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
+                    quickSwitchViews = quickSwitchViews,
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
                     onJumpToDate = jumpToDate,
@@ -411,6 +412,7 @@ private fun DayTopBar(
     currentYear: Int,
     selectedView: CalendarView,
     onCycleView: () -> Unit,
+    quickSwitchViews: List<CalendarView>,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
     onJumpToDate: (LocalDate) -> Unit,
@@ -445,6 +447,7 @@ private fun DayTopBar(
             }
             ViewSwitcherPill(
                 current = selectedView,
+                cycle = quickSwitchViews,
                 onCycle = onCycleView,
                 modifier = Modifier.padding(end = 8.dp),
             )

@@ -591,15 +591,15 @@ class SettingsViewModel @Inject constructor(
 
     /**
      * Enable or disable [view] in the quick-switch cycle, via an atomic
-     * read-modify-write so a concurrent reorder can't clobber it. The
-     * MIN_ENABLED floor is re-checked inside the transform, because the screen's
-     * own guard reads an async-echoed snapshot.
+     * read-modify-write so a concurrent reorder can't clobber it. Any number of
+     * views may be turned off; below two the pill hides itself (#150).
      */
     fun setQuickSwitchViewEnabled(view: CalendarView, enabled: Boolean) {
         viewModelScope.launch {
             prefs.updateQuickSwitch { config ->
-                val next = if (enabled) config.enabled + view else config.enabled - view
-                if (next.size < QuickSwitchConfig.MIN_ENABLED) config else config.copy(enabled = next)
+                config.copy(
+                    enabled = if (enabled) config.enabled + view else config.enabled - view,
+                )
             }
         }
     }

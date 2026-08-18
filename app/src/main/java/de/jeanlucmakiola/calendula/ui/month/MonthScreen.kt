@@ -386,6 +386,7 @@ fun MonthScreen(
                     titleDate = LocalDate(titleMonth.year, titleMonth.month, 1),
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
+                    quickSwitchViews = quickSwitchViews,
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
                     onJumpToDate = jumpToDate,
@@ -650,6 +651,7 @@ private fun MonthTopBar(
     titleDate: LocalDate,
     selectedView: CalendarView,
     onCycleView: () -> Unit,
+    quickSwitchViews: List<CalendarView>,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
     onJumpToDate: (LocalDate) -> Unit,
@@ -683,6 +685,7 @@ private fun MonthTopBar(
             }
             ViewSwitcherPill(
                 current = selectedView,
+                cycle = quickSwitchViews,
                 onCycle = onCycleView,
                 modifier = Modifier.padding(end = 8.dp),
             )
