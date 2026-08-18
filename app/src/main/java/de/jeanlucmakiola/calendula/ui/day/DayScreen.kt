@@ -65,7 +65,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -94,6 +93,7 @@ import de.jeanlucmakiola.calendula.ui.common.TimelineDrop
 import de.jeanlucmakiola.calendula.ui.common.beginsOn
 import de.jeanlucmakiola.calendula.ui.common.eventDragAllowed
 import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
+import de.jeanlucmakiola.calendula.ui.common.eventTitleOverflow
 import de.jeanlucmakiola.calendula.ui.common.rememberEventDragSource
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelineDragController
 import de.jeanlucmakiola.calendula.ui.common.startInstant
@@ -519,11 +519,13 @@ private fun AllDayBar(
             .semantics { contentDescription = title },
         contentAlignment = Alignment.CenterStart,
     ) {
+        val titleOverflow = eventTitleOverflow()
         Text(
             text = title,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            overflow = titleOverflow.overflow,
+            softWrap = titleOverflow.softWrap,
             color = eventInk(fill),
         )
     }
@@ -766,11 +768,13 @@ private fun EventBlock(
     ) {
         Column {
             if (showTitle) {
+                val titleOverflow = eventTitleOverflow(singleLine = showTime)
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = if (showTime) 1 else 2,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = titleOverflow.overflow,
+                    softWrap = titleOverflow.softWrap,
                     color = eventInk(fill, alpha = 0.85f),
                 )
             }

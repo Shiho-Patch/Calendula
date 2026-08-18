@@ -464,11 +464,13 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
                 .padding(horizontal = 4.dp, vertical = 2.dp),
         ) {
             Column {
+                val titleOverflow = eventTitleOverflow()
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = titleOverflow.overflow,
+                    softWrap = titleOverflow.softWrap,
                     color = eventInk(fill, alpha = 0.85f),
                 )
                 Text(
