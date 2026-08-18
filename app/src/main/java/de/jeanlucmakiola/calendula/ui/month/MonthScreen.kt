@@ -89,6 +89,7 @@ import androidx.compose.ui.geometry.Offset
 import kotlin.math.roundToInt
 import de.jeanlucmakiola.calendula.ui.common.rememberDragSurface
 import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
+import de.jeanlucmakiola.calendula.ui.common.eventTitleOverflow
 import de.jeanlucmakiola.calendula.ui.common.MoveTarget
 import de.jeanlucmakiola.calendula.ui.common.MoveRequest
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
@@ -2352,21 +2353,13 @@ private fun MonthBar(
             },
         contentAlignment = Alignment.CenterStart,
     ) {
-        // Clipping only keeps the start of the title in an LTR layout: with
-        // softWrap off Compose lays the line out at its full width and clips to
-        // the chip's *left* edge, which in RTL is the end of the string. So RTL
-        // keeps the ellipsis, which truncates at the logical end either way.
-        val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+        val titleOverflow = eventTitleOverflow()
         Text(
             text = title,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
-            // No "…" (#164): the chip is narrow enough that the ellipsis costs a
-            // couple of readable characters. softWrap is off with it — left on,
-            // a clipped line breaks at the last whole word instead of running to
-            // the chip's edge, which reads as *less* title, not more.
-            overflow = if (rtl) TextOverflow.Ellipsis else TextOverflow.Clip,
-            softWrap = rtl,
+            overflow = titleOverflow.overflow,
+            softWrap = titleOverflow.softWrap,
             color = eventInk(fill),
         )
     }
