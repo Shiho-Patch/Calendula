@@ -3,7 +3,11 @@ package de.jeanlucmakiola.calendula.data.calendar
 import android.provider.CalendarContract
 import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Availability
+import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
+import de.jeanlucmakiola.calendula.domain.EventStatus
+import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
+import de.jeanlucmakiola.calendula.domain.nearestTo
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toJavaLocalDateTime
 import java.time.Duration
@@ -530,4 +534,73 @@ internal fun AccessLevel.toProviderValue(): Int = when (this) {
     AccessLevel.Confidential -> CalendarContract.Events.ACCESS_CONFIDENTIAL
     AccessLevel.Private -> CalendarContract.Events.ACCESS_PRIVATE
     AccessLevel.Public -> CalendarContract.Events.ACCESS_PUBLIC
+}
+
+/**
+ * The `Events` row for a `.ics` event being imported into [calendarId].
+ *
+ * A recurring row carries RRULE + DURATION (and any EXDATE) with no DTEND; a
+ * one-off carries DTEND. All-day rows live at UTC midnights, exactly as the
+ * parser hands them over.
+ *
+ * [palette] is the target account's published event colours. A calendar that
+ * publishes one rejects a raw `EVENT_COLOR`, so an imported colour — which is
+ * an arbitrary ARGB from a foreign app — is snapped to the nearest key it does
+ * accept; accounts with no palette take the raw value (see [eventColorColumns]).
+ */
+internal fun buildImportedEventValues(
+    event: ParsedIcsEvent,
+    calendarId: Long,
+    uid: String,
+    palette: List<EventColorOption>,
+): Map<String, Any?> = buildMap {
+    val startMillis = event.start.toEpochMilliseconds()
+    val endMillis = event.end.toEpochMilliseconds()
+    put(CalendarContract.Events.CALENDAR_ID, calendarId)
+    put(CalendarContract.Events.UID_2445, uid)
+    put(CalendarContract.Events.TITLE, event.summary.trim())
+    put(CalendarContract.Events.ALL_DAY, if (event.isAllDay) 1 else 0)
+    put(CalendarContract.Events.DTSTART, startMillis)
+    if (event.recurrenceRule == null) {
+        put(CalendarContract.Events.DTEND, endMillis)
+    } else {
+        put(CalendarContract.Events.RRULE, event.recurrenceRule)
+        put(
+            CalendarContract.Events.DURATION,
+            importDuration(startMillis, endMillis, event.isAllDay),
+        )
+        event.exDates.takeIf { it.isNotEmpty() }
+            ?.let { put(CalendarContract.Events.EXDATE, it.joinToString(",")) }
+    }
+    // All-day rows live at UTC midnights (the file already encodes them so);
+    // timed rows keep the event's own zone.
+    put(CalendarContract.Events.EVENT_TIMEZONE, if (event.isAllDay) "UTC" else event.zoneId)
+    put(CalendarContract.Events.AVAILABILITY, event.availability.toProviderValue())
+    put(CalendarContract.Events.STATUS, event.status.toProviderStatus())
+    event.location?.trim()?.takeIf { it.isNotEmpty() }
+        ?.let { put(CalendarContract.Events.EVENT_LOCATION, it) }
+    event.description?.trim()?.takeIf { it.isNotEmpty() }
+        ?.let { put(CalendarContract.Events.DESCRIPTION, it) }
+    event.color?.let { color ->
+        val key = palette.nearestTo(color)?.key
+        putAll(eventColorColumns(colorKey = key, color = if (key == null) color else null))
+    }
+}
+
+/**
+ * Provider `DURATION` for an imported recurring row: whole days for an all-day
+ * series, seconds otherwise. An all-day series is never shorter than a day —
+ * the provider expands a zero-length one into no instances at all, so the
+ * series would vanish (which is what a literal read of the Fossify family's
+ * inclusive DTEND used to produce; see `IcsQuirks`).
+ */
+private fun importDuration(startMillis: Long, endMillis: Long, isAllDay: Boolean): String {
+    val span = (endMillis - startMillis).coerceAtLeast(0)
+    return if (isAllDay) "P${(span / 86_400_000L).coerceAtLeast(1)}D" else "P${span / 1_000L}S"
+}
+
+private fun EventStatus.toProviderStatus(): Int = when (this) {
+    EventStatus.Confirmed -> CalendarContract.Events.STATUS_CONFIRMED
+    EventStatus.Tentative -> CalendarContract.Events.STATUS_TENTATIVE
+    EventStatus.Cancelled -> CalendarContract.Events.STATUS_CANCELED
 }

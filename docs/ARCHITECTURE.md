@@ -346,6 +346,53 @@ a latch that disables its own scheduling once a real broadcast arrives — canno
 be copied, because our failure mode includes a broadcast that arrives with no
 alert row behind it.
 
+## Importing foreign `.ics`
+
+`IcsParser` is deliberately liberal, because the files it is handed were written
+by other people's calendars. What that costs us, learned from reading the Simple
+Calendar / Fossify exporter (#225):
+
+**An all-day event may never reach the provider zero days long.** RFC 5545
+§3.6.1 gives a `DATE`-valued `DTSTART` with no `DTEND` a one-day duration, and a
+`DTEND` equal to `DTSTART` is meaningless — but the failure is silent rather than
+loud: the provider expands a zero-length series into no instances at all, so the
+event is simply not there, with nothing logged. `resolveEnd` floors the span at a
+day and `buildImportedEventValues` floors an all-day `DURATION` at `P1D`.
+
+Resist the urge to correct a producer's all-day `DTEND` by sniffing its `PRODID`.
+Fossify's looks like it needs it and does not: `Event.endTS` anchors an all-day
+event at *noon* of its last day (`EventActivity.getStartEndTimes`), or at the
+exclusive midnight when the row came from CalDAV, and the exporter's
+`+ TWELVE_HOURS` rounds either to the following midnight — correct on both paths.
+Shifting it would push every imported all-day event out by a day. The holiday
+files bundled inside Fossify are a second trap: their `PRODID` reads
+`Fossify Calendar Holiday Generator` and their content is plain conformant
+iCalendar. One is kept as a fixture in `app/src/test/resources/ics`.
+
+**One bad event must not cost the file.** The provider validates `RRULE` through
+`EventRecurrence.parse`, which *throws* — out of `insert`, not out of a later
+read. `sanitizeRrule` drops empty and malformed parts before the write, and
+`CalendarRepositoryImpl.importEvents` isolates each event, counting rejects into
+`IcsImportSummary.failed` rather than unwinding the batch and reporting only
+"couldn't read this file".
+
+Smaller dialect handling: `VTODO` components import as events (Calendula models
+no tasks; dropping them silently lost half of some exports), `CATEGORIES` stands
+in for the `X-WR-CALNAME` Fossify never writes, bare `EXDATE` day codes on a
+timed series are resolved against the series' own time of day, and a `VALARM`
+trigger pointing *after* the start — which is how that family encodes "on the day
+at 09:00" — is read as zero days before rather than clamped to a lead time of
+zero, so all-day reminders fire at the hour the user's own setting names instead
+of at UTC midnight.
+
+Colour arrives as a raw ARGB from an app with no idea which account it is landing
+in. A calendar whose account publishes a palette rejects a raw `EVENT_COLOR`, so
+`buildImportedEventValues` snaps the imported colour to the nearest published key
+(`nearestTo`, measured in Oklab) and writes the raw value only where there is no
+palette. The single-event review form deliberately keeps no colour at all: its
+first question is which calendar to use, and answering it clears the colour
+anyway.
+
 ## Testing
 
 JUnit 5 + Truth + Turbine on the JVM. The seams that make it work:

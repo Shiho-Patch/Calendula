@@ -26,6 +26,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   saves the edit as its own event instead, which is what you see either way. A
   save that does fail also says so for longer, rather than flashing past
   ([#234]).
+- **A failed import no longer costs you the whole file.** One event the calendar
+  refuses used to abort the entire import with nothing on screen but "couldn't
+  read this file". Events are now added one at a time: anything rejected is
+  counted and shown, and the rest still arrive. A faulty repeat rule in the file
+  is repaired instead of being handed on ([#225]).
+- **Imported reminders fire at the hour you chose**, not at midnight UTC — the
+  same rule the app already applied to all-day events you create yourself
+  ([#225]).
+- **An all-day event with no end date, or one ending the day it starts, imports
+  as a one-day event** instead of a zero-length one that never appears ([#225]).
+
+### Added
+- **More of an imported `.ics` survives the trip**: tasks come across as events
+  rather than being dropped in silence, deleted occurrences of a repeating event
+  stay deleted, the file's own calendar name is picked up, and event colours are
+  carried over — matched to the closest colour your calendar's account offers, so
+  a migrated calendar still reads at a glance ([#225]).
 
 ## [2.19.3] — 2026-08-22
 
@@ -1491,5 +1508,6 @@ automatically, with zero telemetry and no internet permission.
 [#192]: https://codeberg.org/jlmakiola/calendula/issues/192
 [#196]: https://codeberg.org/jlmakiola/calendula/issues/196
 [#214]: https://codeberg.org/jlmakiola/calendula/issues/214
+[#225]: https://codeberg.org/jlmakiola/calendula/issues/225
 [#228]: https://codeberg.org/jlmakiola/calendula/issues/228
 [#234]: https://codeberg.org/jlmakiola/calendula/issues/234

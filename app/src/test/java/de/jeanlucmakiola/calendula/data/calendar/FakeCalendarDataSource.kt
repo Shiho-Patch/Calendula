@@ -91,8 +91,17 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     /** (event, targetCalendarId) pairs passed to [insertImportedEvent]. */
     val importedEvents = mutableListOf<Pair<ParsedIcsEvent, Long>>()
 
-    override fun insertImportedEvent(event: ParsedIcsEvent, calendarId: Long): Long {
+    /** Thrown instead of [writeError] for events whose summary is in this set. */
+    val failingImportSummaries = mutableSetOf<String>()
+
+    override fun insertImportedEvent(
+        event: ParsedIcsEvent,
+        calendarId: Long,
+        allDayReminderTimeMinutes: Int,
+        colorPalette: List<EventColorOption>,
+    ): Long {
         writeError?.let { throw it }
+        if (event.summary in failingImportSummaries) error("rejected: ${event.summary}")
         importedEvents += event to calendarId
         return nextInsertId
     }

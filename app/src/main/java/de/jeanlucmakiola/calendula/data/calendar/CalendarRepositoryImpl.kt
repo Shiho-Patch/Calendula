@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
+import android.util.Log
 import de.jeanlucmakiola.floret.time.toEpochMillis
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
@@ -26,6 +27,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Instant
@@ -217,19 +219,34 @@ class CalendarRepositoryImpl @Inject constructor(
         events: List<ParsedIcsEvent>,
     ): IcsImportSummary = withContext(io) {
         val existing = dataSource.existingUids(targetCalendarId)
+        // Both are per-calendar, not per-event: looking them up once keeps a
+        // thousand-event restore to two extra queries.
+        val palette = dataSource.eventColorPalette(targetCalendarId)
+        val allDayMinutes = allDayReminderTimeMinutes()
         var imported = 0
         var skipped = 0
+        var failed = 0
         for (event in events) {
             // A known UID means the event is already in this calendar — skip,
             // keeping a restore idempotent (no overwrite this pass).
             if (event.uid != null && event.uid in existing) {
                 skipped++
-            } else {
-                dataSource.insertImportedEvent(event, targetCalendarId)
+                continue
+            }
+            try {
+                dataSource.insertImportedEvent(event, targetCalendarId, allDayMinutes, palette)
                 imported++
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // One event the provider won't take must not cost the user the
+                // rest of the file — foreign exports do carry rows it rejects
+                // outright (a malformed RRULE throws straight out of insert).
+                failed++
+                Log.w(TAG, "Skipped an unimportable event", e)
             }
         }
-        IcsImportSummary(imported = imported, skippedDuplicate = skipped)
+        IcsImportSummary(imported = imported, skippedDuplicate = skipped, failed = failed)
     }
 
     override suspend fun createEvent(form: EventForm): Long = withContext(io) {
@@ -287,6 +304,11 @@ class CalendarRepositoryImpl @Inject constructor(
         beginMillis: Long,
     ) = withContext(io) {
         dataSource.deleteEventFromOccurrence(eventId, beginMillis)
+    }
+
+
+    private companion object {
+        const val TAG = "CalendarRepository"
     }
 }
 

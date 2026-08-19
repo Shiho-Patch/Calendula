@@ -252,6 +252,15 @@ private fun DoneContent(state: ImportUiState.Done, onClose: () -> Unit) {
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
         )
+        if (state.summary.failed > 0) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.import_done_failed_note),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
         if (state.summary.skippedDuplicate > 0) {
             Spacer(Modifier.height(8.dp))
             Text(
@@ -290,6 +299,19 @@ private fun DoneContent(state: ImportUiState.Done, onClose: () -> Unit) {
                     onContainer = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (state.summary.failed > 0) {
+                ImportStatCard(
+                    count = state.summary.failed,
+                    label = stringResource(R.string.import_done_failed_label),
+                    contentDescription = pluralStringResource(
+                        R.plurals.import_done_failed,
+                        state.summary.failed,
+                        state.summary.failed,
+                    ),
+                    container = MaterialTheme.colorScheme.errorContainer,
+                    onContainer = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
         }
         Spacer(Modifier.weight(1f))
         Button(
@@ -301,7 +323,7 @@ private fun DoneContent(state: ImportUiState.Done, onClose: () -> Unit) {
     }
 }
 
-/** A big-number tonal tile summarising one import outcome (added / skipped). */
+/** A big-number tonal tile summarising one import outcome (added / skipped / failed). */
 @Composable
 private fun RowScope.ImportStatCard(
     count: Int,
@@ -343,6 +365,9 @@ private fun WarningText(warning: IcsParseWarning) {
         IcsParseWarning.EventWithoutStartSkipped -> stringResource(R.string.import_warning_no_start)
         IcsParseWarning.AttendeesIgnored -> stringResource(R.string.import_warning_attendees)
         IcsParseWarning.UnknownTimezone -> stringResource(R.string.import_warning_timezone)
+        IcsParseWarning.TasksImportedAsEvents -> stringResource(R.string.import_warning_tasks)
+        IcsParseWarning.RecurrenceRuleRepaired ->
+            stringResource(R.string.import_warning_recurrence_repaired)
     }
     Text(
         text = text,
