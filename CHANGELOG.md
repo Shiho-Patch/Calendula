@@ -34,8 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Imported reminders fire at the hour you chose**, not at midnight UTC — the
   same rule the app already applied to all-day events you create yourself
   ([#225]).
-- **An all-day event with no end date, or one ending the day it starts, imports
-  as a one-day event** instead of a zero-length one that never appears ([#225]).
+- **Birthdays and anniversaries imported from Fossify Calendar now show up.**
+  Fossify writes the ones it mirrors from your contacts as events that start and
+  end on the same day, which the calendar read as lasting no time at all: they
+  imported without complaint and then appeared nowhere. Any all-day event that
+  ends where it starts, or carries no end at all, is now a one-day event
+  ([#225]).
 
 ### Added
 - **More of an imported `.ics` survives the trip**: tasks come across as events

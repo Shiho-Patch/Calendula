@@ -800,8 +800,12 @@ class AndroidCalendarDataSource @Inject constructor(
     override fun existingUids(calendarId: Long): Set<String> = resolver.query(
         CalendarContract.Events.CONTENT_URI,
         arrayOf(CalendarContract.Events.UID_2445),
+        // DELETED rows linger until a sync adapter purges them; counting those
+        // as present would make a re-import skip everything the user has since
+        // deleted, reporting "all duplicates" and importing nothing.
         "${CalendarContract.Events.CALENDAR_ID} = ? AND " +
-            "${CalendarContract.Events.UID_2445} IS NOT NULL",
+            "${CalendarContract.Events.UID_2445} IS NOT NULL AND " +
+            "${CalendarContract.Events.DELETED} = 0",
         arrayOf(calendarId.toString()),
         null,
     )?.use { c ->

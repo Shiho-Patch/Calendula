@@ -10,12 +10,15 @@ import org.junit.jupiter.api.Test
  * Every fixture is shaped as `IcsExporter.writeEvent` emits it — property order,
  * the `X-FOSSIFY-*` extensions and the `P0DT1H5M0S` duration spelling included.
  *
- * Note what is *not* asserted here: their all-day `DTEND` is RFC-correct.
- * `Event.endTS` anchors an all-day event at noon of its last day
+ * Their all-day `DTEND` is *usually* RFC-correct and must not be "corrected":
+ * `Event.endTS` anchors a UI-created all-day event at noon of its last day
  * (`EventActivity.getStartEndTimes`), or at the exclusive midnight for a
  * CalDAV-sourced one, and the exporter's `+ TWELVE_HOURS` rounds either to the
- * following midnight. Treating it as inclusive would push every imported all-day
- * event out by a day.
+ * following midnight. Shifting those by a day would corrupt them.
+ *
+ * The exception — and the whole of #225 — is events mirrored from Contacts.
+ * `MainActivity` builds those with `startTS = endTS = timestamp`, so `+ 12h`
+ * lands back on the starting day and they export zero length.
  */
 class IcsFossifyImportTest {
 
@@ -51,6 +54,30 @@ class IcsFossifyImportTest {
         val event = result.events.single()
         assertThat(event.isAllDay).isTrue()
         assertThat(days(event)).isEqualTo(1)
+    }
+
+    @Test
+    fun `contact-mirrored birthdays export zero length and must not vanish`() {
+        // The reported failure (#225). Fossify mirrors Contacts birthdays and
+        // anniversaries with startTS == endTS, so the exporter's +12h rounds
+        // back to the starting day: DTSTART == DTEND. Read literally these are
+        // yearly series of zero-length occurrences, which the provider expands
+        // into nothing at all — the birthdays import "successfully" and are
+        // then nowhere to be seen.
+        val text = checkNotNull(
+            javaClass.classLoader?.getResourceAsStream("ics/fossify-contact-birthdays.ics"),
+        ).use { it.readBytes().toString(Charsets.UTF_8) }
+
+        val result = parser.parse(text)
+
+        assertThat(result.events).hasSize(3)
+        result.events.forEach {
+            assertThat(it.isAllDay).isTrue()
+            assertThat(days(it)).isEqualTo(1)
+            assertThat(it.recurrenceRule).startsWith("FREQ=YEARLY")
+            // Their all-day reminder encoding: "on the day", not midnight UTC.
+            assertThat(it.semanticReminderMinutes()).containsExactly(0)
+        }
     }
 
     @Test

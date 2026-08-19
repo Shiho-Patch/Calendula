@@ -352,22 +352,28 @@ alert row behind it.
 by other people's calendars. What that costs us, learned from reading the Simple
 Calendar / Fossify exporter (#225):
 
-**An all-day event may never reach the provider zero days long.** RFC 5545
-§3.6.1 gives a `DATE`-valued `DTSTART` with no `DTEND` a one-day duration, and a
-`DTEND` equal to `DTSTART` is meaningless — but the failure is silent rather than
-loud: the provider expands a zero-length series into no instances at all, so the
-event is simply not there, with nothing logged. `resolveEnd` floors the span at a
-day and `buildImportedEventValues` floors an all-day `DURATION` at `P1D`.
+**An all-day event may never reach the provider zero days long.** This is what
+#225 was: Fossify mirrors Contacts birthdays and anniversaries with
+`startTS = endTS` (`MainActivity`), so its exporter's `dayCode(endTS + 12h)`
+rounds back to the starting day and writes `DTEND == DTSTART`. Taken literally
+that is a yearly series of zero-length occurrences, which the provider expands
+into no instances at all — the import reports success and the birthdays are
+nowhere. Nothing is logged, because nothing failed. `resolveEnd` floors an
+all-day span at a day (also RFC 5545 §3.6.1, which gives a `DATE` `DTSTART` with
+no `DTEND` a one-day duration) and `buildImportedEventValues` floors an all-day
+`DURATION` at `P1D`.
 
-Resist the urge to correct a producer's all-day `DTEND` by sniffing its `PRODID`.
-Fossify's looks like it needs it and does not: `Event.endTS` anchors an all-day
-event at *noon* of its last day (`EventActivity.getStartEndTimes`), or at the
-exclusive midnight when the row came from CalDAV, and the exporter's
-`+ TWELVE_HOURS` rounds either to the following midnight — correct on both paths.
-Shifting it would push every imported all-day event out by a day. The holiday
-files bundled inside Fossify are a second trap: their `PRODID` reads
+Do **not** generalise that into correcting the producer's `DTEND` by sniffing its
+`PRODID`. The same exporter is right everywhere else: `Event.endTS` anchors a
+UI-created all-day event at *noon* of its last day
+(`EventActivity.getStartEndTimes`), or at the exclusive midnight when the row
+came from CalDAV, and `+ TWELVE_HOURS` rounds either to the following midnight.
+Shifting those would push every one of them out by a day. The holiday files
+bundled inside Fossify are a second trap: their `PRODID` reads
 `Fossify Calendar Holiday Generator` and their content is plain conformant
-iCalendar. One is kept as a fixture in `app/src/test/resources/ics`.
+iCalendar. Both that file and a contact-birthday export are kept as fixtures in
+`app/src/test/resources/ics`. Clamp the degenerate case; never rewrite the
+conformant one.
 
 **One bad event must not cost the file.** The provider validates `RRULE` through
 `EventRecurrence.parse`, which *throws* — out of `insert`, not out of a later
