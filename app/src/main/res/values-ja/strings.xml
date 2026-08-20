@@ -53,4 +53,14 @@
     <string name="reminder_unit_hours">時間</string>
     <string name="reminder_unit_days">日</string>
     <string name="recurrence_unit_days">毎日</string>
+    <string name="reminder_day_yesterday">前日</string>
+    <string name="settings_section_widgets">ウィジットとタイル</string>
+    <string name="settings_week_start">週の開始日</string>
+    <string name="settings_week_numbers">週番号</string>
+    <string name="settings_theme_light">ライト</string>
+    <string name="settings_theme_dark">ダーク</string>
+    <string name="settings_font_headings">見出しのフォント</string>
+    <string name="settings_font_body">本文のフォント</string>
+    <string name="settings_font_system">システムの標準</string>
+    <string name="settings_font_choose_file">ファイルを選択…</string>
 </resources>
