@@ -63,4 +63,20 @@
     <string name="settings_font_body">本文のフォント</string>
     <string name="settings_font_system">システムの標準</string>
     <string name="settings_font_choose_file">ファイルを選択…</string>
+    <string name="settings_week_start_auto">自動</string>
+    <string name="settings_week_start_auto_summary">現在は %1$s</string>
+    <string name="settings_app_name">アプリの名前</string>
+    <string name="settings_section_language">言語</string>
+    <string name="settings_language">アプリの言語</string>
+    <string name="settings_language_auto">システムの既定</string>
+    <string name="settings_group_app">アプリ</string>
+    <string name="settings_appearance_subtitle">テーマ、カラー、フォント</string>
+    <string name="settings_about_privacy">プライバシーポリシー</string>
+    <string name="settings_about_support">開発を支援する</string>
+    <string name="settings_license">ライセンス</string>
+    <string name="settings_report_problem">問題を報告</string>
+    <string name="settings_title">設定</string>
+    <string name="settings_theme">テーマ</string>
+    <string name="settings_theme_system">システム</string>
+    <string name="settings_dynamic_color">ダイナミックカラー</string>
 </resources>
