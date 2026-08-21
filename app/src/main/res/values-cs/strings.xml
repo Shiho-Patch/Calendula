@@ -212,4 +212,42 @@
         <item quantity="many">%d dnů předtím</item>
         <item quantity="other">%d dnů předtím</item>
     </plurals>
+    <plurals name="reminder_weeks">
+        <item quantity="one">%d týden předtím</item>
+        <item quantity="few">%d týdny předtím</item>
+        <item quantity="many">%d týdnů předtím</item>
+        <item quantity="other">%d týdnů předtím</item>
+    </plurals>
+    <plurals name="duration_minutes">
+        <item quantity="one">%d minuta</item>
+        <item quantity="few">%d minuty</item>
+        <item quantity="many">%d minut</item>
+        <item quantity="other">%d minut</item>
+    </plurals>
+    <plurals name="duration_hours">
+        <item quantity="one">%d hodina</item>
+        <item quantity="few">%d hodiny</item>
+        <item quantity="many">%d hodin</item>
+        <item quantity="other">%d hodin</item>
+    </plurals>
+    <plurals name="duration_days">
+        <item quantity="one">%d den</item>
+        <item quantity="few">%d dny</item>
+        <item quantity="many">%d dnů</item>
+        <item quantity="other">%d dnů</item>
+    </plurals>
+    <string name="duration_hours_minutes">%1$s %2$s</string>
+    <string name="duration_custom_max">Nanejvýš %1$s</string>
+    <plurals name="duration_weeks">
+        <item quantity="one">%d týden</item>
+        <item quantity="few">%d týdny</item>
+        <item quantity="many">%d týdnů</item>
+        <item quantity="other">%d týdnů</item>
+    </plurals>
+    <string name="event_untitled">(Bez názvu)</string>
+    <string name="onboarding_backup_title">Vaši událost naleznete pouze zde</string>
+    <string name="onboarding_backup_body">V tomto telefonu se nesynchronizuje žádný účet, takže pokud ho ztratíte, přijdete i o svůj kalendář. Calendula může vytvořit lokální zálohu.</string>
+    <string name="onboarding_backup_benefit_folder_title">Složka, kterou si vyberete</string>
+    <string name="onboarding_backup_benefit_folder_body">Zálohy jsou obyčejné soubory v .ics formátu — uložte je někam, kde se synchronizují, nebo na SD kartu.</string>
+    <string name="onboarding_backup_benefit_daily_title">Jednou denně, automaticky</string>
 </resources>
