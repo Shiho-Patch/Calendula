@@ -206,4 +206,10 @@
         <item quantity="many">%d hodin předtím</item>
         <item quantity="other">%d hodin předtím</item>
     </plurals>
+    <plurals name="reminder_days">
+        <item quantity="one">%d den předtím</item>
+        <item quantity="few">%d dny předtím</item>
+        <item quantity="many">%d dnů předtím</item>
+        <item quantity="other">%d dnů předtím</item>
+    </plurals>
 </resources>
