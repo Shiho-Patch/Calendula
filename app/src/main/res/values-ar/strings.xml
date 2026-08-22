@@ -238,7 +238,7 @@
     <string name="settings_time_format_24h">٢٤-ساعة (١٤:٠٠)</string>
     <string name="agenda_range_day">اليوم</string>
     <string name="settings_agenda_show_today">إظهار اليوم دائمًا</string>
-    <string name="settings_agenda_show_today_hint">اترك اليوم في أعلى الجدول و ودجته، حتى بعد عدم وجود أي شيء اليوم.</string>
+    <string name="settings_agenda_show_today_hint">اترك اليوم في أعلى الجدول و أداته المصغرة، حتى بعد عدم وجود أي شيء اليوم.</string>
     <string name="agenda_range_this_month">هذا الشهر</string>
     <string name="agenda_range_this_week">هذا الأسبوع</string>
     <string name="settings_past_events_show">إظهار</string>
@@ -249,7 +249,7 @@
     <string name="event_edit_timezone_all">جميع المناطق الزمنية</string>
     <string name="event_edit_timezone_none">لا منطقة زمنية تطابق ”%1$s“</string>
     <string name="event_edit_timezone_local_time">%1$s توقيتك</string>
-    <string name="event_edit_timezone_recent">الأحدث</string>
+    <string name="event_edit_timezone_recent">الأخيرة</string>
     <string name="event_edit_recurrence_incomplete">أدخل رقمًا من ١ إلى ٩٩٩</string>
     <plurals name="duration_minutes">
         <item quantity="zero">(%d) لا دقائق</item>
@@ -286,7 +286,7 @@
     <string name="agenda_span_starts">يبدأ %1$s</string>
     <string name="agenda_span_ends">ينتهي %1$s</string>
     <string name="today_jump_action">الانتقال إلى اليوم</string>
-    <string name="widget_refresh">تحديث</string>
+    <string name="widget_refresh">إعادة تحميل</string>
     <string name="settings_app_name">اسم التطبيق</string>
     <string name="settings_dim_completed">تعتيم الأحداث المكتملة</string>
     <string name="settings_dim_completed_summary">تعتيم الأحداث التي انتهت بالفعل في عرض الشهر والأسبوع</string>
@@ -515,7 +515,7 @@
     <string name="month_split_expand">إظهار الشهر بأكمله</string>
     <string name="settings_week_day_header">الأسبوع و اليوم</string>
     <string name="settings_default_view_hint">طريقة العرض التي يفتحها Calendula عندما تقوم ببدءه.</string>
-    <string name="settings_week_start_hint">اليوم الذي يبدأ به كل أسبوع، في جميع طرق العرض والودجتز.</string>
+    <string name="settings_week_start_hint">اليوم الذي يبدأ به كل أسبوع، في جميع طُرق العرض والأدوات المصغّرة.</string>
     <string name="settings_time_format_hint">كيف الأوقات تُكتب في جميع أنحاء التطبيق. تلقائيًا يتبع إعداد نظامك.</string>
     <string name="settings_past_events_hint">ما الذي يفعله جدول بالأحداث التي انتهت بالفعل.</string>
     <string name="calendars_visibility_a11y">إظهار \"%1$s\"</string>
@@ -656,9 +656,9 @@
     <string name="settings_special_dates_calendar_hint">اضبط لون كل تقويم وإمكانية ظهوره في إعدادات التقويمات.</string>
     <string name="calendars_visibility_hint">قم بإيقاف تقويم لإخفائه على هذا الجهاز — تختفي أحداثه من التطبيق ويتوقف عن تذكيرك. هذا هو مفتاح التبديل نفسه الذي تستخدمه تطبيقات التقويم الأخرى خاصتك، لذلك تقوم بإخفائه أيضًا. لا شيء يتم حذفه، ولا يتأثر أي جهاز آخر، ويمكنك إعادة تشغيله من هنا في أي وقت.</string>
     <string name="settings_allday_reminder_fires_at">يتم الإشعار في %1$s</string>
-    <string name="settings_agenda_widget_range">نطاق ودجت الجدول</string>
-    <string name="settings_widget_size">حجم ودجت الجدول</string>
-    <string name="settings_widgets_subtitle">ودجت الجدول، عنصر الإعدادات السريعة</string>
+    <string name="settings_agenda_widget_range">مدى أداة الجدول</string>
+    <string name="settings_widget_size">حجم أداة الجدول</string>
+    <string name="settings_widgets_subtitle">أداة الجدول، عنصر الإعدادات السريعة</string>
     <string name="settings_drag_to_reschedule">السحب لتعديل الموعد</string>
     <string name="settings_drag_to_reschedule_summary">انقل حدثًا عن طريق سحبه إلى يوم أو وقت آخر</string>
     <string name="event_move_blocked_series_end">لا يمكن نقل حدث بعد نهاية سلسلته</string>
@@ -666,7 +666,7 @@
     <string name="settings_quick_switch_hint">اختر أي طُرق العرض التي يتم التنقل بينها باستخدام الزر الموجود في أعلى اليمين، واسحب لإعادة ترتيبها. تظل طرق العرض التي تم إيقاف تشغيلها متاحة من قائمة التنقل.</string>
     <string name="calendars_account_from_source">%1$s (%2$s)</string>
     <string name="duration_hours_minutes">%1$s %2$s</string>
-    <string name="settings_widgets_hint">إعدادات لوجدتز الشاشة الرئيسية وعنصر لوحة الإعدادات السريعة. أضف وجدت عن طريق الضغط لفترة طويلة على شاشتك الرئيسية.</string>
+    <string name="settings_widgets_hint">إعدادات لأدوات الشاشة الرئيسية وعنصر الإعدادات السريعة. أضف أداة عن طريق الضغط لفترة طويلة على شاشتك الرئيسية.</string>
     <string name="import_warning_attendees">لم يتم استيراد قوائم الضيوف.</string>
     <string name="settings_reliable_delivery_exempt">معفى من تحسين البطارية — تصل التذكيرات في الوقت المحدد.</string>
     <string name="settings_reliable_delivery">توصيل موثوق</string>
@@ -678,4 +678,13 @@
     <string name="settings_special_dates_last_synced">آخر مزامنة %1$s</string>
     <string name="settings_special_dates_disable_type_message">يؤدي هذا لحذف التقويم ”%1$s“ وأحداثه. سيتم فقدان أي تذكيرات أو ملاحظات أضفتها إليه.</string>
     <string name="special_dates_default_title_birthday">عيد ميلاد {name} ({year})</string>
+    <string name="event_move_action">نقل…</string>
+    <string name="settings_font_specimen_heading">الخميس، 14 مايو</string>
+    <string name="settings_font_specimen_body">مراجعة الفريق في 10:00، ثم الغداء مع روبن في المقهى في ماركتبلاتز.</string>
+    <string name="settings_section_widgets">الأدوات المصغّرة والعناصر</string>
+    <string name="settings_widget_size_hint">مدى حجم النص الذي تعرض جدول أداة الشاشة الرئيسية. أداة الشهر ليس لديه إعداد — تتناسب شبكته دائمًا نفسه للمساحة التي تمنحها إيّاه.</string>
+    <string name="settings_agenda_widget_range_hint">كم مدى يعرض جدول أداة الشاشة الرئيسية الأحداث.</string>
+    <string name="settings_agenda_range_hint">كم مدى يعرض شاشة الجدول الأحداث.</string>
+    <string name="app_name">Calendula</string>
+    <string name="font_atkinson_hyperlegible">Atkinson Hyperlegible</string>
 </resources>
