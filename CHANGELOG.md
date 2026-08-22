@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.3] — 2026-08-22
+
+### Added
+- **Czech, Japanese and Russian**, all three contributed as community
+  translations through
+  [Calendula's Weblate](https://weblate.dev.jeanlucmakiola.de/projects/calendula/).
+  They are early — Czech covers about a third of the app, Russian a fifth,
+  Japanese has just started — so untranslated parts still show in English until
+  they fill out. Pick any of them under Settings → Language or in Android's
+  per-app language settings. Thanks to James Trivette (Czech), ame0011
+  (Japanese), and chip and Pablo (Russian); help finishing them is very welcome.
+
+### Changed
+- **Brazilian Portuguese is now complete**, covering the whole app. Thanks to
+  bkrz for carrying it the rest of the way.
+
 ## [2.19.2] — 2026-08-17
 
 ### Changed
