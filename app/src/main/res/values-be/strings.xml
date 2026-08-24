@@ -6,4 +6,22 @@
         <item>Days</item>
         <item>Weeks</item>
     </string-array>
+    <string name="app_tagline">Сучасны каляндар.</string>
+    <string name="state_loading">Загрузка…</string>
+    <string name="state_retry">Паўтарыць спробу</string>
+    <string name="state_failure_unknown">Узнікла нейкая праблема.</string>
+    <string name="state_failure_permission">Патрабуецца доступ да календара.</string>
+    <string name="state_failure_permission_action">Дазволіць доступ</string>
+    <string name="state_failure_no_calendars">Календары не сканфігураваныя.</string>
+    <string name="state_failure_no_calendars_action">Адкрыць сыстэмныя налады календароў</string>
+    <string name="state_failure_provider">Немагчыма прачытаць каляндар.</string>
+    <string name="permission_rationale_title">Прагляд усіх падзеяў у прыгожым выглядзе</string>
+    <string name="permission_rationale_body">Для паказу і кіраваньня падзеямі Calendula патрабуецца доступ да вашага календара.</string>
+    <string name="permission_request_button">Дазволіць доступ да календара</string>
+    <string name="permission_denied_title">Няма доступу да календара</string>
+    <string name="permission_denied_body">Calendula ня можа паказваць падзеі бяз доступу да календара.</string>
+    <string name="permission_open_settings_button">Адкрыць сыстэмныя налады</string>
+    <string name="permission_retry_button">Паўтарыць спробу</string>
+    <string name="permission_benefit_private_title">Распрацавана з акцэнтам на прыватнасьць</string>
+    <string name="permission_benefit_private_body">Бяз доступу да Інтэрнэту, без тэлемэтрыі — нічога і ніколі не пакідае ваш тэлефон.</string>
 </resources>
