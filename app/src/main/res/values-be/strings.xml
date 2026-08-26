@@ -140,4 +140,10 @@
     <string name="recurrence_unit_years">год/гады</string>
     <string name="event_edit_recurrence_incomplete">Увядзеце лік ад 1 да 999</string>
     <string name="event_edit_recurrence_next">Наступ.: %1$s</string>
+    <string name="event_edit_recurrence_next_none">Гэтае правіла ніколі не паўтараецца</string>
+    <string name="event_edit_recurrence_ends">Заканчэньне</string>
+    <string name="event_edit_recurrence_end_never">Ніколі</string>
+    <string name="event_edit_recurrence_end_until">На дату</string>
+    <string name="event_edit_recurrence_end_count">Пасьля некалькіх разоў</string>
+    <string name="event_edit_recurrence_times">разы(оў)</string>
 </resources>
