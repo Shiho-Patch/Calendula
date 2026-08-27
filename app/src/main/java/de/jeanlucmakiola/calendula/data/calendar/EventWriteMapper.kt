@@ -10,6 +10,9 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.time.format.ResolverStyle
+import java.time.LocalDate as JavaLocalDate
 import java.time.LocalDateTime as JavaLocalDateTime
 
 /** Provider-ready DTSTART / DTEND / EVENT_TIMEZONE for an event write. */
@@ -134,18 +137,21 @@ internal fun buildEventInsertValues(
  *
  * Time fields travel together (the provider validates them as a unit):
  * - unchanged times, all-day flag and rrule → no time columns at all;
- * - non-recurring result → DTSTART/DTEND, DURATION and RRULE cleared;
+ * - non-recurring result → DTSTART/DTEND, DURATION, RRULE and EXDATE cleared;
  * - recurring result → the *series* DTSTART moves by the same **wall-clock**
  *   shift the user applied to the displayed occurrence and is re-resolved in the
  *   event's zone ([seriesDtStartMillis] is the row's current DTSTART), DURATION
- *   replaces DTEND, RRULE is written. This keeps past occurrences intact when
- *   someone edits a later occurrence's time, and keeps the anchor's time-of-day
- *   stable across a DST boundary or a zone change between the two.
+ *   replaces DTEND, RRULE is written, and the row's exclusions
+ *   ([seriesExdate], the current EXDATE) travel with the anchor. This keeps past
+ *   occurrences intact when someone edits a later occurrence's time, and keeps
+ *   the anchor's time-of-day stable across a DST boundary or a zone change
+ *   between the two.
  */
 internal fun buildEventUpdateValues(
     original: EventForm,
     updated: EventForm,
     seriesDtStartMillis: Long,
+    seriesExdate: String?,
     zone: ZoneId,
 ): Map<String, Any?> = buildMap {
     if (updated.title.trim() != original.title.trim()) {
@@ -185,6 +191,10 @@ internal fun buildEventUpdateValues(
         put(CalendarContract.Events.DTEND, newTimes.dtEndMillis)
         put(CalendarContract.Events.RRULE, null)
         put(CalendarContract.Events.DURATION, null)
+        // The exclusions named occurrences of a series that no longer exists.
+        // Left behind they are dormant rather than harmless: adding a recurrence
+        // back later would punch the old holes into the new one.
+        put(CalendarContract.Events.EXDATE, null)
     } else {
         // Move the series anchor by the *wall-clock* shift the user applied to the
         // displayed occurrence, then re-resolve it in the event's (possibly new)
@@ -206,6 +216,14 @@ internal fun buildEventUpdateValues(
         put(CalendarContract.Events.DTEND, null)
         put(CalendarContract.Events.RRULE, updated.rrule)
         put(CalendarContract.Events.DURATION, newTimes.toRfc2445Duration(updated.isAllDay))
+        // An EXDATE stamp is an absolute instant, so it excludes an occurrence
+        // only while the series keeps generating one at exactly that instant. The
+        // anchor has just moved, so every occurrence regenerates elsewhere and a
+        // stamp left behind matches none of them — the occurrence the user deleted
+        // comes back. Move the stamps the same way the anchor moved.
+        shiftedExdate(seriesExdate, original, updated, zone)
+            ?.takeIf { it != seriesExdate }
+            ?.let { put(CalendarContract.Events.EXDATE, it) }
     }
 }
 
@@ -420,11 +438,7 @@ internal fun buildOccurrenceExdateValues(
     allDay: Int,
 ): Map<String, Any?> {
     val stamp = formatExdateStamp(occurrenceMillis, isAllDay = allDay != 0)
-    val existing = existingExdate?.split(',')
-        ?.map { it.trim() }
-        ?.filter { it.isNotEmpty() }
-        .orEmpty()
-    val merged = (existing + stamp).distinct().joinToString(",")
+    val merged = (exdateStamps(existingExdate) + stamp).distinct().joinToString(",")
     return mapOf(
         CalendarContract.Events.EXDATE to merged,
         CalendarContract.Events.DTSTART to dtStartMillis,
@@ -436,21 +450,121 @@ internal fun buildOccurrenceExdateValues(
 }
 
 /**
+ * [existingExdate] with every stamp re-timed by the same **wall-clock** shift the
+ * series anchor takes from [original] to [updated] — the exclusions' half of the
+ * anchor move [buildEventUpdateValues] performs, and what carries them onto the
+ * new series when "this and following" splits one.
+ *
+ * A stamp is an absolute instant, so it keeps naming its occurrence only if it
+ * moves exactly as the occurrence does: shifted in wall clock and re-resolved in
+ * the event's (possibly new) zone. A millisecond delta would instead bake in the
+ * offset that happened to apply at the edited occurrence — an hour off for any
+ * exclusion on the far side of a DST boundary. All-day-ness is read from
+ * [original] and written from [updated], so the `VALUE=DATE` and date-time forms
+ * convert into each other when the event switches.
+ *
+ * Null when there is nothing to carry: no stamps, or a stamp in a form Calendula
+ * never writes (a `TZID=`-parameterised or floating one from a sync adapter). Those
+ * are left exactly as they are rather than guessed at — a stale stamp excludes
+ * nothing, but a mangled one could exclude the wrong occurrence.
+ */
+internal fun shiftedExdate(
+    existingExdate: String?,
+    original: EventForm,
+    updated: EventForm,
+    zone: ZoneId,
+): String? {
+    val stamps = exdateStamps(existingExdate)
+    if (stamps.isEmpty()) return null
+    val fromZone = original.writeZone(zone)
+    val toZone = updated.writeZone(zone)
+    val wallClockShift = Duration.between(original.anchorLocal(), updated.anchorLocal())
+    return stamps
+        .map { stamp ->
+            val local = parseExdateStamp(stamp, original.isAllDay, fromZone) ?: return null
+            formatExdateStamp(local.plus(wallClockShift), updated.isAllDay, toZone)
+        }
+        .distinct()
+        .joinToString(",")
+}
+
+/**
+ * The stamps of [existingExdate] naming occurrences after [beginMillis] — the ones
+ * that belong to the *new* series once "this and following" splits a recurring
+ * event there. The parent keeps the full list; its stamps past the split point are
+ * simply inert once it stops generating those occurrences.
+ *
+ * The occurrence at [beginMillis] itself is never carried. It is the one the user
+ * is editing, so it exists by definition, and honouring a stale exclusion for it
+ * would swallow the edit whole.
+ *
+ * Null when nothing qualifies, or when a stamp can't be read (see [shiftedExdate]).
+ */
+internal fun exdateAfter(existingExdate: String?, beginMillis: Long, isAllDay: Boolean): String? {
+    val stamps = exdateStamps(existingExdate)
+    if (stamps.isEmpty()) return null
+    return stamps
+        .filter { stamp ->
+            val utc = parseExdateStamp(stamp, isAllDay, ZoneOffset.UTC) ?: return null
+            utc.toInstant(ZoneOffset.UTC).toEpochMilli() > beginMillis
+        }
+        .takeIf { it.isNotEmpty() }
+        ?.joinToString(",")
+}
+
+/** The individual stamps of an EXDATE column value; it is a comma-separated list. */
+private fun exdateStamps(exdate: String?): List<String> = exdate
+    ?.split(',')
+    ?.map { it.trim() }
+    ?.filter { it.isNotEmpty() }
+    .orEmpty()
+
+/**
  * One EXDATE entry for the occurrence starting at [occurrenceMillis]. Both forms
  * are UTC: the provider stores an all-day DTSTART at UTC midnight, so its date
  * reads off the UTC calendar day.
  */
-private fun formatExdateStamp(occurrenceMillis: Long, isAllDay: Boolean): String {
-    val utc = Instant.ofEpochMilli(occurrenceMillis).atZone(ZoneOffset.UTC)
-    return if (isAllDay) {
-        "%04d%02d%02d".format(utc.year, utc.monthValue, utc.dayOfMonth)
+private fun formatExdateStamp(occurrenceMillis: Long, isAllDay: Boolean): String =
+    formatExdateStamp(
+        local = Instant.ofEpochMilli(occurrenceMillis).atZone(ZoneOffset.UTC).toLocalDateTime(),
+        isAllDay = isAllDay,
+        zone = ZoneOffset.UTC,
+    )
+
+/**
+ * One EXDATE entry for the occurrence whose wall clock in [zone] is [local]. An
+ * all-day entry keeps only the date (its time-of-day is the anchor's, not the
+ * occurrence's); a timed one is resolved in [zone] and written as a UTC instant.
+ */
+private fun formatExdateStamp(local: JavaLocalDateTime, isAllDay: Boolean, zone: ZoneId): String =
+    if (isAllDay) {
+        local.toLocalDate().format(ALL_DAY_EXDATE)
     } else {
-        "%04d%02d%02dT%02d%02d%02dZ".format(
-            utc.year, utc.monthValue, utc.dayOfMonth,
-            utc.hour, utc.minute, utc.second,
-        )
+        local.atZone(zone).withZoneSameInstant(ZoneOffset.UTC).format(TIMED_EXDATE)
     }
-}
+
+/**
+ * [stamp] as the wall clock it names in [zone] — the inverse of
+ * [formatExdateStamp]. Null for anything but the two forms Calendula writes, so a
+ * caller can tell "not ours, leave it alone" from a value it may safely re-time.
+ */
+private fun parseExdateStamp(stamp: String, isAllDay: Boolean, zone: ZoneId): JavaLocalDateTime? =
+    runCatching {
+        if (isAllDay) {
+            JavaLocalDate.parse(stamp, ALL_DAY_EXDATE).atStartOfDay()
+        } else {
+            JavaLocalDateTime.parse(stamp, TIMED_EXDATE)
+                .atZone(ZoneOffset.UTC).withZoneSameInstant(zone).toLocalDateTime()
+        }
+    }.getOrNull()
+
+/** `VALUE=DATE` EXDATE form, for an all-day series. */
+private val ALL_DAY_EXDATE: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("uuuuMMdd").withResolverStyle(ResolverStyle.STRICT)
+
+/** UTC date-time EXDATE form, for a timed series. */
+private val TIMED_EXDATE: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("uuuuMMdd'T'HHmmss'Z'").withResolverStyle(ResolverStyle.STRICT)
 
 /**
  * The `EVENT_COLOR` / `EVENT_COLOR_KEY` columns for a colour selection. A
