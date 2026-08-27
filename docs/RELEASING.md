@@ -172,9 +172,12 @@ F-Droid but not Play:
 Until those are fixed, Play's graphics are managed by hand in the console. Then
 pass `images:true` to the `listing` lane.
 
-**Track.** Uploads go to `internal` by default; promotion to production stays a
-manual action in the Play Console, matching the rule that UI releases wait for
-on-device review. Override with the `PLAY_TRACK` repo variable.
+**Track.** Uploads go straight to `production` at a full rollout
+(`PLAY_RELEASE_STATUS=completed`). The merge to `main` is already the human
+gate — a release only gets there after on-device review — so a second manual
+promotion in the Play Console added delay without adding a decision. Set the
+`PLAY_TRACK` repo variable (e.g. `internal`) to stage a release instead, or
+`PLAY_RELEASE_STATUS=draft` to hold it unpublished.
 
 ### Manual re-sign / recovery
 
@@ -233,7 +236,7 @@ Two consequences worth remembering:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `PLAY_TRACK` | `internal` | Play track the bundle is uploaded to. |
+| `PLAY_TRACK` | `production` | Play track the bundle is uploaded to. Set to `internal`/`alpha`/`beta` to stage instead. |
 | `PLAY_RELEASE_STATUS` | `completed` | `completed`, `draft`, `inProgress` or `halted`. |
 | `PLAY_DRY_RUN` | `false` | `true` validates the Play edit against the API and discards it — use to rehearse. |
 

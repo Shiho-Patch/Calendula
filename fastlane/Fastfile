@@ -29,7 +29,7 @@ platform :android do
 
     supply(
       aab: aab,
-      track: options[:track] || "internal",
+      track: options[:track] || "production",
       release_status: options[:release_status] || "completed",
 
       # The APK belongs to F-Droid and the Codeberg download; Play only ever
