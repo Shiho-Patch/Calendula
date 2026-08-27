@@ -666,4 +666,5 @@
     <string name="calendars_state_managed">Wypełniony na podstawie Twoich kontaktów</string>
     <string name="calendars_managed_delete_locked">Ten kalendarz jest uzupełniany na podstawie Twoich kontaktów, więc Calendula utworzy go ponownie przy następnej synchronizacji. Aby go usunąć, wyłącz daty szczególne w menu Ustawienia → Szczególne daty kontaktów.</string>
     <string name="calendars_account_from_source">%1$s (%2$s)</string>
+    <string name="onboarding_backup_skip_button">Nie teraz</string>
 </resources>
