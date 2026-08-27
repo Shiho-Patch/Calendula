@@ -754,6 +754,11 @@ class EventEditViewModel @Inject constructor(
                 throw e
             } catch (e: SecurityException) {
                 SaveUiState.NeedsPermission
+            } catch (e: NoSuchEventException) {
+                // The write found the event (or the occurrence) already gone —
+                // the same answer the pre-check gives, and a far better one than
+                // a bare "couldn't save" for something that no longer exists.
+                SaveUiState.Gone
             } catch (e: Exception) {
                 // The user only gets a generic snackbar, so without this a
                 // failed write leaves no trace at all to report (Codeberg #234).

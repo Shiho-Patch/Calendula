@@ -585,23 +585,39 @@ class EventWriteMapperTest {
     }
 
     @Test
-    fun `a detached occurrence keeps everything but the rule`() {
+    fun `a detached occurrence carries every edited field onto the new row`() {
+        // The detached row is built from the form rather than cloned from the
+        // parent, so anything the user edited has to survive the trip — a field
+        // dropped here is an edit silently lost.
         val edited = form(timezone = "America/New_York").copy(
-            title = "Standup",
+            title = "  Standup  ",
             location = "Room 2",
             description = "notes",
             reminders = listOf(10),
             availability = Availability.Free,
             accessLevel = AccessLevel.Private,
-            colorKey = "7",
             rrule = "FREQ=DAILY",
         )
         val detached = edited.toDetachedOccurrence()
 
-        assertThat(detached.rrule).isNull()
-        assertThat(detached).isEqualTo(edited.copy(rrule = null))
-        // Reminders and guests ride along on the form: the insert path seeds them
-        // from it, so the detached row keeps the reminders the user just edited.
+        val values = buildEventInsertValues(
+            form = detached,
+            uid = "uid@calendula",
+            times = detached.toWriteTimes(berlin),
+        )
+        assertThat(values[CalendarContract.Events.TITLE]).isEqualTo("Standup")
+        assertThat(values[CalendarContract.Events.EVENT_LOCATION]).isEqualTo("Room 2")
+        assertThat(values[CalendarContract.Events.DESCRIPTION]).isEqualTo("notes")
+        assertThat(values[CalendarContract.Events.AVAILABILITY])
+            .isEqualTo(CalendarContract.Events.AVAILABILITY_FREE)
+        assertThat(values[CalendarContract.Events.ACCESS_LEVEL])
+            .isEqualTo(CalendarContract.Events.ACCESS_PRIVATE)
+        // The pinned zone survives too — a detached occurrence must not be
+        // silently re-anchored to the device.
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("America/New_York")
+        assertThat(values[CalendarContract.Events.UID_2445]).isEqualTo("uid@calendula")
+        // Reminders and guests aren't columns — the insert path seeds them from
+        // the form, so they only have to survive on the form itself.
         assertThat(detached.reminders).containsExactly(10)
     }
 
@@ -680,6 +696,43 @@ class EventWriteMapperTest {
         )
         assertThat(parent[CalendarContract.Events.EXDATE]).isEqualTo("20260611")
         assertThat(inserted[CalendarContract.Events.DTSTART]).isEqualTo(1_781_136_000_000L)
+    }
+
+    // --- exdateContains (guards a second detach of the same occurrence) ---
+
+    @Test
+    fun `an occurrence already excluded is recognised, timed and all-day`() {
+        // Detaching twice would fold the repeated EXDATE away and still report a
+        // changed row, leaving a second standalone copy of one occurrence.
+        assertThat(
+            exdateContains("20260611T080000Z", 1_781_164_800_000L, isAllDay = false),
+        ).isTrue()
+        assertThat(
+            exdateContains("20260611", 1_781_136_000_000L, isAllDay = true),
+        ).isTrue()
+    }
+
+    @Test
+    fun `an occurrence not in the exdate list is not mistaken for an excluded one`() {
+        assertThat(exdateContains(null, 1_781_164_800_000L, isAllDay = false)).isFalse()
+        assertThat(exdateContains("", 1_781_164_800_000L, isAllDay = false)).isFalse()
+        // A neighbouring occurrence must not match — the guard is per-instant.
+        assertThat(
+            exdateContains("20260610T080000Z", 1_781_164_800_000L, isAllDay = false),
+        ).isFalse()
+    }
+
+    @Test
+    fun `an exclusion is found anywhere in a multi-entry exdate list`() {
+        // Whitespace after a comma is legal in the stored column and must not
+        // hide an exclusion — that would let a duplicate through.
+        assertThat(
+            exdateContains(
+                "20260604T080000Z, 20260611T080000Z,20260618T080000Z",
+                1_781_164_800_000L,
+                isAllDay = false,
+            ),
+        ).isTrue()
     }
 
     // --- per-event colour ---

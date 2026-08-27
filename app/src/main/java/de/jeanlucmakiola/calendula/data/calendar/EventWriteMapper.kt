@@ -456,6 +456,26 @@ internal fun buildOccurrenceExdateValues(
 }
 
 /**
+ * Whether [existingExdate] already excludes the occurrence at [occurrenceMillis]
+ * — i.e. this occurrence has already been dropped from the series (deleted, or
+ * detached into its own event).
+ *
+ * Guards the detach path against running twice for the same occurrence, which a
+ * stale detail screen still pointing at the parent can otherwise reach. The
+ * EXDATE merge folds the repeat away silently and the parent update still
+ * reports one row changed, so without this check the second save would leave a
+ * *second* standalone copy and call it a success.
+ */
+internal fun exdateContains(
+    existingExdate: String?,
+    occurrenceMillis: Long,
+    isAllDay: Boolean,
+): Boolean {
+    val stamp = formatExdateStamp(occurrenceMillis, isAllDay)
+    return existingExdate?.split(',')?.any { it.trim() == stamp } == true
+}
+
+/**
  * One EXDATE entry for the occurrence starting at [occurrenceMillis]. Both forms
  * are UTC: the provider stores an all-day DTSTART at UTC midnight, so its date
  * reads off the UTC calendar day.
