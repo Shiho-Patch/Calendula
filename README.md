@@ -18,7 +18,7 @@ Reads, writes, and reminds — on top of the system calendar, with zero network 
 <p>
 <a href="https://f-droid.org/packages/de.jeanlucmakiola.calendula/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="56"></a>
 &nbsp;
-<a href="https://play.google.com/store/apps/details?id=de.jeanlucmakiola.calendula"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="68"></a>
+<a href="https://play.google.com/store/apps/details?id=de.jeanlucmakiola.calendula"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="56"></a>
 &nbsp;
 <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://codeberg.org/jlmakiola/calendula"><img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png?raw=true" alt="Get it on Obtainium" height="56"></a>
 &nbsp;
