@@ -18,6 +18,8 @@ Reads, writes, and reminds — on top of the system calendar, with zero network 
 <p>
 <a href="https://f-droid.org/packages/de.jeanlucmakiola.calendula/"><img src="https://fdroid.gitlab.io/artwork/badge/get-it-on.png" alt="Get it on F-Droid" height="56"></a>
 &nbsp;
+<a href="https://play.google.com/store/apps/details?id=de.jeanlucmakiola.calendula"><img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="68"></a>
+&nbsp;
 <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://codeberg.org/jlmakiola/calendula"><img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png?raw=true" alt="Get it on Obtainium" height="56"></a>
 &nbsp;
 <a href="https://ko-fi.com/jeanlucmakiola"><img src="https://storage.ko-fi.com/cdn/brandasset/v2/support_me_on_kofi_badge_beige.png" alt="Support me on Ko-fi" height="56"></a>
@@ -86,7 +88,7 @@ Pick whichever channel you already use — they all install the same app:
 | [Official F-Droid](#f-droid-recommended) | On F-Droid's build schedule | Recommended; no extra setup |
 | [Self-hosted F-Droid repo](#self-hosted-f-droid-repo-fastest-updates) | Minutes after a release | Fastest; needs the repo added once |
 | [Codeberg release / Obtainium](#codeberg-release--obtainium) | Per release | Plain APK download, or automated by Obtainium |
-| [Google Play](#google-play-coming-soon) | — | Coming soon |
+| [Google Play](#google-play) | Per release | Signed with Google's key — see below |
 | [Build from source](#build-from-source) | Whenever you build | Full control |
 
 ### F-Droid (recommended)
@@ -131,18 +133,14 @@ or do it by hand: *Add App* → paste `https://codeberg.org/jlmakiola/calendula`
 → *Add*. Either way, Obtainium tracks the releases and prompts you when a new
 one appears.
 
-### Google Play (coming soon)
+### Google Play
 
-Calendula is on its way to Google Play as an additional channel. It isn't live
-yet — this section gets a link once it is. Play builds will be signed with
-Google's key rather than mine, so switching between Play and any other channel
-will require an uninstall.
+Calendula is live on Google Play:
+**[play.google.com/store/apps/details?id=de.jeanlucmakiola.calendula](https://play.google.com/store/apps/details?id=de.jeanlucmakiola.calendula)**.
 
-> **Testers wanted.** Play requires a round of closed testing before the app can
-> go public, and I'm still looking for testers. If you'd like to help, email
-> **[business@jeanlucmakiola.de](mailto:business@jeanlucmakiola.de)** with the
-> Google account address you want to use — that address is what I need to add you
-> to the closed test.
+Play builds are signed with Google's key rather than mine, so switching between
+Play and any other channel requires an uninstall (and with it, a fresh start for
+app settings — your events live in the system calendar and are unaffected).
 
 ### Build from source
 
@@ -151,7 +149,7 @@ The build is a plain Gradle build with no proprietary dependencies — see
 
 <sub>Official F-Droid, the self-hosted repo, and the Codeberg releases all share
 the same signing key, so you can switch freely between them without
-reinstalling.</sub>
+reinstalling. Google Play is the exception — see above.</sub>
 
 ## 📚 Documentation
 
