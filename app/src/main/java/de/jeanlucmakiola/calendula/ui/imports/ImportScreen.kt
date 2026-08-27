@@ -93,15 +93,11 @@ fun ImportScreen(
     }
 
     // Hoisted target calendar so the always-visible top-bar Import action can
-    // read it without the user scrolling to a bottom button. Defaults to the
-    // first *local* calendar — the first row the picker shows ("Your calendars"
-    // group leads) — so the pre-selection lines up with the top of the list;
-    // falls back to the first calendar if there are no local ones. Re-defaults
-    // when the "many" list first arrives (keyed on it), then holds the pick.
+    // read it without the user scrolling to a bottom button (see
+    // [defaultImportTarget] for the choice). Re-defaults when the "many" list
+    // first arrives (keyed on it), then holds the pick.
     val many = state as? ImportUiState.Many
-    val defaultTarget = many?.calendars?.let { cals ->
-        (cals.firstOrNull { it.isLocal } ?: cals.firstOrNull())?.id
-    }
+    val defaultTarget = many?.let { defaultImportTarget(it.calendars, it.fileCalendarName) }
     var selected by rememberSaveable(defaultTarget) { mutableStateOf(defaultTarget) }
 
     Scaffold(

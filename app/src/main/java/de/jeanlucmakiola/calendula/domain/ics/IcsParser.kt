@@ -10,7 +10,7 @@ import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.number
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-import kotlin.math.roundToInt
+import kotlin.math.ceil
 import kotlin.time.Instant
 
 /** Milliseconds in a calendar day; all-day times are UTC midnights, so this is exact. */
@@ -55,15 +55,21 @@ data class ParsedIcsEvent(
  *
  * For a timed event the raw lead time already is that. All-day reminders are
  * whole days before the event, fired at the user's configured time of day (see
- * `AllDayReminderEncoding`), so a raw offset is rounded to the nearest day —
- * which is also what makes Fossify's all-day encoding land correctly: it writes
- * "on the day at 09:00" as a *positive* `TRIGGER:P0DT9H0M0S`, i.e. nine hours
- * after the UTC midnight, and that rounds to zero days before.
+ * `AllDayReminderEncoding`), so a raw offset counts the whole days its trigger
+ * lands *earlier than* the event's UTC midnight — i.e. it rounds **up**.
+ *
+ * Rounding to the nearest day instead would lose a day for every producer whose
+ * all-day notifications fire after noon: a file's raw offset is
+ * `days × 1440 − timeOfDay`, so "1 day before at 18:00" arrives as
+ * `TRIGGER:-PT6H` (raw 360) and would read as "on the day". Rounding up also
+ * lands Fossify's encoding correctly — it writes "on the day at 09:00" as a
+ * *positive* `TRIGGER:P0DT9H0M0S`, nine hours after the UTC midnight, which
+ * ceils to zero days before.
  */
 fun ParsedIcsEvent.semanticReminderMinutes(): List<Int> = reminderMinutes
     .map { raw ->
         if (isAllDay) {
-            (raw.toDouble() / MINUTES_PER_DAY).roundToInt().coerceAtLeast(0) * MINUTES_PER_DAY
+            ceil(raw.toDouble() / MINUTES_PER_DAY).toInt().coerceAtLeast(0) * MINUTES_PER_DAY
         } else {
             raw.coerceAtLeast(0)
         }
@@ -306,7 +312,7 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
             .mapNotNull { (line, token) ->
                 if (token.isEmpty()) return@mapNotNull null
                 if (token.contains('T')) {
-                    val instant = parseExDateTime(token, line) ?: return@mapNotNull null
+                    val instant = parseExDateTime(token, line, startZone) ?: return@mapNotNull null
                     if (start.isAllDay) utcDayCode(instant) else utcStamp(instant)
                 } else {
                     val date = parseBasicDate(token) ?: return@mapNotNull null
@@ -320,12 +326,22 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
             .distinct()
     }
 
-    private fun parseExDateTime(token: String, line: IcsContentLine): Instant? {
+    /**
+     * [startZone] is the series' own zone, which a floating value (no `Z`, no
+     * `TZID`) has to be read in — RFC 5545 ties `EXDATE` to `DTSTART`'s form,
+     * and reading it in the device's zone instead would put the exclusion on an
+     * instant no occurrence has.
+     */
+    private fun parseExDateTime(
+        token: String,
+        line: IcsContentLine,
+        startZone: TimeZone,
+    ): Instant? {
         val ldt = parseBasicDateTime(token.removeSuffix("Z")) ?: return null
         val zone = when {
             token.endsWith("Z") -> TimeZone.UTC
             else -> line.params["TZID"]?.let { runCatching { TimeZone.of(it) }.getOrNull() }
-                ?: deviceZone
+                ?: startZone
         }
         return ldt.toInstant(zone)
     }

@@ -592,7 +592,8 @@ internal fun buildImportedEventValues(
  * series, seconds otherwise. An all-day series is never shorter than a day —
  * the provider expands a zero-length one into no instances at all, so the
  * series would vanish (which is what a literal read of the Fossify family's
- * inclusive DTEND used to produce; see `IcsQuirks`).
+ * inclusive DTEND used to produce; see "Importing foreign .ics" in
+ * docs/ARCHITECTURE.md).
  */
 private fun importDuration(startMillis: Long, endMillis: Long, isAllDay: Boolean): String {
     val span = (endMillis - startMillis).coerceAtLeast(0)

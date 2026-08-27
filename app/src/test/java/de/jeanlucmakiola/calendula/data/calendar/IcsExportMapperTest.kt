@@ -4,6 +4,7 @@ import android.provider.CalendarContract
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.domain.EventStatus
 import org.junit.jupiter.api.Test
+import java.time.ZoneId
 
 class IcsExportMapperTest {
 
@@ -20,7 +21,11 @@ class IcsExportMapperTest {
             EventExportProjection.IDX_AVAILABILITY to CalendarContract.Events.AVAILABILITY_BUSY,
         )
 
-        val event = reader.toIcsEvent(reminderMinutes = listOf(10), calendarName = "Personal")
+        val event = reader.toIcsEvent(
+            reminderMinutes = listOf(10),
+            calendarName = "Personal",
+            allDayReminderTimeMinutes = NINE_AM,
+        )
 
         assertThat(event.uid).isEqualTo("abc@host")
         assertThat(event.summary).isEqualTo("Standup")
@@ -47,7 +52,11 @@ class IcsExportMapperTest {
             EventExportProjection.IDX_EVENT_TIMEZONE to "UTC",
         )
 
-        val event = reader.toIcsEvent(reminderMinutes = emptyList(), calendarName = null)
+        val event = reader.toIcsEvent(
+            reminderMinutes = emptyList(),
+            calendarName = null,
+            allDayReminderTimeMinutes = NINE_AM,
+        )
 
         assertThat(event.uid).isEqualTo("7-1000000@calendula")
         assertThat(event.recurrenceRule).isEqualTo("FREQ=WEEKLY")
@@ -65,6 +74,32 @@ class IcsExportMapperTest {
             EventExportProjection.IDX_EVENT_TIMEZONE to "UTC",
         )
 
-        assertThat(reader.toIcsEvent(emptyList(), null).isAllDay).isTrue()
+        assertThat(reader.toIcsEvent(emptyList(), null, NINE_AM).isAllDay).isTrue()
+    }
+
+    @Test
+    fun `an all-day reminder is exported as its whole-day lead time`() {
+        // The raw offset encodes the firing time and is normally negative; left
+        // raw it would be written as a trigger after the event and dropped, so
+        // the backup would come back with no reminder at all.
+        val reader = MapColumnReader(
+            EventExportProjection.IDX_ID to 1L,
+            EventExportProjection.IDX_TITLE to "Anna Birthday",
+            EventExportProjection.IDX_DTSTART to 1_782_864_000_000L, // 2026-07-01 UTC, CEST
+            EventExportProjection.IDX_DTEND to 1_782_950_400_000L,
+            EventExportProjection.IDX_ALL_DAY to 1,
+            EventExportProjection.IDX_EVENT_TIMEZONE to "UTC",
+        )
+
+        val onTheDay = reader.toIcsEvent(listOf(-420), null, NINE_AM, BERLIN)
+        val dayBefore = reader.toIcsEvent(listOf(1_020), null, NINE_AM, BERLIN)
+
+        assertThat(onTheDay.reminderMinutes).containsExactly(0)
+        assertThat(dayBefore.reminderMinutes).containsExactly(1_440)
+    }
+
+    private companion object {
+        const val NINE_AM = 9 * 60
+        val BERLIN: ZoneId = ZoneId.of("Europe/Berlin")
     }
 }

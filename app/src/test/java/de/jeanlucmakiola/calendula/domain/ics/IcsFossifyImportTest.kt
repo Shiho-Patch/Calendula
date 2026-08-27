@@ -290,6 +290,28 @@ class IcsFossifyImportTest {
     }
 
     @Test
+    fun `an all-day reminder whose firing time is after noon keeps its full day`() {
+        // The raw offset is `days * 1440 - timeOfDay`, so an 18:00 notification
+        // time puts "1 day before" only six hours ahead of the UTC midnight.
+        // Rounding to the nearest day would read that as "on the day".
+        val result = parser.parse(
+            fossify(
+                "BEGIN:VEVENT",
+                "SUMMARY:Anna Birthday",
+                "DTSTART;VALUE=DATE:20260819",
+                "DTEND;VALUE=DATE:20260820",
+                "BEGIN:VALARM",
+                "ACTION:DISPLAY",
+                "TRIGGER:-P0DT6H0M0S",
+                "END:VALARM",
+                "END:VEVENT",
+            ),
+        )
+
+        assertThat(result.events.single().semanticReminderMinutes()).containsExactly(1440)
+    }
+
+    @Test
     fun `an all-day reminder rounds to whole days before`() {
         val result = parser.parse(
             fossify(
@@ -364,6 +386,27 @@ class IcsFossifyImportTest {
         )
 
         assertThat(result.events.single().exDates).containsExactly("20260820T170000Z")
+    }
+
+    @Test
+    fun `a floating EXDATE is read in the series' zone, not the device's`() {
+        // RFC 5545 ties EXDATE to DTSTART's form: with no Z and no TZID the
+        // value is New York wall time. Reading it in the device's Berlin zone
+        // would land on an instant no occurrence has, and the excluded
+        // occurrence would come back.
+        val result = parser.parse(
+            fossify(
+                "BEGIN:VEVENT",
+                "SUMMARY:Standup",
+                "DTSTART;TZID=America/New_York:20260819T100000",
+                "DTEND;TZID=America/New_York:20260819T103000",
+                "RRULE:FREQ=WEEKLY",
+                "EXDATE:20260826T100000",
+                "END:VEVENT",
+            ),
+        )
+
+        assertThat(result.events.single().exDates).containsExactly("20260826T140000Z")
     }
 
     @Test

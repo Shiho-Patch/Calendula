@@ -43,6 +43,12 @@ sealed interface ImportUiState {
         val events: List<ParsedIcsEvent>,
         val warnings: Set<IcsParseWarning>,
         val calendars: List<CalendarSource>,
+        /**
+         * The calendar the file says its events came from, when it names exactly
+         * one — used to preselect a matching target. Null when the file names
+         * none or its events disagree.
+         */
+        val fileCalendarName: String? = null,
     ) : ImportUiState
 
     data class Done(val summary: IcsImportSummary) : ImportUiState
@@ -92,6 +98,10 @@ class ImportViewModel @Inject constructor(
                         warnings = parsed.warnings,
                         calendars = repository.calendars().first()
                             .filter { it.isEventTarget },
+                        fileCalendarName = parsed.events
+                            .mapNotNull { it.calendarName }
+                            .distinct()
+                            .singleOrNull(),
                     )
                 }
             }
@@ -112,4 +122,23 @@ class ImportViewModel @Inject constructor(
             }
         }
     }
+}
+
+/**
+ * The target calendar to preselect for a bulk import.
+ *
+ * A calendar named like the one the file came from wins — restoring "Birthdays"
+ * onto the Birthdays calendar is what the user means. Otherwise the first
+ * *local* calendar, which is the first row the picker shows ("Your calendars"
+ * leads), so the pre-selection lines up with the top of the list; failing that
+ * the first calendar of any kind.
+ */
+internal fun defaultImportTarget(
+    calendars: List<CalendarSource>,
+    fileCalendarName: String?,
+): Long? {
+    val named = fileCalendarName?.let { name ->
+        calendars.firstOrNull { it.displayName.equals(name, ignoreCase = true) }
+    }
+    return (named ?: calendars.firstOrNull { it.isLocal } ?: calendars.firstOrNull())?.id
 }

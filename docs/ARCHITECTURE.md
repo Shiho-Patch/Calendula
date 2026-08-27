@@ -384,12 +384,22 @@ read. `sanitizeRrule` drops empty and malformed parts before the write, and
 
 Smaller dialect handling: `VTODO` components import as events (Calendula models
 no tasks; dropping them silently lost half of some exports), `CATEGORIES` stands
-in for the `X-WR-CALNAME` Fossify never writes, bare `EXDATE` day codes on a
-timed series are resolved against the series' own time of day, and a `VALARM`
-trigger pointing *after* the start — which is how that family encodes "on the day
-at 09:00" — is read as zero days before rather than clamped to a lead time of
-zero, so all-day reminders fire at the hour the user's own setting names instead
-of at UTC midnight.
+in for the `X-WR-CALNAME` Fossify never writes and preselects a target calendar
+of that name, bare `EXDATE` day codes on a timed series are resolved against the
+series' own time of day (as is a floating `EXDATE` DATE-TIME — RFC 5545 ties it
+to `DTSTART`'s zone, not the device's), and a `VALARM` trigger pointing *after*
+the start — which is how that family encodes "on the day at 09:00" — is read as
+zero days before rather than clamped to a lead time of zero.
+
+All-day reminder offsets are **whole days, rounded up** in both directions. A
+file's raw offset is `days × 1440 − timeOfDay`, so rounding to the nearest day
+would drop a day for every producer whose all-day notifications fire after noon
+("1 day before at 18:00" arrives as `TRIGGER:-PT6H`). The export side is the
+mirror image: an all-day row's raw provider `MINUTES` has the firing time encoded
+into it and is normally *negative*, which the writer used to discard as a trigger
+after the event — so `toIcsEvent` decodes it back through
+`fromProviderAllDayMinutes` first, and the importing device re-encodes it against
+its own setting.
 
 Colour arrives as a raw ARGB from an app with no idea which account it is landing
 in. A calendar whose account publishes a palette rejects a raw `EVENT_COLOR`, so

@@ -91,8 +91,10 @@ interface CalendarDataSource {
      * rows are excluded (see [EventExportProjection]). When [calendarIds] is
      * given, only those calendars are exported (still intersected with the
      * eligible set); `null` exports every eligible calendar.
+     * [allDayReminderTimeMinutes]: needed to write all-day reminders as whole-day
+     * lead times rather than raw provider offsets (see [toIcsEvent]).
      */
-    fun exportableEvents(calendarIds: Set<Long>? = null): List<IcsEvent>
+    fun exportableEvents(calendarIds: Set<Long>?, allDayReminderTimeMinutes: Int): List<IcsEvent>
 
     /**
      * The non-empty `Events.UID_2445` values present in [calendarId] — used to
@@ -757,7 +759,10 @@ class AndroidCalendarDataSource @Inject constructor(
             ?: emptyList()
     }
 
-    override fun exportableEvents(calendarIds: Set<Long>?): List<IcsEvent> {
+    override fun exportableEvents(
+        calendarIds: Set<Long>?,
+        allDayReminderTimeMinutes: Int,
+    ): List<IcsEvent> {
         // Only the local calendars the app owns and can write — synced calendars
         // already have a backup (their server). Exclude the managed special-dates
         // mirror calendars: their events are derived from contacts, not authored
@@ -792,6 +797,7 @@ class AndroidCalendarDataSource @Inject constructor(
                 reader.toIcsEvent(
                     reminderMinutes = queryReminders(eventId).map { it.minutes },
                     calendarName = names[calendarId],
+                    allDayReminderTimeMinutes = allDayReminderTimeMinutes,
                 )
             }
         } ?: emptyList()

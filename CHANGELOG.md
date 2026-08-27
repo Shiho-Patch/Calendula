@@ -31,9 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read this file". Events are now added one at a time: anything rejected is
   counted and shown, and the rest still arrive. A faulty repeat rule in the file
   is repaired instead of being handed on ([#225]).
-- **Imported reminders fire at the hour you chose**, not at midnight UTC — the
-  same rule the app already applied to all-day events you create yourself
-  ([#225]).
+- **All-day reminders survive a backup and an import.** They fire at the hour you
+  chose, not at midnight UTC — the same rule the app already applied to all-day
+  events you create yourself — and an export no longer leaves them out of the
+  file entirely ([#225]).
 - **Birthdays and anniversaries imported from Fossify Calendar now show up.**
   Fossify writes the ones it mirrors from your contacts as events that start and
   end on the same day, which the calendar read as lasting no time at all: they
@@ -44,9 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **More of an imported `.ics` survives the trip**: tasks come across as events
   rather than being dropped in silence, deleted occurrences of a repeating event
-  stay deleted, the file's own calendar name is picked up, and event colours are
-  carried over — matched to the closest colour your calendar's account offers, so
-  a migrated calendar still reads at a glance ([#225]).
+  stay deleted, a calendar named like the one the file came from is preselected,
+  and event colours are carried over — matched to the closest colour your
+  calendar's account offers, so a migrated calendar still reads at a glance
+  ([#225]).
 
 ## [2.19.3] — 2026-08-22
 
