@@ -543,4 +543,5 @@
     <string name="month_split_no_events">Brak planów</string>
     <string name="month_split_expand">Pokaż cały miesiąc</string>
     <string name="month_split_collapse">Pokaż wydarzenia dnia</string>
+    <string name="event_move_gone">To wydarzenie już nie istnieje.</string>
 </resources>
