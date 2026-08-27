@@ -10,6 +10,7 @@ import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesScheduler
 import de.jeanlucmakiola.calendula.data.contacts.SpecialDatesSyncWorker
 import de.jeanlucmakiola.calendula.data.reminders.ReminderMaintenanceScheduler
 import de.jeanlucmakiola.calendula.data.reminders.ReminderMaintenanceWorker
+import de.jeanlucmakiola.calendula.widget.WidgetRolloverScheduler
 import de.jeanlucmakiola.floret.crash.CrashConfig
 import de.jeanlucmakiola.floret.crash.CrashReporter
 import kotlinx.coroutines.CoroutineScope
@@ -44,6 +45,11 @@ class CalendulaApp : Application() {
         reconcileSpecialDates()
         reconcileCalendarVisibility()
         startReminderDelivery()
+        // Re-arm the widgets' midnight rollover from whatever is actually placed
+        // (#228). Cheap and idempotent, and it covers the cases the broadcasts
+        // miss — an install upgrading into the fix, or an alarm dropped by a
+        // force-stop, is armed again the next time the app is opened.
+        WidgetRolloverScheduler.sync(this)
     }
 
     /**

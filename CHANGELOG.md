@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Home-screen widgets now turn the page at midnight.** Both the month and the
+  agenda widget kept highlighting yesterday as "today" — and the agenda kept
+  greying out the wrong events as already past — until you paged the month back
+  and forth or removed and re-added the widget. Calendula now wakes itself at the
+  day boundary and redraws, and re-arms after a reboot, a clock change or a
+  flight into another timezone ([#228]).
+
 ## [2.19.3] — 2026-08-22
 
 ### Added
@@ -1471,3 +1479,4 @@ automatically, with zero telemetry and no internet permission.
 [#192]: https://codeberg.org/jlmakiola/calendula/issues/192
 [#196]: https://codeberg.org/jlmakiola/calendula/issues/196
 [#214]: https://codeberg.org/jlmakiola/calendula/issues/214
+[#228]: https://codeberg.org/jlmakiola/calendula/issues/228

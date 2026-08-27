@@ -331,8 +331,13 @@
 
         <!-- Keeps both widgets fresh: the calendar provider broadcasts
              PROVIDER_CHANGED on any data change (our writes and external sync),
-             and the system broadcasts the date/time ones at midnight / clock
-             changes so "today" highlighting rolls over. -->
+             and the day boundary arrives as the app's own ROLLOVER alarm (#228),
+             delivered by an explicit PendingIntent so it needs no filter here.
+             DATE_CHANGED is kept as a free extra only — it is not an exempted
+             implicit broadcast, so a manifest-declared receiver is not given it
+             on Android 8+. TIME_SET / TIMEZONE_CHANGED move the day boundary,
+             and boot / package-replace wipe the alarm, so all four re-arm it.
+             Exported: the system broadcasts arrive from outside the app. -->
         <receiver
             android:name=".widget.WidgetUpdateReceiver"
             android:exported="true">
@@ -346,6 +351,8 @@
                 <action android:name="android.intent.action.DATE_CHANGED" />
                 <action android:name="android.intent.action.TIME_SET" />
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
 

@@ -50,3 +50,10 @@
 # the real names also survives app updates, which would otherwise renumber the
 # obfuscated name and orphan the stored mapping.
 -keep class * extends androidx.glance.appwidget.GlanceAppWidget
+
+# Same hazard one level up: MonthWidgetReceiver and AgendaWidgetReceiver are
+# also structurally identical (same supertype, same overrides, only a differing
+# property initializer), and Glance's provider map is keyed off the receiver
+# component too. Manifest-declared components are normally kept anyway, but this
+# is cheap and makes the invariant explicit rather than incidental.
+-keep class * extends androidx.glance.appwidget.GlanceAppWidgetReceiver
