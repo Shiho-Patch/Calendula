@@ -50,3 +50,9 @@
 # the real names also survives app updates, which would otherwise renumber the
 # obfuscated name and orphan the stored mapping.
 -keep class * extends androidx.glance.appwidget.GlanceAppWidget
+
+# Belt and braces one level up: the two receivers are nearly as alike, and the
+# provider map is keyed off the receiver component too. Redundant today (AGP's
+# manifest-derived rules cover them), but #89 cost a release to diagnose and the
+# guarantee should not rest on a component staying in the manifest.
+-keep class * extends androidx.glance.appwidget.GlanceAppWidgetReceiver
