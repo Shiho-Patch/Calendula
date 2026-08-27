@@ -244,6 +244,26 @@ internal fun buildOccurrenceExceptionValues(
 }
 
 /**
+ * The form as a **detached occurrence**: the same edited values, with the
+ * series rule dropped so [buildEventInsertValues] writes a standalone one-off
+ * row (DTSTART + DTEND, no RRULE/DURATION) at the occurrence's own times.
+ *
+ * This is the "edit only this event" shape for a series with **no `_sync_id`**,
+ * where an exception row can't be used at all — see [buildOccurrenceExdateValues]
+ * for why the parent link never forms. The occurrence is dropped from the parent
+ * with EXDATE and re-created as its own event, which is what a detached instance
+ * degrades to without a `RECURRENCE-ID` to carry it.
+ *
+ * Dropping the rule mirrors what the exception path gets for free: the provider
+ * clears the RRULE it cloned from the parent when an exception carries
+ * DTSTART + DURATION ([buildOccurrenceExceptionValues]). Here nothing is cloned,
+ * so the rule has to be stripped by hand — leaving it on would insert a second
+ * *series* overlapping the first, which is the duplication this path exists to
+ * avoid.
+ */
+internal fun EventForm.toDetachedOccurrence(): EventForm = copy(rrule = null)
+
+/**
  * Raw provider snapshot of a master/one-off Events row, enough to re-insert it
  * verbatim on another calendar (a calendar move is copy+delete — `CALENDAR_ID`
  * is sync-adapter-owned and can't be updated in place). Recurring rows carry

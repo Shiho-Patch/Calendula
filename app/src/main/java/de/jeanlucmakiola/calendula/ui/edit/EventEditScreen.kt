@@ -64,6 +64,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -264,13 +265,17 @@ fun EventEditScreen(
                 viewModel.reset()
                 onSaved()
             }
+            // A failed save leaves the user on a form that looks exactly as it
+            // did, so the snackbar is the only sign anything happened — it gets
+            // the long duration rather than the default flash (Codeberg #234:
+            // the failure read as "nothing happens at all").
             SaveUiState.Failed -> {
                 viewModel.consumeSaveResult()
-                snackbarHostState.showSnackbar(saveFailedMessage)
+                snackbarHostState.showSnackbar(saveFailedMessage, duration = SnackbarDuration.Long)
             }
             SaveUiState.NeedsPermission -> {
                 viewModel.consumeSaveResult()
-                snackbarHostState.showSnackbar(writeDeniedMessage)
+                snackbarHostState.showSnackbar(writeDeniedMessage, duration = SnackbarDuration.Long)
             }
             // AwaitingScope/AwaitingConflict/Gone render as dialogs below.
             else -> Unit

@@ -558,6 +558,130 @@ class EventWriteMapperTest {
         assertThat(values[CalendarContract.Events.ALL_DAY]).isEqualTo(1)
     }
 
+    // --- toDetachedOccurrence ("edit only this event", no _sync_id) ---
+
+    @Test
+    fun `a detached occurrence drops the series rule and becomes a one-off row`() {
+        val edited = form().copy(title = "Moved", rrule = "FREQ=WEEKLY;BYDAY=TH")
+        val detached = edited.toDetachedOccurrence()
+
+        val values = buildEventInsertValues(
+            form = detached,
+            uid = "uid@calendula",
+            times = detached.toWriteTimes(berlin),
+        )
+        assertThat(values[CalendarContract.Events.TITLE]).isEqualTo("Moved")
+        // The rule must not survive: without a _sync_id nothing clears an
+        // inherited RRULE the way the exception path's DTSTART + DURATION does,
+        // so keeping it would insert a second *series* overlapping the first
+        // (Codeberg #234's stray duplicate).
+        assertThat(values).doesNotContainKey(CalendarContract.Events.RRULE)
+        assertThat(values).doesNotContainKey(CalendarContract.Events.DURATION)
+        // A one-off row carries DTEND — the invariant buildEventInsertValues
+        // holds for every non-recurring event.
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_781_164_800_000L)
+        assertThat(values[CalendarContract.Events.DTEND]).isEqualTo(1_781_170_200_000L)
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("Europe/Berlin")
+    }
+
+    @Test
+    fun `a detached occurrence keeps everything but the rule`() {
+        val edited = form(timezone = "America/New_York").copy(
+            title = "Standup",
+            location = "Room 2",
+            description = "notes",
+            reminders = listOf(10),
+            availability = Availability.Free,
+            accessLevel = AccessLevel.Private,
+            colorKey = "7",
+            rrule = "FREQ=DAILY",
+        )
+        val detached = edited.toDetachedOccurrence()
+
+        assertThat(detached.rrule).isNull()
+        assertThat(detached).isEqualTo(edited.copy(rrule = null))
+        // Reminders and guests ride along on the form: the insert path seeds them
+        // from it, so the detached row keeps the reminders the user just edited.
+        assertThat(detached.reminders).containsExactly(10)
+    }
+
+    @Test
+    fun `a detached all-day occurrence stays on UTC midnights`() {
+        val edited = form(
+            isAllDay = true,
+            start = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(0, 0)),
+        ).copy(title = "Birthday", rrule = "FREQ=YEARLY")
+        val detached = edited.toDetachedOccurrence()
+
+        val values = buildEventInsertValues(
+            form = detached,
+            uid = "uid@calendula",
+            times = detached.toWriteTimes(berlin),
+        )
+        assertThat(values[CalendarContract.Events.ALL_DAY]).isEqualTo(1)
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("UTC")
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_781_136_000_000L)
+        // Exclusive DTEND — the next UTC midnight.
+        assertThat(values[CalendarContract.Events.DTEND]).isEqualTo(1_781_222_400_000L)
+        assertThat(values).doesNotContainKey(CalendarContract.Events.RRULE)
+    }
+
+    @Test
+    fun `the detached row lands exactly where the parent's exdate removes it`() {
+        // The two halves of the no-_sync_id edit have to agree, or the user sees
+        // the occurrence twice or not at all. With the time left untouched, the
+        // EXDATE stamp and the detached row's DTSTART describe the same instant.
+        val edited = form().copy(title = "Renamed", rrule = "FREQ=WEEKLY")
+        val occurrenceMillis = 1_781_164_800_000L
+
+        val parent = buildOccurrenceExdateValues(
+            existingExdate = null,
+            occurrenceMillis = occurrenceMillis,
+            dtStartMillis = 1_780_560_000_000L,
+            rrule = "FREQ=WEEKLY",
+            duration = "P5400S",
+            timezone = "Europe/Berlin",
+            allDay = 0,
+        )
+        val detached = edited.toDetachedOccurrence()
+        val inserted = buildEventInsertValues(
+            form = detached,
+            uid = "uid@calendula",
+            times = detached.toWriteTimes(berlin),
+        )
+        assertThat(parent[CalendarContract.Events.EXDATE]).isEqualTo("20260611T080000Z")
+        assertThat(inserted[CalendarContract.Events.DTSTART]).isEqualTo(occurrenceMillis)
+        // The parent keeps its own anchor and rule — only this occurrence leaves.
+        assertThat(parent[CalendarContract.Events.DTSTART]).isEqualTo(1_780_560_000_000L)
+        assertThat(parent[CalendarContract.Events.RRULE]).isEqualTo("FREQ=WEEKLY")
+    }
+
+    @Test
+    fun `a detached all-day occurrence matches its date-only exdate stamp`() {
+        val parent = buildOccurrenceExdateValues(
+            existingExdate = null,
+            occurrenceMillis = 1_781_136_000_000L, // 2026-06-11T00:00:00Z
+            dtStartMillis = 1_749_600_000_000L,
+            rrule = "FREQ=YEARLY",
+            duration = "P1D",
+            timezone = "UTC",
+            allDay = 1,
+        )
+        val detached = form(
+            isAllDay = true,
+            start = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(0, 0)),
+        ).copy(rrule = "FREQ=YEARLY").toDetachedOccurrence()
+        val inserted = buildEventInsertValues(
+            form = detached,
+            uid = "uid@calendula",
+            times = detached.toWriteTimes(berlin),
+        )
+        assertThat(parent[CalendarContract.Events.EXDATE]).isEqualTo("20260611")
+        assertThat(inserted[CalendarContract.Events.DTSTART]).isEqualTo(1_781_136_000_000L)
+    }
+
     // --- per-event colour ---
 
     @Test

@@ -232,10 +232,15 @@ interface CalendarDataSource {
     ): Long
 
     /**
-     * Change a single occurrence of a recurring event by inserting a
-     * modified-occurrence exception at [beginMillis] (the occurrence's
-     * `Instances.BEGIN`) carrying [form]'s values; returns the exception
-     * row's `Events._ID`. [allDayReminderTimeMinutes]: see [insertEvent].
+     * Change a single occurrence of a recurring event at [beginMillis] (the
+     * occurrence's `Instances.BEGIN`) to [form]'s values; returns the
+     * `Events._ID` of the row now holding them.
+     *
+     * A series with a `_sync_id` gets a modified-occurrence exception. One
+     * without gets the occurrence excluded from the parent via EXDATE plus a
+     * standalone event carrying the edits — an exception cannot link to its
+     * parent there (Codeberg #234, the same constraint as [deleteOccurrence]).
+     * [allDayReminderTimeMinutes]: see [insertEvent].
      */
     fun updateOccurrence(
         eventId: Long,
@@ -1194,6 +1199,10 @@ class AndroidCalendarDataSource @Inject constructor(
         form: EventForm,
         allDayReminderTimeMinutes: Int,
     ): Long {
+        val row = querySeriesRow(eventId)
+        if (row.syncId == null && !row.rrule.isNullOrBlank()) {
+            return detachOccurrence(eventId, beginMillis, row, form, allDayReminderTimeMinutes)
+        }
         // The provider clones the series row and applies these values on top.
         val values = buildOccurrenceExceptionValues(
             form = form,
@@ -1210,6 +1219,88 @@ class AndroidCalendarDataSource @Inject constructor(
         reconcileReminders(exceptionId, encodedReminders(form, allDayReminderTimeMinutes))
         reconcileAttendees(exceptionId, form.attendees)
         return exceptionId
+    }
+
+    /**
+     * "Edit only this event" on a series with **no `_sync_id`**: drop the
+     * occurrence from the parent with EXDATE and insert the edited values as a
+     * standalone event on the same calendar.
+     *
+     * A modified exception attaches to its parent only through `ORIGINAL_SYNC_ID`,
+     * exactly like the cancelled one [deleteOccurrence] documents. With no
+     * `_sync_id` the link never forms: the insert either fails outright or lands
+     * an orphan row, and the parent's expansion collapses — which is why editing
+     * one occurrence of such a series did nothing at all, and occasionally left a
+     * stray copy behind (Codeberg #234). The reporter's calendar was a Google one
+     * that "shows as on-device", i.e. rows the sync adapter had not stamped yet;
+     * Calendula's own local and contact special-date calendars are permanently in
+     * this shape.
+     *
+     * EXDATE + a standalone row needs no parent link, and is what a detached
+     * instance degrades to when there is no `RECURRENCE-ID` to carry it: the user
+     * sees one edited event where the occurrence was, and the rest of the series
+     * untouched. It does mean the edited occurrence stops travelling with the
+     * series — moving the series later won't move it — which is the honest cost of
+     * a link the provider cannot store here.
+     *
+     * Order is deliberate. The insert goes first, so a failure there leaves the
+     * series completely untouched (the same discipline as
+     * [updateEventFromOccurrence]). If the EXDATE update then fails, the new row
+     * is a visible duplicate of an occurrence that is still in the series, so it
+     * is rolled back before the failure surfaces — better a save the user can
+     * retry than a silent duplicate. The reverse order would risk the opposite:
+     * an occurrence excluded from the series with no replacement, i.e. an edit
+     * that quietly deletes.
+     */
+    private fun detachOccurrence(
+        eventId: Long,
+        beginMillis: Long,
+        row: SeriesRow,
+        form: EventForm,
+        allDayReminderTimeMinutes: Int,
+    ): Long {
+        // Carries the form's reminders, guests and colour like any new event —
+        // and a fresh UID, because the detached row really is a separate event
+        // now: sharing the parent's would collide with it in .ics restore dedup.
+        val detachedId = insertEvent(form.toDetachedOccurrence(), allDayReminderTimeMinutes)
+        val values = buildOccurrenceExdateValues(
+            existingExdate = row.exdate,
+            occurrenceMillis = beginMillis,
+            dtStartMillis = row.dtStartMillis,
+            rrule = row.rrule,
+            duration = row.duration,
+            timezone = row.timezone,
+            allDay = row.allDay,
+        )
+        val excluded = try {
+            resolver.update(
+                ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId),
+                values.toContentValues(), null, null,
+            )
+        } catch (e: RuntimeException) {
+            rollBackDetached(detachedId)
+            throw e
+        }
+        if (excluded == 0) {
+            rollBackDetached(detachedId)
+            throw WriteFailedException(
+                "exdate occurrence for edit, event id=$eventId begin=$beginMillis",
+            )
+        }
+        return detachedId
+    }
+
+    /**
+     * Undo the standalone row [detachOccurrence] inserted before its EXDATE
+     * update failed. Best effort: the caller is already throwing, and a rollback
+     * that itself fails must not replace the real failure with a confusing one.
+     * The worst case is the duplicate we were trying to avoid, which the user can
+     * see and delete — never a lost occurrence.
+     */
+    private fun rollBackDetached(detachedId: Long) {
+        runCatching { deleteEvent(detachedId) }.onFailure {
+            Log.w(TAG, "Failed to roll back detached occurrence $detachedId", it)
+        }
     }
 
     override fun updateEventFromOccurrence(
