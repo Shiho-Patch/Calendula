@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   flight into another timezone. Paging the month widget forward and back also
   stops quietly pinning it to that month, so it follows the date again instead of
   being stranded on the month you happened to be looking at ([#228]).
+- **"Only this event" now actually saves your edit.** On some calendars —
+  including Google ones that still show as on-device, and any local calendar —
+  editing a single occurrence of a repeating event did nothing at all: the scope
+  dialog closed, the edit screen stayed put, and saving again just repeated it.
+  Android can only attach a single-occurrence change to its series once the
+  calendar has been synced at least once, so on those calendars the change had
+  nowhere to go. Calendula now removes that one occurrence from the series and
+  saves the edit as its own event instead, which is what you see either way. A
+  save that does fail also says so for longer, rather than flashing past
+  ([#234]).
 
 ## [2.19.3] — 2026-08-22
 
@@ -1482,3 +1492,4 @@ automatically, with zero telemetry and no internet permission.
 [#196]: https://codeberg.org/jlmakiola/calendula/issues/196
 [#214]: https://codeberg.org/jlmakiola/calendula/issues/214
 [#228]: https://codeberg.org/jlmakiola/calendula/issues/228
+[#234]: https://codeberg.org/jlmakiola/calendula/issues/234

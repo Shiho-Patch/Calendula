@@ -244,6 +244,21 @@ internal fun buildOccurrenceExceptionValues(
 }
 
 /**
+ * The form as a **detached occurrence**: the same edited values, with the
+ * series rule dropped so [buildEventInsertValues] writes a standalone one-off
+ * row (DTSTART + DTEND, no RRULE/DURATION) at the occurrence's own times.
+ *
+ * The "edit only this event" shape for a series with **no `_sync_id`**, where an
+ * exception row can't attach to its parent at all (Codeberg #234).
+ *
+ * The exception path gets the rule dropped for free — the provider clears the
+ * RRULE it cloned when an exception carries DTSTART + DURATION
+ * ([buildOccurrenceExceptionValues]). Here nothing is cloned, so it is stripped
+ * by hand; leaving it on would insert a second *series* overlapping the first.
+ */
+internal fun EventForm.toDetachedOccurrence(): EventForm = copy(rrule = null)
+
+/**
  * Raw provider snapshot of a master/one-off Events row, enough to re-insert it
  * verbatim on another calendar (a calendar move is copy+delete — `CALENDAR_ID`
  * is sync-adapter-owned and can't be updated in place). Recurring rows carry
@@ -433,6 +448,23 @@ internal fun buildOccurrenceExdateValues(
         CalendarContract.Events.EVENT_TIMEZONE to timezone,
         CalendarContract.Events.ALL_DAY to allDay,
     )
+}
+
+/**
+ * Whether [existingExdate] already excludes the occurrence at [occurrenceMillis]
+ * — i.e. it has already been dropped from the series, deleted or detached.
+ *
+ * Guards the detach path against running twice from a stale screen: the EXDATE
+ * merge folds the repeat away silently and the update still reports one row
+ * changed, so a second save would leave a second standalone copy.
+ */
+internal fun exdateContains(
+    existingExdate: String?,
+    occurrenceMillis: Long,
+    isAllDay: Boolean,
+): Boolean {
+    val stamp = formatExdateStamp(occurrenceMillis, isAllDay)
+    return existingExdate?.split(',')?.any { it.trim() == stamp } == true
 }
 
 /**

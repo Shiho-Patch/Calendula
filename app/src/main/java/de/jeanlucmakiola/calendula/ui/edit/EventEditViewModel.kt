@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.edit
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -55,6 +56,8 @@ import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import javax.inject.Inject
+
+private const val TAG = "EventEdit"
 
 /**
  * Where a prefilled [EventEditViewModel.openImported] form came from. The sources
@@ -751,7 +754,15 @@ class EventEditViewModel @Inject constructor(
                 throw e
             } catch (e: SecurityException) {
                 SaveUiState.NeedsPermission
+            } catch (e: NoSuchEventException) {
+                // The event or occurrence is already gone: the same answer the
+                // pre-check gives, and better than a bare "couldn't save".
+                SaveUiState.Gone
             } catch (e: Exception) {
+                // The user only gets a generic snackbar, so without this a failed
+                // write leaves nothing to report (Codeberg #234). Scope and event
+                // id only — never the form's content.
+                Log.w(TAG, "Save failed (scope=$scope, eventId=${target?.eventId})", e)
                 SaveUiState.Failed
             }
         }

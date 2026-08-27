@@ -232,10 +232,15 @@ interface CalendarDataSource {
     ): Long
 
     /**
-     * Change a single occurrence of a recurring event by inserting a
-     * modified-occurrence exception at [beginMillis] (the occurrence's
-     * `Instances.BEGIN`) carrying [form]'s values; returns the exception
-     * row's `Events._ID`. [allDayReminderTimeMinutes]: see [insertEvent].
+     * Change a single occurrence of a recurring event at [beginMillis] (the
+     * occurrence's `Instances.BEGIN`) to [form]'s values; returns the
+     * `Events._ID` of the row now holding them.
+     *
+     * A series with a `_sync_id` gets a modified-occurrence exception. One
+     * without gets the occurrence excluded from the parent via EXDATE plus a
+     * standalone event carrying the edits — an exception cannot link to its
+     * parent there (Codeberg #234, the same constraint as [deleteOccurrence]).
+     * [allDayReminderTimeMinutes]: see [insertEvent].
      */
     fun updateOccurrence(
         eventId: Long,
@@ -1194,6 +1199,13 @@ class AndroidCalendarDataSource @Inject constructor(
         form: EventForm,
         allDayReminderTimeMinutes: Int,
     ): Long {
+        val row = querySeriesRow(eventId)
+        // Stricter than deleteOccurrence's bare _sync_id check: EXDATE only means
+        // something on a row that recurs, so a non-recurring one keeps the
+        // exception path rather than getting a recurrence set written onto it.
+        if (row.syncId == null && !row.rrule.isNullOrBlank()) {
+            return detachOccurrence(eventId, beginMillis, row, form, allDayReminderTimeMinutes)
+        }
         // The provider clones the series row and applies these values on top.
         val values = buildOccurrenceExceptionValues(
             form = form,
@@ -1210,6 +1222,89 @@ class AndroidCalendarDataSource @Inject constructor(
         reconcileReminders(exceptionId, encodedReminders(form, allDayReminderTimeMinutes))
         reconcileAttendees(exceptionId, form.attendees)
         return exceptionId
+    }
+
+    /**
+     * "Edit only this event" on a series with **no `_sync_id`**: drop the
+     * occurrence from the parent with EXDATE and insert the edited values as a
+     * standalone event on the same calendar.
+     *
+     * A modified exception attaches to its parent only through `ORIGINAL_SYNC_ID`,
+     * exactly like the cancelled one [deleteOccurrence] documents; with no
+     * `_sync_id` the link never forms and the edit is lost (Codeberg #234).
+     * EXDATE plus a standalone row needs no link — what a detached instance
+     * degrades to without a `RECURRENCE-ID` to carry it.
+     *
+     * The detached row keeps no stored link back to its series, so: it no longer
+     * travels with it ([moveEvent] copies the master and its `ORIGINAL_ID`
+     * children, and this is neither); its EXDATE hole is an absolute instant, so
+     * re-timing the whole series brings the occurrence back beside the copy (a
+     * #47 delete resurrects the same way); and it is built from the form, not
+     * cloned, so `ORGANIZER`, `STATUS` and the attendee rows [reconcileAttendees]
+     * preserves are dropped — the same limitation as [moveEvent].
+     *
+     * Insert first, so a failure leaves the series untouched
+     * ([updateEventFromOccurrence]'s discipline); roll the new row back if the
+     * EXDATE update then fails, since it would be a visible duplicate. The
+     * reverse order risks the worse outcome — an excluded occurrence with no
+     * replacement, i.e. an edit that quietly deletes.
+     */
+    private fun detachOccurrence(
+        eventId: Long,
+        beginMillis: Long,
+        row: SeriesRow,
+        form: EventForm,
+        allDayReminderTimeMinutes: Int,
+    ): Long {
+        // Already detached (or deleted) from a stale screen still pointing at the
+        // parent: the EXDATE merge would fold the repeat away and still report a
+        // changed row, quietly leaving a *second* standalone copy.
+        if (exdateContains(row.exdate, beginMillis, isAllDay = row.allDay != 0)) {
+            throw NoSuchEventException(eventId)
+        }
+        // Reminders, guests and colour come along like any new event, and so does
+        // a fresh UID — the detached row is a separate event now, and sharing the
+        // parent's would collide with it in .ics restore dedup.
+        val detachedId = insertEvent(form.toDetachedOccurrence(), allDayReminderTimeMinutes)
+        val values = buildOccurrenceExdateValues(
+            existingExdate = row.exdate,
+            occurrenceMillis = beginMillis,
+            dtStartMillis = row.dtStartMillis,
+            rrule = row.rrule,
+            duration = row.duration,
+            timezone = row.timezone,
+            allDay = row.allDay,
+        )
+        // Rows touched, not occurrences excluded — 1 whenever the series row still
+        // exists. It catches the row disappearing under us, not an EXDATE the
+        // provider's expansion fails to match.
+        val updatedRows = try {
+            resolver.update(
+                ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId),
+                values.toContentValues(), null, null,
+            )
+        } catch (t: Throwable) {
+            rollBackDetached(detachedId)
+            throw t
+        }
+        if (updatedRows == 0) {
+            rollBackDetached(detachedId)
+            throw WriteFailedException(
+                "exdate occurrence for edit, event id=$eventId begin=$beginMillis",
+            )
+        }
+        return detachedId
+    }
+
+    /**
+     * Undo the standalone row [detachOccurrence] inserted before its EXDATE
+     * update failed. Best effort: the caller is already throwing, and the worst
+     * case is the duplicate we were avoiding — never a lost occurrence.
+     */
+    private fun rollBackDetached(detachedId: Long) {
+        runCatching { deleteEvent(detachedId) }.onFailure {
+            Log.w(TAG, "Failed to roll back detached occurrence $detachedId", it)
+        }
     }
 
     override fun updateEventFromOccurrence(
