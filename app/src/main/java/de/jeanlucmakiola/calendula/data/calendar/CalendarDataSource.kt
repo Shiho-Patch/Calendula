@@ -1200,12 +1200,9 @@ class AndroidCalendarDataSource @Inject constructor(
         allDayReminderTimeMinutes: Int,
     ): Long {
         val row = querySeriesRow(eventId)
-        // Deliberately stricter than deleteOccurrence's bare _sync_id check: the
-        // detach path drops the occurrence with EXDATE, which only means anything
-        // on a row that actually recurs. Without an RRULE there is nothing to
-        // exclude from, so such a row keeps the existing path rather than getting
-        // a recurrence set written onto a one-off event. The UI only offers the
-        // scope choice for a recurring event, so neither case is reachable today.
+        // Stricter than deleteOccurrence's bare _sync_id check: EXDATE only means
+        // something on a row that recurs, so a non-recurring one keeps the
+        // exception path rather than getting a recurrence set written onto it.
         if (row.syncId == null && !row.rrule.isNullOrBlank()) {
             return detachOccurrence(eventId, beginMillis, row, form, allDayReminderTimeMinutes)
         }
@@ -1233,46 +1230,24 @@ class AndroidCalendarDataSource @Inject constructor(
      * standalone event on the same calendar.
      *
      * A modified exception attaches to its parent only through `ORIGINAL_SYNC_ID`,
-     * exactly like the cancelled one [deleteOccurrence] documents. With no
-     * `_sync_id` the link never forms: the insert either fails outright or lands
-     * an orphan row, and the parent's expansion collapses — which is why editing
-     * one occurrence of such a series did nothing at all, and occasionally left a
-     * stray copy behind (Codeberg #234). The reporter's calendar was a Google one
-     * that "shows as on-device", i.e. rows the sync adapter had not stamped yet;
-     * Calendula's own local and contact special-date calendars are permanently in
-     * this shape.
+     * exactly like the cancelled one [deleteOccurrence] documents; with no
+     * `_sync_id` the link never forms and the edit is lost (Codeberg #234).
+     * EXDATE plus a standalone row needs no link — what a detached instance
+     * degrades to without a `RECURRENCE-ID` to carry it.
      *
-     * EXDATE + a standalone row needs no parent link, and is what a detached
-     * instance degrades to when there is no `RECURRENCE-ID` to carry it: the user
-     * sees one edited event where the occurrence was, and the rest of the series
-     * untouched.
+     * The detached row keeps no stored link back to its series, so: it no longer
+     * travels with it ([moveEvent] copies the master and its `ORIGINAL_ID`
+     * children, and this is neither); its EXDATE hole is an absolute instant, so
+     * re-timing the whole series brings the occurrence back beside the copy (a
+     * #47 delete resurrects the same way); and it is built from the form, not
+     * cloned, so `ORGANIZER`, `STATUS` and the attendee rows [reconcileAttendees]
+     * preserves are dropped — the same limitation as [moveEvent].
      *
-     * What that costs, plainly, because none of it is recoverable later — the
-     * detached row has *no* stored link back to its series, which is the whole
-     * reason this path exists:
-     * - It stops travelling with the series. Moving the series to another
-     *   calendar leaves it behind ([moveEvent] copies the master and its
-     *   `ORIGINAL_ID` children; this is neither), and deleting the whole series
-     *   leaves it standing where an exception row would have gone with the parent.
-     * - Its EXDATE hole is an absolute instant. Editing the series' *time* for all
-     *   events moves the generated instances but not the hole, so the occurrence
-     *   comes back alongside the detached copy. That staleness predates this path
-     *   — a #47 delete resurrects the same way — but a duplicate is a louder
-     *   symptom than a resurrection, and it wants fixing at the series-update end.
-     * - It is built from the form, not cloned from the parent, so columns the form
-     *   doesn't model are dropped rather than inherited: `ORGANIZER`, `STATUS`,
-     *   and the organizer/resource attendee rows [reconcileAttendees] otherwise
-     *   preserves. Same limitation as [moveEvent]. Rare on the calendars that
-     *   reach this path, which are locally authored, but not impossible.
-     *
-     * Order is deliberate. The insert goes first, so a failure there leaves the
-     * series completely untouched (the same discipline as
-     * [updateEventFromOccurrence]). If the EXDATE update then fails, the new row
-     * is a visible duplicate of an occurrence that is still in the series, so it
-     * is rolled back before the failure surfaces — better a save the user can
-     * retry than a silent duplicate. The reverse order would risk the opposite:
-     * an occurrence excluded from the series with no replacement, i.e. an edit
-     * that quietly deletes.
+     * Insert first, so a failure leaves the series untouched
+     * ([updateEventFromOccurrence]'s discipline); roll the new row back if the
+     * EXDATE update then fails, since it would be a visible duplicate. The
+     * reverse order risks the worse outcome — an excluded occurrence with no
+     * replacement, i.e. an edit that quietly deletes.
      */
     private fun detachOccurrence(
         eventId: Long,
@@ -1281,17 +1256,15 @@ class AndroidCalendarDataSource @Inject constructor(
         form: EventForm,
         allDayReminderTimeMinutes: Int,
     ): Long {
-        // Already detached (or deleted): the series no longer contains this
-        // occurrence, so there is nothing here to edit. Reached from a stale
-        // screen still pointing at the parent — without this the EXDATE merge
-        // would fold the repeat away, the update would still report a changed
-        // row, and the save would quietly leave a *second* standalone copy.
+        // Already detached (or deleted) from a stale screen still pointing at the
+        // parent: the EXDATE merge would fold the repeat away and still report a
+        // changed row, quietly leaving a *second* standalone copy.
         if (exdateContains(row.exdate, beginMillis, isAllDay = row.allDay != 0)) {
             throw NoSuchEventException(eventId)
         }
-        // Carries the form's reminders, guests and colour like any new event —
-        // and a fresh UID, because the detached row really is a separate event
-        // now: sharing the parent's would collide with it in .ics restore dedup.
+        // Reminders, guests and colour come along like any new event, and so does
+        // a fresh UID — the detached row is a separate event now, and sharing the
+        // parent's would collide with it in .ics restore dedup.
         val detachedId = insertEvent(form.toDetachedOccurrence(), allDayReminderTimeMinutes)
         val values = buildOccurrenceExdateValues(
             existingExdate = row.exdate,
@@ -1302,10 +1275,9 @@ class AndroidCalendarDataSource @Inject constructor(
             timezone = row.timezone,
             allDay = row.allDay,
         )
-        // Rows touched, not occurrences excluded: this is 1 whenever the series
-        // row still exists. It catches the row disappearing under us, not an
-        // EXDATE the provider's expansion fails to match — that would report
-        // success and leave the duplicate. Same rollback idiom as moveEvent.
+        // Rows touched, not occurrences excluded — 1 whenever the series row still
+        // exists. It catches the row disappearing under us, not an EXDATE the
+        // provider's expansion fails to match.
         val updatedRows = try {
             resolver.update(
                 ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, eventId),
@@ -1326,10 +1298,8 @@ class AndroidCalendarDataSource @Inject constructor(
 
     /**
      * Undo the standalone row [detachOccurrence] inserted before its EXDATE
-     * update failed. Best effort: the caller is already throwing, and a rollback
-     * that itself fails must not replace the real failure with a confusing one.
-     * The worst case is the duplicate we were trying to avoid, which the user can
-     * see and delete — never a lost occurrence.
+     * update failed. Best effort: the caller is already throwing, and the worst
+     * case is the duplicate we were avoiding — never a lost occurrence.
      */
     private fun rollBackDetached(detachedId: Long) {
         runCatching { deleteEvent(detachedId) }.onFailure {

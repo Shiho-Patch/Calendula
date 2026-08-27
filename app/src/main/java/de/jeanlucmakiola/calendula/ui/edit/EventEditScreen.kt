@@ -265,10 +265,9 @@ fun EventEditScreen(
                 viewModel.reset()
                 onSaved()
             }
-            // A failed save leaves the user on a form that looks exactly as it
-            // did, so the snackbar is the only sign anything happened — it gets
-            // the long duration rather than the default flash (Codeberg #234:
-            // the failure read as "nothing happens at all").
+            // A failed save leaves the form looking unchanged, so the snackbar is
+            // the only sign anything happened — long rather than the default
+            // flash (Codeberg #234: it read as "nothing happens at all").
             SaveUiState.Failed -> {
                 viewModel.consumeSaveResult()
                 snackbarHostState.showSnackbar(saveFailedMessage, duration = SnackbarDuration.Long)

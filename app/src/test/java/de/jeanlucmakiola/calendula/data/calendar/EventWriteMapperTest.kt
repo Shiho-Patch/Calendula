@@ -571,14 +571,11 @@ class EventWriteMapperTest {
             times = detached.toWriteTimes(berlin),
         )
         assertThat(values[CalendarContract.Events.TITLE]).isEqualTo("Moved")
-        // The rule must not survive: without a _sync_id nothing clears an
-        // inherited RRULE the way the exception path's DTSTART + DURATION does,
-        // so keeping it would insert a second *series* overlapping the first
+        // A surviving rule would insert a second *series* overlapping the first
         // (Codeberg #234's stray duplicate).
         assertThat(values).doesNotContainKey(CalendarContract.Events.RRULE)
         assertThat(values).doesNotContainKey(CalendarContract.Events.DURATION)
-        // A one-off row carries DTEND — the invariant buildEventInsertValues
-        // holds for every non-recurring event.
+        // A one-off row carries DTEND rather than a duration.
         assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_781_164_800_000L)
         assertThat(values[CalendarContract.Events.DTEND]).isEqualTo(1_781_170_200_000L)
         assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("Europe/Berlin")
@@ -586,9 +583,8 @@ class EventWriteMapperTest {
 
     @Test
     fun `a detached occurrence carries every edited field onto the new row`() {
-        // The detached row is built from the form rather than cloned from the
-        // parent, so anything the user edited has to survive the trip — a field
-        // dropped here is an edit silently lost.
+        // Built from the form, not cloned from the parent: a field dropped here
+        // is an edit silently lost.
         val edited = form(timezone = "America/New_York").copy(
             title = "  Standup  ",
             location = "Room 2",
@@ -612,12 +608,10 @@ class EventWriteMapperTest {
             .isEqualTo(CalendarContract.Events.AVAILABILITY_FREE)
         assertThat(values[CalendarContract.Events.ACCESS_LEVEL])
             .isEqualTo(CalendarContract.Events.ACCESS_PRIVATE)
-        // The pinned zone survives too — a detached occurrence must not be
-        // silently re-anchored to the device.
+        // The pinned zone survives — never re-anchored to the device.
         assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("America/New_York")
         assertThat(values[CalendarContract.Events.UID_2445]).isEqualTo("uid@calendula")
-        // Reminders and guests aren't columns — the insert path seeds them from
-        // the form, so they only have to survive on the form itself.
+        // Reminders aren't columns; the insert path seeds them from the form.
         assertThat(detached.reminders).containsExactly(10)
     }
 
@@ -645,9 +639,8 @@ class EventWriteMapperTest {
 
     @Test
     fun `the detached row lands exactly where the parent's exdate removes it`() {
-        // The two halves of the no-_sync_id edit have to agree, or the user sees
-        // the occurrence twice or not at all. With the time left untouched, the
-        // EXDATE stamp and the detached row's DTSTART describe the same instant.
+        // The two halves must agree on the instant, or the user sees the
+        // occurrence twice or not at all.
         val edited = form().copy(title = "Renamed", rrule = "FREQ=WEEKLY")
         val occurrenceMillis = 1_781_164_800_000L
 
@@ -702,8 +695,7 @@ class EventWriteMapperTest {
 
     @Test
     fun `an occurrence already excluded is recognised, timed and all-day`() {
-        // Detaching twice would fold the repeated EXDATE away and still report a
-        // changed row, leaving a second standalone copy of one occurrence.
+        // Detaching twice would leave a second standalone copy.
         assertThat(
             exdateContains("20260611T080000Z", 1_781_164_800_000L, isAllDay = false),
         ).isTrue()
@@ -724,8 +716,7 @@ class EventWriteMapperTest {
 
     @Test
     fun `an exclusion is found anywhere in a multi-entry exdate list`() {
-        // Whitespace after a comma is legal in the stored column and must not
-        // hide an exclusion — that would let a duplicate through.
+        // Whitespace after a comma is legal in the stored column.
         assertThat(
             exdateContains(
                 "20260604T080000Z, 20260611T080000Z,20260618T080000Z",

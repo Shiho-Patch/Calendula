@@ -248,18 +248,13 @@ internal fun buildOccurrenceExceptionValues(
  * series rule dropped so [buildEventInsertValues] writes a standalone one-off
  * row (DTSTART + DTEND, no RRULE/DURATION) at the occurrence's own times.
  *
- * This is the "edit only this event" shape for a series with **no `_sync_id`**,
- * where an exception row can't be used at all — see [buildOccurrenceExdateValues]
- * for why the parent link never forms. The occurrence is dropped from the parent
- * with EXDATE and re-created as its own event, which is what a detached instance
- * degrades to without a `RECURRENCE-ID` to carry it.
+ * The "edit only this event" shape for a series with **no `_sync_id`**, where an
+ * exception row can't attach to its parent at all (Codeberg #234).
  *
- * Dropping the rule mirrors what the exception path gets for free: the provider
- * clears the RRULE it cloned from the parent when an exception carries
- * DTSTART + DURATION ([buildOccurrenceExceptionValues]). Here nothing is cloned,
- * so the rule has to be stripped by hand — leaving it on would insert a second
- * *series* overlapping the first, which is the duplication this path exists to
- * avoid.
+ * The exception path gets the rule dropped for free — the provider clears the
+ * RRULE it cloned when an exception carries DTSTART + DURATION
+ * ([buildOccurrenceExceptionValues]). Here nothing is cloned, so it is stripped
+ * by hand; leaving it on would insert a second *series* overlapping the first.
  */
 internal fun EventForm.toDetachedOccurrence(): EventForm = copy(rrule = null)
 
@@ -457,14 +452,11 @@ internal fun buildOccurrenceExdateValues(
 
 /**
  * Whether [existingExdate] already excludes the occurrence at [occurrenceMillis]
- * — i.e. this occurrence has already been dropped from the series (deleted, or
- * detached into its own event).
+ * — i.e. it has already been dropped from the series, deleted or detached.
  *
- * Guards the detach path against running twice for the same occurrence, which a
- * stale detail screen still pointing at the parent can otherwise reach. The
- * EXDATE merge folds the repeat away silently and the parent update still
- * reports one row changed, so without this check the second save would leave a
- * *second* standalone copy and call it a success.
+ * Guards the detach path against running twice from a stale screen: the EXDATE
+ * merge folds the repeat away silently and the update still reports one row
+ * changed, so a second save would leave a second standalone copy.
  */
 internal fun exdateContains(
     existingExdate: String?,

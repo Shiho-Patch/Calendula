@@ -755,14 +755,13 @@ class EventEditViewModel @Inject constructor(
             } catch (e: SecurityException) {
                 SaveUiState.NeedsPermission
             } catch (e: NoSuchEventException) {
-                // The write found the event (or the occurrence) already gone —
-                // the same answer the pre-check gives, and a far better one than
-                // a bare "couldn't save" for something that no longer exists.
+                // The event or occurrence is already gone: the same answer the
+                // pre-check gives, and better than a bare "couldn't save".
                 SaveUiState.Gone
             } catch (e: Exception) {
-                // The user only gets a generic snackbar, so without this a
-                // failed write leaves no trace at all to report (Codeberg #234).
-                // Scope and event id only — never the form's content.
+                // The user only gets a generic snackbar, so without this a failed
+                // write leaves nothing to report (Codeberg #234). Scope and event
+                // id only — never the form's content.
                 Log.w(TAG, "Save failed (scope=$scope, eventId=${target?.eventId})", e)
                 SaveUiState.Failed
             }
