@@ -23,26 +23,21 @@ import kotlin.time.Instant
  * Holds the app's own wake-up for the next local midnight, so the home-screen
  * widgets roll "today" over on the day boundary (#228).
  *
- * The widgets used to lean on `ACTION_DATE_CHANGED`, but that broadcast is not
- * on the implicit-broadcast exemption list, so a manifest-declared receiver has
- * never been given it since Android 8 — leaving only `updatePeriodMillis`, which
- * the system defers in doze and OEM skins throttle harder still. The result was
- * yesterday staying highlighted (and the agenda's past-event dimming staying
- * anchored to yesterday) until something else forced a redraw.
+ * The widgets used to lean on `ACTION_DATE_CHANGED`, which is not an exempted
+ * implicit broadcast — a manifest-declared receiver has not been given it since
+ * Android 8, leaving only the throttled `updatePeriodMillis`.
  *
- * Exactly one alarm exists at a time and every firing re-arms the next one, the
- * same shape as [de.jeanlucmakiola.calendula.data.reminders.ReminderAlarmScheduler].
- * It is deliberately **inexact**: `setAndAllowWhileIdle` needs no permission and
- * survives doze (which plain `set` does not), and a rollover that lands a few
- * minutes late is invisible on a sleeping screen. Exact alarms stay reserved for
- * reminder snooze.
+ * Exactly one alarm exists at a time and every firing re-arms the next, the same
+ * shape as [de.jeanlucmakiola.calendula.data.reminders.ReminderAlarmScheduler].
+ * Deliberately **inexact**: `setAndAllowWhileIdle` needs no permission and
+ * survives doze (plain `set` does not), a rollover a few minutes late is
+ * invisible on a sleeping screen, and exact alarms stay reserved for snooze.
  */
 object WidgetRolloverScheduler {
 
     /**
-     * Fire just *after* midnight, never exactly on it. An alarm delivered a few
-     * milliseconds early would still read the old date and re-arm for an instant
-     * later; the offset makes "the day has changed" unambiguous.
+     * Fire just *after* midnight: an alarm delivered a few milliseconds early
+     * would still read the old date and re-arm for an instant later.
      */
     internal val ROLLOVER_SLACK = 5.seconds
 
@@ -68,16 +63,14 @@ object WidgetRolloverScheduler {
     /**
      * The instant just after the next local midnight following [now] in [zone].
      *
-     * Uses the *actual* start of the day rather than 00:00, so it stays correct
-     * where a DST jump means midnight never happens (Havana springs from 00:00 to
-     * 01:00) and where a whole local date is skipped by a date-line move (Apia
-     * had no 30 December 2011) — the loop then walks on to the next real day.
+     * The *actual* start of day, not 00:00, so it holds where a DST jump means
+     * midnight never happens (Havana) and where a date-line move skips a whole
+     * local date (Apia, December 2011) — the loop walks on to the next real day.
      *
-     * The mirror case, a zone that rewinds *across* midnight so the day starts
-     * twice, resolves to the earlier start; the widget would then run an hour
-     * ahead of the clock. No entry in the current tz database does that (Brazil,
-     * which used to, dropped DST in 2019), and `updatePeriodMillis` covers it,
-     * so it is not worth carrying state to detect.
+     * The mirror case — a zone rewinding *across* midnight, so the day starts
+     * twice — resolves to the earlier start and runs an hour ahead of the clock.
+     * No live tz entry does that (Brazil dropped DST in 2019) and
+     * `updatePeriodMillis` covers it, so it isn't worth state to detect.
      */
     fun nextRolloverAt(now: Instant, zone: TimeZone): Instant {
         val date = now.toLocalDateTime(zone).date

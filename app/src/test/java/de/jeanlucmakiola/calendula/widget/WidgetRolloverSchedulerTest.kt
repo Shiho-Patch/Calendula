@@ -44,8 +44,8 @@ class WidgetRolloverSchedulerTest {
 
     @Test
     fun `at midnight exactly the target is the next day, never the current instant`() {
-        // The alarm has just fired and is re-arming: it must move a whole day on,
-        // otherwise the widget would wake itself in a tight loop.
+        // Re-arming after a firing must move a whole day on, or the widget wakes
+        // itself in a tight loop.
         val now = at("2026-08-28T00:00:00", berlin)
         val next = WidgetRolloverScheduler.nextRolloverAt(now, berlin)
         assertThat(next).isEqualTo(at("2026-08-29T00:00:05", berlin))
@@ -63,8 +63,8 @@ class WidgetRolloverSchedulerTest {
     @Test
     fun `the result is always in the future for every minute of a day`() {
         val zone = berlin
-        // Spans Berlin's 2024 spring-forward, the case most likely to produce a
-        // target in the past and so an alarm that fires immediately, forever.
+        // Spans Berlin's 2024 spring-forward: the likeliest source of a target
+        // in the past, i.e. an alarm that fires immediately, forever.
         var probe = LocalDateTime.parse("2024-03-29T00:00:00").toInstant(zone)
         val end = LocalDateTime.parse("2024-04-01T00:00:00").toInstant(zone)
         while (probe < end) {
@@ -87,9 +87,8 @@ class WidgetRolloverSchedulerTest {
 
     @Test
     fun `fall back does not overshoot into the repeated hour`() {
-        // Berlin repeated 02:00-03:00 on 27 October 2024: midnight itself is
-        // unambiguous, but the day is 25h long, so "now + 24h" would land at
-        // 23:00 on the 26th and never roll the date over at all.
+        // Berlin repeated 02:00-03:00 on 27 October 2024: a 25h day, so
+        // "now + 24h" would land at 23:00 on the 26th and never roll over.
         val now = at("2024-10-26T12:00:00", berlin)
         val next = WidgetRolloverScheduler.nextRolloverAt(now, berlin)
         assertThat(next).isEqualTo(at("2024-10-27T00:00:05", berlin))
@@ -99,9 +98,8 @@ class WidgetRolloverSchedulerTest {
     @Test
     fun `a zone that repeats midnight takes the first start of day`() {
         // Sao Paulo used to end DST by moving 00:00 back to 23:00, so the day
-        // began twice. Pinned deliberately: the widget then runs an hour ahead
-        // of the clock until the next redraw, which is the accepted trade
-        // (Brazil dropped DST in 2019, so no live zone does this).
+        // began twice. Pinned as the accepted trade: the widget runs an hour
+        // ahead until the next redraw. No live zone does this since 2019.
         val saoPaulo = TimeZone.of("America/Sao_Paulo")
         val next = WidgetRolloverScheduler.nextRolloverAt(
             at("2018-02-16T12:00:00", saoPaulo), saoPaulo,
@@ -132,8 +130,8 @@ class WidgetRolloverSchedulerTest {
 
     @Test
     fun `the same instant rolls over at different times in different zones`() {
-        // Flying east and getting TIMEZONE_CHANGED must re-arm to the new local
-        // midnight — the arithmetic follows the zone, not a cached offset.
+        // TIMEZONE_CHANGED must re-arm to the new local midnight: the arithmetic
+        // follows the zone, not a cached offset.
         val instant = at("2026-08-27T12:00:00", berlin)
         val tokyo = TimeZone.of("Asia/Tokyo")
         val berlinNext = WidgetRolloverScheduler.nextRolloverAt(instant, berlin)

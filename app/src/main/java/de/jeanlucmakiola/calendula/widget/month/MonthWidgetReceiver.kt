@@ -20,9 +20,8 @@ class MonthWidgetReceiver : GlanceAppWidgetReceiver() {
     }
 
     /**
-     * Last month widget removed. [WidgetRolloverScheduler.sync] only cancels the
-     * alarm if no agenda widget is left either, so removing one kind never stops
-     * the other from rolling over.
+     * Last month widget removed. [WidgetRolloverScheduler.sync] cancels only if
+     * no agenda widget is left either.
      */
     override fun onDisabled(context: Context) {
         super.onDisabled(context)
@@ -31,11 +30,10 @@ class MonthWidgetReceiver : GlanceAppWidgetReceiver() {
 
     /**
      * The `updatePeriodMillis` backstop is the one wake-up the *system* still
-     * owns, so it doubles as the rollover alarm's self-heal: anything that drops
-     * a pending alarm without a broadcast — a force-stop, a battery-restricted
-     * transition, an OEM freeze — is repaired here rather than waiting for the
-     * app to be opened. Re-arming closer to midnight also narrows the inexact
-     * alarm's delivery window, which scales with how far out it was set.
+     * owns, so it doubles as the alarm's self-heal: anything that drops a
+     * pending alarm without a broadcast (force-stop, battery restriction, an OEM
+     * freeze) is repaired here rather than on the next app open. Re-arming
+     * closer to midnight also narrows the inexact delivery window.
      */
     override fun onUpdate(
         context: Context,

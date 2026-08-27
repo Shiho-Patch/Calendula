@@ -330,13 +330,12 @@
         </receiver>
 
         <!-- Keeps both widgets fresh: the calendar provider broadcasts
-             PROVIDER_CHANGED on any data change (our writes and external sync),
-             and the day boundary arrives as the app's own ROLLOVER alarm (#228),
-             delivered by an explicit PendingIntent so it needs no filter here.
-             DATE_CHANGED is kept as a free extra only — it is not an exempted
-             implicit broadcast, so a manifest-declared receiver is not given it
-             on Android 8+. TIME_SET / TIMEZONE_CHANGED move the day boundary,
-             and boot / package-replace wipe the alarm, so all four re-arm it.
+             PROVIDER_CHANGED on any data change (our writes and external sync).
+             The day boundary arrives as the app's own ROLLOVER alarm (#228), by
+             explicit PendingIntent, so it needs no filter here; DATE_CHANGED is
+             a free extra only, since Android 8+ withholds it from manifest
+             receivers. The four below re-arm that alarm: TIME_SET /
+             TIMEZONE_CHANGED move the boundary, boot / package-replace wipe it.
              Exported: the system broadcasts arrive from outside the app. -->
         <receiver
             android:name=".widget.WidgetUpdateReceiver"

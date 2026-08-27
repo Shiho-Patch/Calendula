@@ -21,9 +21,8 @@ class AgendaWidgetReceiver : GlanceAppWidgetReceiver() {
     }
 
     /**
-     * Last agenda widget removed. [WidgetRolloverScheduler.sync] only cancels the
-     * alarm if no month widget is left either, so removing one kind never stops
-     * the other from rolling over.
+     * Last agenda widget removed. [WidgetRolloverScheduler.sync] cancels only if
+     * no month widget is left either.
      */
     override fun onDisabled(context: Context) {
         super.onDisabled(context)

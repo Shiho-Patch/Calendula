@@ -50,11 +50,9 @@ class CalendulaApp : Application() {
 
     /**
      * Re-arm the widgets' midnight rollover from whatever is actually placed
-     * (#228). Idempotent, and it covers the cases no broadcast reaches — an
-     * install upgrading into the fix, or an alarm dropped by a force-stop, is
-     * armed again the next time the app is opened. Off the main thread because
-     * it makes a handful of binder calls and every process start runs it,
-     * including ones a worker or a receiver triggered.
+     * (#228). Idempotent, and it covers what no broadcast reaches — an alarm
+     * dropped by a force-stop is armed again the next time the app is opened.
+     * Off the main thread: a handful of binder calls on every process start.
      */
     private fun reconcileWidgetRollover() {
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {

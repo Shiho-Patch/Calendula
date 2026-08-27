@@ -19,38 +19,31 @@ import kotlinx.coroutines.launch
  *  - [ACTION_ROLLOVER], the app's own alarm from [WidgetRolloverScheduler] —
  *    the day boundary, so "today" highlighting and the agenda's past-event
  *    dimming move on (#228).
- *  - `TIME_SET` / `TIMEZONE_CHANGED` — a clock or zone change moves the day
- *    boundary relative to the armed alarm, so both redraw *and* re-arm.
- *  - `BOOT_COMPLETED` / `MY_PACKAGE_REPLACED` — both wipe pending alarms. The
- *    package-replaced one is also what arms existing installs that upgrade into
- *    the fix without re-adding their widget.
+ *  - `TIME_SET` / `TIMEZONE_CHANGED` — the day boundary moved, so redraw *and*
+ *    re-arm.
+ *  - `BOOT_COMPLETED` / `MY_PACKAGE_REPLACED` — both wipe pending alarms; the
+ *    latter is also what arms installs upgrading into the fix.
  *
- * `DATE_CHANGED` is still in the manifest filter as a free extra, but nothing
- * depends on it: it is not an exempted implicit broadcast, so a manifest-declared
- * receiver has not actually been given it since Android 8. The widgets also carry
- * an `updatePeriodMillis` backstop in their provider XML, and the month widget's
- * refresh button forces an immediate redraw.
+ * `DATE_CHANGED` is a free extra in the filter that nothing depends on — see
+ * [WidgetRolloverScheduler]. The backstops are `updatePeriodMillis` in the
+ * provider XML and the month widget's refresh button.
  *
- * Exported for the system broadcasts; an extra redraw triggered by another app
- * is harmless.
+ * Exported for the system broadcasts; an extra redraw from another app is
+ * harmless.
  */
 class WidgetUpdateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        // The receiver has to stay exported for the system broadcasts, so an
-        // explicit intent can reach it with anything in it. Nothing here reads
-        // the intent's data and nothing crosses a trust boundary, but narrowing
-        // to the actions we actually asked for keeps a stray broadcast from
-        // costing two wide provider reads.
+        // Exported, so anything can reach it with an explicit intent. Nothing
+        // here crosses a trust boundary, but narrowing to the actions we asked
+        // for keeps a stray broadcast from costing two wide provider reads.
         if (intent.action !in HANDLED_ACTIONS) return
         val appContext = context.applicationContext
-        // Re-arm first: whatever happens to the redraw, the next day boundary is
-        // covered. Boot and package-replace dropped the alarm outright; a
-        // rollover just consumed it; a clock change invalidated it.
+        // Re-arm first, so the next day boundary is covered whatever the redraw
+        // does. Every handled action either dropped, consumed or invalidated it.
         WidgetRolloverScheduler.sync(appContext)
-        // Boot and package-replace only cost us the alarm. The host sends
-        // APPWIDGET_UPDATE after both anyway, so redrawing here would just repeat
-        // two wide provider reads and two RemoteViews serialisations in a cold
-        // process, at the moment the device is most contended.
+        // The host sends APPWIDGET_UPDATE after both of these anyway, so
+        // redrawing here would only repeat the work in a cold process, at the
+        // moment the device is most contended.
         if (intent.action in REARM_ONLY_ACTIONS) return
         val pending = goAsync()
         // Calendar data may have changed (sync / our own write) — drop the cached
