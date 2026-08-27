@@ -36,16 +36,23 @@ import kotlinx.coroutines.launch
  */
 class WidgetUpdateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        // Checked despite every action doing the same thing: the receiver is
-        // exported and the broadcasts it takes are protected, so any other
-        // action did not come from where it claims to.
+        // The receiver has to stay exported for the system broadcasts, so an
+        // explicit intent can reach it with anything in it. Nothing here reads
+        // the intent's data and nothing crosses a trust boundary, but narrowing
+        // to the actions we actually asked for keeps a stray broadcast from
+        // costing two wide provider reads.
         if (intent.action !in HANDLED_ACTIONS) return
-        val pending = goAsync()
         val appContext = context.applicationContext
         // Re-arm first: whatever happens to the redraw, the next day boundary is
         // covered. Boot and package-replace dropped the alarm outright; a
         // rollover just consumed it; a clock change invalidated it.
         WidgetRolloverScheduler.sync(appContext)
+        // Boot and package-replace only cost us the alarm. The host sends
+        // APPWIDGET_UPDATE after both anyway, so redrawing here would just repeat
+        // two wide provider reads and two RemoteViews serialisations in a cold
+        // process, at the moment the device is most contended.
+        if (intent.action in REARM_ONLY_ACTIONS) return
+        val pending = goAsync()
         // Calendar data may have changed (sync / our own write) — drop the cached
         // month window so the widgets reload fresh. Month paging does NOT call
         // this, so arrow taps stay instant.
@@ -64,14 +71,18 @@ class WidgetUpdateReceiver : BroadcastReceiver() {
         /** The app's own midnight wake-up; see [WidgetRolloverScheduler]. */
         const val ACTION_ROLLOVER = "de.jeanlucmakiola.calendula.widget.ROLLOVER"
 
-        private val HANDLED_ACTIONS = setOf(
+        /** Both wipe pending alarms, and the host redraws the widgets itself after them. */
+        private val REARM_ONLY_ACTIONS = setOf(
+            Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_MY_PACKAGE_REPLACED,
+        )
+
+        internal val HANDLED_ACTIONS = REARM_ONLY_ACTIONS + setOf(
             ACTION_ROLLOVER,
             Intent.ACTION_PROVIDER_CHANGED,
             Intent.ACTION_DATE_CHANGED,
             Intent.ACTION_TIME_CHANGED,
             Intent.ACTION_TIMEZONE_CHANGED,
-            Intent.ACTION_BOOT_COMPLETED,
-            Intent.ACTION_MY_PACKAGE_REPLACED,
         )
     }
 }

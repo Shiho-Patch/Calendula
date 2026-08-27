@@ -51,9 +51,11 @@
 # obfuscated name and orphan the stored mapping.
 -keep class * extends androidx.glance.appwidget.GlanceAppWidget
 
-# Same hazard one level up: MonthWidgetReceiver and AgendaWidgetReceiver are
-# also structurally identical (same supertype, same overrides, only a differing
-# property initializer), and Glance's provider map is keyed off the receiver
-# component too. Manifest-declared components are normally kept anyway, but this
-# is cheap and makes the invariant explicit rather than incidental.
+# Belt and braces one level up: MonthWidgetReceiver and AgendaWidgetReceiver are
+# nearly as alike (same supertype, same overrides, only a differing property
+# initializer), and Glance's provider map is keyed off the receiver component
+# too. AGP's manifest-derived keep rules already cover them, and the rule above
+# keeps the two widgets distinct enough that the receivers' constructors differ —
+# so this is redundant today. It is here because #89 cost a release to diagnose
+# and the guarantee should not rest on a component staying in the manifest.
 -keep class * extends androidx.glance.appwidget.GlanceAppWidgetReceiver

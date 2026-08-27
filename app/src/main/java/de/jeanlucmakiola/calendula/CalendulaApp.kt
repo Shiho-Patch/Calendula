@@ -45,11 +45,21 @@ class CalendulaApp : Application() {
         reconcileSpecialDates()
         reconcileCalendarVisibility()
         startReminderDelivery()
-        // Re-arm the widgets' midnight rollover from whatever is actually placed
-        // (#228). Cheap and idempotent, and it covers the cases the broadcasts
-        // miss — an install upgrading into the fix, or an alarm dropped by a
-        // force-stop, is armed again the next time the app is opened.
-        WidgetRolloverScheduler.sync(this)
+        reconcileWidgetRollover()
+    }
+
+    /**
+     * Re-arm the widgets' midnight rollover from whatever is actually placed
+     * (#228). Idempotent, and it covers the cases no broadcast reaches — an
+     * install upgrading into the fix, or an alarm dropped by a force-stop, is
+     * armed again the next time the app is opened. Off the main thread because
+     * it makes a handful of binder calls and every process start runs it,
+     * including ones a worker or a receiver triggered.
+     */
+    private fun reconcileWidgetRollover() {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            WidgetRolloverScheduler.sync(this@CalendulaApp)
+        }
     }
 
     /**

@@ -15,6 +15,7 @@ import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -71,6 +72,12 @@ object WidgetRolloverScheduler {
      * where a DST jump means midnight never happens (Havana springs from 00:00 to
      * 01:00) and where a whole local date is skipped by a date-line move (Apia
      * had no 30 December 2011) — the loop then walks on to the next real day.
+     *
+     * The mirror case, a zone that rewinds *across* midnight so the day starts
+     * twice, resolves to the earlier start; the widget would then run an hour
+     * ahead of the clock. No entry in the current tz database does that (Brazil,
+     * which used to, dropped DST in 2019), and `updatePeriodMillis` covers it,
+     * so it is not worth carrying state to detect.
      */
     fun nextRolloverAt(now: Instant, zone: TimeZone): Instant {
         val date = now.toLocalDateTime(zone).date
@@ -80,8 +87,10 @@ object WidgetRolloverScheduler {
             if (candidate > now) return candidate
             days++
         }
-        // Unreachable for any real zone; better a late redraw than no alarm.
-        return now + ROLLOVER_SLACK
+        // Unreachable for any zone in the tz database. Deliberately an hour and
+        // not the slack: a 5-second retry would just hit this branch again and
+        // wake the device in a loop.
+        return now + 1.hours
     }
 
     private fun hasPlacedWidgets(context: Context): Boolean {

@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   greying out the wrong events as already past — until you paged the month back
   and forth or removed and re-added the widget. Calendula now wakes itself at the
   day boundary and redraws, and re-arms after a reboot, a clock change or a
-  flight into another timezone ([#228]).
+  flight into another timezone. Paging the month widget forward and back also
+  stops quietly pinning it to that month, so it follows the date again instead of
+  being stranded on the month you happened to be looking at ([#228]).
 
 ## [2.19.3] — 2026-08-22
 
