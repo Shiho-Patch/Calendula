@@ -551,12 +551,11 @@ jobs:
     env:
       VERSION: ${{ needs.detect.outputs.version }}
       VERSION_CODE: ${{ needs.detect.outputs.version_code }}
-      # Where the bundle lands. `internal` by default so a release reaches
-      # testers rather than the public, and promotion to production stays a
-      # deliberate human action in the Play Console — the same posture as
-      # holding UI releases for on-device review. Override with the PLAY_TRACK
-      # repo variable once the flow is trusted.
-      PLAY_TRACK: ${{ vars.PLAY_TRACK || 'internal' }}
+      # Where the bundle lands. `production` — the release itself is already the
+      # gate (a bumped versionName only reaches main after on-device review), so
+      # a second manual promotion in the Play Console bought nothing but delay.
+      # Override with the PLAY_TRACK repo variable to stage a release instead.
+      PLAY_TRACK: ${{ vars.PLAY_TRACK || 'production' }}
       PLAY_RELEASE_STATUS: ${{ vars.PLAY_RELEASE_STATUS || 'completed' }}
       # Set PLAY_DRY_RUN=true to validate the edit against the API and discard
       # it instead of committing — used to rehearse the first upload.
