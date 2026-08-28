@@ -120,13 +120,13 @@
     <string name="event_access_public">公开</string>
     <string name="event_detail_duplicate">复制</string>
     <string name="event_move_action">移动…</string>
-    <string name="event_move_recurring_title">移动重复事件</string>
+    <string name="event_move_recurring_title">删除重复活动</string>
     <string name="event_move_occurrence_only">移动整个系列会改变其发生日期，因此只能移动此事件。</string>
     <string name="event_move_done">已移动到 %1$s</string>
     <string name="event_move_undo">撤销</string>
     <string name="event_move_undone">已撤销移动</string>
-    <string name="event_move_failed">无法移动事件</string>
-    <string name="event_move_write_denied">Calendula 需要写入权限才能移动事件</string>
+    <string name="event_move_failed">无法保存该活动</string>
+    <string name="event_move_write_denied">Calendula需要权限读取或删除活动</string>
     <string name="event_move_gone">该事件已不存在</string>
     <string name="event_move_blocked_series_end">无法将事件移至其系列结束日期之后</string>
     <string name="event_edit_timezone_device">设备时区</string>
@@ -176,7 +176,7 @@
     <string name="event_detail_reminders">提醒</string>
     <string name="event_detail_timezone">时区</string>
     <string name="event_status_tentative">待定</string>
-    <string name="event_status_cancelled">已取消</string>
+    <string name="event_status_cancelled">取消</string>
     <string name="event_availability_free">空闲</string>
     <string name="event_access_private">私密</string>
     <string name="event_access_confidential">机密</string>
@@ -203,7 +203,7 @@
         <item quantity="other">提前 %d 周</item>
     </plurals>
     <plurals name="duration_minutes">
-        <item quantity="other">%d 分钟</item>
+        <item quantity="other">分钟</item>
     </plurals>
     <plurals name="duration_hours">
         <item quantity="other">%d 小时</item>
@@ -278,10 +278,10 @@
     <string name="search_select_all">全选</string>
     <string name="search_delete_selected">删除所选</string>
     <plurals name="search_delete_title">
-        <item quantity="other">删除 %d 个事件？</item>
+        <item quantity="other">删除活动？</item>
     </plurals>
     <plurals name="search_delete_done">
-        <item quantity="other">已删除 %d 个事件</item>
+        <item quantity="other">活动被删除</item>
     </plurals>
     <string name="search_delete_partial">已删除 %1$d 个，%2$d 个无法删除</string>
     <string name="search_delete_denied_partial">已删除 %1$d 个，之后写入权限被撤</string>
@@ -289,7 +289,7 @@
     <string name="widget_agenda_label">Calendula 日程</string>
     <string name="widget_month_label">Calendula 月视图</string>
     <string name="widget_refresh">刷新</string>
-    <string name="widget_new_event">新事件</string>
+    <string name="widget_new_event">新活动</string>
     <string name="widget_needs_permission">打开 Calendula 授予日历访问权限</string>
     <string name="widget_prev_month">上个月</string>
     <string name="widget_next_month">下个月</string>
@@ -527,12 +527,12 @@
     <string name="calendars_new_title">新建日历</string>
     <string name="calendars_edit_title">编辑日历</string>
     <string name="calendars_name_label">名称</string>
-    <string name="calendars_color_label">颜色</string>
+    <string name="calendars_color_label">色彩</string>
     <string name="calendars_description_hint">添加描述</string>
     <string name="calendars_delete_confirm_title">删除日历？</string>
     <string name="calendars_delete_confirm_message">“%1$s”及其所有事件将从本设备永久删除。</string>
     <string name="calendars_write_error">无法保存更改。</string>
-    <string name="calendars_backup_header">备份</string>
+    <string name="calendars_backup_header">返回</string>
     <string name="calendars_backup_hint">本地日历不会同步到任何地方，请导出为 .ics 文件以保留副本。</string>
     <string name="calendars_backup_action">导出为 .ics 文件</string>
     <string name="calendars_export_title">导出日历</string>
