@@ -6,7 +6,6 @@
         <item>Days</item>
         <item>Weeks</item>
     </string-array>
-    <string name="app_name"></string>
     <string name="app_tagline">一个现代化的日历应用</string>
     <string name="state_loading">加载中…</string>
     <string name="state_retry">推迟</string>
