@@ -21,11 +21,11 @@
     <string name="permission_denied_title">日历访问被拒绝</string>
     <string name="permission_denied_body">Calendula 无法在没有日历访问权限的情况下显示事件。您可以在系统设置中重新授予权限。</string>
     <string name="permission_open_settings_button">打开系统设置</string>
-    <string name="permission_retry_button">再试一次</string>
-    <string name="permission_benefit_private_title">设计上保护隐私</string>
+    <string name="permission_retry_button">重试</string>
+    <string name="permission_benefit_private_title">从设计上保护隐私</string>
     <string name="permission_benefit_private_body">没有网络权限，没有遥测——任何数据都不会离开您的手机。</string>
     <string name="permission_benefit_sync_title">所有日历汇聚一处</string>
-    <string name="permission_benefit_sync_body">Google、CalDAV、本地日历——只要同步到设备就会自动出现。</string>
+    <string name="permission_benefit_sync_body">Google、CalDAV、本地日历——只要同步到设备就会自动显示。</string>
     <string name="permission_benefit_privacy_title">永无追踪</string>
     <string name="permission_benefit_privacy_body">零遥测、零分析、无广告。</string>
     <string name="permission_privacy_footnote">数据保留在您的设备 · 无网络权限</string>
