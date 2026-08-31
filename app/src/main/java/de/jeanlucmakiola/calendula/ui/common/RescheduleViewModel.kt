@@ -140,6 +140,17 @@ class RescheduleViewModel @Inject constructor(
      */
     val inFlight: StateFlow<Boolean> = _inFlight.asStateFlow()
 
+    private val _abandoned = MutableStateFlow(0)
+
+    /**
+     * Ticks when a drop ends with nothing on the target day: refused before the
+     * write, written and failed, or its scope dialog dismissed. [move] answers
+     * before any of that is known, so without this signal the view that drew the
+     * drop held its copy out for the full settle timeout waiting for a grid that
+     * was never going to draw it (#253).
+     */
+    val abandoned: StateFlow<Int> = _abandoned.asStateFlow()
+
     private val _undoStarted = MutableStateFlow(0)
 
     /**
@@ -198,6 +209,7 @@ class RescheduleViewModel @Inject constructor(
         viewModelScope.launch {
             val prepared = prepare(request)
             if (prepared == null) {
+                _abandoned.value += 1
                 busy = false
                 return@launch
             }
@@ -231,6 +243,7 @@ class RescheduleViewModel @Inject constructor(
         pending = null
         busy = false
         _scopePrompt.value = null
+        _abandoned.value += 1
     }
 
     /**
@@ -340,6 +353,7 @@ class RescheduleViewModel @Inject constructor(
         val request = prepared.request
         if (endsBeforeItStarts(prepared, scope)) {
             _outcome.value = MoveOutcome.BlockedSeriesEnd
+            _abandoned.value += 1
             return
         }
         _outcome.value = try {
@@ -375,6 +389,9 @@ class RescheduleViewModel @Inject constructor(
         } catch (e: Exception) {
             MoveOutcome.Failed
         }
+        // Nothing landed, so the copy the view is holding has nothing to fade
+        // into — let it go now rather than at the end of the settle timeout.
+        if (_outcome.value !is MoveOutcome.Moved) _abandoned.value += 1
     }
 
     /**

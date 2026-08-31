@@ -47,21 +47,46 @@ class MonthRowGeometry(
      * the day isn't in this week, or the chip went into the day's "+N" overflow.
      */
     fun seatOf(event: EventInstance, date: LocalDate): Offset? {
-        val col = days.indexOf(date).takeIf { it >= 0 } ?: return null
-        val lane = (0 until laneCount).firstOrNull { lane ->
-            chipAt(col, lane)?.let { isSameEvent(it, event) } == true
-        } ?: return null
+        val (col, lane) = chipSeat(days, laneCount, chipAt, event, date) ?: return null
         return seat(col, lane)
     }
 }
 
 /**
+ * The column and lane a row draws [event]'s chip in, given it covers [date] —
+ * null when the row seats no such chip. The column is the *left end* of the bar
+ * within this row, not [date]'s own: a bar spanning several days is drawn once,
+ * from its first column, so an event dropped onto the second day it covers is
+ * seated a column (or more) to the left of where it landed (#253).
+ */
+internal fun chipSeat(
+    days: List<LocalDate>,
+    laneCount: Int,
+    chipAt: (col: Int, lane: Int) -> EventInstance?,
+    event: EventInstance,
+    date: LocalDate,
+): Pair<Int, Int>? {
+    val col = days.indexOf(date).takeIf { it >= 0 } ?: return null
+    val lane = (0 until laneCount).firstOrNull { lane ->
+        chipAt(col, lane)?.let { isSameEvent(it, event) } == true
+    } ?: return null
+    var first = col
+    while (first > 0 && chipAt(first - 1, lane)?.let { isSameEvent(it, event) } == true) {
+        first--
+    }
+    return first to lane
+}
+
+/**
  * Whether [chip] is the moved event [moved] as the grid now holds it. Neither id
  * alone will do: re-read instances get new instance ids, and a single-occurrence
- * move writes a new event id — the title survives both.
+ * move writes a new event id — the title survives both. A *blank* title is no
+ * evidence at all, though: every untitled event carries one, so matching on it
+ * made any two of them the same event (#253).
  */
-private fun isSameEvent(chip: EventInstance, moved: EventInstance): Boolean =
-    chip.eventId == moved.eventId || chip.title == moved.title
+internal fun isSameEvent(chip: EventInstance, moved: EventInstance): Boolean =
+    chip.eventId == moved.eventId ||
+        (moved.title.isNotBlank() && chip.title == moved.title)
 
 /** A chip in flight, in root coordinates so it can be drawn in an overlay. */
 data class MonthChipDrag(

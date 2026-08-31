@@ -207,6 +207,17 @@ internal fun EventInstance.coversDay(day: LocalDate, zone: TimeZone): Boolean {
 }
 
 /**
+ * True if this event touches more than one calendar day in [zone] — an all-day
+ * event covering a range, or a timed one crossing midnight. Occurrences are
+ * contiguous, so covering the day after the first is the whole question.
+ */
+internal fun EventInstance.spansMultipleDays(zone: TimeZone): Boolean {
+    val anchor = if (isAllDay) TimeZone.UTC else zone
+    val secondDay = start.toLocalDateTime(anchor).date.plus(1, DateTimeUnit.DAY)
+    return coversDay(secondDay, zone)
+}
+
+/**
  * Clip [events] to a single [day] and assign lanes so overlapping events render
  * side-by-side. Lane count is computed per overlap-cluster (a maximal run of
  * chained-overlapping events), matching the common phone week-view behaviour.

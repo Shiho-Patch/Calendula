@@ -322,6 +322,7 @@ fun CalendarHost(
             move = reschedule::move,
             inFlight = reschedule.inFlight,
             undoStarted = reschedule.undoStarted,
+            abandoned = reschedule.abandoned,
             edit = onEditEvent,
         )
     }

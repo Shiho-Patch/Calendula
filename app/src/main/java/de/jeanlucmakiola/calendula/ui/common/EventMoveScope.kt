@@ -45,6 +45,12 @@ class EventMoveScope(
     val inFlight: StateFlow<Boolean>,
     /** Ticks when an undo write begins — see `RescheduleViewModel.undoStarted`. */
     val undoStarted: StateFlow<Int>,
+    /**
+     * Ticks when a drop ends with nothing landing — see
+     * `RescheduleViewModel.abandoned`. [move] answers before the write is
+     * resolved, so this is what tells a held copy to stop waiting.
+     */
+    val abandoned: StateFlow<Int>,
     /** Open an event in the edit form — the pointer-free route to the same change. */
     val edit: (EventInstance) -> Unit,
 ) {
@@ -57,6 +63,8 @@ private val NEVER_IN_FLIGHT = MutableStateFlow(false)
 
 private val NEVER_UNDONE = MutableStateFlow(0)
 
+private val NEVER_ABANDONED = MutableStateFlow(0)
+
 /**
  * Whether a dropped event is still being written — false wherever moving is off.
  * The drag overlays hold a landed block on its target for this window.
@@ -64,6 +72,17 @@ private val NEVER_UNDONE = MutableStateFlow(0)
 @Composable
 fun moveInFlight(): Boolean {
     val flow = LocalEventMove.current?.inFlight ?: NEVER_IN_FLIGHT
+    return flow.collectAsStateWithLifecycle().value
+}
+
+/**
+ * How many drops have ended with nothing landing. Read as a plain count so a
+ * drag overlay can capture it at the moment of the drop and tell, later, whether
+ * *its own* drop was one of them.
+ */
+@Composable
+fun abandonedMoves(): Int {
+    val flow = LocalEventMove.current?.abandoned ?: NEVER_ABANDONED
     return flow.collectAsStateWithLifecycle().value
 }
 

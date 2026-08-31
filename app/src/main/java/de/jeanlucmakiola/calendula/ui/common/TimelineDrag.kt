@@ -208,7 +208,8 @@ class TimelineDragController {
     /**
      * What a day column now holds, so a settled drop can tell when the grid has
      * caught up with it. Matched on the landing slot plus either the event row
-     * or its title, since a single-occurrence move writes a new `eventId`.
+     * or its title, since a single-occurrence move writes a new `eventId`. A
+     * blank title matches nothing: every untitled event has one (#253).
      */
     fun noteGrid(date: LocalDate, blocks: List<TimedBlock>) {
         val landed = settling ?: return
@@ -217,7 +218,10 @@ class TimelineDragController {
             block.startMin == landed.startMin &&
                 (
                     block.event.eventId == landed.event.eventId ||
-                        block.event.title == landed.event.title
+                        (
+                            landed.event.title.isNotBlank() &&
+                                block.event.title == landed.event.title
+                            )
                     )
         }
     }
@@ -397,9 +401,15 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
     // recurring drop's scope dialog is up — and then until the grid draws the
     // drop itself.
     var handingOver by remember(controller.settling) { mutableStateOf(false) }
-    LaunchedEffect(controller.settling, moveInFlight, controller.settledOnGrid) {
+    val abandoned = abandonedMoves()
+    // The count as it stood when this drop was recorded: anything past it is
+    // this drop being abandoned, and then there is nothing to wait for.
+    val abandonedAtDrop = remember(controller.settling) { abandoned }
+    LaunchedEffect(controller.settling, moveInFlight, controller.settledOnGrid, abandoned) {
         if (controller.settling == null || moveInFlight) return@LaunchedEffect
-        delay(if (controller.settledOnGrid) SETTLE_GRACE_MILLIS else SETTLE_TIMEOUT_MILLIS)
+        if (abandoned == abandonedAtDrop) {
+            delay(if (controller.settledOnGrid) SETTLE_GRACE_MILLIS else SETTLE_TIMEOUT_MILLIS)
+        }
         handingOver = true
         controller.handOver()
         delay(SETTLE_FADE_MILLIS.toLong())

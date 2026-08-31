@@ -95,6 +95,7 @@ import de.jeanlucmakiola.calendula.ui.common.MoveTarget
 import de.jeanlucmakiola.calendula.ui.common.MoveRequest
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
 import de.jeanlucmakiola.calendula.ui.common.moveInFlight
+import de.jeanlucmakiola.calendula.ui.common.abandonedMoves
 import de.jeanlucmakiola.calendula.ui.common.OnUndoStarted
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.DragSnapHaptics
@@ -505,11 +506,15 @@ private fun MonthDragOverlay(controller: MonthDragController) {
     val glide = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
     val glideSpec = MaterialTheme.motionScheme.fastSpatialSpec<Offset>()
     val seat = controller.settledInRoot
-    LaunchedEffect(controller.settling, moveInFlight, seat) {
+    val abandoned = abandonedMoves()
+    // The count as it stood when this drop was recorded: anything past it is
+    // this drop being abandoned, and then no seat is ever coming.
+    val abandonedAtDrop = remember(controller.settling) { abandoned }
+    LaunchedEffect(controller.settling, moveInFlight, seat, abandoned) {
         val landed = controller.settling
         if (landed == null || moveInFlight) return@LaunchedEffect
         if (seat == null) {
-            delay(MONTH_SETTLE_TIMEOUT_MILLIS)
+            if (abandoned == abandonedAtDrop) delay(MONTH_SETTLE_TIMEOUT_MILLIS)
         } else {
             if (!gliding) glide.snapTo(landed.topLeftInRoot)
             gliding = true

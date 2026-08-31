@@ -44,6 +44,19 @@ class MonthLayoutTest {
         location = null,
     )
 
+    /** A timed event running from [date] 20:00 into the next day at [endHour]. */
+    private fun overnight(date: LocalDate, endHour: Int = 8) = EventInstance(
+        instanceId = 7L,
+        eventId = 7L,
+        calendarId = 1L,
+        title = "Night shift",
+        start = at(date, 20),
+        end = at(date.plus(1, DateTimeUnit.DAY), endHour),
+        isAllDay = false,
+        color = 0xFF112233.toInt(),
+        location = null,
+    )
+
     /** All-day events live at UTC midnights with an *exclusive* end. */
     private fun allDay(
         from: LocalDate,
@@ -159,6 +172,43 @@ class MonthLayoutTest {
         assertThat(week.timedByDay[LocalDate(2026, 6, 10)]?.map { it.instanceId })
             .containsExactly(2L, 1L)
             .inOrder()
+        assertThat(week.timedByDay[LocalDate(2026, 6, 11)]).isEmpty()
+    }
+
+    @Test
+    fun `an event crossing midnight is one bar, not two pills, on both sides of a week seam`() {
+        // Sun 14 Jun 20:00 to Mon 15 Jun 08:00 — the seam of a Monday-anchored
+        // grid: one day in this row, one in the next. Counting per row made each
+        // a standalone pill with nothing saying they were one event (#253).
+        val overnight = overnight(LocalDate(2026, 6, 14))
+        val head = layoutCalendarWeek(weekOf8th, listOf(overnight), zone)
+        assertThat(head.timedByDay.values.flatten()).isEmpty()
+        val headSpan = head.spans.single()
+        assertThat(headSpan.startCol).isEqualTo(6)
+        assertThat(headSpan.endCol).isEqualTo(6)
+        assertThat(headSpan.continuesLeft).isFalse()
+        assertThat(headSpan.continuesRight).isTrue()
+
+        val tailRow = layoutCalendarWeek(
+            weekOf8th.map { it.plus(7, DateTimeUnit.DAY) },
+            listOf(overnight),
+            zone,
+        )
+        assertThat(tailRow.timedByDay.values.flatten()).isEmpty()
+        val tailSpan = tailRow.spans.single()
+        assertThat(tailSpan.startCol).isEqualTo(0)
+        assertThat(tailSpan.endCol).isEqualTo(0)
+        assertThat(tailSpan.continuesLeft).isTrue()
+        assertThat(tailSpan.continuesRight).isFalse()
+    }
+
+    @Test
+    fun `an event ending exactly at midnight stays a single-day pill`() {
+        val untilMidnight = overnight(LocalDate(2026, 6, 10), endHour = 0)
+        val week = layoutCalendarWeek(weekOf8th, listOf(untilMidnight), zone)
+
+        assertThat(week.spans).isEmpty()
+        assertThat(week.timedByDay[LocalDate(2026, 6, 10)]).hasSize(1)
         assertThat(week.timedByDay[LocalDate(2026, 6, 11)]).isEmpty()
     }
 

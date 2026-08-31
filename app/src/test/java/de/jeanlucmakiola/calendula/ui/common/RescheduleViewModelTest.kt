@@ -494,4 +494,61 @@ class RescheduleViewModelTest {
         assertThat(fake.updatedEvents).isEmpty()
         assertThat(fake.updatedOccurrences).isEmpty()
     }
+
+    @Test
+    fun `a drop that lands nothing says so, since move() already answered yes`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { eventDetailResult = { detail() } }
+        val vm = viewModel(tempDir, fake)
+
+        // Refused in prepare: nowhere to move to.
+        assertThat(vm.move(
+            MoveRequest(
+                eventId = 42L,
+                beginMillis = beginMillis,
+                endMillis = endMillis,
+                target = MoveTarget.Start(Instant.fromEpochMilliseconds(beginMillis)),
+            ),
+        )).isTrue()
+        advanceUntilIdle()
+        assertThat(vm.abandoned.value).isEqualTo(1)
+
+        // Refused by the provider, after the write was attempted.
+        fake.writeError = SecurityException("revoked")
+        vm.move(oneHourLater())
+        advanceUntilIdle()
+        assertThat(vm.outcome.value).isEqualTo(MoveOutcome.WriteDenied)
+        assertThat(vm.abandoned.value).isEqualTo(2)
+    }
+
+    @Test
+    fun `a scope dialog dismissed leaves nothing waiting on the write`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply {
+            eventDetailResult = { detail(rrule = "FREQ=WEEKLY") }
+        }
+        val vm = viewModel(tempDir, fake)
+
+        vm.move(oneHourLater())
+        advanceUntilIdle()
+        assertThat(vm.abandoned.value).isEqualTo(0)
+
+        vm.cancelScope()
+        advanceUntilIdle()
+        assertThat(vm.abandoned.value).isEqualTo(1)
+    }
+
+    @Test
+    fun `a written move never counts as abandoned`(@TempDir tempDir: Path) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { eventDetailResult = { detail() } }
+        val vm = viewModel(tempDir, fake)
+
+        vm.move(oneHourLater())
+        advanceUntilIdle()
+
+        assertThat(vm.outcome.value).isInstanceOf(MoveOutcome.Moved::class.java)
+        assertThat(vm.abandoned.value).isEqualTo(0)
+    }
 }

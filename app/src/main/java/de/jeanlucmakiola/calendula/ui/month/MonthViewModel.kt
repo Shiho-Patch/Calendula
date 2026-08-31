@@ -12,6 +12,7 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.ui.week.coversDay
 import de.jeanlucmakiola.calendula.ui.week.layoutAllDay
+import de.jeanlucmakiola.calendula.ui.week.spansMultipleDays
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -417,8 +418,13 @@ internal fun layoutCalendarWeek(
     zone: TimeZone,
 ): MonthWeek {
     val weekEvents = instances.filter { ev -> days.any { ev.coversDay(it, zone) } }
+    // A bar is decided by the *event*, not by how much of it this row happens to
+    // hold: an event crossing midnight into the next week row covers one day in
+    // each, and counting per row drew it as two unrelated single-day pills with
+    // nothing saying they were one event (#253). As a bar it keeps its
+    // continuesLeft/continuesRight flat edge on the week seam.
     val (bars, singles) = weekEvents.partition { ev ->
-        ev.isAllDay || days.count { ev.coversDay(it, zone) } > 1
+        ev.isAllDay || ev.spansMultipleDays(zone)
     }
     val spans = layoutAllDay(bars, days, zone).map { s ->
         MonthSpan(
