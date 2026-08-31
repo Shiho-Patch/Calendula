@@ -26,7 +26,7 @@ lifecycleCompose = "2.10.0"
 androidxTestRules = "1.7.0"
 # Glance: 1.1.1 is the latest stable (1.2.0 is still rc, 1.3.0 alpha).
 glance = "1.1.1"
-work = "2.10.1"
+work = "2.11.2"
 documentfile = "1.1.0"
 
 [libraries]
