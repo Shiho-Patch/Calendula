@@ -976,10 +976,12 @@ class AndroidCalendarDataSource @Inject constructor(
         updated: EventForm,
         allDayReminderTimeMinutes: Int,
     ) {
+        val row = querySeriesRow(eventId)
         val values = buildEventUpdateValues(
             original = original,
             updated = updated,
-            seriesDtStartMillis = querySeriesRow(eventId).dtStartMillis,
+            seriesDtStartMillis = row.dtStartMillis,
+            seriesExdate = row.exdate,
             zone = ZoneId.systemDefault(),
         )
         if (values.isNotEmpty()) {
@@ -1228,8 +1230,64 @@ class AndroidCalendarDataSource @Inject constructor(
         }
         // Insert the new series first: if it fails, the original is untouched.
         val newEventId = insertEvent(updated, allDayReminderTimeMinutes)
+        carrySplitExdate(newEventId, row, beginMillis, original, updated)
         truncateSeries(eventId, row, beginMillis)
         return newEventId
+    }
+
+    /**
+     * Carry the [parent]'s exclusions for occurrences past [beginMillis] onto the
+     * series [newEventId] that now owns them, re-timed by the shift the split
+     * applied ([shiftedExdate]/[exdateAfter]). [insertEvent] builds the new row
+     * from the form, which knows nothing about them, so without this every
+     * occurrence the user had deleted from the tail of the series comes back.
+     *
+     * The whole time/recurrence set rides along with EXDATE for the reason
+     * [buildOccurrenceExdateValues] documents: on its own the provider does not
+     * read an EXDATE write as a recurrence change, and leaves the instances it
+     * expanded on insert standing.
+     *
+     * A failure rolls the new series back and throws, so the split fails whole
+     * rather than landing with the exclusions quietly dropped — the parent is
+     * still untruncated at this point, so the event is left exactly as it was.
+     */
+    private fun carrySplitExdate(
+        newEventId: Long,
+        parent: SeriesRow,
+        beginMillis: Long,
+        original: EventForm,
+        updated: EventForm,
+    ) {
+        // Dropping the recurrence in the same save leaves a one-off tail, and an
+        // exclusion means nothing on a row that doesn't recur.
+        if (updated.rrule.isNullOrBlank()) return
+        val carried = shiftedExdate(
+            existingExdate = exdateAfter(parent.exdate, beginMillis, original.isAllDay),
+            original = original,
+            updated = updated,
+            zone = ZoneId.systemDefault(),
+        ) ?: return
+        val row = querySeriesRow(newEventId)
+        val values = ContentValues().apply {
+            put(CalendarContract.Events.EXDATE, carried)
+            put(CalendarContract.Events.DTSTART, row.dtStartMillis)
+            put(CalendarContract.Events.RRULE, row.rrule)
+            put(CalendarContract.Events.DURATION, row.duration)
+            put(CalendarContract.Events.EVENT_TIMEZONE, row.timezone)
+            put(CalendarContract.Events.ALL_DAY, row.allDay)
+        }
+        try {
+            val rows = resolver.update(
+                ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, newEventId),
+                values, null, null,
+            )
+            if (rows == 0) {
+                throw WriteFailedException("carry exdate onto split series id=$newEventId")
+            }
+        } catch (t: Throwable) {
+            runCatching { deleteEvent(newEventId) }
+            throw t
+        }
     }
 
     override fun deleteEventFromOccurrence(eventId: Long, beginMillis: Long) {

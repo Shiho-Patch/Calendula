@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A deleted occurrence no longer comes back when the series is re-timed.**
+  Delete a single occurrence of a repeating event, then change the time of the
+  whole series, and the occurrence you had removed reappeared. Doing it the
+  other way round — "This and all following events" — lost every removal in the
+  part of the series being changed. Removals now travel with the event: they
+  keep their place in the series across a time change, a move to a different
+  day, a timezone change and a switch to or from an all-day event, and they
+  carry over when a series is split. Repeating events on your device's own
+  calendars are affected, including the birthday and anniversary calendars
+  Calendula creates from your contacts ([#248]).
+
 ## [2.19.3] — 2026-08-22
 
 ### Added
@@ -1471,3 +1483,4 @@ automatically, with zero telemetry and no internet permission.
 [#192]: https://codeberg.org/jlmakiola/calendula/issues/192
 [#196]: https://codeberg.org/jlmakiola/calendula/issues/196
 [#214]: https://codeberg.org/jlmakiola/calendula/issues/214
+[#248]: https://codeberg.org/jlmakiola/calendula/issues/248
