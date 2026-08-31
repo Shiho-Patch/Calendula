@@ -2,6 +2,7 @@ package de.jeanlucmakiola.calendula.ui.common
 
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.week.MINUTES_PER_DAY
 import de.jeanlucmakiola.calendula.ui.week.layoutDay
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -87,27 +88,71 @@ class TimedBlockShapeTest {
             .isEqualTo(CornerSize(square))
     }
 
+    private val fourHours = 4 * 60
+
     @Test
-    fun `what a dragged piece spills past midnight is the rest of it`() {
-        val fourHours = 4 * 60
-        // Held at 22:00: two hours on this day, two on the next.
-        assertThat(fourHours - visibleSpanMinutes(22 * 60, fourHours)).isEqualTo(2 * 60)
-        // Carried up to 21:00 the day takes three, so only one spills over —
-        // the second day's end comes up by the hour the first day gained.
-        assertThat(fourHours - visibleSpanMinutes(21 * 60, fourHours)).isEqualTo(60)
-        // Anywhere it fits outright there is nothing to spill.
-        assertThat(fourHours - visibleSpanMinutes(10 * 60, fourHours)).isEqualTo(0)
+    fun `an event that fits its day is drawn as one uncut piece`() {
+        val pieces = dragSlices(eventStartMin = 10 * 60, spanMin = fourHours)
+
+        assertThat(pieces).hasSize(1)
+        assertThat(pieces.single().dayOffset).isEqualTo(0)
+        assertThat(pieces.single().spanMin).isEqualTo(fourHours)
+        assertThat(pieces.single().continuesBefore).isFalse()
+        assertThat(pieces.single().continuesAfter).isFalse()
     }
 
     @Test
-    fun `a dragged piece is sized by what its day can still show`() {
-        val fourHours = 4 * 60
-        // Held at 22:00 only two of its four hours fit before midnight...
-        assertThat(visibleSpanMinutes(22 * 60, fourHours)).isEqualTo(2 * 60)
-        // ...carried up to 21:00 it grows to three...
-        assertThat(visibleSpanMinutes(21 * 60, fourHours)).isEqualTo(3 * 60)
-        // ...and anywhere it fits outright it is simply itself.
-        assertThat(visibleSpanMinutes(10 * 60, fourHours)).isEqualTo(fourHours)
-        assertThat(visibleSpanMinutes(20 * 60, fourHours)).isEqualTo(fourHours)
+    fun `dragging the start half re-splits both days as it moves`() {
+        // Held at 22:00: two hours on this day, two on the next.
+        assertThat(dragSlices(22 * 60, fourHours).map { it.spanMin })
+            .containsExactly(2 * 60, 2 * 60).inOrder()
+        // Carried up to 21:00 the first day takes three, so the second day's end
+        // comes up by exactly the hour the first day gained.
+        assertThat(dragSlices(21 * 60, fourHours).map { it.spanMin })
+            .containsExactly(3 * 60, 60).inOrder()
+    }
+
+    @Test
+    fun `dragging the end half splits the same way, one day back`() {
+        // The tail's top edge is at midnight and the event began two hours
+        // earlier, so it starts at -120 relative to the day the finger is on.
+        val pieces = dragSlices(eventStartMin = -2 * 60, spanMin = fourHours)
+
+        assertThat(pieces.map { it.dayOffset }).containsExactly(-1, 0).inOrder()
+        assertThat(pieces.map { it.spanMin }).containsExactly(2 * 60, 2 * 60).inOrder()
+        // The piece on the earlier day ends at midnight; the held one starts there.
+        assertThat(pieces.first().startMin).isEqualTo(22 * 60)
+        assertThat(pieces.first().continuesAfter).isTrue()
+        assertThat(pieces.last().startMin).isEqualTo(0)
+        assertThat(pieces.last().continuesBefore).isTrue()
+    }
+
+    @Test
+    fun `the earlier half shrinks away as the end half is pulled down its own day`() {
+        // Tail top dragged from midnight down to 01:00: one hour left behind.
+        assertThat(dragSlices(-2 * 60 + 60, fourHours).map { it.spanMin })
+            .containsExactly(60, 3 * 60).inOrder()
+        // At 02:00 the event no longer crosses midnight at all.
+        val whole = dragSlices(0, fourHours)
+        assertThat(whole).hasSize(1)
+        assertThat(whole.single().continuesBefore).isFalse()
+    }
+
+    @Test
+    fun `a day wholly inside a long event is cut on both sides`() {
+        val pieces = dragSlices(eventStartMin = 22 * 60, spanMin = 30 * 60)
+
+        assertThat(pieces.map { it.dayOffset }).containsExactly(0, 1, 2).inOrder()
+        assertThat(pieces[1].spanMin).isEqualTo(MINUTES_PER_DAY)
+        assertThat(pieces[1].continuesBefore).isTrue()
+        assertThat(pieces[1].continuesAfter).isTrue()
+    }
+
+    @Test
+    fun `an event ending exactly at midnight takes no piece of the next day`() {
+        val pieces = dragSlices(eventStartMin = 22 * 60, spanMin = 2 * 60)
+
+        assertThat(pieces).hasSize(1)
+        assertThat(pieces.single().continuesAfter).isFalse()
     }
 }

@@ -71,31 +71,69 @@ private val AUTO_SCROLL_STEP = 16.dp
 data class TimelineDrag(
     val event: EventInstance,
     val date: LocalDate,
+    /**
+     * Where the dragged *block's* top edge now sits, in minutes from [date]'s
+     * midnight. The gesture's own quantity — what snaps, what the haptics tick
+     * on, and what the drop is expressed in. Not the event's start: for the tail
+     * of an event that began the day before, the two are a clip offset apart.
+     */
     val startMin: Int,
-    val endMin: Int,
-    val topLeftInRoot: Offset,
-    val sizePx: IntSize,
-    /** The event ran before this copy's top edge — it is a tail, so: flat cap. */
-    val continuesBefore: Boolean = false,
-    /** The event runs past this day's midnight, so the copy is cut there. */
-    val continuesAfter: Boolean = false,
-    /** What spills past that midnight, previewed on the next day. Null if none. */
-    val spill: TimelineDragSpill? = null,
+    /** The event's new start, from [date]'s midnight — negative if it began earlier. */
+    val eventStartMin: Int,
+    val eventSpanMin: Int,
+    /** The event as the grid would draw it, one piece per day column it covers. */
+    val pieces: List<TimelineDragPiece>,
 ) {
     /** What the snap haptics key off: one tick per changed slot, not per frame. */
     val slot: Pair<LocalDate, Int> get() = date to startMin
 }
 
 /**
- * The part of a dragged copy that runs past midnight, seated at the top of the
- * next day's column. Without it the copy grows on the day under the finger while
- * the day after still shows the block's old, un-moved extent, and the event reads
- * as getting longer rather than moving (#253).
+ * One day column's share of a dragged event, ready to draw. Both halves of an
+ * event crossing midnight are previewed, whichever half the finger picked up:
+ * showing only the held one made the event read as growing rather than moving,
+ * since the day beside it still stood at the block's old extent (#253).
  */
-data class TimelineDragSpill(
+data class TimelineDragPiece(
     val topLeftInRoot: Offset,
     val sizePx: IntSize,
-    /** The event runs past that day's midnight too, so this piece is cut as well. */
+    val continuesBefore: Boolean,
+    val continuesAfter: Boolean,
+    /** The piece the finger is on — the one that carries the time label. */
+    val isAnchor: Boolean,
+)
+
+/**
+ * How a run of [spanMin] minutes beginning [eventStartMin] minutes into a day —
+ * negative when it began on an earlier one — falls across day columns, as
+ * offsets from that day. Every slice but the first and last is a whole day, and
+ * the flags say which edges are cuts rather than the event's own ends.
+ */
+internal fun dragSlices(eventStartMin: Int, spanMin: Int): List<DragSlice> {
+    if (spanMin <= 0) return emptyList()
+    val end = eventStartMin + spanMin
+    val first = eventStartMin.floorDiv(MINUTES_PER_DAY)
+    val last = (end - 1).floorDiv(MINUTES_PER_DAY)
+    return (first..last).map { day ->
+        val dayStart = day * MINUTES_PER_DAY
+        val sliceStart = maxOf(eventStartMin - dayStart, 0)
+        val sliceEnd = minOf(end - dayStart, MINUTES_PER_DAY)
+        DragSlice(
+            dayOffset = day,
+            startMin = sliceStart,
+            spanMin = sliceEnd - sliceStart,
+            continuesBefore = day > first,
+            continuesAfter = day < last,
+        )
+    }
+}
+
+/** One day's share of a dragged event, before it is placed on screen. */
+internal data class DragSlice(
+    val dayOffset: Int,
+    val startMin: Int,
+    val spanMin: Int,
+    val continuesBefore: Boolean,
     val continuesAfter: Boolean,
 )
 
@@ -327,73 +365,45 @@ class TimelineDragController {
         val snapped = (rawMinutes / DRAG_SNAP_MINUTES).roundToInt() * DRAG_SNAP_MINUTES
         // Clamp the start into the target day; a tail past midnight is fine.
         val startMin = snapped.coerceIn(0, MINUTES_PER_DAY - DRAG_SNAP_MINUTES)
-        // The event's own length rather than the block's, since TimedBlock.endMin
-        // is clipped at midnight and would draw a 22:00–02:00 event as a two-hour
-        // copy — less whatever of the event already ran before the block's top
-        // edge, so the tail of an overnight event travels as the tail it is.
-        val span = ((block.event.end - block.event.start).inWholeMinutes.toInt() - clipOffsetMin)
+        val eventSpan = (block.event.end - block.event.start).inWholeMinutes.toInt()
             .coerceAtLeast(0)
+        // Where the *event* now starts, which is the block's top edge less
+        // whatever of it already ran before that edge. Negative means the event
+        // begins on an earlier day than the one the finger is over.
+        val eventStartMin = startMin - clipOffsetMin
         // The column the finger is over on screen, and the day that column shows.
         val column = ((pointer.x - origin.x) / columnPx).toInt().coerceIn(0, days.lastIndex)
         val dayIndex = if (geometry.isRtl) days.lastIndex - column else column
-        // What the day the copy is over would actually show of it: the grid cuts
-        // an event at midnight, so the copy has to as well, or a four-hour event
-        // held at 22:00 would draw two hours past the foot of the column. It
-        // regrows as the finger carries it earlier into the day, which is the
-        // whole point — the copy is a preview of the block, not of the event.
-        val visible = visibleSpanMinutes(startMin, span)
-        val height = maxOf(visible / 60f * hourPx, MIN_EVENT_FRACTION * hourPx)
         drag = TimelineDrag(
             event = block.event,
             date = days[dayIndex],
             startMin = startMin,
-            endMin = startMin + span,
-            topLeftInRoot = Offset(
-                x = origin.x + column * columnPx,
-                y = origin.y + startMin / 60f * hourPx,
-            ),
-            sizePx = IntSize(
-                (columnPx - geometry.columnGapPx).roundToInt(),
-                height.roundToInt(),
-            ),
-            continuesBefore = clipOffsetMin > 0,
-            continuesAfter = visible < span,
-            spill = spill(
-                remainder = span - visible,
-                dayIndex = dayIndex,
-                days = days,
-                origin = origin,
-                hourPx = hourPx,
-                columnPx = columnPx,
-            ),
-        )
-    }
-
-    /**
-     * The next day's share of a copy that runs past midnight, or null when there
-     * is none — or when the day it would land on isn't on screen, which is every
-     * drop on the last column and the whole of the Day view.
-     */
-    private fun spill(
-        remainder: Int,
-        dayIndex: Int,
-        days: List<LocalDate>,
-        origin: Offset,
-        hourPx: Float,
-        columnPx: Float,
-    ): TimelineDragSpill? {
-        if (remainder <= 0 || dayIndex >= days.lastIndex) return null
-        val next = dayIndex + 1
-        val column = if (geometry.isRtl) days.lastIndex - next else next
-        val shown = minOf(remainder, MINUTES_PER_DAY)
-        return TimelineDragSpill(
-            // Starts at midnight, so the top of the grid rather than an offset.
-            topLeftInRoot = Offset(origin.x + column * columnPx, origin.y),
-            sizePx = IntSize(
-                (columnPx - geometry.columnGapPx).roundToInt(),
-                maxOf(shown / 60f * hourPx, MIN_EVENT_FRACTION * hourPx).roundToInt(),
-            ),
-            continuesAfter = remainder > MINUTES_PER_DAY,
+            eventStartMin = eventStartMin,
+            eventSpanMin = eventSpan,
+            pieces = dragSlices(eventStartMin, eventSpan).mapNotNull { slice ->
+                val day = dayIndex + slice.dayOffset
+                // A day this timeline doesn't show has no column to draw in. The
+                // write is unaffected; only the preview is short a piece.
+                if (day !in days.indices) return@mapNotNull null
+                val col = if (geometry.isRtl) days.lastIndex - day else day
+                TimelineDragPiece(
+                    topLeftInRoot = Offset(
+                        x = origin.x + col * columnPx,
+                        y = origin.y + slice.startMin / 60f * hourPx,
+                    ),
+                    sizePx = IntSize(
+                        (columnPx - geometry.columnGapPx).roundToInt(),
+                        maxOf(
+                            slice.spanMin / 60f * hourPx,
+                            MIN_EVENT_FRACTION * hourPx,
+                        ).roundToInt(),
+                    ),
+                    continuesBefore = slice.continuesBefore,
+                    continuesAfter = slice.continuesAfter,
+                    // Always present: the finger's own edge lies inside this day.
+                    isAnchor = slice.dayOffset == 0,
+                )
+            },
         )
     }
 
@@ -449,14 +459,6 @@ fun TimedBlock.clipOffsetMinutes(day: LocalDate, zone: TimeZone): Int {
     val top = day.atStartOfDayIn(zone) + startMin.minutes
     return (top - event.start).inWholeMinutes.toInt().coerceAtLeast(0)
 }
-
-/**
- * How much of a [spanMin]-long piece starting at [startMin] a single day can
- * show — the rest of it belongs to the day after. What the dragged copy is sized
- * by, so it grows as the finger carries it earlier into the day (#253).
- */
-internal fun visibleSpanMinutes(startMin: Int, spanMin: Int): Int =
-    minOf(spanMin, MINUTES_PER_DAY - startMin)
 
 /**
  * True when the event began before [day] — this block is its tail, cut at
@@ -576,45 +578,28 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
         )
         val fill = eventFill(drag.event.color, dark, soften)
         val title = drag.event.title.ifBlank { stringResource(R.string.event_untitled) }
-        // An end past midnight wraps rather than saturating, so a four-hour
-        // event dragged to 22:00 reads "22:00–02:00" and not "22:00–24:00".
-        val endMin = if (drag.endMin > MINUTES_PER_DAY) {
-            drag.endMin % MINUTES_PER_DAY
-        } else {
-            drag.endMin
-        }
-        val label = "${formatMinuteOfDay(drag.startMin, use24Hour, locale)}–" +
+        // Read off the event rather than the held block, so grabbing either half
+        // of an event that crosses midnight names the same hours. An end past
+        // midnight wraps rather than saturating, so a four-hour event dragged to
+        // 22:00 reads "22:00–02:00" and not "22:00–24:00".
+        val startMin = drag.eventStartMin.mod(MINUTES_PER_DAY)
+        val rawEnd = startMin + drag.eventSpanMin
+        val endMin = if (rawEnd > MINUTES_PER_DAY) rawEnd % MINUTES_PER_DAY else rawEnd
+        val label = "${formatMinuteOfDay(startMin, use24Hour, locale)}–" +
             formatMinuteOfDay(endMin, use24Hour, locale)
-        val blockShape = timedBlockShape(drag.continuesBefore, drag.continuesAfter)
-        DragCopy(
-            topLeftInRoot = drag.topLeftInRoot,
-            overlayOrigin = origin,
-            sizePx = drag.sizePx,
-            fill = fill,
-            shape = blockShape,
-            lift = lift,
-            alpha = copyAlpha,
-            title = title,
-            label = label,
-        )
-        // The rest of it on the day it runs into, so both halves move together
-        // and the copy stops reading as an event being stretched.
-        drag.spill?.let { spill ->
+        drag.pieces.forEach { piece ->
             DragCopy(
-                topLeftInRoot = spill.topLeftInRoot,
+                topLeftInRoot = piece.topLeftInRoot,
                 overlayOrigin = origin,
-                sizePx = spill.sizePx,
+                sizePx = piece.sizePx,
                 fill = fill,
-                shape = timedBlockShape(
-                    continuesBefore = true,
-                    continuesAfter = spill.continuesAfter,
-                ),
+                shape = timedBlockShape(piece.continuesBefore, piece.continuesAfter),
                 lift = lift,
                 alpha = copyAlpha,
                 title = title,
-                // The time range belongs to the piece the finger is on; repeating
-                // it here would name hours this piece doesn't cover.
-                label = null,
+                // Only on the piece the finger is on: the range belongs to the
+                // whole event, and repeating it would name it once per day.
+                label = label.takeIf { piece.isAnchor },
             )
         }
     }
