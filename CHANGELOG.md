@@ -26,6 +26,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   saves the edit as its own event instead, which is what you see either way. A
   save that does fail also says so for longer, rather than flashing past
   ([#234]).
+- **A failed import no longer costs you the whole file.** One event the calendar
+  refuses used to abort the entire import with nothing on screen but "couldn't
+  read this file". Events are now added one at a time: anything rejected is
+  counted and shown, and the rest still arrive. A faulty repeat rule in the file
+  is repaired instead of being handed on ([#225]).
+- **All-day reminders survive a backup and an import.** They fire at the hour you
+  chose, not at midnight UTC — the same rule the app already applied to all-day
+  events you create yourself — and an export no longer leaves them out of the
+  file entirely. An imported yearly birthday fires at the right hour too, even
+  though the file dates it back to the year of birth ([#225]).
+- **Birthdays and anniversaries imported from Fossify Calendar now show up.**
+  Fossify writes the ones it mirrors from your contacts as events that start and
+  end on the same day, which the calendar read as lasting no time at all: they
+  imported without complaint and then appeared nowhere. Any all-day event that
+  ends where it starts, or carries no end at all, is now a one-day event
+  ([#225]).
+- **A backup no longer brings back occurrences you had deleted.** Remove a single
+  occurrence of a repeating event, back up, restore — and it was there again,
+  because the removals never made it into the file. They travel with the series
+  now, so a restored calendar looks the way you left it ([#225]).
+
+### Added
+- **More of an imported `.ics` survives the trip**: tasks come across as events
+  rather than being dropped in silence, deleted occurrences of a repeating event
+  stay deleted, a calendar named like the one the file came from is preselected,
+  and event colours are carried over — matched to the closest colour your
+  calendar's account offers, so a migrated calendar still reads at a glance
+  ([#225]).
 
 ## [2.19.3] — 2026-08-22
 
@@ -1491,5 +1519,6 @@ automatically, with zero telemetry and no internet permission.
 [#192]: https://codeberg.org/jlmakiola/calendula/issues/192
 [#196]: https://codeberg.org/jlmakiola/calendula/issues/196
 [#214]: https://codeberg.org/jlmakiola/calendula/issues/214
+[#225]: https://codeberg.org/jlmakiola/calendula/issues/225
 [#228]: https://codeberg.org/jlmakiola/calendula/issues/228
 [#234]: https://codeberg.org/jlmakiola/calendula/issues/234

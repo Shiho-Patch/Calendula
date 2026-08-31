@@ -110,3 +110,17 @@ private const val CURATION_TRIGGER_SIZE = 36
  * apart that two swatches never read as the same colour in the grid.
  */
 private const val MIN_DISTANCE = 0.025f
+
+/**
+ * The palette entry closest to [argb], or null when the account publishes no
+ * palette (its calendars then take a raw `EVENT_COLOR` instead).
+ *
+ * Used to land a colour that came from outside the account — an imported `.ics`
+ * carries an arbitrary ARGB, while a palette calendar only accepts one of its
+ * own keys. Distance is measured in Oklab, so the match is the one that looks
+ * closest rather than the one that is closest in RGB coordinates.
+ */
+fun List<EventColorOption>.nearestTo(argb: Int): EventColorOption? {
+    val target = oklchOf(argb)
+    return minByOrNull { oklchOf(it.argb).distanceTo(target) }
+}

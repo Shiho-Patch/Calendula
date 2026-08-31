@@ -693,11 +693,15 @@
     <string name="import_done_dedup_note">Events already in the calendar were skipped.</string>
     <string name="import_done_added_label">Added</string>
     <string name="import_done_skipped_label">Duplicates</string>
+    <string name="import_done_failed_label">Not added</string>
+    <string name="import_done_failed_note">Some events couldn\'t be added and were left out.</string>
     <string name="import_close">Close</string>
     <string name="import_warning_recurrence">Some changed occurrences of recurring events were skipped.</string>
     <string name="import_warning_no_start">An event without a start time was skipped.</string>
     <string name="import_warning_attendees">Guest lists weren\'t imported.</string>
     <string name="import_warning_timezone">An unknown time zone fell back to your device\'s.</string>
+    <string name="import_warning_tasks">Tasks in this file were added as events.</string>
+    <string name="import_warning_recurrence_repaired">A faulty repeat rule was repaired.</string>
     <string name="import_button">Import</string>
     <plurals name="import_title_count">
         <item quantity="one">Importing %d event</item>
@@ -718,6 +722,10 @@
     <plurals name="import_done_skipped">
         <item quantity="one">Skipped %d already in this calendar.</item>
         <item quantity="other">Skipped %d already in this calendar.</item>
+    </plurals>
+    <plurals name="import_done_failed">
+        <item quantity="one">%d event couldn\'t be added.</item>
+        <item quantity="other">%d events couldn\'t be added.</item>
     </plurals>
     <!-- Launcher long-press shortcuts -->
     <string name="shortcut_new_event_short">New event</string>
