@@ -85,6 +85,23 @@ class TimelineDropTest {
     }
 
     @Test
+    fun `pulling the tail above its own midnight moves the event earlier`() {
+        val offset = blockOn(sun).clipOffsetMinutes(sun, zone)
+        // The tail's top edge dragged an hour above the midnight it rests on.
+        val drop = TimelineDrop(overnight, sun, -60, offset)
+
+        // Event was Sat 20:00 to Sun 08:00; it now begins an hour earlier.
+        assertThat(drop.startInstant(zone)).isEqualTo(sat.atTime(19, 0).toInstant(zone))
+    }
+
+    @Test
+    fun `a top edge dragged past the next midnight resolves onto the day after`() {
+        val drop = TimelineDrop(overnight, sat, 25 * 60, clipOffsetMin = 0)
+
+        assertThat(drop.startInstant(zone)).isEqualTo(sun.atTime(1, 0).toInstant(zone))
+    }
+
+    @Test
     fun `a block that is not clipped is unaffected wherever it sits`() {
         val plain = EventInstance(
             instanceId = 2L, eventId = 2L, calendarId = 1L, title = "Standup",

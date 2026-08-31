@@ -363,10 +363,20 @@ class TimelineDragController {
         val origin = grid.positionInRoot()
         val rawMinutes = (pointer.y - grab.y - origin.y) / hourPx * 60f
         val snapped = (rawMinutes / DRAG_SNAP_MINUTES).roundToInt() * DRAG_SNAP_MINUTES
-        // Clamp the start into the target day; a tail past midnight is fine.
-        val startMin = snapped.coerceIn(0, MINUTES_PER_DAY - DRAG_SNAP_MINUTES)
         val eventSpan = (block.event.end - block.event.start).inWholeMinutes.toInt()
             .coerceAtLeast(0)
+        // Clamp the held edge into the target day; a tail past midnight is fine.
+        // A clipped block's top edge *is* midnight, though, and stays there however
+        // much earlier the event moves — pinning it at 0 like an ordinary block's
+        // start made dragging the second half earlier a no-op (#253). So that
+        // half is held by its other edge: it may rise until the event's end is
+        // one snap step into this day, and no higher than its own resting place.
+        val floor = if (clipOffsetMin > 0) {
+            minOf(0, DRAG_SNAP_MINUTES + clipOffsetMin - eventSpan)
+        } else {
+            0
+        }
+        val startMin = snapped.coerceIn(floor, MINUTES_PER_DAY - DRAG_SNAP_MINUTES)
         // Where the *event* now starts, which is the block's top edge less
         // whatever of it already ran before that edge. Negative means the event
         // begins on an earlier day than the one the finger is over.
@@ -494,9 +504,17 @@ val TIMED_BLOCK_CORNER = 4.dp
  * of its own; `toInstant` resolves it forward by the missing hour, and the block
  * visibly settles there.
  */
-fun TimelineDrop.startInstant(zone: TimeZone): Instant =
-    LocalDateTime(date, LocalTime(startMin / 60, startMin % 60)).toInstant(zone) -
-        clipOffsetMin.minutes
+fun TimelineDrop.startInstant(zone: TimeZone): Instant {
+    // [startMin] runs past its day at either end — a block's top edge can be
+    // dragged above this day's midnight, and a tail's below the next one — so it
+    // is resolved as a day plus a minute of that day rather than assumed to be
+    // one. Wall clock, not an instant offset: an event dropped over a DST
+    // boundary keeps the time of day it is dropped at.
+    val day = date.plus(startMin.floorDiv(MINUTES_PER_DAY), DateTimeUnit.DAY)
+    val minute = startMin.mod(MINUTES_PER_DAY)
+    val top = LocalDateTime(day, LocalTime(minute / 60, minute % 60)).toInstant(zone)
+    return top - clipOffsetMin.minutes
+}
 
 /**
  * A beat after the grid draws the drop, so its own block is under way before the
