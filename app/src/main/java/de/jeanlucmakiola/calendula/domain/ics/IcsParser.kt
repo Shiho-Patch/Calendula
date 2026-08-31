@@ -53,7 +53,10 @@ data class ParsedIcsEvent(
  * [reminderMinutes] mapped onto Calendula's model: a lead time in minutes before
  * the event, never negative.
  *
- * For a timed event the raw lead time already is that. All-day reminders are
+ * For a timed event the raw lead time already is that, and a trigger that fires
+ * *after* the start models no lead time at all — it is dropped rather than
+ * clamped, which would invent a reminder at the start the file never asked for
+ * (a legal `TRIGGER:PT30M` follow-up alarm is the case). All-day reminders are
  * whole days before the event, fired at the user's configured time of day (see
  * `AllDayReminderEncoding`), so a raw offset counts the whole days its trigger
  * lands *earlier than* the event's UTC midnight — i.e. it rounds **up**.
@@ -67,11 +70,11 @@ data class ParsedIcsEvent(
  * ceils to zero days before.
  */
 fun ParsedIcsEvent.semanticReminderMinutes(): List<Int> = reminderMinutes
-    .map { raw ->
+    .mapNotNull { raw ->
         if (isAllDay) {
             ceil(raw.toDouble() / MINUTES_PER_DAY).toInt().coerceAtLeast(0) * MINUTES_PER_DAY
         } else {
-            raw.coerceAtLeast(0)
+            raw.takeIf { it >= 0 }
         }
     }
     .distinct()
@@ -179,6 +182,7 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
         var summary = ""
         var dtStart: IcsDateTime? = null
         var dtEnd: IcsDateTime? = null
+        var due: IcsDateTime? = null
         var duration: String? = null
         var rrule: String? = null
         var location: String? = null
@@ -207,8 +211,7 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
                 "UID" -> uid = line.value.trim().ifEmpty { null }
                 "SUMMARY" -> summary = unescapeText(line.value)
                 "DTSTART" -> dtStart = parseIcsDateTime(line, warnings)
-                // A VTODO has no DTSTART of its own in most producers' output.
-                "DUE" -> if (isTask && dtStart == null) dtStart = parseIcsDateTime(line, warnings)
+                "DUE" -> if (isTask) due = parseIcsDateTime(line, warnings)
                 "DTEND" -> dtEnd = parseIcsDateTime(line, warnings)
                 "DURATION" -> duration = line.value.trim()
                 "RRULE" -> rrule = line.value.trim().ifEmpty { null }
@@ -243,6 +246,14 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
         if (skipAsOverride) {
             warnings.add(IcsParseWarning.ModifiedOccurrenceSkipped)
             return null
+        }
+        // Most producers give a VTODO only a DUE, which is then the moment the
+        // task sits at. One that carries a DTSTART too means the span between
+        // them, so DUE stands in for the end it has no DTEND for. Resolved after
+        // the sweep rather than inside it: property order isn't guaranteed, and
+        // a DUE ahead of the DTSTART would otherwise be taken for the start.
+        if (isTask && due != null) {
+            if (dtStart == null) dtStart = due else if (dtEnd == null) dtEnd = due
         }
         val start = dtStart ?: run {
             warnings.add(IcsParseWarning.EventWithoutStartSkipped)

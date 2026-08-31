@@ -3,6 +3,7 @@ package de.jeanlucmakiola.calendula.domain.ics
 import com.google.common.truth.Truth.assertThat
 import kotlinx.datetime.TimeZone
 import org.junit.jupiter.api.Test
+import kotlin.time.Instant
 
 /**
  * Reading the Simple Calendar / Fossify export dialect (Codeberg #225).
@@ -174,6 +175,41 @@ class IcsFossifyImportTest {
         )
 
         assertThat(result.events.single().summary).isEqualTo("File taxes")
+    }
+
+    @Test
+    fun `a task with both DTSTART and DUE spans between them`() {
+        val result = parser.parse(
+            fossify(
+                "BEGIN:VTODO",
+                "SUMMARY:Write report",
+                "DTSTART:20260901T090000Z",
+                "DUE:20260901T170000Z",
+                "END:VTODO",
+            ),
+        )
+
+        val task = result.events.single()
+        assertThat(task.start).isEqualTo(Instant.parse("2026-09-01T09:00:00Z"))
+        assertThat(task.end).isEqualTo(Instant.parse("2026-09-01T17:00:00Z"))
+    }
+
+    @Test
+    fun `a DUE ahead of the DTSTART is still the end`() {
+        // Property order isn't guaranteed; DUE must not be taken for the start.
+        val result = parser.parse(
+            fossify(
+                "BEGIN:VTODO",
+                "SUMMARY:Write report",
+                "DUE:20260901T170000Z",
+                "DTSTART:20260901T090000Z",
+                "END:VTODO",
+            ),
+        )
+
+        val task = result.events.single()
+        assertThat(task.start).isEqualTo(Instant.parse("2026-09-01T09:00:00Z"))
+        assertThat(task.end).isEqualTo(Instant.parse("2026-09-01T17:00:00Z"))
     }
 
     @Test
@@ -386,6 +422,27 @@ class IcsFossifyImportTest {
         )
 
         assertThat(result.events.single().semanticReminderMinutes()).containsExactly(10)
+    }
+
+    @Test
+    fun `a timed trigger that fires after the start is dropped, not clamped`() {
+        // A legal RFC 5545 follow-up alarm. Modelling it as a lead time of zero
+        // would invent a notification at the start the file never asked for.
+        val result = parser.parse(
+            fossify(
+                "BEGIN:VEVENT",
+                "SUMMARY:Standup",
+                "DTSTART:20260819T080000Z",
+                "DTEND:20260819T081500Z",
+                "BEGIN:VALARM",
+                "ACTION:DISPLAY",
+                "TRIGGER:PT30M",
+                "END:VALARM",
+                "END:VEVENT",
+            ),
+        )
+
+        assertThat(result.events.single().semanticReminderMinutes()).isEmpty()
     }
 
     @Test

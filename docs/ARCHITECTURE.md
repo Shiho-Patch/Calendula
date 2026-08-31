@@ -395,10 +395,11 @@ property is a tag list and must not outrank something that names the calendar
 outright — bare `EXDATE` day codes on a timed series are resolved against the
 series' own time of day (as is a floating `EXDATE` DATE-TIME — RFC 5545 ties it
 to `DTSTART`'s zone, not the device's) while an all-day `EXDATE` keeps the day it
-spells out rather than the day its resolved instant lands on in UTC, and a
-`VALARM` trigger pointing *after* the start — which is how that family encodes
-"on the day at 09:00" — is read as zero days before rather than clamped to a lead
-time of zero.
+spells out rather than the day its resolved instant lands on in UTC, and an
+all-day `VALARM` trigger pointing *after* the start — which is how that family
+encodes "on the day at 09:00" — is read as zero days before. On a *timed* event
+the same shape means a follow-up alarm and is dropped: clamping it to zero would
+invent a reminder at the start that the file never asked for.
 
 All-day reminder offsets are **whole days, rounded up** in both directions. A
 file's raw offset is `days × 1440 − timeOfDay`, so rounding to the nearest day
@@ -409,6 +410,16 @@ into it and is normally *negative*, which the writer used to discard as a trigge
 after the event — so `toIcsEvent` decodes it back through
 `fromProviderAllDayMinutes` first, and the importing device re-encodes it against
 its own setting.
+
+**A backup carries the series' deleted occurrences.** `EXDATE` lives on the
+master row, so the export query's `ORIGINAL_ID IS NULL` filter — which does drop
+`RECURRENCE-ID` overrides — never hid it; it simply wasn't read. It is now part
+of `EventExportProjection`, and `IcsWriter` marks an all-day series' exclusions
+`VALUE=DATE`, because RFC 5545 ties `EXDATE`'s value type to `DTSTART`'s and a
+bare day code without it reads as a malformed DATE-TIME. Sync adapters disagree
+on whether an all-day exclusion is `yyyyMMdd` or a padded midnight stamp, so
+`exportExDates` drops the time part on the way out. Without this, an in-app
+backup→restore resurrected every occurrence the user had deleted.
 
 That re-encode is sampled where the reminder will actually *fire*, not at
 `DTSTART` (`importedAllDayReminderDate`). An imported series' `DTSTART` is only an
