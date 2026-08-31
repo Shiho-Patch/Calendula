@@ -88,6 +88,18 @@ class TimedBlockShapeTest {
     }
 
     @Test
+    fun `what a dragged piece spills past midnight is the rest of it`() {
+        val fourHours = 4 * 60
+        // Held at 22:00: two hours on this day, two on the next.
+        assertThat(fourHours - visibleSpanMinutes(22 * 60, fourHours)).isEqualTo(2 * 60)
+        // Carried up to 21:00 the day takes three, so only one spills over —
+        // the second day's end comes up by the hour the first day gained.
+        assertThat(fourHours - visibleSpanMinutes(21 * 60, fourHours)).isEqualTo(60)
+        // Anywhere it fits outright there is nothing to spill.
+        assertThat(fourHours - visibleSpanMinutes(10 * 60, fourHours)).isEqualTo(0)
+    }
+
+    @Test
     fun `a dragged piece is sized by what its day can still show`() {
         val fourHours = 4 * 60
         // Held at 22:00 only two of its four hours fit before midnight...

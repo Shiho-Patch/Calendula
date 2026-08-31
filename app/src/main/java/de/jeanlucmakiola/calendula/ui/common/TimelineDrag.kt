@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
@@ -78,10 +79,25 @@ data class TimelineDrag(
     val continuesBefore: Boolean = false,
     /** The event runs past this day's midnight, so the copy is cut there. */
     val continuesAfter: Boolean = false,
+    /** What spills past that midnight, previewed on the next day. Null if none. */
+    val spill: TimelineDragSpill? = null,
 ) {
     /** What the snap haptics key off: one tick per changed slot, not per frame. */
     val slot: Pair<LocalDate, Int> get() = date to startMin
 }
+
+/**
+ * The part of a dragged copy that runs past midnight, seated at the top of the
+ * next day's column. Without it the copy grows on the day under the finger while
+ * the day after still shows the block's old, un-moved extent, and the event reads
+ * as getting longer rather than moving (#253).
+ */
+data class TimelineDragSpill(
+    val topLeftInRoot: Offset,
+    val sizePx: IntSize,
+    /** The event runs past that day's midnight too, so this piece is cut as well. */
+    val continuesAfter: Boolean,
+)
 
 /**
  * Where a finished drag asks its event to go. [date]/[startMin] are where the
@@ -342,6 +358,42 @@ class TimelineDragController {
             ),
             continuesBefore = clipOffsetMin > 0,
             continuesAfter = visible < span,
+            spill = spill(
+                remainder = span - visible,
+                dayIndex = dayIndex,
+                days = days,
+                origin = origin,
+                hourPx = hourPx,
+                columnPx = columnPx,
+            ),
+        )
+    }
+
+    /**
+     * The next day's share of a copy that runs past midnight, or null when there
+     * is none — or when the day it would land on isn't on screen, which is every
+     * drop on the last column and the whole of the Day view.
+     */
+    private fun spill(
+        remainder: Int,
+        dayIndex: Int,
+        days: List<LocalDate>,
+        origin: Offset,
+        hourPx: Float,
+        columnPx: Float,
+    ): TimelineDragSpill? {
+        if (remainder <= 0 || dayIndex >= days.lastIndex) return null
+        val next = dayIndex + 1
+        val column = if (geometry.isRtl) days.lastIndex - next else next
+        val shown = minOf(remainder, MINUTES_PER_DAY)
+        return TimelineDragSpill(
+            // Starts at midnight, so the top of the grid rather than an offset.
+            topLeftInRoot = Offset(origin.x + column * columnPx, origin.y),
+            sizePx = IntSize(
+                (columnPx - geometry.columnGapPx).roundToInt(),
+                maxOf(shown / 60f * hourPx, MIN_EVENT_FRACTION * hourPx).roundToInt(),
+            ),
+            continuesAfter = remainder > MINUTES_PER_DAY,
         )
     }
 
@@ -475,7 +527,6 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
     val use24Hour = LocalUse24HourFormat.current
     val locale = currentLocale()
     val reduceMotion = rememberReduceMotion()
-    val density = LocalDensity.current
     val moveInFlight = moveInFlight()
 
     // Both live here rather than beside the controller: they read [drag], which
@@ -535,40 +586,89 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
         val label = "${formatMinuteOfDay(drag.startMin, use24Hour, locale)}–" +
             formatMinuteOfDay(endMin, use24Hour, locale)
         val blockShape = timedBlockShape(drag.continuesBefore, drag.continuesAfter)
-        Box(
-            modifier = Modifier
-                // Absolute: these are root coordinates, and the direction-aware
-                // offset would mirror them across the screen in an RTL layout.
-                .absoluteOffset {
-                    IntOffset(
-                        (drag.topLeftInRoot.x - origin.x).roundToInt(),
-                        (drag.topLeftInRoot.y - origin.y).roundToInt(),
-                    )
-                }
-                .size(
-                    width = with(density) { drag.sizePx.width.toDp() },
-                    height = with(density) { drag.sizePx.height.toDp() },
+        DragCopy(
+            topLeftInRoot = drag.topLeftInRoot,
+            overlayOrigin = origin,
+            sizePx = drag.sizePx,
+            fill = fill,
+            shape = blockShape,
+            lift = lift,
+            alpha = copyAlpha,
+            title = title,
+            label = label,
+        )
+        // The rest of it on the day it runs into, so both halves move together
+        // and the copy stops reading as an event being stretched.
+        drag.spill?.let { spill ->
+            DragCopy(
+                topLeftInRoot = spill.topLeftInRoot,
+                overlayOrigin = origin,
+                sizePx = spill.sizePx,
+                fill = fill,
+                shape = timedBlockShape(
+                    continuesBefore = true,
+                    continuesAfter = spill.continuesAfter,
+                ),
+                lift = lift,
+                alpha = copyAlpha,
+                title = title,
+                // The time range belongs to the piece the finger is on; repeating
+                // it here would name hours this piece doesn't cover.
+                label = null,
+            )
+        }
+    }
+}
+
+/** One piece of a dragged block, floating over the calendar. */
+@Composable
+private fun DragCopy(
+    topLeftInRoot: Offset,
+    overlayOrigin: Offset,
+    sizePx: IntSize,
+    fill: Color,
+    shape: RoundedCornerShape,
+    lift: Float,
+    alpha: Float,
+    title: String,
+    label: String?,
+) {
+    val density = LocalDensity.current
+    Box(
+        modifier = Modifier
+            // Absolute: these are root coordinates, and the direction-aware
+            // offset would mirror them across the screen in an RTL layout.
+            .absoluteOffset {
+                IntOffset(
+                    (topLeftInRoot.x - overlayOrigin.x).roundToInt(),
+                    (topLeftInRoot.y - overlayOrigin.y).roundToInt(),
                 )
-                .padding(horizontal = 1.dp)
-                .graphicsLayer {
-                    scaleX = 1f + 0.02f * lift
-                    scaleY = 1f + 0.02f * lift
-                    shadowElevation = 8.dp.toPx() * lift
-                    alpha = copyAlpha
-                    shape = blockShape
-                    clip = false
-                }
-                .background(fill, blockShape)
-                .padding(horizontal = 4.dp, vertical = 2.dp),
-        ) {
-            Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = eventInk(fill, alpha = 0.85f),
-                )
+            }
+            .size(
+                width = with(density) { sizePx.width.toDp() },
+                height = with(density) { sizePx.height.toDp() },
+            )
+            .padding(horizontal = 1.dp)
+            .graphicsLayer {
+                scaleX = 1f + 0.02f * lift
+                scaleY = 1f + 0.02f * lift
+                shadowElevation = 8.dp.toPx() * lift
+                this.alpha = alpha
+                this.shape = shape
+                clip = false
+            }
+            .background(fill, shape)
+            .padding(horizontal = 4.dp, vertical = 2.dp),
+    ) {
+        Column {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = eventInk(fill, alpha = 0.85f),
+            )
+            if (label != null) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelSmall,
