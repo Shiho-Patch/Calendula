@@ -80,10 +80,12 @@ fun sanitizeRrule(raw: String?): SanitizedRrule {
     }
 
     for (part in rule.split(';')) {
+        // A stray separator ("FREQ=DAILY;") normalises away; nothing was lost.
+        // A part that carries text but no '=' ("FREQ=WEEKLY;BYDAY") is a part
+        // being dropped, so it falls through and marks the rule repaired.
+        if (part.isBlank()) continue
         val key = part.substringBefore('=', "").trim().uppercase()
         val value = if ('=' in part) part.substringAfter('=').trim() else ""
-        // A stray separator ("FREQ=DAILY;") normalises away; nothing was lost.
-        if (key.isEmpty() && value.isEmpty()) continue
         val kept = when {
             key.isEmpty() || value.isEmpty() -> null
             key == "FREQ" ->
@@ -104,6 +106,15 @@ fun sanitizeRrule(raw: String?): SanitizedRrule {
             else -> null
         }
         if (kept == null) repaired = true else parts += kept
+    }
+    // `EventRecurrence.parse` ends with *two* global checks, not one: a missing
+    // FREQ throws, and so does an UNTIL that arrives together with a COUNT. A
+    // rule carrying both is malformed per RFC 5545 §3.3.10 but real producers
+    // emit it, and left alone it would throw straight out of `insert` — the very
+    // failure this function exists to prevent. UNTIL is kept: it bounds the
+    // series at an absolute date, so a stale COUNT can't over-generate past it.
+    if (parts.any { it.startsWith("UNTIL=") }) {
+        if (parts.removeAll { it.startsWith("COUNT=") }) repaired = true
     }
     return if (freqSeen) {
         SanitizedRrule(rule = parts.joinToString(";"), repaired = repaired)

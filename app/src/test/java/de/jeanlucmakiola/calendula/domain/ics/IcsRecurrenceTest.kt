@@ -129,4 +129,38 @@ class IcsRecurrenceTest {
             .isEqualTo("FREQ=DAILY;UNTIL=20260819T235959Z")
         assertThat(sanitizeRrule("FREQ=DAILY;UNTIL=2026-08-19").rule).isEqualTo("FREQ=DAILY")
     }
+
+    @Test
+    fun `UNTIL and COUNT together keep UNTIL`() {
+        // EventRecurrence.parse throws outright on a rule carrying both.
+        val both = sanitizeRrule("FREQ=WEEKLY;COUNT=10;UNTIL=20260101T000000Z")
+
+        assertThat(both.rule).isEqualTo("FREQ=WEEKLY;UNTIL=20260101T000000Z")
+        assertThat(both.repaired).isTrue()
+    }
+
+    @Test
+    fun `a COUNT the UNTIL check never sees is left alone`() {
+        // An UNTIL dropped for its shape doesn't take the COUNT down with it.
+        val staleUntil = sanitizeRrule("FREQ=WEEKLY;COUNT=10;UNTIL=2026-01-01")
+
+        assertThat(staleUntil.rule).isEqualTo("FREQ=WEEKLY;COUNT=10")
+        assertThat(staleUntil.repaired).isTrue()
+    }
+
+    @Test
+    fun `a part without a value separator is reported as repaired`() {
+        val noEquals = sanitizeRrule("FREQ=WEEKLY;BYDAY")
+
+        assertThat(noEquals.rule).isEqualTo("FREQ=WEEKLY")
+        assertThat(noEquals.repaired).isTrue()
+    }
+
+    @Test
+    fun `a trailing separator is normalisation, not a repair`() {
+        val trailing = sanitizeRrule("FREQ=DAILY;")
+
+        assertThat(trailing.rule).isEqualTo("FREQ=DAILY")
+        assertThat(trailing.repaired).isFalse()
+    }
 }
