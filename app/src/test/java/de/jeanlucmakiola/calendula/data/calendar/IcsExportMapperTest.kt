@@ -102,4 +102,70 @@ class IcsExportMapperTest {
         const val NINE_AM = 9 * 60
         val BERLIN: ZoneId = ZoneId.of("Europe/Berlin")
     }
+
+    @Test
+    fun `a recurring row carries its EXDATE exclusions`() {
+        val reader = MapColumnReader(
+            EventExportProjection.IDX_ID to 7L,
+            EventExportProjection.IDX_TITLE to "Weekly",
+            EventExportProjection.IDX_DTSTART to 1_000_000L,
+            EventExportProjection.IDX_DURATION to "P3600S",
+            EventExportProjection.IDX_ALL_DAY to 0,
+            EventExportProjection.IDX_RRULE to "FREQ=WEEKLY",
+            EventExportProjection.IDX_EXDATE to "20260901T080000Z,20260908T080000Z",
+            EventExportProjection.IDX_EVENT_TIMEZONE to "UTC",
+        )
+
+        val event = reader.toIcsEvent(
+            reminderMinutes = emptyList(),
+            calendarName = null,
+            allDayReminderTimeMinutes = NINE_AM,
+        )
+
+        assertThat(event.exDates)
+            .containsExactly("20260901T080000Z", "20260908T080000Z").inOrder()
+    }
+
+    @Test
+    fun `an all-day EXDATE keeps only the day, however the adapter padded it`() {
+        val reader = MapColumnReader(
+            EventExportProjection.IDX_ID to 8L,
+            EventExportProjection.IDX_TITLE to "Holiday",
+            EventExportProjection.IDX_DTSTART to 0L,
+            EventExportProjection.IDX_DURATION to "P1D",
+            EventExportProjection.IDX_ALL_DAY to 1,
+            EventExportProjection.IDX_RRULE to "FREQ=YEARLY",
+            EventExportProjection.IDX_EXDATE to "20260901,20270901T000000Z",
+            EventExportProjection.IDX_EVENT_TIMEZONE to "UTC",
+        )
+
+        val event = reader.toIcsEvent(
+            reminderMinutes = emptyList(),
+            calendarName = null,
+            allDayReminderTimeMinutes = NINE_AM,
+        )
+
+        assertThat(event.exDates).containsExactly("20260901", "20270901").inOrder()
+    }
+
+    @Test
+    fun `a one-off row exports no exclusions even if the column is set`() {
+        val reader = MapColumnReader(
+            EventExportProjection.IDX_ID to 9L,
+            EventExportProjection.IDX_TITLE to "Standup",
+            EventExportProjection.IDX_DTSTART to 1_000_000L,
+            EventExportProjection.IDX_DTEND to 1_900_000L,
+            EventExportProjection.IDX_ALL_DAY to 0,
+            EventExportProjection.IDX_EXDATE to "20260901T080000Z",
+            EventExportProjection.IDX_EVENT_TIMEZONE to "UTC",
+        )
+
+        val event = reader.toIcsEvent(
+            reminderMinutes = emptyList(),
+            calendarName = null,
+            allDayReminderTimeMinutes = NINE_AM,
+        )
+
+        assertThat(event.exDates).isEmpty()
+    }
 }

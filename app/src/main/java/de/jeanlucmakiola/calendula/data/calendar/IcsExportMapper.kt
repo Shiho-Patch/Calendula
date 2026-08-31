@@ -56,6 +56,11 @@ internal fun ColumnReader.toIcsEvent(
         zoneId = getString(EventExportProjection.IDX_EVENT_TIMEZONE)?.takeIf { it.isNotBlank() }
             ?: "UTC",
         recurrenceRule = rrule,
+        exDates = if (rrule == null) {
+            emptyList()
+        } else {
+            exportExDates(getString(EventExportProjection.IDX_EXDATE), isAllDay)
+        },
         location = getString(EventExportProjection.IDX_LOCATION),
         description = getString(EventExportProjection.IDX_DESCRIPTION),
         reminderMinutes = if (isAllDay) {
@@ -72,3 +77,19 @@ internal fun ColumnReader.toIcsEvent(
     )
 }
 
+/**
+ * The row's `EXDATE` as the writer wants it: one stamp per entry, empties
+ * dropped.
+ *
+ * An all-day exclusion names a calendar day, and sync adapters are inconsistent
+ * about whether they write it as a bare `yyyyMMdd` or pad it to a midnight
+ * stamp; the time part is dropped so the exported value is the day either way.
+ * Calendula's own writes ([buildOccurrenceExdateValues]) are already bare.
+ */
+internal fun exportExDates(exdate: String?, isAllDay: Boolean): List<String> = exdate
+    ?.split(',')
+    ?.map { it.trim() }
+    ?.filter { it.isNotEmpty() }
+    ?.map { if (isAllDay) it.substringBefore('T') else it }
+    ?.distinct()
+    .orEmpty()

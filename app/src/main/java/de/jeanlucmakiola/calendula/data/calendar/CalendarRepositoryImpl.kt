@@ -308,7 +308,6 @@ class CalendarRepositoryImpl @Inject constructor(
         dataSource.deleteEventFromOccurrence(eventId, beginMillis)
     }
 
-
     private companion object {
         const val TAG = "CalendarRepository"
     }

@@ -149,4 +149,55 @@ class IcsWriterTest {
         // Stable across calls — a re-export of the same row yields the same UID.
         assertThat(deriveIcsUid(null, 7, 1000)).isEqualTo(deriveIcsUid(null, 7, 1000))
     }
+
+    @Test
+    fun `a timed series writes its exclusions as UTC stamps`() {
+        val event = IcsEvent(
+            uid = "u9@calendula",
+            summary = "Weekly",
+            start = instantUtc(2026, 6, 18, 13, 0),
+            end = instantUtc(2026, 6, 18, 13, 30),
+            isAllDay = false,
+            zoneId = "UTC",
+            recurrenceRule = "FREQ=WEEKLY",
+            exDates = listOf("20260625T130000Z", "20260702T130000Z"),
+        )
+
+        assertThat(lines(listOf(event)))
+            .contains("EXDATE:20260625T130000Z,20260702T130000Z")
+    }
+
+    @Test
+    fun `an all-day series marks its exclusions VALUE=DATE`() {
+        val start = LocalDate(2026, 6, 18).atStartOfDayIn(TimeZone.UTC)
+        val event = IcsEvent(
+            uid = "u10@calendula",
+            summary = "Holiday",
+            start = start,
+            end = LocalDate(2026, 6, 19).atStartOfDayIn(TimeZone.UTC),
+            isAllDay = true,
+            zoneId = "UTC",
+            recurrenceRule = "FREQ=YEARLY",
+            exDates = listOf("20270618"),
+        )
+
+        // RFC 5545 ties EXDATE's value type to DTSTART's; a bare day code
+        // without VALUE=DATE reads as a malformed DATE-TIME.
+        assertThat(lines(listOf(event))).contains("EXDATE;VALUE=DATE:20270618")
+    }
+
+    @Test
+    fun `a one-off event never writes an EXDATE`() {
+        val event = IcsEvent(
+            uid = "u11@calendula",
+            summary = "Standup",
+            start = instantUtc(2026, 6, 18, 13, 0),
+            end = instantUtc(2026, 6, 18, 13, 30),
+            isAllDay = false,
+            zoneId = "UTC",
+            exDates = listOf("20260625T130000Z"),
+        )
+
+        assertThat(lines(listOf(event)).none { it.startsWith("EXDATE") }).isTrue()
+    }
 }

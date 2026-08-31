@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   imported without complaint and then appeared nowhere. Any all-day event that
   ends where it starts, or carries no end at all, is now a one-day event
   ([#225]).
+- **A backup no longer brings back occurrences you had deleted.** Remove a single
+  occurrence of a repeating event, back up, restore — and it was there again,
+  because the removals never made it into the file. They travel with the series
+  now, so a restored calendar looks the way you left it ([#225]).
 
 ### Added
 - **More of an imported `.ics` survives the trip**: tasks come across as events
