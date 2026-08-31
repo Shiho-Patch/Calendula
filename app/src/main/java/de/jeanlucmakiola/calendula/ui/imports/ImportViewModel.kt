@@ -44,9 +44,9 @@ sealed interface ImportUiState {
         val warnings: Set<IcsParseWarning>,
         val calendars: List<CalendarSource>,
         /**
-         * The calendar the file says its events came from, when it names exactly
-         * one — used to preselect a matching target. Null when the file names
-         * none or its events disagree.
+         * The calendar the file says its events came from, when every one of
+         * them names the same — used to preselect a matching target (see
+         * [fileCalendarName]).
          */
         val fileCalendarName: String? = null,
     ) : ImportUiState
@@ -98,10 +98,7 @@ class ImportViewModel @Inject constructor(
                         warnings = parsed.warnings,
                         calendars = repository.calendars().first()
                             .filter { it.isEventTarget },
-                        fileCalendarName = parsed.events
-                            .mapNotNull { it.calendarName }
-                            .distinct()
-                            .singleOrNull(),
+                        fileCalendarName = fileCalendarName(parsed.events),
                     )
                 }
             }
@@ -123,6 +120,17 @@ class ImportViewModel @Inject constructor(
         }
     }
 }
+
+/**
+ * The one calendar [events] all came from, or null.
+ *
+ * Every event has to agree, unnamed ones included: a foreign file where a single
+ * `VEVENT` carries a `CATEGORIES` tag and the rest carry nothing names no
+ * calendar — it just has one tagged event, and letting it pick the target would
+ * land the whole file wherever that tag happens to match.
+ */
+internal fun fileCalendarName(events: List<ParsedIcsEvent>): String? =
+    events.map { it.calendarName }.distinct().singleOrNull()
 
 /**
  * The target calendar to preselect for a bulk import.

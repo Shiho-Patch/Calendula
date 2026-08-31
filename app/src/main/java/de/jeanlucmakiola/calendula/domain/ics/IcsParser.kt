@@ -186,6 +186,7 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
         var status = EventStatus.Confirmed
         var availability = Availability.Busy
         var calendarName = fileCalendarName
+        var category: String? = null
         var eventColor: Int? = null
         var calendarColor: Int? = null
         val reminders = mutableListOf<Int>()
@@ -223,10 +224,10 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
                 "X-CALENDULA-CALENDAR" ->
                     calendarName = unescapeText(line.value).trim().ifEmpty { calendarName }
                 // Fossify names the source calendar per event; it never writes
-                // an X-WR-CALNAME, so this is the only calendar label its files carry.
-                "CATEGORIES" -> calendarName = unescapeText(line.value).trim()
-                    .takeIf { it.isNotEmpty() && !it.equals("null", true) }
-                    ?: calendarName
+                // an X-WR-CALNAME, so this is the only calendar label its files
+                // carry. Elsewhere CATEGORIES is a plain tag list, so it only
+                // stands in where nothing named the calendar outright.
+                "CATEGORIES" -> category = singleCategory(line.value) ?: category
                 // Per-event colour, most specific encoding first (see parseIcsColorValue).
                 "X-FOSSIFY-EVENT-COLOR", "X-SMT-EVENT-COLOR" ->
                     eventColor = parseIcsColorValue(line.value) ?: eventColor
@@ -247,10 +248,8 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
             warnings.add(IcsParseWarning.EventWithoutStartSkipped)
             return null
         }
-        val cleanRrule = sanitizeRrule(rrule)
-        if (rrule != null && cleanRrule != rrule.removePrefix("RRULE:").trim()) {
-            warnings.add(IcsParseWarning.RecurrenceRuleRepaired)
-        }
+        val recurrence = sanitizeRrule(rrule)
+        if (recurrence.repaired) warnings.add(IcsParseWarning.RecurrenceRuleRepaired)
         val end = resolveEnd(start, dtEnd, duration)
         return ParsedIcsEvent(
             uid = uid,
@@ -259,15 +258,19 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
             end = end,
             isAllDay = start.isAllDay,
             zoneId = start.zoneId,
-            recurrenceRule = cleanRrule,
+            recurrenceRule = recurrence.rule,
             location = location,
             description = description,
             reminderMinutes = reminders.distinct(),
             status = status,
             availability = availability,
-            calendarName = calendarName,
+            calendarName = calendarName ?: category,
             color = eventColor ?: calendarColor,
-            exDates = if (cleanRrule == null) emptyList() else normalizeExDates(exDateLines, start),
+            exDates = if (recurrence.rule == null) {
+                emptyList()
+            } else {
+                normalizeExDates(exDateLines, start)
+            },
             isTask = isTask,
         )
     }
@@ -302,6 +305,11 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
      * out that way even for timed series, where the property is then ambiguous.
      * Such a value is resolved against the series' own time of day, which is
      * what it meant — its repetitions never move within the day.
+     *
+     * An all-day exclusion names a calendar day, so a zone-qualified DATE-TIME
+     * still means the day it spells out; resolving it to an instant first and
+     * reading *that* back in UTC would roll a midnight east of UTC onto the day
+     * before and exclude an occurrence that doesn't exist.
      */
     private fun normalizeExDates(lines: List<IcsContentLine>, start: IcsDateTime): List<String> {
         if (lines.isEmpty()) return emptyList()
@@ -310,17 +318,12 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
         return lines
             .flatMap { line -> line.value.split(',').map { line to it.trim() } }
             .mapNotNull { (line, token) ->
-                if (token.isEmpty()) return@mapNotNull null
-                if (token.contains('T')) {
-                    val instant = parseExDateTime(token, line, startZone) ?: return@mapNotNull null
-                    if (start.isAllDay) utcDayCode(instant) else utcStamp(instant)
-                } else {
-                    val date = parseBasicDate(token) ?: return@mapNotNull null
-                    if (start.isAllDay) {
-                        utcDayCode(date.atStartOfDayIn(TimeZone.UTC))
-                    } else {
-                        utcStamp(LocalDateTime(date, startTime).toInstant(startZone))
-                    }
+                when {
+                    token.isEmpty() -> null
+                    start.isAllDay -> parseBasicDate(token.substringBefore('T'))?.let(::dayCode)
+                    token.contains('T') -> parseExDateTime(token, line, startZone)?.let(::utcStamp)
+                    else -> parseBasicDate(token)
+                        ?.let { utcStamp(LocalDateTime(it, startTime).toInstant(startZone)) }
                 }
             }
             .distinct()
@@ -391,12 +394,29 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
         fun Instant.plusDays(days: Int): Instant =
             Instant.fromEpochMilliseconds(toEpochMilliseconds() + days * DAY_MILLIS)
 
-        fun utcDayCode(instant: Instant): String = with(instant.toLocalDateTime(TimeZone.UTC)) {
-            "%04d%02d%02d".format(year, month.number, day)
-        }
+        fun dayCode(date: LocalDate): String =
+            "%04d%02d%02d".format(date.year, date.month.number, date.day)
 
         fun utcStamp(instant: Instant): String = with(instant.toLocalDateTime(TimeZone.UTC)) {
             "%04d%02d%02dT%02d%02d%02dZ".format(year, month.number, day, hour, minute, second)
+        }
+
+        /**
+         * A single-valued `CATEGORIES`, which is what the Fossify family writes
+         * for the source calendar's name. A multi-item list is a tag list and
+         * names no calendar, so it is ignored.
+         */
+        fun singleCategory(raw: String): String? {
+            var escaped = false
+            for (c in raw) {
+                when {
+                    escaped -> escaped = false
+                    c == '\\' -> escaped = true
+                    c == ',' -> return null
+                }
+            }
+            return unescapeText(raw).trim()
+                .takeIf { it.isNotEmpty() && !it.equals("null", true) }
         }
 
         /** Index of the matching `END:<component>` at/after [from], or list end. */

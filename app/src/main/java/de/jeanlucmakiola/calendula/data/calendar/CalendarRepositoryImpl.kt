@@ -220,8 +220,10 @@ class CalendarRepositoryImpl @Inject constructor(
     ): IcsImportSummary = withContext(io) {
         val existing = dataSource.existingUids(targetCalendarId)
         // Both are per-calendar, not per-event: looking them up once keeps a
-        // thousand-event restore to two extra queries.
-        val palette = dataSource.eventColorPalette(targetCalendarId)
+        // thousand-event restore to two extra queries. The palette is the
+        // uncurated one — an imported colour is matched against every key the
+        // account accepts, not the subset the picker shows.
+        val palette = dataSource.publishedEventColors(targetCalendarId)
         val allDayMinutes = allDayReminderTimeMinutes()
         var imported = 0
         var skipped = 0

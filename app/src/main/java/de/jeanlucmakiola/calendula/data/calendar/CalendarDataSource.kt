@@ -86,6 +86,15 @@ interface CalendarDataSource {
     fun eventColorPalette(calendarId: Long): List<EventColorOption>
 
     /**
+     * The same palette **uncurated** — every key the account publishes, in
+     * provider order. Curation is a display concession (it folds look-alikes and
+     * drops the neutrals outright from an oversized palette), so matching a
+     * colour that came from outside the account has to run against the full set:
+     * those keys are all the calendar accepts. See [eventColorPalette].
+     */
+    fun publishedEventColors(calendarId: Long): List<EventColorOption>
+
+    /**
      * Every master/one-off event of the writable local calendars, mapped for a
      * whole-calendar `.ics` backup. Modified-occurrence and cancelled-exception
      * rows are excluded (see [EventExportProjection]). When [calendarIds] is
@@ -106,9 +115,10 @@ interface CalendarDataSource {
      * Insert a parsed `.ics` event into [calendarId], preserving its UID (or
      * minting one when absent); returns the new `Events._ID`.
      *
-     * [colorPalette] is the target account's published event colours, looked up
-     * once per import; [allDayReminderTimeMinutes] is the user's preferred
-     * all-day firing time, applied exactly as a hand-created event's is.
+     * [colorPalette] is the target account's published event colours
+     * ([publishedEventColors]), looked up once per import;
+     * [allDayReminderTimeMinutes] is the user's preferred all-day firing time,
+     * applied exactly as a hand-created event's is.
      */
     fun insertImportedEvent(
         event: ParsedIcsEvent,
@@ -737,7 +747,10 @@ class AndroidCalendarDataSource @Inject constructor(
         }
     }
 
-    override fun eventColorPalette(calendarId: Long): List<EventColorOption> {
+    override fun eventColorPalette(calendarId: Long): List<EventColorOption> =
+        publishedEventColors(calendarId).curatedForPicker()
+
+    override fun publishedEventColors(calendarId: Long): List<EventColorOption> {
         val account = calendarAccount(calendarId) ?: return emptyList()
         return resolver.query(
             CalendarContract.Colors.CONTENT_URI,
@@ -755,7 +768,6 @@ class AndroidCalendarDataSource @Inject constructor(
             c.mapAll { EventColorOption(key = it.getString(0).orEmpty(), argb = it.getInt(1)) }
         }
             ?.filter { it.key.isNotEmpty() }
-            ?.curatedForPicker()
             ?: emptyList()
     }
 
@@ -835,16 +847,27 @@ class AndroidCalendarDataSource @Inject constructor(
         val uri = resolver.insert(CalendarContract.Events.CONTENT_URI, values.toContentValues())
             ?: throw WriteFailedException("import event into calendar id=$calendarId")
         val eventId = ContentUris.parseId(uri)
-        val startDate = Instant.ofEpochMilli(event.start.toEpochMilliseconds())
-            .atZone(ZoneOffset.UTC).toLocalDate()
+        val zone = ZoneId.systemDefault()
+        // An all-day reminder is stored the same way a hand-created one is, so it
+        // fires at the time the user picked rather than at UTC midnight — sampled
+        // where it will actually fire, not at an ancient recurrence anchor
+        // (see [importedAllDayReminderDate]).
+        val reminderDate = if (event.isAllDay) {
+            importedAllDayReminderDate(
+                startDate = Instant.ofEpochMilli(event.start.toEpochMilliseconds())
+                    .atZone(ZoneOffset.UTC).toLocalDate(),
+                recurrenceRule = event.recurrenceRule,
+                today = LocalDate.now(zone),
+            )
+        } else {
+            null
+        }
         event.semanticReminderMinutes().forEach { minutes ->
-            // An all-day reminder is stored the same way a hand-created one is,
-            // so it fires at the time the user picked rather than at UTC midnight.
-            val providerMinutes = if (event.isAllDay) {
+            val providerMinutes = if (reminderDate != null) {
                 toProviderAllDayMinutes(
                     semanticMinutes = minutes,
-                    startDate = startDate,
-                    zone = ZoneId.systemDefault(),
+                    startDate = reminderDate,
+                    zone = zone,
                     timeOfDayMinutes = allDayReminderTimeMinutes,
                 )
             } else {

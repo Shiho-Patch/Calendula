@@ -828,13 +828,33 @@ class CalendarRepositoryImplTest {
     ) = runTest {
         var lookups = 0
         val fake = FakeCalendarDataSource().apply {
-            eventColorPaletteResult = { lookups++; emptyList() }
+            publishedEventColorsResult = { lookups++; emptyList() }
         }
         val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
 
         repo.importEvents(3L, List(5) { parsedEvent("e$it@x") })
 
         assertThat(lookups).isEqualTo(1)
+    }
+
+    @Test
+    fun `importEvents matches colours against the uncurated palette`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        // Curation is a picker concession — it folds look-alikes and drops the
+        // neutrals from an oversized palette — but every published key is one
+        // the calendar accepts, so an imported colour matches against all of
+        // them (Codeberg #225).
+        val published = listOf(EventColorOption("1", 0xFF808080.toInt()))
+        val fake = FakeCalendarDataSource().apply {
+            publishedEventColorsResult = { published }
+            eventColorPaletteResult = { emptyList() }
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+
+        repo.importEvents(3L, listOf(parsedEvent("a@x")))
+
+        assertThat(fake.lastImportPalette).isEqualTo(published)
     }
 
     @Test

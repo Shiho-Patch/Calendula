@@ -71,6 +71,34 @@ internal fun nextYearlyOccurrence(month: Int, day: Int, today: LocalDate): Local
 }
 
 /**
+ * The date an **imported** all-day event's reminder offset is sampled at.
+ *
+ * A one-off fires once, on its own date. A series' `DTSTART` is only an anchor
+ * and may be ancient — Fossify writes a year-less contact birthday at 1970, a
+ * year whose rules predate DST across most of Europe, and a real birth year is
+ * usually older still — so sampling there skews every modern occurrence by the
+ * offset delta (the same trap [nextYearlyOccurrence] exists for). A yearly
+ * series is therefore sampled at its next occurrence of the anchor's month/day,
+ * which shares the season; any other series at [today], which its upcoming
+ * occurrences are near.
+ *
+ * The decode side ([fromProviderAllDayMinutes]) only asks which local *day* the
+ * encoded instant falls on, so it still reads the lead time back correctly from
+ * the anchor's own date.
+ */
+internal fun importedAllDayReminderDate(
+    startDate: LocalDate,
+    recurrenceRule: String?,
+    today: LocalDate,
+): LocalDate = when {
+    recurrenceRule.isNullOrBlank() -> startDate
+    recurrenceRule.contains("FREQ=YEARLY", ignoreCase = true) ->
+        nextYearlyOccurrence(startDate.monthValue, startDate.dayOfMonth, today)
+    startDate.isBefore(today) -> today
+    else -> startDate
+}
+
+/**
  * Recover the semantic whole-day lead time from a raw all-day reminder
  * [rawMinutes] — the inverse of [toProviderAllDayMinutes], for the form and the
  * detail screen. Delegates to [allDayLeadDays], so the day displayed is the day

@@ -266,6 +266,43 @@ class IcsFossifyImportTest {
     }
 
     @Test
+    fun `CATEGORIES does not outrank a property that names the calendar outright`() {
+        // Elsewhere CATEGORIES is a tag list, so it only stands in where nothing
+        // else named the calendar — X-WR-CALNAME and our own label win.
+        val result = IcsParser().parse(
+            listOf(
+                "BEGIN:VCALENDAR",
+                "X-WR-CALNAME:Work",
+                "BEGIN:VEVENT",
+                "SUMMARY:Standup",
+                "CATEGORIES:Holiday",
+                "DTSTART:20260819T080000Z",
+                "DTEND:20260819T090000Z",
+                "END:VEVENT",
+                "END:VCALENDAR",
+            ).joinToString("\r\n"),
+        )
+
+        assertThat(result.events.single().calendarName).isEqualTo("Work")
+    }
+
+    @Test
+    fun `a multi-valued CATEGORIES is a tag list, not a calendar name`() {
+        val result = parser.parse(
+            fossify(
+                "BEGIN:VEVENT",
+                "SUMMARY:Standup",
+                "CATEGORIES:Meeting,Personal",
+                "DTSTART:20260819T080000Z",
+                "DTEND:20260819T090000Z",
+                "END:VEVENT",
+            ),
+        )
+
+        assertThat(result.events.single().calendarName).isNull()
+    }
+
+    @Test
     fun `a reminder written as a positive trigger is not read as a lead time`() {
         // The exporter flips the sign for reminders stored below -1
         // (`sign = if (reminder.minutes < -1) "" else "-"`), so a trigger can
@@ -367,6 +404,28 @@ class IcsFossifyImportTest {
         )
 
         assertThat(result.events.single().exDates).containsExactly("20260820", "20260822").inOrder()
+    }
+
+    @Test
+    fun `an all-day EXDATE keeps the day it spells out, whatever zone it carries`() {
+        // A midnight east of UTC resolves to an instant on the previous day;
+        // reading that back in UTC would exclude a day that isn't an occurrence
+        // and leave the one the user deleted in place.
+        val result = parser.parse(
+            fossify(
+                "BEGIN:VEVENT",
+                "SUMMARY:Standup",
+                "DTSTART;VALUE=DATE:20260819",
+                "DTEND;VALUE=DATE:20260820",
+                "RRULE:FREQ=DAILY",
+                "EXDATE;TZID=Europe/Berlin:20260821T000000",
+                "EXDATE;VALUE=DATE:20260823",
+                "END:VEVENT",
+            ),
+        )
+
+        assertThat(result.events.single().exDates)
+            .containsExactly("20260821", "20260823").inOrder()
     }
 
     @Test

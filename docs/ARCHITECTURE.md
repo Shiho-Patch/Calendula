@@ -377,19 +377,28 @@ conformant one.
 
 **One bad event must not cost the file.** The provider validates `RRULE` through
 `EventRecurrence.parse`, which *throws* — out of `insert`, not out of a later
-read. `sanitizeRrule` drops empty and malformed parts before the write, and
+read. That parser works off a fixed table of part names and throws on anything
+outside it, so `sanitizeRrule` is a **whitelist**: unrecognised parts (RFC 7529
+`RSCALE`, vendor `X-` extensions) and unusable values go, and only a missing
+`FREQ` gives up on the rule. It reports whether it actually *dropped* something,
+separately from the rule text it returns — case and a trailing `;` normalise away
+and must not raise the "faulty repeat rule" warning at the user. Behind all that,
 `CalendarRepositoryImpl.importEvents` isolates each event, counting rejects into
 `IcsImportSummary.failed` rather than unwinding the batch and reporting only
 "couldn't read this file".
 
 Smaller dialect handling: `VTODO` components import as events (Calendula models
-no tasks; dropping them silently lost half of some exports), `CATEGORIES` stands
-in for the `X-WR-CALNAME` Fossify never writes and preselects a target calendar
-of that name, bare `EXDATE` day codes on a timed series are resolved against the
+no tasks; dropping them silently lost half of some exports), a single-valued
+`CATEGORIES` stands in for the `X-WR-CALNAME` Fossify never writes and preselects
+a target calendar of that name — as a *fallback* only, since everywhere else the
+property is a tag list and must not outrank something that names the calendar
+outright — bare `EXDATE` day codes on a timed series are resolved against the
 series' own time of day (as is a floating `EXDATE` DATE-TIME — RFC 5545 ties it
-to `DTSTART`'s zone, not the device's), and a `VALARM` trigger pointing *after*
-the start — which is how that family encodes "on the day at 09:00" — is read as
-zero days before rather than clamped to a lead time of zero.
+to `DTSTART`'s zone, not the device's) while an all-day `EXDATE` keeps the day it
+spells out rather than the day its resolved instant lands on in UTC, and a
+`VALARM` trigger pointing *after* the start — which is how that family encodes
+"on the day at 09:00" — is read as zero days before rather than clamped to a lead
+time of zero.
 
 All-day reminder offsets are **whole days, rounded up** in both directions. A
 file's raw offset is `days × 1440 − timeOfDay`, so rounding to the nearest day
@@ -401,11 +410,23 @@ after the event — so `toIcsEvent` decodes it back through
 `fromProviderAllDayMinutes` first, and the importing device re-encodes it against
 its own setting.
 
+That re-encode is sampled where the reminder will actually *fire*, not at
+`DTSTART` (`importedAllDayReminderDate`). An imported series' `DTSTART` is only an
+anchor and is routinely ancient — Fossify writes a year-less contact birthday at
+1970, and a real birth year is usually older still — from a year whose timezone
+rules predate DST across most of Europe. Sampling the UTC offset there skews every
+modern occurrence by the delta, the same trap `nextYearlyOccurrence` exists for on
+the managed special-dates path. Decoding is unaffected and stays anchored at
+`DTSTART`: it only asks which local *day* the encoded instant falls on.
+
 Colour arrives as a raw ARGB from an app with no idea which account it is landing
 in. A calendar whose account publishes a palette rejects a raw `EVENT_COLOR`, so
 `buildImportedEventValues` snaps the imported colour to the nearest published key
 (`nearestTo`, measured in Oklab) and writes the raw value only where there is no
-palette. The single-event review form deliberately keeps no colour at all: its
+palette. The match runs against `publishedEventColors`, **not** the curated
+`eventColorPalette`: curation is a picker concession that folds look-alikes and
+drops the neutrals outright from an oversized palette, but every published key is
+one the calendar accepts. The single-event review form deliberately keeps no colour at all: its
 first question is which calendar to use, and answering it clears the colour
 anyway.
 

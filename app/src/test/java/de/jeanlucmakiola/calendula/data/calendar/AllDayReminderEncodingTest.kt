@@ -144,6 +144,47 @@ class AllDayReminderEncodingTest {
     }
 
     @Test
+    fun `an imported yearly series samples at its next occurrence, not its anchor`() {
+        // Fossify anchors a year-less contact birthday at 1970, when Berlin had
+        // no DST; sampling there fires a modern June occurrence at 10:00 instead
+        // of the 09:00 the user picked (Codeberg #225).
+        val anchor = LocalDate.of(1970, 6, 3)
+        val today = LocalDate.of(2026, 6, 1)
+
+        val sampled = importedAllDayReminderDate(anchor, "FREQ=YEARLY;BYMONTH=6", today)
+        assertThat(sampled).isEqualTo(LocalDate.of(2026, 6, 3))
+
+        val raw = toProviderAllDayMinutes(0, sampled, berlin, nineAm)
+        val fire = actualFire(raw, LocalDate.of(2027, 6, 3))
+            .let(java.time.Instant::ofEpochMilli).atZone(berlin).toLocalTime()
+        assertThat(fire).isEqualTo(LocalTime.of(9, 0))
+    }
+
+    @Test
+    fun `the lead time still reads back from the anchor's own date`() {
+        // The offset is sampled at the next occurrence but decoded against
+        // DTSTART, so the two must still agree on the whole-day lead time.
+        val anchor = LocalDate.of(1970, 6, 3)
+        val sampled = importedAllDayReminderDate(anchor, "FREQ=YEARLY", LocalDate.of(2026, 6, 1))
+
+        for (semantic in listOf(0, 1_440, 2_880)) {
+            val raw = toProviderAllDayMinutes(semantic, sampled, berlin, nineAm)
+            assertThat(fromProviderAllDayMinutes(raw, anchor, berlin, nineAm)).isEqualTo(semantic)
+        }
+    }
+
+    @Test
+    fun `a one-off import samples at its own date, a stale series at today`() {
+        val past = LocalDate.of(1970, 6, 3)
+        val today = LocalDate.of(2026, 6, 1)
+        val future = LocalDate.of(2027, 3, 4)
+
+        assertThat(importedAllDayReminderDate(past, null, today)).isEqualTo(past)
+        assertThat(importedAllDayReminderDate(past, "FREQ=WEEKLY;BYDAY=MO", today)).isEqualTo(today)
+        assertThat(importedAllDayReminderDate(future, "FREQ=WEEKLY", today)).isEqualTo(future)
+    }
+
+    @Test
     fun `a winter-anchored offset drifts one hour on a summer occurrence`() {
         // Known limitation: one fixed MINUTES per series can't track DST. An
         // offset tuned for a CET anchor fires an hour off once the series crosses

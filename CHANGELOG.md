@@ -34,7 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **All-day reminders survive a backup and an import.** They fire at the hour you
   chose, not at midnight UTC — the same rule the app already applied to all-day
   events you create yourself — and an export no longer leaves them out of the
-  file entirely ([#225]).
+  file entirely. An imported yearly birthday fires at the right hour too, even
+  though the file dates it back to the year of birth ([#225]).
 - **Birthdays and anniversaries imported from Fossify Calendar now show up.**
   Fossify writes the ones it mirrors from your contacts as events that start and
   end on the same day, which the calendar read as lasting no time at all: they
