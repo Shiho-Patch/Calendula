@@ -100,7 +100,7 @@ import de.jeanlucmakiola.calendula.ui.common.MoveTarget
 import de.jeanlucmakiola.calendula.ui.common.TimelineDragController
 import de.jeanlucmakiola.calendula.ui.common.TimelineDragOverlay
 import de.jeanlucmakiola.calendula.ui.common.TimelineDrop
-import de.jeanlucmakiola.calendula.ui.common.beginsOn
+import de.jeanlucmakiola.calendula.ui.common.clipOffsetMinutes
 import de.jeanlucmakiola.calendula.ui.common.eventDragAllowed
 import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
 import de.jeanlucmakiola.calendula.ui.common.rememberEventDragSource
@@ -912,13 +912,17 @@ private fun EventBlock(
     val fill = eventFill(block.event.color, dark, soften)
     val zone = remember { TimeZone.currentSystemDefault() }
     val moveAction = eventMoveAction(block.event)
-    // A block clipped at the top continues from the previous day: its top edge
-    // is midnight, not the event's start, so dragging it would invent a time.
-    val draggable = eventDragAllowed(block.event) && block.beginsOn(date, zone)
+    val draggable = eventDragAllowed(block.event)
+    // A block clipped at the top continues from the previous day: its top edge is
+    // midnight, not the event's start. It drags all the same (#253) — the drop
+    // takes this offset back off, so the event lands where its own start belongs.
+    val clipOffset = remember(block, date, zone) { block.clipOffsetMinutes(date, zone) }
     val dragModifier = rememberEventDragSource(
         enabled = draggable,
         key = block.event.instanceId,
-        onPickUp = { pointer, blockRoot, _ -> dragController.begin(block, pointer, blockRoot) },
+        onPickUp = { pointer, blockRoot, _ ->
+            dragController.begin(block, clipOffset, pointer, blockRoot)
+        },
         onMove = dragController::move,
         onDrop = { dragController.finish()?.let(onDrop) },
         onCancel = dragController::cancel,

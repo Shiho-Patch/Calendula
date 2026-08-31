@@ -45,12 +45,14 @@ import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.floret.locale.currentLocale
 import kotlinx.coroutines.delay
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /** Start granularity a dragged block snaps to, matching the big calendar apps. */
@@ -75,8 +77,18 @@ data class TimelineDrag(
     val slot: Pair<LocalDate, Int> get() = date to startMin
 }
 
-/** Where a finished drag asks its event to go. */
-data class TimelineDrop(val event: EventInstance, val date: LocalDate, val startMin: Int)
+/**
+ * Where a finished drag asks its event to go. [date]/[startMin] are where the
+ * dragged *block's* top edge landed, which is the event's own start only for a
+ * block that isn't clipped — see [clipOffsetMin] and [startInstant].
+ */
+data class TimelineDrop(
+    val event: EventInstance,
+    val date: LocalDate,
+    val startMin: Int,
+    /** Minutes from the event's start to the dragged block's top edge. */
+    val clipOffsetMin: Int = 0,
+)
 
 /**
  * The timeline's live geometry, republished on every layout. Plain fields rather
@@ -158,13 +170,27 @@ class TimelineDragController {
     private var pointer = Offset.Zero
 
     /**
+     * How far the picked-up block's top edge sits past the event's own start —
+     * nonzero only for a block clipped at midnight, which is the tail of an
+     * event that began the day before (#253). The gesture tracks the block the
+     * finger is on; this is what turns where it lands back into an event start.
+     */
+    private var clipOffsetMin = 0
+
+    /**
      * The slot the block already occupied when it was picked up — not the same
      * as its start, since the target snaps to the grid (09:07 lifts to 09:00).
      */
     private var originSlot: Pair<LocalDate, Int>? = null
 
-    fun begin(block: TimedBlock, pointerInRoot: Offset, blockInRoot: Offset) {
+    fun begin(
+        block: TimedBlock,
+        clipOffsetMin: Int,
+        pointerInRoot: Offset,
+        blockInRoot: Offset,
+    ) {
         source = block
+        this.clipOffsetMin = clipOffsetMin
         settling = null
         isDragging = true
         liftedInstanceId = block.event.instanceId
@@ -182,6 +208,7 @@ class TimelineDragController {
 
     fun cancel() {
         source = null
+        clipOffsetMin = 0
         isDragging = false
         liftedInstanceId = null
         originSlot = null
@@ -234,12 +261,13 @@ class TimelineDragController {
     fun finish(): TimelineDrop? {
         val landed = drag
         val origin = originSlot
+        val clipOffset = clipOffsetMin
         cancel()
         if (landed == null || landed.slot == origin) return null
         settling = landed
         liftedInstanceId = landed.event.instanceId
         settledOrigin = origin?.let { (date, min) -> Triple(landed.event.eventId, date, min) }
-        return TimelineDrop(landed.event, landed.date, landed.startMin)
+        return TimelineDrop(landed.event, landed.date, landed.startMin, clipOffset)
     }
 
     /**
@@ -277,9 +305,12 @@ class TimelineDragController {
         val snapped = (rawMinutes / DRAG_SNAP_MINUTES).roundToInt() * DRAG_SNAP_MINUTES
         // Clamp the start into the target day; a tail past midnight is fine.
         val startMin = snapped.coerceIn(0, MINUTES_PER_DAY - DRAG_SNAP_MINUTES)
-        // The event's own length, not the block's: TimedBlock.endMin is clipped
-        // at midnight, which would draw a 22:00–02:00 event as a two-hour copy.
-        val span = (block.event.end - block.event.start).inWholeMinutes.toInt().coerceAtLeast(0)
+        // The event's own length rather than the block's, since TimedBlock.endMin
+        // is clipped at midnight and would draw a 22:00–02:00 event as a two-hour
+        // copy — less whatever of the event already ran before the block's top
+        // edge, so the tail of an overnight event travels as the tail it is.
+        val span = ((block.event.end - block.event.start).inWholeMinutes.toInt() - clipOffsetMin)
+            .coerceAtLeast(0)
         // The column the finger is over on screen, and the day that column shows.
         val column = ((pointer.x - origin.x) / columnPx).toInt().coerceIn(0, days.lastIndex)
         val dayIndex = if (geometry.isRtl) days.lastIndex - column else column
@@ -342,20 +373,27 @@ fun rememberTimelineDragController(): TimelineDragController {
 }
 
 /**
- * True when [block] actually begins on [day] rather than being the tail of an
- * event that started earlier. A clipped block's top edge is midnight, not the
- * event's start, so dragging it would move the event to a time it never had.
+ * How far this block's top edge sits past its event's start, in minutes — zero
+ * for a block that begins on [day], and the part already run for the tail of an
+ * event that started earlier, whose top edge is midnight rather than the event's
+ * start. Dragging such a tail moves the event by where *its own* top edge lands,
+ * so the offset has to come back off at the drop (#253).
  */
-fun TimedBlock.beginsOn(day: LocalDate, zone: TimeZone): Boolean =
-    event.start.toLocalDateTime(zone).date == day
+fun TimedBlock.clipOffsetMinutes(day: LocalDate, zone: TimeZone): Int {
+    val top = day.atStartOfDayIn(zone) + startMin.minutes
+    return (top - event.start).inWholeMinutes.toInt().coerceAtLeast(0)
+}
 
 /**
- * The instant a drop asks for, read in the zone the timeline is drawn in. A drop
- * into a spring-forward gap has no instant of its own; `toInstant` resolves it
- * forward by the missing hour, and the block visibly settles there.
+ * The instant a drop asks for — the *event's* new start, so the tail of an
+ * overnight event drops back onto the day its own start belongs to. Read in the
+ * zone the timeline is drawn in. A drop into a spring-forward gap has no instant
+ * of its own; `toInstant` resolves it forward by the missing hour, and the block
+ * visibly settles there.
  */
 fun TimelineDrop.startInstant(zone: TimeZone): Instant =
-    LocalDateTime(date, LocalTime(startMin / 60, startMin % 60)).toInstant(zone)
+    LocalDateTime(date, LocalTime(startMin / 60, startMin % 60)).toInstant(zone) -
+        clipOffsetMin.minutes
 
 /**
  * A beat after the grid draws the drop, so its own block is under way before the
