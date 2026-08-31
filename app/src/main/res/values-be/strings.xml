@@ -218,7 +218,7 @@
         <item quantity="other">За %d тыдз.</item>
     </plurals>
     <plurals name="duration_minutes">
-        <item quantity="one">1 хвіліна</item>
+        <item quantity="one">%d хвіліна</item>
         <item quantity="few">%d хв.</item>
         <item quantity="many">%d хв.</item>
         <item quantity="other">%d хв.</item>
@@ -238,7 +238,7 @@
     <string name="duration_hours_minutes">%1$s гадз. %2$s хв.</string>
     <string name="duration_custom_max">Макс. %1$s</string>
     <plurals name="duration_weeks">
-        <item quantity="one">1 тыдзень</item>
+        <item quantity="one">%d тыдзень</item>
         <item quantity="few">%d тыдз.</item>
         <item quantity="many">%d тыдз.</item>
         <item quantity="other">%d тыдз.</item>
