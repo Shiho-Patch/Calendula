@@ -101,6 +101,9 @@ import de.jeanlucmakiola.calendula.ui.common.TimelineDragController
 import de.jeanlucmakiola.calendula.ui.common.TimelineDragOverlay
 import de.jeanlucmakiola.calendula.ui.common.TimelineDrop
 import de.jeanlucmakiola.calendula.ui.common.clipOffsetMinutes
+import de.jeanlucmakiola.calendula.ui.common.continuesAfter
+import de.jeanlucmakiola.calendula.ui.common.continuesBefore
+import de.jeanlucmakiola.calendula.ui.common.timedBlockShape
 import de.jeanlucmakiola.calendula.ui.common.eventDragAllowed
 import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
 import de.jeanlucmakiola.calendula.ui.common.rememberEventDragSource
@@ -917,6 +920,12 @@ private fun EventBlock(
     // midnight, not the event's start. It drags all the same (#253) — the drop
     // takes this offset back off, so the event lands where its own start belongs.
     val clipOffset = remember(block, date, zone) { block.clipOffsetMinutes(date, zone) }
+    // Square off whichever edge the event runs past, so a block cut at midnight
+    // reads as carrying on rather than as ending there — the vertical
+    // counterpart of the month bar's flat left/right caps (#253).
+    val shape = remember(block, date, zone) {
+        timedBlockShape(block.continuesBefore(date, zone), block.continuesAfter(date, zone))
+    }
     val dragModifier = rememberEventDragSource(
         enabled = draggable,
         key = block.event.instanceId,
@@ -933,7 +942,7 @@ private fun EventBlock(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
             // The source stays put as a ghost while its floating copy travels.
             .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
-            .background(fill, RoundedCornerShape(4.dp))
+            .background(fill, shape)
             .clickable(onClick = onClick)
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.

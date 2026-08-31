@@ -44,8 +44,10 @@ import de.jeanlucmakiola.calendula.ui.week.TimedBlock
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.floret.locale.currentLocale
 import kotlinx.coroutines.delay
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.plus
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
@@ -72,6 +74,10 @@ data class TimelineDrag(
     val endMin: Int,
     val topLeftInRoot: Offset,
     val sizePx: IntSize,
+    /** The event ran before this copy's top edge — it is a tail, so: flat cap. */
+    val continuesBefore: Boolean = false,
+    /** The event runs past this day's midnight, so the copy is cut there. */
+    val continuesAfter: Boolean = false,
 ) {
     /** What the snap haptics key off: one tick per changed slot, not per frame. */
     val slot: Pair<LocalDate, Int> get() = date to startMin
@@ -314,7 +320,13 @@ class TimelineDragController {
         // The column the finger is over on screen, and the day that column shows.
         val column = ((pointer.x - origin.x) / columnPx).toInt().coerceIn(0, days.lastIndex)
         val dayIndex = if (geometry.isRtl) days.lastIndex - column else column
-        val height = maxOf(span / 60f * hourPx, MIN_EVENT_FRACTION * hourPx)
+        // What the day the copy is over would actually show of it: the grid cuts
+        // an event at midnight, so the copy has to as well, or a four-hour event
+        // held at 22:00 would draw two hours past the foot of the column. It
+        // regrows as the finger carries it earlier into the day, which is the
+        // whole point — the copy is a preview of the block, not of the event.
+        val visible = visibleSpanMinutes(startMin, span)
+        val height = maxOf(visible / 60f * hourPx, MIN_EVENT_FRACTION * hourPx)
         drag = TimelineDrag(
             event = block.event,
             date = days[dayIndex],
@@ -328,6 +340,8 @@ class TimelineDragController {
                 (columnPx - geometry.columnGapPx).roundToInt(),
                 height.roundToInt(),
             ),
+            continuesBefore = clipOffsetMin > 0,
+            continuesAfter = visible < span,
         )
     }
 
@@ -383,6 +397,41 @@ fun TimedBlock.clipOffsetMinutes(day: LocalDate, zone: TimeZone): Int {
     val top = day.atStartOfDayIn(zone) + startMin.minutes
     return (top - event.start).inWholeMinutes.toInt().coerceAtLeast(0)
 }
+
+/**
+ * How much of a [spanMin]-long piece starting at [startMin] a single day can
+ * show — the rest of it belongs to the day after. What the dragged copy is sized
+ * by, so it grows as the finger carries it earlier into the day (#253).
+ */
+internal fun visibleSpanMinutes(startMin: Int, spanMin: Int): Int =
+    minOf(spanMin, MINUTES_PER_DAY - startMin)
+
+/**
+ * True when the event began before [day] — this block is its tail, cut at
+ * midnight rather than starting where the event does.
+ */
+fun TimedBlock.continuesBefore(day: LocalDate, zone: TimeZone): Boolean =
+    event.start < day.atStartOfDayIn(zone)
+
+/** True when the event runs past [day]'s midnight, so this block is cut there. */
+fun TimedBlock.continuesAfter(day: LocalDate, zone: TimeZone): Boolean =
+    event.end > day.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone)
+
+/**
+ * A timed block's corners: square on whichever edge the event runs past, so a
+ * cut edge reads as "this carries on" rather than as the event's own end. The
+ * vertical counterpart of the month bar's flat left/right caps.
+ */
+fun timedBlockShape(continuesBefore: Boolean, continuesAfter: Boolean): RoundedCornerShape =
+    RoundedCornerShape(
+        topStart = if (continuesBefore) 0.dp else TIMED_BLOCK_CORNER,
+        topEnd = if (continuesBefore) 0.dp else TIMED_BLOCK_CORNER,
+        bottomStart = if (continuesAfter) 0.dp else TIMED_BLOCK_CORNER,
+        bottomEnd = if (continuesAfter) 0.dp else TIMED_BLOCK_CORNER,
+    )
+
+/** The corner radius a timed block keeps on every edge the event doesn't cross. */
+val TIMED_BLOCK_CORNER = 4.dp
 
 /**
  * The instant a drop asks for — the *event's* new start, so the tail of an
@@ -485,6 +534,7 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
         }
         val label = "${formatMinuteOfDay(drag.startMin, use24Hour, locale)}–" +
             formatMinuteOfDay(endMin, use24Hour, locale)
+        val blockShape = timedBlockShape(drag.continuesBefore, drag.continuesAfter)
         Box(
             modifier = Modifier
                 // Absolute: these are root coordinates, and the direction-aware
@@ -505,10 +555,10 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
                     scaleY = 1f + 0.02f * lift
                     shadowElevation = 8.dp.toPx() * lift
                     alpha = copyAlpha
-                    shape = RoundedCornerShape(4.dp)
+                    shape = blockShape
                     clip = false
                 }
-                .background(fill, RoundedCornerShape(4.dp))
+                .background(fill, blockShape)
                 .padding(horizontal = 4.dp, vertical = 2.dp),
         ) {
             Column {
