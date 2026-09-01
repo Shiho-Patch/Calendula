@@ -187,4 +187,9 @@
     <string name="event_access_public_summary">Kdekoľvek s prístupom vidí všetky detaily</string>
     <string name="event_access_private_summary">Ostatný vidia iba že ste zaneprázdnený</string>
     <string name="event_access_confidential_summary">Označené ako utajené; záleží na kalendárnom účtu čo toto znamená</string>
+    <plurals name="duration_minutes">
+        <item quantity="few">minúty</item>
+        <item quantity="many">minúty</item>
+        <item quantity="other">minúty</item>
+    </plurals>
 </resources>
