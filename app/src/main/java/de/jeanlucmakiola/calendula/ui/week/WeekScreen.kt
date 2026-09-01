@@ -111,6 +111,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberTimelineDragController
 import de.jeanlucmakiola.calendula.ui.common.startInstant
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.EventChipShape
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.ui.common.NowLine
@@ -390,7 +391,7 @@ private fun WeekContent(
                     onOpenDay = onOpenDay,
                     onCreateAt = onCreateAt,
                     onDrop = { drop ->
-                        val took = move?.move(
+                        move?.move(
                             MoveRequest(
                                 eventId = drop.event.eventId,
                                 beginMillis = drop.event.start.toEpochMilliseconds(),
@@ -398,9 +399,6 @@ private fun WeekContent(
                                 target = MoveTarget.Start(drop.startInstant(zone)),
                             ),
                         )
-                        // Refused, so nothing will land: let the copy go now
-                        // rather than hold it out for a settle that never comes.
-                        if (took != true) dragController.release()
                     },
                 )
             }
@@ -659,7 +657,7 @@ private fun AllDayBar(
     val fill = eventFill(event.color, dark, soften)
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
-            .background(fill, RoundedCornerShape(4.dp))
+            .background(fill, EventChipShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 2.dp)
             .semantics { contentDescription = title },
@@ -916,13 +914,9 @@ private fun EventBlock(
     val zone = remember { TimeZone.currentSystemDefault() }
     val moveAction = eventMoveAction(block.event)
     val draggable = eventDragAllowed(block.event)
-    // A block clipped at the top continues from the previous day: its top edge is
-    // midnight, not the event's start. It drags all the same (#253) — the drop
-    // takes this offset back off, so the event lands where its own start belongs.
+    // The drop takes this offset back off, so a tail clipped at midnight lands
+    // where the event's own start belongs (#253).
     val clipOffset = remember(block, date, zone) { block.clipOffsetMinutes(date, zone) }
-    // Square off whichever edge the event runs past, so a block cut at midnight
-    // reads as carrying on rather than as ending there — the vertical
-    // counterpart of the month bar's flat left/right caps (#253).
     val shape = remember(block, date, zone) {
         timedBlockShape(block.continuesBefore(date, zone), block.continuesAfter(date, zone))
     }
@@ -936,7 +930,7 @@ private fun EventBlock(
         onDrop = { dragController.finish()?.let(onDrop) },
         onCancel = dragController::cancel,
     )
-    val lifted = draggable && dragController.ghosts(block, date)
+    val lifted = draggable && dragController.ghosts(block)
     val ghost = ghostAlpha(lifted)
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)

@@ -143,11 +143,11 @@ class RescheduleViewModel @Inject constructor(
     private val _abandoned = MutableStateFlow(0)
 
     /**
-     * Ticks when a drop ends with nothing on the target day: refused before the
-     * write, written and failed, or its scope dialog dismissed. [move] answers
-     * before any of that is known, so without this signal the view that drew the
-     * drop held its copy out for the full settle timeout waiting for a grid that
-     * was never going to draw it (#253).
+     * Ticks when a drop ends with nothing on the target day: refused outright,
+     * refused before the write, written and failed, or its scope dialog
+     * dismissed. [move] answers before any of that is known, so without this
+     * signal the view that drew the drop held its copy out for the full settle
+     * timeout waiting for a grid that was never going to draw it (#253).
      */
     val abandoned: StateFlow<Int> = _abandoned.asStateFlow()
 
@@ -200,11 +200,14 @@ class RescheduleViewModel @Inject constructor(
 
     /**
      * Take a drop, unless one is already being written. False means nothing will
-     * be written and the caller must let its held copy go now — waiting on
-     * [inFlight] would strand it until the settle timeout instead.
+     * be written; [abandoned] ticks for that refusal too, so a held copy is let
+     * go by the one signal rather than by every caller remembering to.
      */
     fun move(request: MoveRequest): Boolean {
-        if (busy || _scopePrompt.value != null) return false
+        if (busy || _scopePrompt.value != null) {
+            _abandoned.value += 1
+            return false
+        }
         busy = true
         viewModelScope.launch {
             val prepared = prepare(request)

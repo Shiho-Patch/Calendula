@@ -102,6 +102,47 @@ class TimelineDropTest {
     }
 
     @Test
+    fun `a short tail can still be dragged a step earlier`() {
+        // 23:50 to 00:05: five minutes of tail, less than one snap step, which
+        // a floor pinned at midnight left with nowhere to go (#253).
+        assertThat(dragFloorMin(clipOffsetMin = 10, eventSpanMin = 15))
+            .isEqualTo(-DRAG_SNAP_MINUTES)
+    }
+
+    @Test
+    fun `a long tail may rise until its event ends just inside the day`() {
+        // Sat 20:00 to Sun 08:00, held by the Sunday half.
+        assertThat(dragFloorMin(clipOffsetMin = 4 * 60, eventSpanMin = 12 * 60))
+            .isEqualTo(DRAG_SNAP_MINUTES - 8 * 60)
+    }
+
+    @Test
+    fun `an unclipped block cannot be dragged above its own midnight`() {
+        assertThat(dragFloorMin(clipOffsetMin = 0, eventSpanMin = 60)).isEqualTo(0)
+    }
+
+    @Test
+    fun `a drop across a DST boundary keeps the time of day it was let go at`() {
+        // Europe/Berlin springs forward at 02:00 on 29 March 2026, between the
+        // event's start and the midnight its tail is cut at.
+        val berlin = TimeZone.of("Europe/Berlin")
+        val sun = LocalDate(2026, 3, 29)
+        val overnightIntoDst = EventInstance(
+            instanceId = 3L, eventId = 3L, calendarId = 1L, title = "Night shift",
+            start = LocalDate(2026, 3, 28).atTime(22, 0).toInstant(berlin),
+            end = sun.atTime(6, 0).toInstant(berlin),
+            isAllDay = false, color = 0xFF112233.toInt(), location = null,
+        )
+        val tail = layoutDay(listOf(overnightIntoDst), sun, berlin).single()
+        val offset = tail.clipOffsetMinutes(sun, berlin)
+        // Dropped back onto its own slot a week earlier, clear of the boundary.
+        val drop = TimelineDrop(overnightIntoDst, LocalDate(2026, 3, 22), 0, offset)
+
+        assertThat(drop.startInstant(berlin))
+            .isEqualTo(LocalDate(2026, 3, 21).atTime(22, 0).toInstant(berlin))
+    }
+
+    @Test
     fun `a block that is not clipped is unaffected wherever it sits`() {
         val plain = EventInstance(
             instanceId = 2L, eventId = 2L, calendarId = 1L, title = "Standup",

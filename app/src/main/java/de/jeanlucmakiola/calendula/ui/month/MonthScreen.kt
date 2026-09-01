@@ -146,6 +146,8 @@ import de.jeanlucmakiola.calendula.ui.common.declinedDecoration
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventAccent
+import de.jeanlucmakiola.calendula.ui.common.EventChipShape
+import de.jeanlucmakiola.calendula.ui.common.monthBarShape
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
@@ -507,14 +509,13 @@ private fun MonthDragOverlay(controller: MonthDragController) {
     val glideSpec = MaterialTheme.motionScheme.fastSpatialSpec<Offset>()
     val seat = controller.settledInRoot
     val abandoned = abandonedMoves()
-    // The count as it stood when this drop was recorded: anything past it is
-    // this drop being abandoned, and then no seat is ever coming.
-    val abandonedAtDrop = remember(controller.settling) { abandoned }
     LaunchedEffect(controller.settling, moveInFlight, seat, abandoned) {
         val landed = controller.settling
         if (landed == null || moveInFlight) return@LaunchedEffect
         if (seat == null) {
-            if (abandoned == abandonedAtDrop) delay(MONTH_SETTLE_TIMEOUT_MILLIS)
+            // Past the mark this drop was let go on, it was abandoned and no
+            // seat is ever coming.
+            if (abandoned == controller.settledAbandonedMark) delay(MONTH_SETTLE_TIMEOUT_MILLIS)
         } else {
             if (!gliding) glide.snapTo(landed.topLeftInRoot)
             gliding = true
@@ -568,7 +569,7 @@ private fun MonthDragOverlay(controller: MonthDragController) {
                     scaleY = 1f + 0.04f * lift
                     shadowElevation = 8.dp.toPx() * lift
                     alpha = copyAlpha
-                    shape = RoundedCornerShape(4.dp)
+                    shape = EventChipShape
                     clip = false
                 },
         )
@@ -1924,6 +1925,7 @@ private fun MonthWeekRow(
                     laneCount = MAX_EVENT_ROWS,
                     isRtl = isRtl,
                     chipAt = { col, lane -> week.chipAt(col, lane, MAX_EVENT_ROWS) },
+                    chipStart = { col, lane -> week.chipStartCol(col, lane) },
                 ),
             )
         }
@@ -2315,7 +2317,7 @@ private fun monthChipDragModifier(
             // How many columns the finger crossed — grabbing the middle of a
             // multi-day bar shifts by what it travelled, not to where it landed.
             val delta = (drop.targetDate.toEpochDays() - drop.grabDate.toEpochDays()).toInt()
-            val took = moveScope?.move(
+            moveScope?.move(
                 MoveRequest(
                     eventId = drop.event.eventId,
                     beginMillis = drop.event.start.toEpochMilliseconds(),
@@ -2323,9 +2325,6 @@ private fun monthChipDragModifier(
                     target = MoveTarget.ByDays(delta),
                 ),
             )
-            // Refused, so nothing will land: let the copy go now rather than
-            // hold the chip out for a settle that can never arrive.
-            if (took != true) controller?.release()
         }
     },
     onCancel = { controller?.cancel() },
@@ -2441,12 +2440,7 @@ private fun MonthBar(
     val lifted = monthDrag?.liftedInstanceId == event.instanceId ||
         monthDrag?.isSettledChip(event, days) == true
     val ghost = ghostAlpha(lifted)
-    val shape = RoundedCornerShape(
-        topStart = if (continuesLeft) 0.dp else 4.dp,
-        bottomStart = if (continuesLeft) 0.dp else 4.dp,
-        topEnd = if (continuesRight) 0.dp else 4.dp,
-        bottomEnd = if (continuesRight) 0.dp else 4.dp,
-    )
+    val shape = monthBarShape(continuesLeft, continuesRight)
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
             .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)

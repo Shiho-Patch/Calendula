@@ -418,11 +418,9 @@ internal fun layoutCalendarWeek(
     zone: TimeZone,
 ): MonthWeek {
     val weekEvents = instances.filter { ev -> days.any { ev.coversDay(it, zone) } }
-    // A bar is decided by the *event*, not by how much of it this row happens to
-    // hold: an event crossing midnight into the next week row covers one day in
-    // each, and counting per row drew it as two unrelated single-day pills with
-    // nothing saying they were one event (#253). As a bar it keeps its
-    // continuesLeft/continuesRight flat edge on the week seam.
+    // A bar is decided by the *event*, not by how much of it this row holds: one
+    // crossing midnight into the next week row covers a single day in each, and
+    // counting per row drew it as two unrelated pills (#253).
     val (bars, singles) = weekEvents.partition { ev ->
         ev.isAllDay || ev.spansMultipleDays(zone)
     }

@@ -45,6 +45,7 @@ import de.jeanlucmakiola.calendula.ui.week.TimedBlock
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.floret.locale.currentLocale
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.atStartOfDayIn
@@ -55,7 +56,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.math.roundToInt
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /** Start granularity a dragged block snaps to, matching the big calendar apps. */
@@ -99,8 +99,6 @@ data class TimelineDragPiece(
     val sizePx: IntSize,
     val continuesBefore: Boolean,
     val continuesAfter: Boolean,
-    /** The piece the finger is on — the one that carries the time label. */
-    val isAnchor: Boolean,
 )
 
 /**
@@ -108,13 +106,24 @@ data class TimelineDragPiece(
  * negative when it began on an earlier one — falls across day columns, as
  * offsets from that day. Every slice but the first and last is a whole day, and
  * the flags say which edges are cuts rather than the event's own ends.
+ *
+ * [within] bounds the day offsets that have a column to draw in, so a very long
+ * event doesn't slice days no one can see.
  */
-internal fun dragSlices(eventStartMin: Int, spanMin: Int): List<DragSlice> {
-    if (spanMin <= 0) return emptyList()
-    val end = eventStartMin + spanMin
+internal fun dragSlices(
+    eventStartMin: Int,
+    spanMin: Int,
+    within: IntRange? = null,
+): List<DragSlice> {
+    val span = spanMin.coerceAtLeast(0)
+    val end = eventStartMin + span
     val first = eventStartMin.floorDiv(MINUTES_PER_DAY)
-    val last = (end - 1).floorDiv(MINUTES_PER_DAY)
-    return (first..last).map { day ->
+    // A zero-length event still has a block, on the one day it sits in.
+    val last = maxOf((end - 1).floorDiv(MINUTES_PER_DAY), first)
+    val from = maxOf(first, within?.first ?: first)
+    val to = minOf(last, within?.last ?: last)
+    if (from > to) return emptyList()
+    return (from..to).map { day ->
         val dayStart = day * MINUTES_PER_DAY
         val sliceStart = maxOf(eventStartMin - dayStart, 0)
         val sliceEnd = minOf(end - dayStart, MINUTES_PER_DAY)
@@ -127,6 +136,22 @@ internal fun dragSlices(eventStartMin: Int, spanMin: Int): List<DragSlice> {
         )
     }
 }
+
+/**
+ * How far above its day's midnight a block's top edge may be dragged. Zero for
+ * an ordinary block, whose top edge is the event's own start. A tail clipped at
+ * midnight has to go lower: its top edge *is* midnight and stays there however
+ * much earlier the event moves, so pinning it at zero made dragging the second
+ * half earlier a no-op (#253). It may rise until the event's end reaches one
+ * snap step into this day — or by a single step, for a tail too short to afford
+ * even that, which then leaves the day for the one before it.
+ */
+internal fun dragFloorMin(clipOffsetMin: Int, eventSpanMin: Int): Int =
+    if (clipOffsetMin > 0) {
+        minOf(-DRAG_SNAP_MINUTES, DRAG_SNAP_MINUTES + clipOffsetMin - eventSpanMin)
+    } else {
+        0
+    }
 
 /** One day's share of a dragged event, before it is placed on screen. */
 internal data class DragSlice(
@@ -206,12 +231,14 @@ class TimelineDragController {
         private set
 
     /**
-     * Where the settled drop came from, and which event row it belongs to. The
-     * instance id alone can't identify the source block for the length of the
-     * write: the provider regenerates `Instances` rows, so a re-read carrying the
-     * *old* time can arrive under a new instance id.
+     * The event row and start instant the settled drop came from. The instance id
+     * alone can't identify the source for the length of the write: the provider
+     * regenerates `Instances` rows, so a re-read carrying the *old* time can
+     * arrive under a new instance id. Matching the start instant rather than a
+     * single day and slot keeps *both* halves of an event that crosses midnight
+     * ghosted until the write lands (#253).
      */
-    private var settledOrigin: Triple<Long, LocalDate, Int>? by mutableStateOf(null)
+    private var settledOrigin: Pair<Long, Instant>? by mutableStateOf(null)
 
     /** Whether a finger is on a block right now — [settling] is not dragging. */
     var isDragging: Boolean by mutableStateOf(false)
@@ -223,6 +250,16 @@ class TimelineDragController {
      * flashes back to full opacity in its old slot.
      */
     var settledOnGrid: Boolean by mutableStateOf(false)
+        private set
+
+    /**
+     * The abandoned-move counter, read at the drop so the mark can't be a
+     * composition behind the tick it is compared against.
+     */
+    var abandonedTicks: StateFlow<Int>? = null
+
+    /** What [abandonedTicks] stood at when the settling drop was let go. */
+    var settledAbandonedMark: Int = 0
         private set
 
     private var source: TimedBlock? = null
@@ -279,17 +316,16 @@ class TimelineDragController {
     }
 
     /**
-     * Whether [block] is the one whose copy is in flight, and so must stay a
-     * ghost: the instance the finger picked up, or once dropped whatever now
-     * sits in the slot it left.
+     * Whether [block] is part of the event whose copy is in flight, and so must
+     * stay a ghost: the instance the finger picked up, or once dropped whatever
+     * the re-read now carries at the time it came from — both halves of it, for
+     * an event that crosses midnight (#253).
      */
-    fun ghosts(block: TimedBlock, date: LocalDate): Boolean {
+    fun ghosts(block: TimedBlock): Boolean {
         if (liftedInstanceId == null) return false
         if (block.event.instanceId == liftedInstanceId) return true
-        val (eventId, originDate, originMin) = settledOrigin ?: return false
-        return block.event.eventId == eventId &&
-            date == originDate &&
-            block.startMin == originMin
+        val (eventId, start) = settledOrigin ?: return false
+        return block.event.eventId == eventId && block.event.start == start
     }
 
     /**
@@ -300,9 +336,15 @@ class TimelineDragController {
      */
     fun noteGrid(date: LocalDate, blocks: List<TimedBlock>) {
         val landed = settling ?: return
-        if (settledOnGrid || landed.date != date) return
+        if (settledOnGrid) return
+        // Where this day would draw it, which for a drop clipped at midnight is
+        // the day's own start rather than the edge the finger held (#253) — and
+        // which for a tail dragged clear of its day is the day before it.
+        val offset = (date.toEpochDays() - landed.date.toEpochDays()).toInt()
+        val slice = dragSlices(landed.eventStartMin, landed.eventSpanMin, offset..offset)
+            .firstOrNull() ?: return
         settledOnGrid = blocks.any { block ->
-            block.startMin == landed.startMin &&
+            block.startMin == slice.startMin &&
                 (
                     block.event.eventId == landed.event.eventId ||
                         (
@@ -326,7 +368,8 @@ class TimelineDragController {
         if (landed == null || landed.slot == origin) return null
         settling = landed
         liftedInstanceId = landed.event.instanceId
-        settledOrigin = origin?.let { (date, min) -> Triple(landed.event.eventId, date, min) }
+        settledOrigin = landed.event.eventId to landed.event.start
+        settledAbandonedMark = abandonedTicks?.value ?: 0
         return TimelineDrop(landed.event, landed.date, landed.startMin, clipOffset)
     }
 
@@ -365,23 +408,9 @@ class TimelineDragController {
         val snapped = (rawMinutes / DRAG_SNAP_MINUTES).roundToInt() * DRAG_SNAP_MINUTES
         val eventSpan = (block.event.end - block.event.start).inWholeMinutes.toInt()
             .coerceAtLeast(0)
-        // Clamp the held edge into the target day; a tail past midnight is fine.
-        // A clipped block's top edge *is* midnight, though, and stays there however
-        // much earlier the event moves — pinning it at 0 like an ordinary block's
-        // start made dragging the second half earlier a no-op (#253). So that
-        // half is held by its other edge: it may rise until the event's end is
-        // one snap step into this day, and no higher than its own resting place.
-        val floor = if (clipOffsetMin > 0) {
-            minOf(0, DRAG_SNAP_MINUTES + clipOffsetMin - eventSpan)
-        } else {
-            0
-        }
+        val floor = dragFloorMin(clipOffsetMin, eventSpan)
         val startMin = snapped.coerceIn(floor, MINUTES_PER_DAY - DRAG_SNAP_MINUTES)
-        // Where the *event* now starts, which is the block's top edge less
-        // whatever of it already ran before that edge. Negative means the event
-        // begins on an earlier day than the one the finger is over.
         val eventStartMin = startMin - clipOffsetMin
-        // The column the finger is over on screen, and the day that column shows.
         val column = ((pointer.x - origin.x) / columnPx).toInt().coerceIn(0, days.lastIndex)
         val dayIndex = if (geometry.isRtl) days.lastIndex - column else column
         drag = TimelineDrag(
@@ -390,11 +419,14 @@ class TimelineDragController {
             startMin = startMin,
             eventStartMin = eventStartMin,
             eventSpanMin = eventSpan,
-            pieces = dragSlices(eventStartMin, eventSpan).mapNotNull { slice ->
+            // Bounded to the columns this timeline actually shows: a day it
+            // doesn't has no piece to draw. The write is unaffected.
+            pieces = dragSlices(
+                eventStartMin,
+                eventSpan,
+                within = -dayIndex..days.lastIndex - dayIndex,
+            ).map { slice ->
                 val day = dayIndex + slice.dayOffset
-                // A day this timeline doesn't show has no column to draw in. The
-                // write is unaffected; only the preview is short a piece.
-                if (day !in days.indices) return@mapNotNull null
                 val col = if (geometry.isRtl) days.lastIndex - day else day
                 TimelineDragPiece(
                     topLeftInRoot = Offset(
@@ -410,8 +442,6 @@ class TimelineDragController {
                     ),
                     continuesBefore = slice.continuesBefore,
                     continuesAfter = slice.continuesAfter,
-                    // Always present: the finger's own edge lies inside this day.
-                    isAnchor = slice.dayOffset == 0,
                 )
             },
         )
@@ -455,6 +485,7 @@ fun rememberTimelineDragController(): TimelineDragController {
     val density = LocalDensity.current
     controller.geometry.edgePx = with(density) { AUTO_SCROLL_EDGE.toPx() }
     controller.geometry.stepPx = with(density) { AUTO_SCROLL_STEP.toPx() }
+    controller.abandonedTicks = LocalEventMove.current?.abandoned
     return controller
 }
 
@@ -466,8 +497,10 @@ fun rememberTimelineDragController(): TimelineDragController {
  * so the offset has to come back off at the drop (#253).
  */
 fun TimedBlock.clipOffsetMinutes(day: LocalDate, zone: TimeZone): Int {
-    val top = day.atStartOfDayIn(zone) + startMin.minutes
-    return (top - event.start).inWholeMinutes.toInt().coerceAtLeast(0)
+    val start = event.start.toLocalDateTime(zone)
+    val days = (day.toEpochDays() - start.date.toEpochDays()).toInt()
+    val minutes = days * MINUTES_PER_DAY + startMin - start.time.toSecondOfDay() / 60
+    return minutes.coerceAtLeast(0)
 }
 
 /**
@@ -482,22 +515,6 @@ fun TimedBlock.continuesAfter(day: LocalDate, zone: TimeZone): Boolean =
     event.end > day.plus(1, DateTimeUnit.DAY).atStartOfDayIn(zone)
 
 /**
- * A timed block's corners: square on whichever edge the event runs past, so a
- * cut edge reads as "this carries on" rather than as the event's own end. The
- * vertical counterpart of the month bar's flat left/right caps.
- */
-fun timedBlockShape(continuesBefore: Boolean, continuesAfter: Boolean): RoundedCornerShape =
-    RoundedCornerShape(
-        topStart = if (continuesBefore) 0.dp else TIMED_BLOCK_CORNER,
-        topEnd = if (continuesBefore) 0.dp else TIMED_BLOCK_CORNER,
-        bottomStart = if (continuesAfter) 0.dp else TIMED_BLOCK_CORNER,
-        bottomEnd = if (continuesAfter) 0.dp else TIMED_BLOCK_CORNER,
-    )
-
-/** The corner radius a timed block keeps on every edge the event doesn't cross. */
-val TIMED_BLOCK_CORNER = 4.dp
-
-/**
  * The instant a drop asks for — the *event's* new start, so the tail of an
  * overnight event drops back onto the day its own start belongs to. Read in the
  * zone the timeline is drawn in. A drop into a spring-forward gap has no instant
@@ -505,15 +522,14 @@ val TIMED_BLOCK_CORNER = 4.dp
  * visibly settles there.
  */
 fun TimelineDrop.startInstant(zone: TimeZone): Instant {
-    // [startMin] runs past its day at either end — a block's top edge can be
-    // dragged above this day's midnight, and a tail's below the next one — so it
-    // is resolved as a day plus a minute of that day rather than assumed to be
-    // one. Wall clock, not an instant offset: an event dropped over a DST
-    // boundary keeps the time of day it is dropped at.
-    val day = date.plus(startMin.floorDiv(MINUTES_PER_DAY), DateTimeUnit.DAY)
-    val minute = startMin.mod(MINUTES_PER_DAY)
-    val top = LocalDateTime(day, LocalTime(minute / 60, minute % 60)).toInstant(zone)
-    return top - clipOffsetMin.minutes
+    // Wall clock throughout, and past this day at either end: a block's top edge
+    // can be dragged above its midnight and a tail's below the next one, so the
+    // start is resolved as a day plus a minute of it rather than as an offset
+    // from an instant — which would shift by an hour across a DST boundary.
+    val fromMidnight = startMin - clipOffsetMin
+    val day = date.plus(fromMidnight.floorDiv(MINUTES_PER_DAY), DateTimeUnit.DAY)
+    val minute = fromMidnight.mod(MINUTES_PER_DAY)
+    return LocalDateTime(day, LocalTime(minute / 60, minute % 60)).toInstant(zone)
 }
 
 /**
@@ -560,12 +576,11 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
     // drop itself.
     var handingOver by remember(controller.settling) { mutableStateOf(false) }
     val abandoned = abandonedMoves()
-    // The count as it stood when this drop was recorded: anything past it is
-    // this drop being abandoned, and then there is nothing to wait for.
-    val abandonedAtDrop = remember(controller.settling) { abandoned }
     LaunchedEffect(controller.settling, moveInFlight, controller.settledOnGrid, abandoned) {
         if (controller.settling == null || moveInFlight) return@LaunchedEffect
-        if (abandoned == abandonedAtDrop) {
+        // Past the mark this drop was let go on, it was abandoned: nothing will
+        // land and there is nothing to wait for.
+        if (abandoned == controller.settledAbandonedMark) {
             delay(if (controller.settledOnGrid) SETTLE_GRACE_MILLIS else SETTLE_TIMEOUT_MILLIS)
         }
         handingOver = true
@@ -605,7 +620,10 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
         val endMin = if (rawEnd > MINUTES_PER_DAY) rawEnd % MINUTES_PER_DAY else rawEnd
         val label = "${formatMinuteOfDay(startMin, use24Hour, locale)}–" +
             formatMinuteOfDay(endMin, use24Hour, locale)
-        drag.pieces.forEach { piece ->
+        // The tallest piece carries the range: on the smallest it would be
+        // clipped away, which is exactly the case when a short tail is held.
+        val labelled = drag.pieces.indices.maxByOrNull { drag.pieces[it].sizePx.height }
+        drag.pieces.forEachIndexed { index, piece ->
             DragCopy(
                 topLeftInRoot = piece.topLeftInRoot,
                 overlayOrigin = origin,
@@ -615,9 +633,8 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
                 lift = lift,
                 alpha = copyAlpha,
                 title = title,
-                // Only on the piece the finger is on: the range belongs to the
-                // whole event, and repeating it would name it once per day.
-                label = label.takeIf { piece.isAnchor },
+                // Once for the whole event: repeated, it would name it per day.
+                label = label.takeIf { index == labelled },
             )
         }
     }

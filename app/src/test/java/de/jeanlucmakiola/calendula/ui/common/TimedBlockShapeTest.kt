@@ -81,9 +81,9 @@ class TimedBlockShapeTest {
         assertThat(timedBlockShape(continuesBefore = true, continuesAfter = false).topStart)
             .isEqualTo(CornerSize(square))
         assertThat(timedBlockShape(continuesBefore = true, continuesAfter = false).bottomStart)
-            .isEqualTo(CornerSize(TIMED_BLOCK_CORNER))
+            .isEqualTo(CornerSize(EVENT_CHIP_CORNER))
         assertThat(timedBlockShape(continuesBefore = false, continuesAfter = true).topStart)
-            .isEqualTo(CornerSize(TIMED_BLOCK_CORNER))
+            .isEqualTo(CornerSize(EVENT_CHIP_CORNER))
         assertThat(timedBlockShape(continuesBefore = false, continuesAfter = true).bottomEnd)
             .isEqualTo(CornerSize(square))
     }
@@ -154,5 +154,30 @@ class TimedBlockShapeTest {
 
         assertThat(pieces).hasSize(1)
         assertThat(pieces.single().continuesAfter).isFalse()
+    }
+
+    @Test
+    fun `a zero-length event still has a piece to draw`() {
+        val pieces = dragSlices(eventStartMin = 9 * 60, spanMin = 0)
+
+        assertThat(pieces).hasSize(1)
+        assertThat(pieces.single().dayOffset).isEqualTo(0)
+        assertThat(pieces.single().startMin).isEqualTo(9 * 60)
+        assertThat(pieces.single().spanMin).isEqualTo(0)
+    }
+
+    @Test
+    fun `only the days there are columns for are sliced`() {
+        // A week's worth of event, previewed on a timeline showing three days
+        // from the one the finger is on.
+        val pieces = dragSlices(0, 7 * MINUTES_PER_DAY, within = 0..2)
+
+        assertThat(pieces.map { it.dayOffset }).containsExactly(0, 1, 2).inOrder()
+        assertThat(pieces.last().continuesAfter).isTrue()
+    }
+
+    @Test
+    fun `an event outside the columns shown is sliced into nothing`() {
+        assertThat(dragSlices(-3 * MINUTES_PER_DAY, 60, within = 0..2)).isEmpty()
     }
 }

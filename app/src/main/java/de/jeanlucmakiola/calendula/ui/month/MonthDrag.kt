@@ -13,6 +13,8 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.IntSize
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.datetime.LocalDate
 import kotlin.math.abs
 
@@ -33,6 +35,8 @@ class MonthRowGeometry(
     val isRtl: Boolean,
     /** What this row currently draws in [lane] of column `col`, or null. */
     val chipAt: (col: Int, lane: Int) -> EventInstance?,
+    /** The column the chip in [lane] of column `col` is drawn from. */
+    val chipStart: (col: Int, lane: Int) -> Int,
 ) {
     /** Root top-left of the chip seated in [lane] of column [col]. */
     fun seat(col: Int, lane: Int): Offset? {
@@ -47,7 +51,7 @@ class MonthRowGeometry(
      * the day isn't in this week, or the chip went into the day's "+N" overflow.
      */
     fun seatOf(event: EventInstance, date: LocalDate): Offset? {
-        val (col, lane) = chipSeat(days, laneCount, chipAt, event, date) ?: return null
+        val (col, lane) = chipSeat(days, laneCount, chipAt, chipStart, event, date) ?: return null
         return seat(col, lane)
     }
 }
@@ -63,6 +67,7 @@ internal fun chipSeat(
     days: List<LocalDate>,
     laneCount: Int,
     chipAt: (col: Int, lane: Int) -> EventInstance?,
+    chipStart: (col: Int, lane: Int) -> Int,
     event: EventInstance,
     date: LocalDate,
 ): Pair<Int, Int>? {
@@ -70,11 +75,7 @@ internal fun chipSeat(
     val lane = (0 until laneCount).firstOrNull { lane ->
         chipAt(col, lane)?.let { isSameEvent(it, event) } == true
     } ?: return null
-    var first = col
-    while (first > 0 && chipAt(first - 1, lane)?.let { isSameEvent(it, event) } == true) {
-        first--
-    }
-    return first to lane
+    return chipStart(col, lane) to lane
 }
 
 /**
@@ -158,6 +159,16 @@ class MonthDragController {
      * the confirmation chip carries Undo long after the copy is gone.
      */
     private var undoable: MonthChipDrag? = null
+
+    /**
+     * The abandoned-move counter, read at the drop so the mark can't be a
+     * composition behind the tick it is compared against.
+     */
+    var abandonedTicks: StateFlow<Int>? = null
+
+    /** What [abandonedTicks] stood at when the settling chip was let go. */
+    var settledAbandonedMark: Int = 0
+        private set
 
     private var event: EventInstance? = null
     private var grabDate: LocalDate? = null
@@ -247,6 +258,7 @@ class MonthDragController {
         liftedInstanceId = last.event.instanceId
         settledGhost = true
         settledInRoot = null
+        settledAbandonedMark = abandonedTicks?.value ?: 0
         return true
     }
 
@@ -267,6 +279,7 @@ class MonthDragController {
         liftedInstanceId = landed.event.instanceId
         settledGhost = true
         undoable = settling
+        settledAbandonedMark = abandonedTicks?.value ?: 0
         return MonthChipDrop(landed.event, landed.grabDate, target)
     }
 
@@ -323,6 +336,10 @@ class MonthDragController {
 }
 
 @Composable
-fun rememberMonthDragController(): MonthDragController = remember { MonthDragController() }
+fun rememberMonthDragController(): MonthDragController {
+    val controller = remember { MonthDragController() }
+    controller.abandonedTicks = LocalEventMove.current?.abandoned
+    return controller
+}
 
 val LocalMonthDrag = compositionLocalOf<MonthDragController?> { null }
