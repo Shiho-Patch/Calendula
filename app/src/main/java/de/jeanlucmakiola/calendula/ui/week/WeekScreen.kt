@@ -100,7 +100,10 @@ import de.jeanlucmakiola.calendula.ui.common.MoveTarget
 import de.jeanlucmakiola.calendula.ui.common.TimelineDragController
 import de.jeanlucmakiola.calendula.ui.common.TimelineDragOverlay
 import de.jeanlucmakiola.calendula.ui.common.TimelineDrop
-import de.jeanlucmakiola.calendula.ui.common.beginsOn
+import de.jeanlucmakiola.calendula.ui.common.clipOffsetMinutes
+import de.jeanlucmakiola.calendula.ui.common.continuesAfter
+import de.jeanlucmakiola.calendula.ui.common.continuesBefore
+import de.jeanlucmakiola.calendula.ui.common.timedBlockShape
 import de.jeanlucmakiola.calendula.ui.common.eventDragAllowed
 import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
 import de.jeanlucmakiola.calendula.ui.common.rememberEventDragSource
@@ -108,6 +111,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberTimelineDragController
 import de.jeanlucmakiola.calendula.ui.common.startInstant
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.EventChipShape
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.ui.common.NowLine
@@ -387,7 +391,7 @@ private fun WeekContent(
                     onOpenDay = onOpenDay,
                     onCreateAt = onCreateAt,
                     onDrop = { drop ->
-                        val took = move?.move(
+                        move?.move(
                             MoveRequest(
                                 eventId = drop.event.eventId,
                                 beginMillis = drop.event.start.toEpochMilliseconds(),
@@ -395,9 +399,6 @@ private fun WeekContent(
                                 target = MoveTarget.Start(drop.startInstant(zone)),
                             ),
                         )
-                        // Refused, so nothing will land: let the copy go now
-                        // rather than hold it out for a settle that never comes.
-                        if (took != true) dragController.release()
                     },
                 )
             }
@@ -656,7 +657,7 @@ private fun AllDayBar(
     val fill = eventFill(event.color, dark, soften)
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
-            .background(fill, RoundedCornerShape(4.dp))
+            .background(fill, EventChipShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 2.dp)
             .semantics { contentDescription = title },
@@ -912,24 +913,30 @@ private fun EventBlock(
     val fill = eventFill(block.event.color, dark, soften)
     val zone = remember { TimeZone.currentSystemDefault() }
     val moveAction = eventMoveAction(block.event)
-    // A block clipped at the top continues from the previous day: its top edge
-    // is midnight, not the event's start, so dragging it would invent a time.
-    val draggable = eventDragAllowed(block.event) && block.beginsOn(date, zone)
+    val draggable = eventDragAllowed(block.event)
+    // The drop takes this offset back off, so a tail clipped at midnight lands
+    // where the event's own start belongs (#253).
+    val clipOffset = remember(block, date, zone) { block.clipOffsetMinutes(date, zone) }
+    val shape = remember(block, date, zone) {
+        timedBlockShape(block.continuesBefore(date, zone), block.continuesAfter(date, zone))
+    }
     val dragModifier = rememberEventDragSource(
         enabled = draggable,
         key = block.event.instanceId,
-        onPickUp = { pointer, blockRoot, _ -> dragController.begin(block, pointer, blockRoot) },
+        onPickUp = { pointer, blockRoot, _ ->
+            dragController.begin(block, clipOffset, pointer, blockRoot)
+        },
         onMove = dragController::move,
         onDrop = { dragController.finish()?.let(onDrop) },
         onCancel = dragController::cancel,
     )
-    val lifted = draggable && dragController.ghosts(block, date)
+    val lifted = draggable && dragController.ghosts(block)
     val ghost = ghostAlpha(lifted)
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
             // The source stays put as a ghost while its floating copy travels.
             .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
-            .background(fill, RoundedCornerShape(4.dp))
+            .background(fill, shape)
             .clickable(onClick = onClick)
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.
