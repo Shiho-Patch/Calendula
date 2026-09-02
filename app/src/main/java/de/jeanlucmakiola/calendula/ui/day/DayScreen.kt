@@ -421,12 +421,17 @@ private fun DayTopBar(
     scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
     val locale = currentLocale()
+    val (title, shortTitle) = remember(date, locale, currentYear) {
+        formatDayTitle(date, locale, currentYear) to
+            formatDayTitle(date, locale, currentYear, abbreviated = true)
+    }
     TopAppBar(
         title = {
             CalendarTitleButton(
-                title = formatDayTitle(date, locale, currentYear),
+                title = title,
                 currentDate = date,
                 onJumpToDate = onJumpToDate,
+                shortTitle = shortTitle,
             )
         },
         navigationIcon = {
@@ -449,7 +454,6 @@ private fun DayTopBar(
                 current = selectedView,
                 cycle = quickSwitchViews,
                 onCycle = onCycleView,
-                modifier = Modifier.padding(end = 8.dp),
             )
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -815,10 +819,16 @@ private fun DayLoading() {
 private fun minToHm(min: Int, is24Hour: Boolean, locale: Locale): String =
     formatMinuteOfDay(min, is24Hour, locale)
 
-private fun formatDayTitle(date: LocalDate, locale: Locale, currentYear: Int): String =
+/** [abbreviated] drops the weekday, leaving the date itself (#165). */
+private fun formatDayTitle(
+    date: LocalDate,
+    locale: Locale,
+    currentYear: Int,
+    abbreviated: Boolean = false,
+): String =
     formatCalendarTitle(
         date = java.time.LocalDate.of(date.year, date.month.ordinal + 1, date.day),
         locale = locale,
         currentYear = currentYear,
-        skeleton = "EEEdMMM",
+        skeleton = if (abbreviated) "dMMM" else "EEEdMMM",
     )

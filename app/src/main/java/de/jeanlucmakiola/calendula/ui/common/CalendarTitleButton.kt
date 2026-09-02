@@ -1,6 +1,7 @@
 package de.jeanlucmakiola.calendula.ui.common
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -12,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -19,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
 import kotlinx.datetime.LocalDate
@@ -31,10 +35,9 @@ import kotlinx.datetime.LocalDate
  * [currentDate] seeds the picker with whatever the bar is currently naming (the
  * visible day, week start or month anchor).
  *
- * The row keeps its own 8.dp inset rather than shifting back onto the app bar's
- * start alignment: M3 places the title flush against the navigation icon's
- * trailing edge, and the title is hit-tested on top of it, so a negative offset
- * would swallow taps meant for the menu button.
+ * [shortTitle] replaces [title] when the full one does not fit the width the app
+ * bar hands the title slot (#165). Either way the line clamps to one and
+ * ellipsises, so pass a [shortTitle] wherever there is something left to drop.
  */
 @Composable
 fun CalendarTitleButton(
@@ -42,6 +45,7 @@ fun CalendarTitleButton(
     currentDate: LocalDate,
     onJumpToDate: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
+    shortTitle: String = title,
 ) {
     var showDatePicker by rememberSaveable { mutableStateOf(false) }
 
@@ -53,14 +57,27 @@ fun CalendarTitleButton(
                 onClickLabel = stringResource(R.string.drawer_jump_to_date),
                 role = Role.Button,
             ) { showDatePicker = true }
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = AppBarSpacing.TitleInset),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.weight(1f, fill = false),
-        )
+        val style = MaterialTheme.typography.titleLarge
+        BoxWithConstraints(modifier = Modifier.weight(1f, fill = false)) {
+            val measurer = rememberTextMeasurer()
+            val shown = remember(title, shortTitle, style, constraints.maxWidth, measurer) {
+                titleFor(
+                    title = title,
+                    shortTitle = shortTitle,
+                    titleWidth = measurer.measure(title, style).size.width,
+                    availableWidth = constraints.maxWidth,
+                )
+            }
+            Text(
+                text = shown,
+                style = style,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         Icon(
             imageVector = Icons.Default.ArrowDropDown,
             contentDescription = null,
@@ -79,3 +96,11 @@ fun CalendarTitleButton(
         )
     }
 }
+
+/** Falls back to [shortTitle] when [title] is wider than [availableWidth] (#165). */
+internal fun titleFor(
+    title: String,
+    shortTitle: String,
+    titleWidth: Int,
+    availableWidth: Int,
+): String = if (titleWidth <= availableWidth) title else shortTitle
