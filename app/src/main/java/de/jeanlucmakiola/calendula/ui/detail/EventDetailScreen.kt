@@ -422,7 +422,7 @@ private fun EventDetailContent(
                         // Nothing to copy off an untitled event — the placeholder
                         // isn't the event's own text.
                         if (instance.title.isNotBlank()) {
-                            Modifier.copyOnLongPress(instance.title, titleLabel, copyField)
+                            Modifier.copyOnLongPress(titleLabel, instance.title, copyField)
                         } else {
                             Modifier
                         },
@@ -547,8 +547,8 @@ private fun EventDetailContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .copyOnLongPress(
-                            text = location,
                             label = locationLabel,
+                            text = location,
                             copy = copyField,
                             onTap = { openInMaps(context, location) },
                         )
@@ -564,9 +564,10 @@ private fun EventDetailContent(
             DetailCard(
                 icon = Icons.AutoMirrored.Filled.Notes,
                 iconContentDescription = descriptionLabel,
-                // The gesture sits on the card: a linkified URL owns the pointer
-                // over its own glyphs, so the text alone is a patchy target.
-                modifier = Modifier.copyOnLongPress(description, descriptionLabel, copyField),
+                // The gesture sits on the card so the icon and padding answer
+                // it too: every linkified URL owns the pointer over its own
+                // glyphs, which leaves the text itself a patchy target.
+                modifier = Modifier.copyOnLongPress(descriptionLabel, description, copyField),
             ) {
                 Text(
                     text = linkifyUrls(description, MaterialTheme.colorScheme.primary),
@@ -639,8 +640,8 @@ private fun EventDetailContent(
 private fun DetailCard(
     icon: ImageVector,
     iconContentDescription: String?,
-    iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     modifier: Modifier = Modifier,
+    iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(

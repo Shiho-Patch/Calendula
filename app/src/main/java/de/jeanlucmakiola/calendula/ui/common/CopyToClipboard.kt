@@ -29,19 +29,33 @@ fun interface FieldCopier {
  * A [FieldCopier] that confirms the copy only where the system doesn't (#195).
  *
  * Android 13 raises its own clipboard chip for every copy, so a snackbar on top
- * of it reads as the app having done the job twice.
+ * of it reads as the app having done the job twice. A failure is always worth a
+ * word, though: the clipboard can refuse a very long description outright.
  */
 @Composable
 fun rememberFieldCopier(snackbarHostState: SnackbarHostState): FieldCopier {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
     val confirmation = stringResource(R.string.field_copied)
-    return remember(clipboard, scope, snackbarHostState, confirmation) {
+    val failure = stringResource(R.string.field_copy_failed)
+    return remember(clipboard, scope, snackbarHostState, confirmation, failure) {
         FieldCopier { label, text ->
             scope.launch {
-                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(label, text)))
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                    snackbarHostState.showSnackbar(confirmation)
+                val message = runCatching {
+                    clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(label, text)))
+                }.fold(
+                    onSuccess = {
+                        confirmation.takeIf {
+                            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+                        }
+                    },
+                    onFailure = { failure },
+                )
+                if (message != null) {
+                    // Copying twice in a row shouldn't queue two four-second
+                    // confirmations — the newest one wins.
+                    snackbarHostState.currentSnackbarData?.dismiss()
+                    snackbarHostState.showSnackbar(message)
                 }
             }
         }
@@ -53,17 +67,18 @@ fun rememberFieldCopier(snackbarHostState: SnackbarHostState): FieldCopier {
  *
  * [onTap] carries a field's existing tap action through; a field without one
  * stays unclickable rather than growing a ripple that leads nowhere, and gets
- * its long press announced through semantics instead.
+ * its long press announced through semantics instead. That branch merges the
+ * node it sits on, so a screen reader lands on the field itself and finds the
+ * action there — a bare container is never focused.
  */
 @Composable
 fun Modifier.copyOnLongPress(
-    text: String,
     label: String,
+    text: String,
     copy: FieldCopier,
     onTap: (() -> Unit)? = null,
 ): Modifier {
     val actionLabel = stringResource(R.string.field_copy_action)
-    val haptics = LocalHapticFeedback.current
     return if (onTap != null) {
         combinedClickable(
             onClick = onTap,
@@ -71,14 +86,15 @@ fun Modifier.copyOnLongPress(
             onLongClick = { copy(label, text) },
         )
     } else {
-        pointerInput(text, label, copy) {
+        val haptics = LocalHapticFeedback.current
+        pointerInput(label, text, copy) {
             detectTapGestures(
                 onLongPress = {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     copy(label, text)
                 },
             )
-        }.semantics {
+        }.semantics(mergeDescendants = true) {
             onLongClick(actionLabel) {
                 copy(label, text)
                 true
