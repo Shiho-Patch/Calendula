@@ -3,17 +3,23 @@ package de.jeanlucmakiola.calendula.data.calendar
 import android.provider.CalendarContract
 import de.jeanlucmakiola.calendula.domain.AccessLevel
 import de.jeanlucmakiola.calendula.domain.Availability
+import de.jeanlucmakiola.calendula.domain.EventColorOption
 import de.jeanlucmakiola.calendula.domain.EventForm
+import de.jeanlucmakiola.calendula.domain.EventStatus
+import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
+import de.jeanlucmakiola.calendula.domain.nearestTo
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toJavaLocalDateTime
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.ResolverStyle
 import java.time.LocalDate as JavaLocalDate
 import java.time.LocalDateTime as JavaLocalDateTime
+import java.time.LocalTime as JavaLocalTime
 
 /** Provider-ready DTSTART / DTEND / EVENT_TIMEZONE for an event write. */
 internal data class EventWriteTimes(
@@ -262,6 +268,21 @@ internal fun buildOccurrenceExceptionValues(
 }
 
 /**
+ * The form as a **detached occurrence**: the same edited values, with the
+ * series rule dropped so [buildEventInsertValues] writes a standalone one-off
+ * row (DTSTART + DTEND, no RRULE/DURATION) at the occurrence's own times.
+ *
+ * The "edit only this event" shape for a series with **no `_sync_id`**, where an
+ * exception row can't attach to its parent at all (Codeberg #234).
+ *
+ * The exception path gets the rule dropped for free — the provider clears the
+ * RRULE it cloned when an exception carries DTSTART + DURATION
+ * ([buildOccurrenceExceptionValues]). Here nothing is cloned, so it is stripped
+ * by hand; leaving it on would insert a second *series* overlapping the first.
+ */
+internal fun EventForm.toDetachedOccurrence(): EventForm = copy(rrule = null)
+
+/**
  * Raw provider snapshot of a master/one-off Events row, enough to re-insert it
  * verbatim on another calendar (a calendar move is copy+delete — `CALENDAR_ID`
  * is sync-adapter-owned and can't be updated in place). Recurring rows carry
@@ -424,29 +445,92 @@ internal fun buildOccurrenceCancelValues(
  * first occurrence. Passing DTSTART + DURATION + RRULE + zone together is what
  * re-expands it correctly. All observed on a Pixel; see the #47 notes.
  *
+ * [rdate] travels with [rrule]: a sync adapter may list a series' occurrences
+ * instead of naming a rule, and rewriting the recurrence set without it would
+ * leave the provider nothing but DTSTART to re-expand from — the collapse this
+ * values map exists to avoid.
+ *
  * EXDATE is a comma-separated list, so an existing one is appended to (a repeat
- * of the same occurrence is folded away). All-day series take the `VALUE=DATE`
- * form (`yyyyMMdd`), timed ones the UTC date-time form (`yyyyMMddTHHmmssZ`).
+ * of the same occurrence is folded away — [mergedExdate]).
  */
 internal fun buildOccurrenceExdateValues(
     existingExdate: String?,
     occurrenceMillis: Long,
     dtStartMillis: Long,
     rrule: String?,
+    rdate: String?,
     duration: String?,
     timezone: String?,
     allDay: Int,
-): Map<String, Any?> {
-    val stamp = formatExdateStamp(occurrenceMillis, isAllDay = allDay != 0)
-    val merged = (exdateStamps(existingExdate) + stamp).distinct().joinToString(",")
-    return mapOf(
-        CalendarContract.Events.EXDATE to merged,
-        CalendarContract.Events.DTSTART to dtStartMillis,
-        CalendarContract.Events.RRULE to rrule,
-        CalendarContract.Events.DURATION to duration,
-        CalendarContract.Events.EVENT_TIMEZONE to timezone,
-        CalendarContract.Events.ALL_DAY to allDay,
-    )
+): Map<String, Any?> = mapOf(
+    CalendarContract.Events.EXDATE to
+        mergedExdate(existingExdate, occurrenceMillis, allDay != 0, timezone),
+    CalendarContract.Events.DTSTART to dtStartMillis,
+    CalendarContract.Events.RRULE to rrule,
+    CalendarContract.Events.RDATE to rdate,
+    CalendarContract.Events.DURATION to duration,
+    CalendarContract.Events.EVENT_TIMEZONE to timezone,
+    CalendarContract.Events.ALL_DAY to allDay,
+)
+
+/**
+ * [existingExdate] with the occurrence at [occurrenceMillis] excluded as well.
+ *
+ * Existing stamps are canonicalised first — all-day series take the `VALUE=DATE`
+ * form (`yyyyMMdd`), timed ones the UTC date-time form (`yyyyMMddTHHmmssZ`) — so
+ * appending to a list a sync adapter wrote in the other accepted form folds the
+ * repeat away instead of leaving the same day excluded twice in two spellings.
+ *
+ * A stamp in no form Calendula reads makes the whole list untouchable: it is kept
+ * exactly as it is, behind the parameter prefix that tells a reader how to
+ * resolve it, and the new exclusion joins it in the list's own form.
+ * Canonicalising the readable stamps around it would leave absolute stamps under
+ * a prefix claiming a zone for all of them — which is how the unreadable one
+ * quietly changes instant.
+ */
+private fun mergedExdate(
+    existingExdate: String?,
+    occurrenceMillis: Long,
+    isAllDay: Boolean,
+    timezone: String?,
+): String {
+    val listZone = exdateListZone(existingExdate, timezone)
+    val stamps = exdateStamps(existingExdate)
+    val canonical = stamps.map { canonicalExdateStamp(it, isAllDay, listZone) }
+    if (canonical.all { it != null }) {
+        val stamp = formatExdateStamp(occurrenceMillis, isAllDay)
+        return (canonical.filterNotNull() + stamp).distinct().joinToString(",")
+    }
+    val prefix = existingExdate?.exdateParameterPrefix().orEmpty()
+    val stamp = if (isAllDay || prefix.isEmpty()) {
+        formatExdateStamp(occurrenceMillis, isAllDay)
+    } else {
+        Instant.ofEpochMilli(occurrenceMillis).atZone(listZone).format(FLOATING_EXDATE)
+    }
+    return prefix + (stamps + stamp).distinct().joinToString(",")
+}
+
+/**
+ * Whether [existingExdate] already excludes the occurrence at [occurrenceMillis]
+ * — i.e. it has already been dropped from the series, deleted or detached.
+ *
+ * Guards the detach path against running twice from a stale screen: the EXDATE
+ * merge folds the repeat away silently and the update still reports one row
+ * changed, so a second save would leave a second standalone copy.
+ */
+internal fun exdateContains(
+    existingExdate: String?,
+    occurrenceMillis: Long,
+    isAllDay: Boolean,
+    timezone: String?,
+): Boolean {
+    val stamp = formatExdateStamp(occurrenceMillis, isAllDay)
+    val listZone = exdateListZone(existingExdate, timezone)
+    // Canonicalised rather than compared verbatim: a sync adapter may spell the
+    // same exclusion differently to Calendula, and a guard that misses it lets
+    // the detach run a second time and leave a second standalone copy.
+    return exdateStamps(existingExdate)
+        .any { canonicalExdateStamp(it, isAllDay, listZone) == stamp }
 }
 
 /**
@@ -463,10 +547,11 @@ internal fun buildOccurrenceExdateValues(
  * [original] and written from [updated], so the `VALUE=DATE` and date-time forms
  * convert into each other when the event switches.
  *
- * Null when there is nothing to carry: no stamps, or a stamp in a form Calendula
- * never writes (a `TZID=`-parameterised or floating one from a sync adapter). Those
- * are left exactly as they are rather than guessed at — a stale stamp excludes
- * nothing, but a mangled one could exclude the wrong occurrence.
+ * A zoned list is read in the zone its prefix names ([exdateListZone]). Null
+ * when there is nothing to carry: no stamps, or a stamp in a form Calendula
+ * cannot read at all. Those are left exactly as they are rather than guessed at —
+ * a stale stamp excludes nothing, but a mangled one could exclude the wrong
+ * occurrence.
  */
 internal fun shiftedExdate(
     existingExdate: String?,
@@ -478,10 +563,12 @@ internal fun shiftedExdate(
     if (stamps.isEmpty()) return null
     val fromZone = original.writeZone(zone)
     val toZone = updated.writeZone(zone)
+    val listZone = exdateListZone(existingExdate, fromZone.id)
     val wallClockShift = Duration.between(original.anchorLocal(), updated.anchorLocal())
     return stamps
         .map { stamp ->
-            val local = parseExdateStamp(stamp, original.isAllDay, fromZone) ?: return null
+            val local = parseExdateStamp(stamp, original.isAllDay, fromZone, listZone)
+                ?: return null
             formatExdateStamp(local.plus(wallClockShift), updated.isAllDay, toZone)
         }
         .distinct()
@@ -498,26 +585,96 @@ internal fun shiftedExdate(
  * is editing, so it exists by definition, and honouring a stale exclusion for it
  * would swallow the edit whole.
  *
+ * The stamps that qualify come back canonicalised, since the zone prefix that
+ * told the reader how to resolve them does not survive the filter.
+ *
  * Null when nothing qualifies, or when a stamp can't be read (see [shiftedExdate]).
  */
-internal fun exdateAfter(existingExdate: String?, beginMillis: Long, isAllDay: Boolean): String? {
+internal fun exdateAfter(
+    existingExdate: String?,
+    beginMillis: Long,
+    isAllDay: Boolean,
+    timezone: String?,
+): String? {
     val stamps = exdateStamps(existingExdate)
     if (stamps.isEmpty()) return null
+    val listZone = exdateListZone(existingExdate, timezone)
     return stamps
-        .filter { stamp ->
-            val utc = parseExdateStamp(stamp, isAllDay, ZoneOffset.UTC) ?: return null
-            utc.toInstant(ZoneOffset.UTC).toEpochMilli() > beginMillis
+        .mapNotNull { stamp ->
+            val utc = parseExdateStamp(stamp, isAllDay, ZoneOffset.UTC, listZone) ?: return null
+            utc.takeIf { it.toInstant(ZoneOffset.UTC).toEpochMilli() > beginMillis }
         }
+        .map { formatExdateStamp(it, isAllDay, ZoneOffset.UTC) }
         .takeIf { it.isNotEmpty() }
         ?.joinToString(",")
 }
 
-/** The individual stamps of an EXDATE column value; it is a comma-separated list. */
+/**
+ * The individual stamps of an EXDATE column value; it is a comma-separated list,
+ * optionally behind the parameter prefix AOSP's `RecurrenceSet` puts in front of
+ * a zoned one ([exdateListZone] reads that half).
+ */
 private fun exdateStamps(exdate: String?): List<String> = exdate
+    ?.withoutExdateParameters()
     ?.split(',')
     ?.map { it.trim() }
     ?.filter { it.isNotEmpty() }
     .orEmpty()
+
+/**
+ * An EXDATE column value with the parameter section its stamps sit behind taken
+ * off.
+ */
+internal fun String.withoutExdateParameters(): String = substring(exdateParameterPrefix().length)
+
+/**
+ * The parameter section an EXDATE list's stamps sit behind, its `;` included, or
+ * empty when it has none. Only a `;` before the first stamp separator is one —
+ * anything later belongs to a stamp, and cutting there would drop every stamp in
+ * front of it.
+ */
+private fun String.exdateParameterPrefix(): String {
+    val semicolon = indexOf(';')
+    val comma = indexOf(',')
+    return if (semicolon >= 0 && (comma < 0 || semicolon < comma)) {
+        substring(0, semicolon + 1)
+    } else {
+        ""
+    }
+}
+
+/**
+ * The zone the floating stamps of [exdate] are wall clock in: the one its
+ * parameter prefix names, or [fallback] — the event's own `EVENT_TIMEZONE` —
+ * when there is no prefix, or the device's tz database doesn't know the name it
+ * uses (Exchange spells zones its own way). The series' own zone is the right
+ * guess, since a zoned exclusion list is written in it. UTC last, for a row that
+ * carries no zone either. Stamps already written as UTC instants ignore all this.
+ *
+ * Both spellings of the prefix are read. AOSP's `RecurrenceSet` stores the TZID
+ * parameter's *value* alone (`Europe/Berlin;<stamps>`), and so does DAVx5; the
+ * iCalendar `TZID=<zone>;` some writers keep is the other one. Only matching the
+ * second would miss every list the provider itself wrote.
+ */
+internal fun exdateListZone(exdate: String?, fallback: String?): ZoneId =
+    exdate?.exdateZoneName()?.toZoneIdOrNull()
+        ?: fallback?.toZoneIdOrNull()
+        ?: ZoneOffset.UTC
+
+/** The zone id an EXDATE list's parameter prefix names, with or without `TZID=`. */
+private fun String.exdateZoneName(): String {
+    val prefix = exdateParameterPrefix().dropLast(1)
+    return if (prefix.startsWith(TZID_PREFIX, ignoreCase = true)) {
+        prefix.drop(TZID_PREFIX.length)
+    } else {
+        prefix
+    }
+}
+
+private fun String.toZoneIdOrNull(): ZoneId? = runCatching { ZoneId.of(this) }.getOrNull()
+
+/** The optional `TZID=` a zoned EXDATE list's zone id may sit behind. */
+private const val TZID_PREFIX = "TZID="
 
 /**
  * One EXDATE entry for the occurrence starting at [occurrenceMillis]. Both forms
@@ -545,18 +702,66 @@ private fun formatExdateStamp(local: JavaLocalDateTime, isAllDay: Boolean, zone:
 
 /**
  * [stamp] as the wall clock it names in [zone] — the inverse of
- * [formatExdateStamp]. Null for anything but the two forms Calendula writes, so a
- * caller can tell "not ours, leave it alone" from a value it may safely re-time.
+ * [formatExdateStamp]. Null for anything Calendula cannot read, so a caller can
+ * tell "not ours, leave it alone" from a value it may safely re-time.
+ *
+ * A timed exclusion is read both as the UTC instant Calendula writes and as a
+ * floating stamp, which [listZone] then resolves. An all-day one is read both
+ * bare (`yyyyMMdd`, what Calendula writes) and padded to a midnight stamp, in
+ * either spelling: sync adapters are inconsistent about which they store — the
+ * same forms [exportExDates] reshapes on the way out — and refusing one would
+ * drop every exclusion of a foreign all-day series the moment it is re-timed.
  */
-private fun parseExdateStamp(stamp: String, isAllDay: Boolean, zone: ZoneId): JavaLocalDateTime? =
-    runCatching {
-        if (isAllDay) {
-            JavaLocalDate.parse(stamp, ALL_DAY_EXDATE).atStartOfDay()
-        } else {
-            JavaLocalDateTime.parse(stamp, TIMED_EXDATE)
-                .atZone(ZoneOffset.UTC).withZoneSameInstant(zone).toLocalDateTime()
-        }
-    }.getOrNull()
+private fun parseExdateStamp(
+    stamp: String,
+    isAllDay: Boolean,
+    zone: ZoneId,
+    listZone: ZoneId,
+): JavaLocalDateTime? =
+    if (isAllDay) {
+        parseAllDayExdate(stamp)?.atStartOfDay()
+    } else {
+        parseTimedExdate(stamp, listZone)?.withZoneSameInstant(zone)?.toLocalDateTime()
+    }
+
+/**
+ * A timed EXDATE stamp as the instant it names: the trailing `Z` form resolved in
+ * UTC, or the floating one resolved in [listZone].
+ */
+private fun parseTimedExdate(stamp: String, listZone: ZoneId): ZonedDateTime? =
+    runCatching { JavaLocalDateTime.parse(stamp, TIMED_EXDATE).atZone(ZoneOffset.UTC) }.getOrNull()
+        ?: runCatching {
+            JavaLocalDateTime.parse(stamp, FLOATING_EXDATE).atZone(listZone)
+        }.getOrNull()
+
+/**
+ * The calendar day an all-day EXDATE stamp names, bare or padded to a midnight
+ * stamp. A padded stamp naming any other time of day is refused rather than
+ * rounded: it is not a form an all-day series is written in, so it could be
+ * naming something else entirely. Midnight is midnight in any zone, so the
+ * padding's own spelling — trailing `Z` or floating — makes no difference.
+ */
+private fun parseAllDayExdate(stamp: String): JavaLocalDate? {
+    runCatching { JavaLocalDate.parse(stamp, ALL_DAY_EXDATE) }.getOrNull()?.let { return it }
+    val padded = parsePaddedExdate(stamp) ?: return null
+    return padded.toLocalDate().takeIf { padded.toLocalTime() == JavaLocalTime.MIDNIGHT }
+}
+
+/** An `uuuuMMddTHHmmss` stamp, with or without the trailing `Z`, as its own wall clock. */
+private fun parsePaddedExdate(stamp: String): JavaLocalDateTime? =
+    runCatching { JavaLocalDateTime.parse(stamp, TIMED_EXDATE) }.getOrNull()
+        ?: runCatching { JavaLocalDateTime.parse(stamp, FLOATING_EXDATE) }.getOrNull()
+
+/**
+ * [stamp] in the form Calendula writes, so two spellings of the same exclusion
+ * compare equal. Null for a stamp in no form it reads.
+ */
+internal fun canonicalExdateStamp(
+    stamp: String,
+    isAllDay: Boolean,
+    listZone: ZoneId,
+): String? = parseExdateStamp(stamp, isAllDay, ZoneOffset.UTC, listZone)
+    ?.let { formatExdateStamp(it, isAllDay, ZoneOffset.UTC) }
 
 /** `VALUE=DATE` EXDATE form, for an all-day series. */
 private val ALL_DAY_EXDATE: DateTimeFormatter =
@@ -565,6 +770,10 @@ private val ALL_DAY_EXDATE: DateTimeFormatter =
 /** UTC date-time EXDATE form, for a timed series. */
 private val TIMED_EXDATE: DateTimeFormatter =
     DateTimeFormatter.ofPattern("uuuuMMdd'T'HHmmss'Z'").withResolverStyle(ResolverStyle.STRICT)
+
+/** The same form without the `Z`, wall clock in the list's zone rather than UTC. */
+private val FLOATING_EXDATE: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("uuuuMMdd'T'HHmmss").withResolverStyle(ResolverStyle.STRICT)
 
 /**
  * The `EVENT_COLOR` / `EVENT_COLOR_KEY` columns for a colour selection. A
@@ -612,4 +821,74 @@ internal fun AccessLevel.toProviderValue(): Int = when (this) {
     AccessLevel.Confidential -> CalendarContract.Events.ACCESS_CONFIDENTIAL
     AccessLevel.Private -> CalendarContract.Events.ACCESS_PRIVATE
     AccessLevel.Public -> CalendarContract.Events.ACCESS_PUBLIC
+}
+
+/**
+ * The `Events` row for a `.ics` event being imported into [calendarId].
+ *
+ * A recurring row carries RRULE + DURATION (and any EXDATE) with no DTEND; a
+ * one-off carries DTEND. All-day rows live at UTC midnights, exactly as the
+ * parser hands them over.
+ *
+ * [palette] is the target account's published event colours. A calendar that
+ * publishes one rejects a raw `EVENT_COLOR`, so an imported colour — which is
+ * an arbitrary ARGB from a foreign app — is snapped to the nearest key it does
+ * accept; accounts with no palette take the raw value (see [eventColorColumns]).
+ */
+internal fun buildImportedEventValues(
+    event: ParsedIcsEvent,
+    calendarId: Long,
+    uid: String,
+    palette: List<EventColorOption>,
+): Map<String, Any?> = buildMap {
+    val startMillis = event.start.toEpochMilliseconds()
+    val endMillis = event.end.toEpochMilliseconds()
+    put(CalendarContract.Events.CALENDAR_ID, calendarId)
+    put(CalendarContract.Events.UID_2445, uid)
+    put(CalendarContract.Events.TITLE, event.summary.trim())
+    put(CalendarContract.Events.ALL_DAY, if (event.isAllDay) 1 else 0)
+    put(CalendarContract.Events.DTSTART, startMillis)
+    if (event.recurrenceRule == null) {
+        put(CalendarContract.Events.DTEND, endMillis)
+    } else {
+        put(CalendarContract.Events.RRULE, event.recurrenceRule)
+        put(
+            CalendarContract.Events.DURATION,
+            importDuration(startMillis, endMillis, event.isAllDay),
+        )
+        event.exDates.takeIf { it.isNotEmpty() }
+            ?.let { put(CalendarContract.Events.EXDATE, it.joinToString(",")) }
+    }
+    // All-day rows live at UTC midnights (the file already encodes them so);
+    // timed rows keep the event's own zone.
+    put(CalendarContract.Events.EVENT_TIMEZONE, if (event.isAllDay) "UTC" else event.zoneId)
+    put(CalendarContract.Events.AVAILABILITY, event.availability.toProviderValue())
+    put(CalendarContract.Events.STATUS, event.status.toProviderStatus())
+    event.location?.trim()?.takeIf { it.isNotEmpty() }
+        ?.let { put(CalendarContract.Events.EVENT_LOCATION, it) }
+    event.description?.trim()?.takeIf { it.isNotEmpty() }
+        ?.let { put(CalendarContract.Events.DESCRIPTION, it) }
+    event.color?.let { color ->
+        val key = palette.nearestTo(color)?.key
+        putAll(eventColorColumns(colorKey = key, color = if (key == null) color else null))
+    }
+}
+
+/**
+ * Provider `DURATION` for an imported recurring row: whole days for an all-day
+ * series, seconds otherwise. An all-day series is never shorter than a day —
+ * the provider expands a zero-length one into no instances at all, so the
+ * series would vanish (which is what a literal read of the Fossify family's
+ * inclusive DTEND used to produce; see "Importing foreign .ics" in
+ * docs/ARCHITECTURE.md).
+ */
+private fun importDuration(startMillis: Long, endMillis: Long, isAllDay: Boolean): String {
+    val span = (endMillis - startMillis).coerceAtLeast(0)
+    return if (isAllDay) "P${(span / 86_400_000L).coerceAtLeast(1)}D" else "P${span / 1_000L}S"
+}
+
+private fun EventStatus.toProviderStatus(): Int = when (this) {
+    EventStatus.Confirmed -> CalendarContract.Events.STATUS_CONFIRMED
+    EventStatus.Tentative -> CalendarContract.Events.STATUS_TENTATIVE
+    EventStatus.Cancelled -> CalendarContract.Events.STATUS_CANCELED
 }

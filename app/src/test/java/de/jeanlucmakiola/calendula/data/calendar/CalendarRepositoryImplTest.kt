@@ -22,6 +22,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.time.Instant
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 
@@ -642,7 +643,12 @@ class CalendarRepositoryImplTest {
             end = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(10, 0)),
         )
 
-        val id = repo.updateOccurrence(eventId = 42L, beginMillis = 1_000L, form = form)
+        val id = repo.updateOccurrence(
+            eventId = 42L,
+            beginMillis = 1_000L,
+            original = form,
+            form = form,
+        )
 
         assertThat(id).isEqualTo(88L)
         assertThat(fake.updatedOccurrences).containsExactly(Triple(42L, 1_000L, form))
@@ -802,6 +808,113 @@ class CalendarRepositoryImplTest {
     }
 
     @Test
+    fun `importEvents carries on past an event the provider rejects`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        // A foreign export can hold a row the provider throws on outright; that
+        // must cost the user one event, not the whole file (Codeberg #225).
+        val fake = FakeCalendarDataSource().apply { failingImportSummaries += "bad" }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+        val events = listOf(
+            parsedEvent("a@x", summary = "good"),
+            parsedEvent("b@x", summary = "bad"),
+            parsedEvent("c@x", summary = "good"),
+        )
+
+        val summary = repo.importEvents(targetCalendarId = 3L, events = events)
+
+        assertThat(summary.imported).isEqualTo(2)
+        assertThat(summary.failed).isEqualTo(1)
+        assertThat(fake.importedEvents.map { it.first.uid }).containsExactly("a@x", "c@x")
+    }
+
+    @Test
+    fun `importEvents stops at a permission failure and reports what landed`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        // The permission or the target calendar is gone, so every remaining insert
+        // would fail the same way. Counted per event, the screen reported "N events
+        // couldn't be added" for a file it never had a chance at; thrown, it
+        // reported that nothing landed — and since only events carrying a UID dedup,
+        // the retry that invites duplicated everything that already had.
+        val fake = FakeCalendarDataSource().apply {
+            importsBeforeError = 2
+            writeError = SecurityException("WRITE_CALENDAR revoked")
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+
+        val summary = repo.importEvents(
+            targetCalendarId = 3L,
+            events = List(5) { parsedEvent("e$it@x") },
+        )
+
+        assertThat(summary.imported).isEqualTo(2)
+        // The one that threw and the two never reached.
+        assertThat(summary.notAttempted).isEqualTo(3)
+        assertThat(summary.failed).isEqualTo(0)
+    }
+
+    @Test
+    fun `a stopped import does not count known duplicates as work left to do`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        // The remainder is not all work: a UID already in the calendar would have
+        // been skipped whatever happened, so counting it against a retry
+        // overstates how much of the file is missing.
+        val fake = FakeCalendarDataSource().apply {
+            existingUidsResult = setOf("e3@x", "e4@x")
+            importsBeforeError = 1
+            writeError = SecurityException("WRITE_CALENDAR revoked")
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+
+        val summary = repo.importEvents(
+            targetCalendarId = 3L,
+            events = List(5) { parsedEvent("e$it@x") },
+        )
+
+        assertThat(summary.imported).isEqualTo(1)
+        // e1 threw and e2 was never reached; e3 and e4 were duplicates either way.
+        assertThat(summary.notAttempted).isEqualTo(2)
+        assertThat(summary.skippedDuplicate).isEqualTo(2)
+    }
+
+    @Test
+    fun `importEvents looks the target palette up once, not per event`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        var lookups = 0
+        val fake = FakeCalendarDataSource().apply {
+            publishedEventColorsResult = { lookups++; emptyList() }
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+
+        repo.importEvents(3L, List(5) { parsedEvent("e$it@x") })
+
+        assertThat(lookups).isEqualTo(1)
+    }
+
+    @Test
+    fun `importEvents matches colours against the uncurated palette`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        // Curation is a picker concession — it folds look-alikes and drops the
+        // neutrals from an oversized palette — but every published key is one
+        // the calendar accepts, so an imported colour matches against all of
+        // them (Codeberg #225).
+        val published = listOf(EventColorOption("1", 0xFF808080.toInt()))
+        val fake = FakeCalendarDataSource().apply {
+            publishedEventColorsResult = { published }
+            eventColorPaletteResult = { emptyList() }
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+
+        repo.importEvents(3L, listOf(parsedEvent("a@x")))
+
+        assertThat(fake.lastImportPalette).isEqualTo(published)
+    }
+
+    @Test
     fun `exportEvents forwards the chosen calendar-id subset to the data source`(
         @TempDir tempDir: Path,
     ) = runTest {
@@ -825,9 +938,10 @@ class CalendarRepositoryImplTest {
         assertThat(fake.lastExportableEventsCalendarIds).isNull()
     }
 
-    private fun parsedEvent(uid: String?) = de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent(
+    private fun parsedEvent(uid: String?, summary: String = "E") =
+        de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent(
         uid = uid,
-        summary = "E",
+        summary = summary,
         start = Instant.fromEpochMilliseconds(1_000_000_000L),
         end = Instant.fromEpochMilliseconds(1_000_003_600L),
         isAllDay = false,

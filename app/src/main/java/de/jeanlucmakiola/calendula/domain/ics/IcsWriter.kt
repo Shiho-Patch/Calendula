@@ -46,6 +46,7 @@ class IcsWriter(private val prodId: String = ICS_PROD_ID) {
         appendTimes(event)
         event.recurrenceRule?.takeIf { it.isNotBlank() }
             ?.let { add("RRULE:${it.removePrefix("RRULE:")}") }
+        appendExDates(event)
         event.location?.takeIf { it.isNotBlank() }
             ?.let { add("LOCATION:${escapeText(it)}") }
         event.description?.takeIf { it.isNotBlank() }
@@ -81,6 +82,20 @@ class IcsWriter(private val prodId: String = ICS_PROD_ID) {
             add("DTSTART:${utcStamp(event.start)}")
             add("DTEND:${utcStamp(event.end)}")
         }
+    }
+
+    /**
+     * The series' deleted occurrences. RFC 5545 ties `EXDATE`'s value type to
+     * `DTSTART`'s, so an all-day series needs the explicit `VALUE=DATE` — without
+     * it the bare day codes read as an invalid DATE-TIME. Only written for a
+     * recurring event: an exclusion names an occurrence, and a one-off has none.
+     */
+    private fun MutableList<String>.appendExDates(event: IcsEvent) {
+        if (event.recurrenceRule.isNullOrBlank()) return
+        val stamps = event.exDates.filter { it.isNotBlank() }.distinct()
+        if (stamps.isEmpty()) return
+        val prefix = if (event.isAllDay) "EXDATE;VALUE=DATE:" else "EXDATE:"
+        add(prefix + stamps.joinToString(","))
     }
 
     private fun MutableList<String>.appendAlarm(minutes: Int, summary: String) {

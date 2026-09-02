@@ -5,3 +5,4 @@
 *.jpg binary
 *.gif binary
 *.webp binary
+app/src/test/resources/ics/*.ics -text

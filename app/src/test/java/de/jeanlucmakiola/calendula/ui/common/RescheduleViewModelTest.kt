@@ -286,9 +286,53 @@ class RescheduleViewModelTest {
         vm.move(toWednesday())
         advanceUntilIdle()
 
+        val abandoned = vm.abandoned.value
         assertThat(vm.undo(undo)).isFalse()
         advanceUntilIdle()
         assertThat(fake.updatedEvents).hasSize(1)
+        // Nothing ticks: the refusal started no journey of its own, and the
+        // counter is global — a tick here would release the copy the drop that
+        // *is* in flight is holding, before the grid has drawn it.
+        assertThat(vm.abandoned.value).isEqualTo(abandoned)
+    }
+
+    @Test
+    fun `an undo that fails lets the held chip go`(@TempDir tempDir: Path) = runTest(dispatcher) {
+        // undoStarted has already sent the chip back on its journey by the time
+        // the inverse write is attempted. Without a tick here nothing ever seats
+        // it, and the overlay waits out its whole settle timeout for a chip that
+        // is never coming.
+        val fake = FakeCalendarDataSource().apply { eventDetailResult = { detail() } }
+        val vm = viewModel(tempDir, fake)
+        vm.move(oneHourLater())
+        advanceUntilIdle()
+        val undo = (vm.outcome.value as MoveOutcome.Moved).undo!!
+
+        val abandoned = vm.abandoned.value
+        fake.writeError = SecurityException("permission revoked")
+        assertThat(vm.undo(undo)).isTrue()
+        advanceUntilIdle()
+
+        assertThat(vm.outcome.value).isEqualTo(MoveOutcome.WriteDenied)
+        assertThat(vm.abandoned.value).isEqualTo(abandoned + 1)
+    }
+
+    @Test
+    fun `an undo that lands leaves the abandoned count alone`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { eventDetailResult = { detail() } }
+        val vm = viewModel(tempDir, fake)
+        vm.move(oneHourLater())
+        advanceUntilIdle()
+        val undo = (vm.outcome.value as MoveOutcome.Moved).undo!!
+
+        val abandoned = vm.abandoned.value
+        vm.undo(undo)
+        advanceUntilIdle()
+
+        assertThat(vm.outcome.value).isEqualTo(MoveOutcome.Undone)
+        assertThat(vm.abandoned.value).isEqualTo(abandoned)
     }
 
     @Test
@@ -493,5 +537,62 @@ class RescheduleViewModelTest {
         assertThat(vm.scopePrompt.value).isNull()
         assertThat(fake.updatedEvents).isEmpty()
         assertThat(fake.updatedOccurrences).isEmpty()
+    }
+
+    @Test
+    fun `a drop that lands nothing says so, since move() already answered yes`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { eventDetailResult = { detail() } }
+        val vm = viewModel(tempDir, fake)
+
+        // Refused in prepare: nowhere to move to.
+        assertThat(vm.move(
+            MoveRequest(
+                eventId = 42L,
+                beginMillis = beginMillis,
+                endMillis = endMillis,
+                target = MoveTarget.Start(Instant.fromEpochMilliseconds(beginMillis)),
+            ),
+        )).isTrue()
+        advanceUntilIdle()
+        assertThat(vm.abandoned.value).isEqualTo(1)
+
+        // Refused by the provider, after the write was attempted.
+        fake.writeError = SecurityException("revoked")
+        vm.move(oneHourLater())
+        advanceUntilIdle()
+        assertThat(vm.outcome.value).isEqualTo(MoveOutcome.WriteDenied)
+        assertThat(vm.abandoned.value).isEqualTo(2)
+    }
+
+    @Test
+    fun `a scope dialog dismissed leaves nothing waiting on the write`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply {
+            eventDetailResult = { detail(rrule = "FREQ=WEEKLY") }
+        }
+        val vm = viewModel(tempDir, fake)
+
+        vm.move(oneHourLater())
+        advanceUntilIdle()
+        assertThat(vm.abandoned.value).isEqualTo(0)
+
+        vm.cancelScope()
+        advanceUntilIdle()
+        assertThat(vm.abandoned.value).isEqualTo(1)
+    }
+
+    @Test
+    fun `a written move never counts as abandoned`(@TempDir tempDir: Path) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { eventDetailResult = { detail() } }
+        val vm = viewModel(tempDir, fake)
+
+        vm.move(oneHourLater())
+        advanceUntilIdle()
+
+        assertThat(vm.outcome.value).isInstanceOf(MoveOutcome.Moved::class.java)
+        assertThat(vm.abandoned.value).isEqualTo(0)
     }
 }

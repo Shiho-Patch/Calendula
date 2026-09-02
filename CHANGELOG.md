@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.19.4] — 2026-09-01
+
 ### Fixed
 - **A deleted occurrence no longer comes back when the series is re-timed.**
   Delete a single occurrence of a repeating event, then change the time of the
@@ -18,6 +20,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   carry over when a series is split. Repeating events on your device's own
   calendars are affected, including the birthday and anniversary calendars
   Calendula creates from your contacts ([#248]).
+- **Home-screen widgets now turn the page at midnight.** Both the month and the
+  agenda widget kept highlighting yesterday as "today" — and the agenda kept
+  greying out the wrong events as already past — until you paged the month back
+  and forth or removed and re-added the widget. Calendula now wakes itself at the
+  day boundary and redraws, and re-arms after a reboot, a clock change or a
+  flight into another timezone. Paging the month widget forward and back also
+  stops quietly pinning it to that month, so it follows the date again instead of
+  being stranded on the month you happened to be looking at ([#228]).
+- **"Only this event" now actually saves your edit.** On some calendars —
+  including Google ones that still show as on-device, and any local calendar —
+  editing a single occurrence of a repeating event did nothing at all: the scope
+  dialog closed, the edit screen stayed put, and saving again just repeated it.
+  Android can only attach a single-occurrence change to its series once the
+  calendar has been synced at least once, so on those calendars the change had
+  nowhere to go. Calendula now removes that one occurrence from the series and
+  saves the edit as its own event instead, which is what you see either way. A
+  save that does fail also says so for longer, rather than flashing past
+  ([#234]).
+- **A failed import no longer costs you the whole file.** One event the calendar
+  refuses used to abort the entire import with nothing on screen but "couldn't
+  read this file". Events are now added one at a time: anything rejected is
+  counted and shown, and the rest still arrive. A faulty repeat rule in the file
+  is repaired instead of being handed on ([#225]).
+- **All-day reminders survive a backup and an import.** They fire at the hour you
+  chose, not at midnight UTC — the same rule the app already applied to all-day
+  events you create yourself — and an export no longer leaves them out of the
+  file entirely. An imported yearly birthday fires at the right hour too, even
+  though the file dates it back to the year of birth ([#225]).
+- **Birthdays and anniversaries imported from Fossify Calendar now show up.**
+  Fossify writes the ones it mirrors from your contacts as events that start and
+  end on the same day, which the calendar read as lasting no time at all: they
+  imported without complaint and then appeared nowhere. Any all-day event that
+  ends where it starts, or carries no end at all, is now a one-day event
+  ([#225]).
+- **A backup no longer brings back occurrences you had deleted.** Remove a single
+  occurrence of a repeating event, back up, restore — and it was there again,
+  because the removals never made it into the file. They travel with the series
+  now, so a restored calendar looks the way you left it ([#225]).
+- **A reminder left on your account's default no longer went off as the event
+  started.** An event whose reminder says "Default" is the account's to time, not
+  Calendula's — it was reading that setting as a lead time of its own and firing a
+  minute after the event began. It now leaves such a reminder alone, and says so
+  on the event.
+- **"Only this event" on an event that doesn't repeat now edits or deletes it.**
+  Deleting used to write an exclusion onto a one-off event instead — which left
+  the event there and lost its end time — and editing filed the change away as an
+  exception to nothing, so it vanished.
+- **An import that the calendar cuts short now tells you how far it got.** Losing
+  the calendar or the permission part way through a big file reported the whole
+  import as failed, so importing again added everything twice.
+- **An event that runs past midnight can be dragged by either half.** Its second
+  half couldn't be picked up at all, and the first could only be moved later. Both
+  halves now move, and both are previewed while you hold either one, so the event
+  reads as moving rather than growing. The blocks are cut square at midnight
+  instead of rounded off, a month row draws an event crossing into the next week
+  as one bar, and a move across a daylight-saving change no longer lands an hour
+  out ([#253]).
+
+### Added
+- **More of an imported `.ics` survives the trip**: tasks come across as events
+  rather than being dropped in silence, deleted occurrences of a repeating event
+  stay deleted, a calendar named like the one the file came from is preselected,
+  and event colours are carried over — matched to the closest colour your
+  calendar's account offers, so a migrated calendar still reads at a glance
+  ([#225]).
+- **Belarusian, Hungarian and Slovak**, all three contributed as community
+  translations through
+  [Calendula's Weblate](https://weblate.dev.jeanlucmakiola.de/projects/calendula/).
+  Belarusian covers about nine tenths of the app, Slovak about a third and
+  Hungarian is just under way, so untranslated parts still show in English until
+  they fill out. Pick any of them under Settings → Language or in Android's
+  per-app language settings. Thanks to Dmitri Gabinski (Belarusian), Ábel Nagy
+  (Hungarian) and Julie (Slovak); help finishing them is very welcome.
+
+### Changed
+- **Arabic, Polish and Simplified Chinese are now complete**, all three carried
+  the rest of the way this cycle — Simplified Chinese from a fifth of the app to
+  all of it. Czech and Russian grew too — Russian to about half — and still have
+  room. Thanks to Sup99999 (Arabic), Bazyli Cyran (Polish), JeanWenzel
+  (Simplified Chinese), James Trivette (Czech), and SpiritOTHawk and Artur
+  (Russian).
 
 ## [2.19.3] — 2026-08-22
 
@@ -1483,4 +1566,8 @@ automatically, with zero telemetry and no internet permission.
 [#192]: https://codeberg.org/jlmakiola/calendula/issues/192
 [#196]: https://codeberg.org/jlmakiola/calendula/issues/196
 [#214]: https://codeberg.org/jlmakiola/calendula/issues/214
+[#225]: https://codeberg.org/jlmakiola/calendula/issues/225
+[#228]: https://codeberg.org/jlmakiola/calendula/issues/228
+[#234]: https://codeberg.org/jlmakiola/calendula/issues/234
 [#248]: https://codeberg.org/jlmakiola/calendula/issues/248
+[#253]: https://codeberg.org/jlmakiola/calendula/issues/253

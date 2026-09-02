@@ -152,7 +152,17 @@ class ShiftMonthAction : ActionCallback {
         val delta = parameters[deltaKey] ?: 0
         updateAppWidgetState(context, glanceId) { prefs ->
             val cur = prefs[MONTH_INDEX_KEY] ?: currentMonthIndex(systemZone())
-            prefs[MONTH_INDEX_KEY] = cur + delta
+            val next = cur + delta
+            // Landing back on the current month clears the key, so the widget
+            // goes back to *following* the date rather than being pinned to
+            // whichever month was current at the tap. Paging out and back is the
+            // workaround #228's reporter used, and pinning it there would have
+            // stuck them on that month once it stopped being the current one.
+            if (next == currentMonthIndex(systemZone())) {
+                prefs.remove(MONTH_INDEX_KEY)
+            } else {
+                prefs[MONTH_INDEX_KEY] = next
+            }
         }
         MonthWidget().update(context.applicationContext, glanceId)
     }

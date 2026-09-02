@@ -43,6 +43,12 @@ sealed interface ImportUiState {
         val events: List<ParsedIcsEvent>,
         val warnings: Set<IcsParseWarning>,
         val calendars: List<CalendarSource>,
+        /**
+         * The calendar the file says its events came from, when every one of
+         * them names the same — used to preselect a matching target (see
+         * [fileCalendarName]).
+         */
+        val fileCalendarName: String? = null,
     ) : ImportUiState
 
     data class Done(val summary: IcsImportSummary) : ImportUiState
@@ -92,6 +98,7 @@ class ImportViewModel @Inject constructor(
                         warnings = parsed.warnings,
                         calendars = repository.calendars().first()
                             .filter { it.isEventTarget },
+                        fileCalendarName = fileCalendarName(parsed.events),
                     )
                 }
             }
@@ -112,4 +119,34 @@ class ImportViewModel @Inject constructor(
             }
         }
     }
+}
+
+/**
+ * The one calendar [events] all came from, or null.
+ *
+ * Every event has to agree, unnamed ones included: a foreign file where a single
+ * `VEVENT` carries a `CATEGORIES` tag and the rest carry nothing names no
+ * calendar — it just has one tagged event, and letting it pick the target would
+ * land the whole file wherever that tag happens to match.
+ */
+internal fun fileCalendarName(events: List<ParsedIcsEvent>): String? =
+    events.map { it.calendarName }.distinct().singleOrNull()
+
+/**
+ * The target calendar to preselect for a bulk import.
+ *
+ * A calendar named like the one the file came from wins — restoring "Birthdays"
+ * onto the Birthdays calendar is what the user means. Otherwise the first
+ * *local* calendar, which is the first row the picker shows ("Your calendars"
+ * leads), so the pre-selection lines up with the top of the list; failing that
+ * the first calendar of any kind.
+ */
+internal fun defaultImportTarget(
+    calendars: List<CalendarSource>,
+    fileCalendarName: String?,
+): Long? {
+    val named = fileCalendarName?.let { name ->
+        calendars.firstOrNull { it.displayName.equals(name, ignoreCase = true) }
+    }
+    return (named ?: calendars.firstOrNull { it.isLocal } ?: calendars.firstOrNull())?.id
 }

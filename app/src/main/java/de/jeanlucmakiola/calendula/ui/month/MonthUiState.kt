@@ -85,6 +85,16 @@ fun MonthWeek.chipAt(col: Int, lane: Int, laneCap: Int): EventInstance? {
 }
 
 /**
+ * The column the chip drawn in lane [lane] of column [col] begins in. A bar is
+ * drawn once, from its own first column, so a chip seated by [chipAt] on the
+ * second day it covers belongs a column (or more) to the left (#253). Answers
+ * [col] for a single-day chip, and for an empty slot no one should be asking
+ * about.
+ */
+fun MonthWeek.chipStartCol(col: Int, lane: Int): Int =
+    spans.firstOrNull { it.lane == lane && col in it.startCol..it.endCol }?.startCol ?: col
+
+/**
  * The events on [day] that [laneEvents] had no lane left for — its exact
  * complement, in the same bars-then-pills order. Returned as events rather than
  * a count because dimming is a per-event question (#79).
