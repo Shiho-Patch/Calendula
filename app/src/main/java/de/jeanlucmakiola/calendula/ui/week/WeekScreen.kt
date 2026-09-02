@@ -456,12 +456,17 @@ private fun WeekTopBar(
     scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
     val locale = currentLocale()
+    val (title, shortTitle) = remember(weekStart, locale, currentYear) {
+        formatWeekTitle(weekStart, locale, currentYear) to
+            formatWeekTitle(weekStart, locale, currentYear, abbreviated = true)
+    }
     TopAppBar(
         title = {
             CalendarTitleButton(
-                title = formatWeekTitle(weekStart, locale, currentYear),
+                title = title,
                 currentDate = weekStart,
                 onJumpToDate = onJumpToDate,
+                shortTitle = shortTitle,
             )
         },
         navigationIcon = {
@@ -484,7 +489,6 @@ private fun WeekTopBar(
                 current = selectedView,
                 cycle = quickSwitchViews,
                 onCycle = onCycleView,
-                modifier = Modifier.padding(end = 8.dp),
             )
         },
         // Match the static top section exactly: plain surface, lifting to
@@ -1019,13 +1023,18 @@ private fun minToHm(min: Int, is24Hour: Boolean, locale: java.util.Locale): Stri
  * "December" with no year would be actively misleading while the reader is
  * looking straight at January dates.
  */
-private fun formatWeekTitle(weekStart: LocalDate, locale: Locale, currentYear: Int): String {
+private fun formatWeekTitle(
+    weekStart: LocalDate,
+    locale: Locale,
+    currentYear: Int,
+    abbreviated: Boolean = false,
+): String {
     val weekEnd = weekStart.plus(6, kotlinx.datetime.DateTimeUnit.DAY)
     return formatCalendarTitle(
         date = java.time.LocalDate.of(weekStart.year, weekStart.month.ordinal + 1, 1),
         locale = locale,
         currentYear = currentYear,
-        skeleton = "LLLL",
+        skeleton = if (abbreviated) "LLL" else "LLLL",
         forceYear = weekEnd.year != weekStart.year,
     )
 }

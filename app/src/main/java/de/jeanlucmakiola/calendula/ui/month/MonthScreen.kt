@@ -131,6 +131,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaEmptyDayRow
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaEventRow
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
+import de.jeanlucmakiola.calendula.ui.common.AppBarSpacing
 import de.jeanlucmakiola.calendula.ui.common.CalendarTitleButton
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.TodayAction
@@ -292,10 +293,14 @@ fun MonthScreen(
     // carries the year instead of repeating it two lines further down. Dense has
     // no header to defer to, so it keeps the full title.
     val locale = currentLocale()
-    val topBarTitle = if (viewStyle == MonthViewStyle.Continuous) {
-        titleMonth.year.toString()
-    } else {
-        formatMonthTitle(titleMonth, locale, currentYear = today.year)
+    val (topBarTitle, topBarShortTitle) = remember(viewStyle, titleMonth, locale, today.year) {
+        if (viewStyle == MonthViewStyle.Continuous) {
+            val year = titleMonth.year.toString()
+            year to year
+        } else {
+            formatMonthTitle(titleMonth, locale, currentYear = today.year) to
+                formatMonthTitle(titleMonth, locale, currentYear = today.year, abbreviated = true)
+        }
     }
 
     // Slide direction for the grid transition: +1 = next, -1 = prev, 0 = jump (no slide).
@@ -384,6 +389,7 @@ fun MonthScreen(
             topBar = {
                 MonthTopBar(
                     title = topBarTitle,
+                    shortTitle = topBarShortTitle,
                     titleDate = LocalDate(titleMonth.year, titleMonth.month, 1),
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
@@ -649,6 +655,7 @@ private fun ContinuousMonthContent(
 @Composable
 private fun MonthTopBar(
     title: String,
+    shortTitle: String,
     titleDate: LocalDate,
     selectedView: CalendarView,
     onCycleView: () -> Unit,
@@ -666,6 +673,7 @@ private fun MonthTopBar(
                 title = title,
                 currentDate = titleDate,
                 onJumpToDate = onJumpToDate,
+                shortTitle = shortTitle,
             )
         },
         navigationIcon = {
@@ -688,7 +696,6 @@ private fun MonthTopBar(
                 current = selectedView,
                 cycle = quickSwitchViews,
                 onCycle = onCycleView,
-                modifier = Modifier.padding(end = 8.dp),
             )
         },
         scrollBehavior = scrollBehavior,
@@ -706,7 +713,7 @@ internal fun WeekdayHeader(weekStart: DayOfWeek, showWeekNumbers: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = AppBarSpacing.Inset, vertical = 4.dp),
     ) {
         // Reserve the gutter so the weekday labels stay over their day columns.
         if (showWeekNumbers) Spacer(Modifier.width(WEEK_NUMBER_GUTTER))
@@ -769,10 +776,10 @@ internal fun MonthGrid(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // Match the weekday header's 8dp inset so day cells sit under their
+            // Match the weekday header's inset so day cells sit under their
             // labels, and so the week-number gutter's centre lines up with the
             // top bar's hamburger (4dp bar inset + 24dp half icon button).
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = AppBarSpacing.Inset, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         val month = state.month
@@ -864,7 +871,7 @@ private fun ContinuousMonthBlock(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = AppBarSpacing.Inset)
             .padding(bottom = CONTINUOUS_MONTH_GAP),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
@@ -946,7 +953,7 @@ internal fun DenseMonthGrid(
         state = listState,
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = AppBarSpacing.Inset),
         verticalArrangement = Arrangement.spacedBy(2.dp),
         // Bottom inset clears the FAB stack so the last row stays tappable.
         contentPadding = PaddingValues(top = 4.dp, bottom = 96.dp),
@@ -1406,7 +1413,7 @@ internal fun SplitMonthGrid(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = AppBarSpacing.Inset, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         state.weeks.forEach { week ->
@@ -1771,7 +1778,7 @@ private fun ContinuousMonthSkeleton(dense: Boolean) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = AppBarSpacing.Inset)
             .clipToBounds(),
     ) {
         if (!dense) {
@@ -2419,7 +2426,7 @@ private fun MonthGridLoading() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = AppBarSpacing.Inset, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         repeat(6) {
@@ -2445,10 +2452,16 @@ private fun MonthGridLoading() {
     }
 }
 
-private fun formatMonthTitle(ym: YearMonth, locale: Locale, currentYear: Int): String =
+/** [abbreviated] swaps the full month name for its three-letter form (#165). */
+private fun formatMonthTitle(
+    ym: YearMonth,
+    locale: Locale,
+    currentYear: Int,
+    abbreviated: Boolean = false,
+): String =
     formatCalendarTitle(
         date = java.time.LocalDate.of(ym.year, ym.month.ordinal + 1, 1),
         locale = locale,
         currentYear = currentYear,
-        skeleton = "LLLL",
+        skeleton = if (abbreviated) "LLL" else "LLLL",
     )

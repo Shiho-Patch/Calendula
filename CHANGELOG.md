@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the title now simply runs to the edge of its chip — a few more letters per
   cell, which is often the difference between two events you can tell apart and
   two you can't ([#164]).
+- The calendar titles now shorten instead of being cut off. When the full month
+  name doesn't fit the top bar, the month and week views fall back to its
+  three-letter form and the day view drops the weekday, rather than trailing off
+  mid-word at large font sizes. The view switcher, the title and the agenda's
+  range bar also line up with the grid underneath them ([#165]).
 
 ## [2.19.1] — 2026-08-11
 
@@ -1422,3 +1427,4 @@ automatically, with zero telemetry and no internet permission.
 [#163]: https://codeberg.org/jlmakiola/calendula/issues/163
 [#173]: https://codeberg.org/jlmakiola/calendula/issues/173
 [#164]: https://codeberg.org/jlmakiola/calendula/issues/164
+[#165]: https://codeberg.org/jlmakiola/calendula/issues/165
