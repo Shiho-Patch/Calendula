@@ -7,4 +7,4 @@ Fixed
 • One event the calendar refuses no longer costs you the whole import, and an import cut short tells you how far it got.
 
 Added
-• Belarusian and Slovak, from community translators on Weblate.
+• Belarusian, Hungarian and Slovak, from community translators on Weblate.

@@ -85,19 +85,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and event colours are carried over — matched to the closest colour your
   calendar's account offers, so a migrated calendar still reads at a glance
   ([#225]).
-- **Belarusian and Slovak**, both contributed as community translations through
+- **Belarusian, Hungarian and Slovak**, all three contributed as community
+  translations through
   [Calendula's Weblate](https://weblate.dev.jeanlucmakiola.de/projects/calendula/).
-  Belarusian covers about two thirds of the app and Slovak about a third, so
-  untranslated parts still show in English until they fill out. Pick either under
-  Settings → Language or in Android's per-app language settings. Thanks to Dmitri
-  Gabinski (Belarusian) and Julie (Slovak); help finishing them is very welcome.
+  Belarusian covers about nine tenths of the app, Slovak about a third and
+  Hungarian is just under way, so untranslated parts still show in English until
+  they fill out. Pick any of them under Settings → Language or in Android's
+  per-app language settings. Thanks to Dmitri Gabinski (Belarusian), Ábel Nagy
+  (Hungarian) and Julie (Slovak); help finishing them is very welcome.
 
 ### Changed
 - **Arabic, Polish and Simplified Chinese are now complete**, all three carried
   the rest of the way this cycle — Simplified Chinese from a fifth of the app to
-  all of it. Czech and Russian grew too, and still have room. Thanks to Sup99999
-  (Arabic), Bazyli Cyran (Polish), JeanWenzel (Simplified Chinese), James
-  Trivette (Czech) and SpiritOTHawk (Russian).
+  all of it. Czech and Russian grew too — Russian to about half — and still have
+  room. Thanks to Sup99999 (Arabic), Bazyli Cyran (Polish), JeanWenzel
+  (Simplified Chinese), James Trivette (Czech), and SpiritOTHawk and Artur
+  (Russian).
 
 ## [2.19.3] — 2026-08-22
 
