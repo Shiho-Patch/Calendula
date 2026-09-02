@@ -1,7 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.week
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -60,9 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -195,20 +192,8 @@ fun WeekScreen(
         derivedStateOf { if (dimCompleted) nowState.value else null }
     }
 
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-
-    // The static header + all-day strip share the app bar's scrolled colour so
-    // the whole top region elevates together once the timeline scrolls under it.
-    val topSectionColor by animateColorAsState(
-        targetValue = if (scrollBehavior.state.overlappedFraction > 0.01f) {
-            MaterialTheme.colorScheme.surfaceContainer
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
-        label = "week-top-section-color",
-    )
 
     val isOnCurrentWeek = when (val s = state) {
         // True when today falls inside the displayed week — independent of which
@@ -270,7 +255,7 @@ fun WeekScreen(
         },
     ) {
         Scaffold(
-            modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            modifier = modifier,
             topBar = {
                 WeekTopBar(
                     weekStart = weekStart,
@@ -283,7 +268,6 @@ fun WeekScreen(
                     onJumpToDate = jumpToDate,
                     showTodayButton = todayInToolbar,
                     onToday = jumpToToday,
-                    scrollBehavior = scrollBehavior,
                 )
             },
             floatingActionButton = {
@@ -304,7 +288,6 @@ fun WeekScreen(
                 WeekContent(
                     state = state,
                     slideDir = slideDir,
-                    topSectionColor = topSectionColor,
                     onSwipeNext = goNext,
                     onSwipePrev = goPrev,
                     onRetry = jumpToToday,
@@ -324,7 +307,6 @@ fun WeekScreen(
 private fun WeekContent(
     state: WeekUiState,
     slideDir: Int,
-    topSectionColor: Color,
     onSwipeNext: () -> Unit,
     onSwipePrev: () -> Unit,
     onRetry: () -> Unit,
@@ -389,7 +371,6 @@ private fun WeekContent(
                 is WeekUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
                 is WeekUiState.Success -> WeekSuccess(
                     state = s,
-                    topSectionColor = topSectionColor,
                     scrollState = scrollState,
                     allDayHeight = allDayHeight,
                     dragController = dragController,
@@ -416,7 +397,6 @@ private fun WeekContent(
 @Composable
 internal fun WeekSuccess(
     state: WeekUiState.Success,
-    topSectionColor: Color,
     scrollState: ScrollState,
     allDayHeight: Dp,
     dragController: TimelineDragController,
@@ -429,13 +409,13 @@ internal fun WeekSuccess(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(topSectionColor),
+                .background(MaterialTheme.colorScheme.surface),
         ) {
             WeekDayHeader(days = state.days, today = state.today, onOpenDay = onOpenDay)
             AllDayStrip(state = state, height = allDayHeight, onEventClick = onEventClick)
         }
-        // Breathing room between the (colour-shifting) top section and the
-        // scrolling timeline below.
+        // Breathing room between the top section and the scrolling timeline
+        // below.
         Spacer(Modifier.height(8.dp))
         Timeline(
             state = state,
@@ -461,7 +441,6 @@ private fun WeekTopBar(
     onJumpToDate: (LocalDate) -> Unit,
     showTodayButton: Boolean,
     onToday: () -> Unit,
-    scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
     val locale = currentLocale()
     val (title, shortTitle) = remember(weekStart, locale, currentYear) {
@@ -499,13 +478,13 @@ private fun WeekTopBar(
                 onCycle = onCycleView,
             )
         },
-        // Match the static top section exactly: plain surface, lifting to
-        // surfaceContainer once content scrolls under the bar.
+        // Deliberately flat: M3 lifts the bar to mark content scrolling under
+        // it, but here the bar meets the header on the same surface and the
+        // tint is what makes that seam look like a separate block (#186).
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            scrolledContainerColor = MaterialTheme.colorScheme.surface,
         ),
-        scrollBehavior = scrollBehavior,
     )
 }
 
