@@ -34,7 +34,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -714,7 +713,7 @@ private fun DragCopy(
                 width = with(density) { sizePx.width.toDp() },
                 height = with(density) { sizePx.height.toDp() },
             )
-            .padding(horizontal = 1.dp)
+            .padding(horizontal = BLOCK_OUTER_INSET)
             .graphicsLayer {
                 scaleX = 1f + 0.02f * lift
                 scaleY = 1f + 0.02f * lift
@@ -724,7 +723,7 @@ private fun DragCopy(
                 clip = false
             }
             .background(fill, shape)
-            .padding(horizontal = 4.dp, vertical = 2.dp),
+            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = 2.dp),
     ) {
         Column {
             val titleOverflow = eventTitleOverflow()
@@ -741,7 +740,8 @@ private fun DragCopy(
                     text = label,
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    overflow = titleOverflow.overflow,
+                    softWrap = titleOverflow.softWrap,
                     color = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
                 )
             }

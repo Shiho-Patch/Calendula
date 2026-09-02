@@ -80,7 +80,12 @@ import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.BLOCK_OUTER_INSET
+import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_PADDING
 import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
+import de.jeanlucmakiola.calendula.ui.common.BlockTitle
+import de.jeanlucmakiola.calendula.ui.common.MAX_TIME_LINES
+import de.jeanlucmakiola.calendula.ui.common.blockTextLines
 import de.jeanlucmakiola.calendula.ui.common.animatedBlockPlacement
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
@@ -700,6 +705,7 @@ private fun DayColumnCard(
                         block = block,
                         dark = dark,
                         height = place.height,
+                        width = place.width,
                         date = date,
                         dragController = dragController,
                         onClick = { onEventClick(block.event) },
@@ -708,7 +714,7 @@ private fun DayColumnCard(
                             .offset(x = place.x, y = place.y)
                             .width(place.width)
                             .height(place.height)
-                            .padding(horizontal = 1.dp),
+                            .padding(horizontal = BLOCK_OUTER_INSET),
                     )
                 }
             }
@@ -725,6 +731,7 @@ private fun EventBlock(
     block: TimedBlock,
     dark: Boolean,
     height: Dp,
+    width: Dp,
     date: LocalDate,
     dragController: TimelineDragController,
     onClick: () -> Unit,
@@ -746,10 +753,28 @@ private fun EventBlock(
     // What's left for text once the 2.dp top/bottom padding is paid for. A block
     // that cannot afford both lines spends its space on the title, and one too
     // short even for that drops the title rather than serving a sliced one.
+    // Height alone decides: a duration threshold would keep hiding the time on a
+    // half-hour block the user has pinched open to three times the room it needs.
     val available = height - 4.dp
-    val showTime = block.endMin - block.startMin >= 45 &&
-        available >= titleLineHeight + timeLineHeight
+    val showTime = available >= titleLineHeight + timeLineHeight
     val showTitle = available >= titleLineHeight
+    val textWidth = width - (BLOCK_OUTER_INSET + BLOCK_TEXT_PADDING) * 2
+    val titleMaxLines = if (showTime) 1 else 2
+    // The range only wraps out of a line the title has not claimed, which on a
+    // day column — wide enough for "09:30–11:00" several times over — means it
+    // never does, until lanes cut the column down.
+    val spare = available - titleLineHeight * titleMaxLines -
+        if (showTime) timeLineHeight else 0.dp
+    val timeMaxLines = if (showTime && spare >= timeLineHeight) {
+        blockTextLines(
+            text = timeLabel,
+            style = MaterialTheme.typography.labelSmall,
+            textWidth = textWidth,
+            max = MAX_TIME_LINES,
+        )
+    } else {
+        1
+    }
     val soften = LocalSoftenColors.current
     val fill = eventFill(block.event.color, dark, soften)
     val zone = remember { TimeZone.currentSystemDefault() }
@@ -782,7 +807,7 @@ private fun EventBlock(
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.
             .then(dragModifier)
-            .padding(horizontal = 4.dp, vertical = 2.dp)
+            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = 2.dp)
             .semantics {
                 contentDescription = "$title, $timeLabel"
                 if (moveAction != null) customActions = listOf(moveAction)
@@ -790,13 +815,10 @@ private fun EventBlock(
     ) {
         Column {
             if (showTitle) {
-                val titleOverflow = eventTitleOverflow(singleLine = showTime)
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = if (showTime) 1 else 2,
-                    overflow = titleOverflow.overflow,
-                    softWrap = titleOverflow.softWrap,
+                BlockTitle(
+                    title = title,
+                    maxLines = titleMaxLines,
+                    textWidth = textWidth,
                     color = eventInk(fill, alpha = 0.85f),
                     textDecoration = declinedDecoration(block.event.isDeclined),
                 )
@@ -805,6 +827,7 @@ private fun EventBlock(
                 BlockTimeLabel(
                     label = timeLabel,
                     color = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
+                    maxLines = timeMaxLines,
                 )
             }
         }
