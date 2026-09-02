@@ -114,7 +114,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -214,7 +213,6 @@ fun MonthScreen(
         derivedStateOf { if (dimCompleted) nowState.value else null }
     }
 
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
@@ -392,7 +390,7 @@ fun MonthScreen(
         },
     ) {
         Scaffold(
-            modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            modifier = modifier,
             topBar = {
                 MonthTopBar(
                     title = topBarTitle,
@@ -406,7 +404,6 @@ fun MonthScreen(
                     onJumpToDate = jumpToDate,
                     showTodayButton = todayInToolbar,
                     onToday = jumpToToday,
-                    scrollBehavior = scrollBehavior,
                 )
             },
             floatingActionButton = {
@@ -682,7 +679,6 @@ private fun MonthTopBar(
     onJumpToDate: (LocalDate) -> Unit,
     showTodayButton: Boolean,
     onToday: () -> Unit,
-    scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
     TopAppBar(
         title = {
@@ -715,7 +711,13 @@ private fun MonthTopBar(
                 onCycle = onCycleView,
             )
         },
-        scrollBehavior = scrollBehavior,
+        // Deliberately flat: M3 lifts the bar to mark content scrolling under
+        // it, but here the bar meets the header on the same surface and the
+        // tint is what makes that seam look like a separate block (#186).
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrolledContainerColor = MaterialTheme.colorScheme.surface,
+        ),
     )
 }
 

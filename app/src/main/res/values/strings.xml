@@ -16,6 +16,11 @@
     <string name="state_failure_no_calendars_action">Open system calendar settings</string>
     <string name="state_failure_provider">Could not read the calendar.</string>
 
+    <!-- Long-press a field to copy it (#195) -->
+    <string name="field_copy_action">Copy</string>
+    <string name="field_copied">Copied to clipboard</string>
+    <string name="field_copy_failed">Couldn\'t copy that</string>
+
     <!-- Permission flow (F1) -->
     <string name="permission_rationale_title">See all your events, beautifully</string>
     <string name="permission_rationale_body">Calendula needs access to your calendar to show and manage your events.</string>
@@ -188,6 +193,7 @@
     <string name="event_detail_all_day">All day</string>
     <string name="event_detail_calendar">Calendar</string>
     <string name="event_detail_calendar_unknown">Unknown calendar</string>
+    <string name="event_detail_title">Title</string>
     <string name="event_detail_location">Location</string>
     <string name="event_detail_description">Description</string>
     <string name="event_detail_attendees">Attendees</string>

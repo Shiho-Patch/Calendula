@@ -1,7 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.day
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -53,10 +52,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -80,7 +77,12 @@ import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.BLOCK_OUTER_INSET
+import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_PADDING
 import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
+import de.jeanlucmakiola.calendula.ui.common.BlockTitle
+import de.jeanlucmakiola.calendula.ui.common.MAX_TIME_LINES
+import de.jeanlucmakiola.calendula.ui.common.blockTextLines
 import de.jeanlucmakiola.calendula.ui.common.animatedBlockPlacement
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
@@ -170,20 +172,8 @@ fun DayScreen(
         initialDateIso?.let { viewModel.goToDate(LocalDate.parse(it)) }
     }
 
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-
-    // The all-day strip shares the app bar's scrolled colour so the whole top
-    // region elevates together once the timeline scrolls under it.
-    val topSectionColor by animateColorAsState(
-        targetValue = if (scrollBehavior.state.overlappedFraction > 0.01f) {
-            MaterialTheme.colorScheme.surfaceContainer
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
-        label = "day-top-section-color",
-    )
 
     val isOnToday = when (val s = state) {
         is DayUiState.Success -> s.date == s.today
@@ -242,7 +232,7 @@ fun DayScreen(
         },
     ) {
         Scaffold(
-            modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            modifier = modifier,
             topBar = {
                 DayTopBar(
                     date = date,
@@ -255,7 +245,6 @@ fun DayScreen(
                     onJumpToDate = jumpToDate,
                     showTodayButton = todayInToolbar,
                     onToday = jumpToToday,
-                    scrollBehavior = scrollBehavior,
                 )
             },
             floatingActionButton = {
@@ -270,7 +259,6 @@ fun DayScreen(
             DayContent(
                 state = state,
                 slideDir = slideDir,
-                topSectionColor = topSectionColor,
                 onSwipeNext = goNext,
                 onSwipePrev = goPrev,
                 onRetry = jumpToToday,
@@ -288,7 +276,6 @@ fun DayScreen(
 private fun DayContent(
     state: DayUiState,
     slideDir: Int,
-    topSectionColor: Color,
     onSwipeNext: () -> Unit,
     onSwipePrev: () -> Unit,
     onRetry: () -> Unit,
@@ -349,7 +336,6 @@ private fun DayContent(
                 is DayUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
                 is DayUiState.Success -> DaySuccess(
                     state = s,
-                    topSectionColor = topSectionColor,
                     scrollState = scrollState,
                     allDayHeight = allDayHeight,
                     dragController = dragController,
@@ -375,7 +361,6 @@ private fun DayContent(
 @Composable
 internal fun DaySuccess(
     state: DayUiState.Success,
-    topSectionColor: Color,
     scrollState: ScrollState,
     allDayHeight: Dp,
     dragController: TimelineDragController,
@@ -392,10 +377,10 @@ internal fun DaySuccess(
             onEventClick = onEventClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .background(topSectionColor),
+                .background(MaterialTheme.colorScheme.surface),
         )
-        // Breathing room between the (colour-shifting) top section and the
-        // scrolling timeline below.
+        // Breathing room between the top section and the scrolling timeline
+        // below.
         Spacer(Modifier.height(8.dp))
         Timeline(
             state = state,
@@ -421,7 +406,6 @@ private fun DayTopBar(
     onJumpToDate: (LocalDate) -> Unit,
     showTodayButton: Boolean,
     onToday: () -> Unit,
-    scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
     val locale = currentLocale()
     val (title, shortTitle) = remember(date, locale, currentYear) {
@@ -459,11 +443,13 @@ private fun DayTopBar(
                 onCycle = onCycleView,
             )
         },
+        // Deliberately flat: M3 lifts the bar to mark content scrolling under
+        // it, but here the bar meets the header on the same surface and the
+        // tint is what makes that seam look like a separate block (#186).
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            scrolledContainerColor = MaterialTheme.colorScheme.surface,
         ),
-        scrollBehavior = scrollBehavior,
     )
 }
 
@@ -700,6 +686,7 @@ private fun DayColumnCard(
                         block = block,
                         dark = dark,
                         height = place.height,
+                        width = place.width,
                         date = date,
                         dragController = dragController,
                         onClick = { onEventClick(block.event) },
@@ -708,7 +695,7 @@ private fun DayColumnCard(
                             .offset(x = place.x, y = place.y)
                             .width(place.width)
                             .height(place.height)
-                            .padding(horizontal = 1.dp),
+                            .padding(horizontal = BLOCK_OUTER_INSET),
                     )
                 }
             }
@@ -725,6 +712,7 @@ private fun EventBlock(
     block: TimedBlock,
     dark: Boolean,
     height: Dp,
+    width: Dp,
     date: LocalDate,
     dragController: TimelineDragController,
     onClick: () -> Unit,
@@ -746,10 +734,28 @@ private fun EventBlock(
     // What's left for text once the 2.dp top/bottom padding is paid for. A block
     // that cannot afford both lines spends its space on the title, and one too
     // short even for that drops the title rather than serving a sliced one.
+    // Height alone decides: a duration threshold would keep hiding the time on a
+    // half-hour block the user has pinched open to three times the room it needs.
     val available = height - 4.dp
-    val showTime = block.endMin - block.startMin >= 45 &&
-        available >= titleLineHeight + timeLineHeight
+    val showTime = available >= titleLineHeight + timeLineHeight
     val showTitle = available >= titleLineHeight
+    val textWidth = width - (BLOCK_OUTER_INSET + BLOCK_TEXT_PADDING) * 2
+    val titleMaxLines = if (showTime) 1 else 2
+    // The range only wraps out of a line the title has not claimed, which on a
+    // day column — wide enough for "09:30–11:00" several times over — means it
+    // never does, until lanes cut the column down.
+    val spare = available - titleLineHeight * titleMaxLines -
+        if (showTime) timeLineHeight else 0.dp
+    val timeMaxLines = if (showTime && spare >= timeLineHeight) {
+        blockTextLines(
+            text = timeLabel,
+            style = MaterialTheme.typography.labelSmall,
+            textWidth = textWidth,
+            max = MAX_TIME_LINES,
+        )
+    } else {
+        1
+    }
     val soften = LocalSoftenColors.current
     val fill = eventFill(block.event.color, dark, soften)
     val zone = remember { TimeZone.currentSystemDefault() }
@@ -782,7 +788,7 @@ private fun EventBlock(
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.
             .then(dragModifier)
-            .padding(horizontal = 4.dp, vertical = 2.dp)
+            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = 2.dp)
             .semantics {
                 contentDescription = "$title, $timeLabel"
                 if (moveAction != null) customActions = listOf(moveAction)
@@ -790,13 +796,10 @@ private fun EventBlock(
     ) {
         Column {
             if (showTitle) {
-                val titleOverflow = eventTitleOverflow(singleLine = showTime)
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = if (showTime) 1 else 2,
-                    overflow = titleOverflow.overflow,
-                    softWrap = titleOverflow.softWrap,
+                BlockTitle(
+                    title = title,
+                    maxLines = titleMaxLines,
+                    textWidth = textWidth,
                     color = eventInk(fill, alpha = 0.85f),
                     textDecoration = declinedDecoration(block.event.isDeclined),
                 )
@@ -805,6 +808,7 @@ private fun EventBlock(
                 BlockTimeLabel(
                     label = timeLabel,
                     color = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
+                    maxLines = timeMaxLines,
                 )
             }
         }

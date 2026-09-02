@@ -1,7 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.week
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -60,9 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -90,7 +87,12 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.declinedDecoration
+import de.jeanlucmakiola.calendula.ui.common.BLOCK_OUTER_INSET
+import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_PADDING
 import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
+import de.jeanlucmakiola.calendula.ui.common.BlockTitle
+import de.jeanlucmakiola.calendula.ui.common.MAX_TIME_LINES
+import de.jeanlucmakiola.calendula.ui.common.blockTextLines
 import de.jeanlucmakiola.calendula.ui.common.animatedBlockPlacement
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
@@ -190,20 +192,8 @@ fun WeekScreen(
         derivedStateOf { if (dimCompleted) nowState.value else null }
     }
 
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-
-    // The static header + all-day strip share the app bar's scrolled colour so
-    // the whole top region elevates together once the timeline scrolls under it.
-    val topSectionColor by animateColorAsState(
-        targetValue = if (scrollBehavior.state.overlappedFraction > 0.01f) {
-            MaterialTheme.colorScheme.surfaceContainer
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
-        label = "week-top-section-color",
-    )
 
     val isOnCurrentWeek = when (val s = state) {
         // True when today falls inside the displayed week — independent of which
@@ -265,7 +255,7 @@ fun WeekScreen(
         },
     ) {
         Scaffold(
-            modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            modifier = modifier,
             topBar = {
                 WeekTopBar(
                     weekStart = weekStart,
@@ -278,7 +268,6 @@ fun WeekScreen(
                     onJumpToDate = jumpToDate,
                     showTodayButton = todayInToolbar,
                     onToday = jumpToToday,
-                    scrollBehavior = scrollBehavior,
                 )
             },
             floatingActionButton = {
@@ -299,7 +288,6 @@ fun WeekScreen(
                 WeekContent(
                     state = state,
                     slideDir = slideDir,
-                    topSectionColor = topSectionColor,
                     onSwipeNext = goNext,
                     onSwipePrev = goPrev,
                     onRetry = jumpToToday,
@@ -319,7 +307,6 @@ fun WeekScreen(
 private fun WeekContent(
     state: WeekUiState,
     slideDir: Int,
-    topSectionColor: Color,
     onSwipeNext: () -> Unit,
     onSwipePrev: () -> Unit,
     onRetry: () -> Unit,
@@ -384,7 +371,6 @@ private fun WeekContent(
                 is WeekUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
                 is WeekUiState.Success -> WeekSuccess(
                     state = s,
-                    topSectionColor = topSectionColor,
                     scrollState = scrollState,
                     allDayHeight = allDayHeight,
                     dragController = dragController,
@@ -411,7 +397,6 @@ private fun WeekContent(
 @Composable
 internal fun WeekSuccess(
     state: WeekUiState.Success,
-    topSectionColor: Color,
     scrollState: ScrollState,
     allDayHeight: Dp,
     dragController: TimelineDragController,
@@ -424,13 +409,13 @@ internal fun WeekSuccess(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(topSectionColor),
+                .background(MaterialTheme.colorScheme.surface),
         ) {
             WeekDayHeader(days = state.days, today = state.today, onOpenDay = onOpenDay)
             AllDayStrip(state = state, height = allDayHeight, onEventClick = onEventClick)
         }
-        // Breathing room between the (colour-shifting) top section and the
-        // scrolling timeline below.
+        // Breathing room between the top section and the scrolling timeline
+        // below.
         Spacer(Modifier.height(8.dp))
         Timeline(
             state = state,
@@ -456,7 +441,6 @@ private fun WeekTopBar(
     onJumpToDate: (LocalDate) -> Unit,
     showTodayButton: Boolean,
     onToday: () -> Unit,
-    scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
     val locale = currentLocale()
     val (title, shortTitle) = remember(weekStart, locale, currentYear) {
@@ -494,13 +478,13 @@ private fun WeekTopBar(
                 onCycle = onCycleView,
             )
         },
-        // Match the static top section exactly: plain surface, lifting to
-        // surfaceContainer once content scrolls under the bar.
+        // Deliberately flat: M3 lifts the bar to mark content scrolling under
+        // it, but here the bar meets the header on the same surface and the
+        // tint is what makes that seam look like a separate block (#186).
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            scrolledContainerColor = MaterialTheme.colorScheme.surface,
         ),
-        scrollBehavior = scrollBehavior,
     )
 }
 
@@ -856,7 +840,7 @@ private fun DayColumnCard(
                             .offset(x = place.x, y = place.y)
                             .width(place.width)
                             .height(place.height)
-                            .padding(horizontal = 1.dp),
+                            .padding(horizontal = BLOCK_OUTER_INSET),
                     )
                 }
             }
@@ -897,24 +881,47 @@ private fun EventBlock(
     // Only full-width (non-overlapping) blocks that are tall enough show the
     // time. On narrow overlapping columns we drop it so the title can wrap to
     // fill the whole block, mirroring Google Calendar — and a block that cannot
-    // afford both lines spends its space on the title.
-    val showTime = block.endMin - block.startMin >= 45 &&
-        block.laneCount == 1 &&
+    // afford both lines spends its space on the title. Height decides that on
+    // its own: a duration threshold would keep hiding the time on a half-hour
+    // block the user has pinched open to three times the room it needs.
+    val showTime = block.laneCount == 1 &&
         available >= titleLineHeight + timeLineHeight
+    val textWidth = width - (BLOCK_OUTER_INSET + BLOCK_TEXT_PADDING) * 2
     // A short block drops the title rather than serving a horizontally sliced
     // one: half a letter reads as a rendering fault, while a bare colour chip
     // reads as what it is — an event too brief to label. Tap still opens it, and
     // the semantics description carries the full title either way.
     val showTitle = available >= titleLineHeight
-    // Wrap the title across as many lines as the block can fit — but only once a
-    // line is wide enough to hold more than a syllable. Below that the extra
-    // lines just stack fragments of the word, and one ellipsised line reads
-    // better.
+    // The title is served first, out of everything the block has left once the
+    // time is down to one line — but only takes the lines it will actually use,
+    // and only wraps at all once a line is wide enough to hold more than a
+    // syllable. Below that the extra lines just stack fragments of the word.
     val contentHeight = available - if (showTime) timeLineHeight else 0.dp
+    val titleBudget = (contentHeight / titleLineHeight).toInt().coerceAtLeast(1)
     val titleMaxLines = if (width < MIN_TITLE_WRAP_WIDTH) {
         1
     } else {
-        (contentHeight / titleLineHeight).toInt().coerceAtLeast(1)
+        blockTextLines(
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
+            textWidth = textWidth,
+            max = titleBudget,
+        )
+    }
+    // A week column is narrower than a "09:30–11:00" range, so the label takes a
+    // second line rather than lose its end — but only out of a line the title
+    // measured itself as not needing, never one it would have filled.
+    val spare = available - titleLineHeight * titleMaxLines -
+        if (showTime) timeLineHeight else 0.dp
+    val timeMaxLines = if (showTime && spare >= timeLineHeight) {
+        blockTextLines(
+            text = timeLabel,
+            style = MaterialTheme.typography.labelSmall,
+            textWidth = textWidth,
+            max = MAX_TIME_LINES,
+        )
+    } else {
+        1
     }
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && block.event.hasEnded(dimCutoff)
@@ -950,7 +957,7 @@ private fun EventBlock(
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.
             .then(dragModifier)
-            .padding(horizontal = 4.dp, vertical = 2.dp)
+            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = 2.dp)
             .semantics {
                 contentDescription = "$title, $timeLabel"
                 if (moveAction != null) customActions = listOf(moveAction)
@@ -958,13 +965,10 @@ private fun EventBlock(
     ) {
         Column {
             if (showTitle) {
-                val titleOverflow = eventTitleOverflow(singleLine = titleMaxLines == 1)
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelMedium,
+                BlockTitle(
+                    title = title,
                     maxLines = titleMaxLines,
-                    overflow = titleOverflow.overflow,
-                    softWrap = titleOverflow.softWrap,
+                    textWidth = textWidth,
                     color = eventInk(fill, alpha = 0.85f),
                     textDecoration = declinedDecoration(block.event.isDeclined),
                 )
@@ -973,6 +977,7 @@ private fun EventBlock(
                 BlockTimeLabel(
                     label = timeLabel,
                     color = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
+                    maxLines = timeMaxLines,
                 )
             }
         }
