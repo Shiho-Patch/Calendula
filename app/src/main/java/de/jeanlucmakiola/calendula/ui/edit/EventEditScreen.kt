@@ -794,6 +794,9 @@ private fun EventEditContent(
                         value = form.location,
                         onValueChange = viewModel::setLocation,
                         placeholder = stringResource(R.string.event_detail_location),
+                        // A location is as often a meeting URL as an address,
+                        // and "Zoom.us/j/123" reads wrong (#146).
+                        capitalization = KeyboardCapitalization.None,
                         modifier = Modifier
                             .weight(1f)
                             .padding(vertical = 4.dp),
@@ -2223,7 +2226,9 @@ private fun formatTimeRange(start: LocalDateTime, end: LocalDateTime, locale: Lo
 /**
  * Borderless text input used inside the cards (and as the headline title).
  * Thin wrapper over the shared [InlineTextField] so the form and the rest of
- * the app share one input style.
+ * the app share one input style. Sentence-case by default, as floret-kit is;
+ * a field holding an identifier rather than prose passes
+ * [KeyboardCapitalization.None].
  */
 @Composable
 private fun InlineField(
@@ -2235,6 +2240,7 @@ private fun InlineField(
     minLines: Int = 1,
     enabled: Boolean = true,
     keyboardType: KeyboardType = KeyboardType.Text,
+    capitalization: KeyboardCapitalization = KeyboardCapitalization.Sentences,
     modifier: Modifier = Modifier
         .fillMaxWidth()
         .padding(vertical = 4.dp),
@@ -2249,7 +2255,7 @@ private fun InlineField(
         minLines = minLines,
         enabled = enabled,
         keyboardType = keyboardType,
-        capitalization = KeyboardCapitalization.None,
+        capitalization = capitalization,
     )
 }
 
