@@ -35,8 +35,12 @@ class EventMoveScope(
      * accidental drags the setting exists to stop.
      */
     val dragEnabled: Boolean,
-    /** False when the drop was refused outright, so nothing will be written. */
-    val move: (MoveRequest) -> Boolean,
+    /**
+     * Hand a drop to the writer. Returns nothing on purpose: a drop is answered
+     * before its write resolves, so [abandoned] — not a return value — is what
+     * tells a held copy that nothing landed.
+     */
+    val move: (MoveRequest) -> Unit,
     /**
      * True while a dropped event is being written, including the time its scope
      * dialog is up. A flow rather than a value so this scope stays the same

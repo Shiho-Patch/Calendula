@@ -59,7 +59,11 @@ internal fun ColumnReader.toIcsEvent(
         exDates = if (rrule == null) {
             emptyList()
         } else {
-            exportExDates(getString(EventExportProjection.IDX_EXDATE), isAllDay)
+            exportExDates(
+                getString(EventExportProjection.IDX_EXDATE),
+                isAllDay,
+                getString(EventExportProjection.IDX_EVENT_TIMEZONE),
+            )
         },
         location = getString(EventExportProjection.IDX_LOCATION),
         description = getString(EventExportProjection.IDX_DESCRIPTION),
@@ -85,11 +89,40 @@ internal fun ColumnReader.toIcsEvent(
  * about whether they write it as a bare `yyyyMMdd` or pad it to a midnight
  * stamp; the time part is dropped so the exported value is the day either way.
  * Calendula's own writes ([buildOccurrenceExdateValues]) are already bare.
+ *
+ * A zoned exclusion arrives in AOSP's `RecurrenceSet` form, `<zone>;<stamps>`,
+ * where the prefix names the zone the whole list is wall clock in. [IcsWriter]
+ * emits one bare `EXDATE:` line, and a parameter belongs before that colon, not
+ * inside the value — passed on as-is it would make the line unparseable. The
+ * prefix is therefore taken off and its stamps resolved to UTC instants
+ * ([canonicalExdateStamp], the same reading the write path does), the form every
+ * reader accepts.
+ *
+ * Which zone that resolution uses is [exdateListZone]'s call, the same one the
+ * write path makes: the `TZID=` when this device's tz database knows the name,
+ * else the row's own [eventTimezone]. A stamp is never emitted floating just
+ * because the prefix named a zone we couldn't place — against a `DTSTART;TZID=…`
+ * line every reader would resolve it in its own zone and the exclusion would stop
+ * matching its occurrence.
  */
-internal fun exportExDates(exdate: String?, isAllDay: Boolean): List<String> = exdate
-    ?.split(',')
-    ?.map { it.trim() }
-    ?.filter { it.isNotEmpty() }
-    ?.map { if (isAllDay) it.substringBefore('T') else it }
-    ?.distinct()
-    .orEmpty()
+internal fun exportExDates(
+    exdate: String?,
+    isAllDay: Boolean,
+    eventTimezone: String? = null,
+): List<String> {
+    if (exdate.isNullOrBlank()) return emptyList()
+    val zone = exdateListZone(exdate, eventTimezone)
+    return exdate
+        .withoutExdateParameters()
+        .split(',')
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .map { stamp ->
+            if (isAllDay) {
+                stamp.substringBefore('T')
+            } else {
+                canonicalExdateStamp(stamp, isAllDay = false, listZone = zone) ?: stamp
+            }
+        }
+        .distinct()
+}

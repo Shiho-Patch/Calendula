@@ -31,9 +31,13 @@ private const val MILLIS_PER_MINUTE = 60_000L
  * event (a whole-day multiple; sub-day remainders are dropped), so it fires at
  * [timeOfDayMinutes] (minutes from local midnight) in [zone]. The result may be
  * **negative** — e.g. "at time of event" at 09:00 CEST encodes to −420, meaning
- * the provider fires *after* DTSTART; this is valid and must not be clamped.
- * A negative [semanticMinutes] is the "provider default" sentinel and passes
- * through unchanged.
+ * the provider fires *after* DTSTART; this is valid and must not be clamped. The
+ * one negative it never is is [MINUTES_DEFAULT]: the sentinel and the encoding
+ * share a value space, so an encoding that lands on it is nudged one minute past
+ * it rather than being read back as "use the account default". That sentinel is
+ * also the one [semanticMinutes] that passes through unencoded — a lead time may
+ * itself be negative (a foreign row firing the day *after* the event), and
+ * waving those through would change when they fire.
  */
 internal fun toProviderAllDayMinutes(
     semanticMinutes: Int,
@@ -41,12 +45,13 @@ internal fun toProviderAllDayMinutes(
     zone: ZoneId,
     timeOfDayMinutes: Int,
 ): Int {
-    if (semanticMinutes < 0) return semanticMinutes
+    if (semanticMinutes == MINUTES_DEFAULT) return semanticMinutes
     val utcMidnight = startDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
     val fire = startDate.minusDays((semanticMinutes / MINUTES_PER_DAY).toLong())
         .atTime(LocalTime.of(timeOfDayMinutes / 60, timeOfDayMinutes % 60))
         .atZone(zone).toInstant().toEpochMilli()
-    return ((utcMidnight - fire) / MILLIS_PER_MINUTE).toInt()
+    val raw = ((utcMidnight - fire) / MILLIS_PER_MINUTE).toInt()
+    return if (raw == MINUTES_DEFAULT) MINUTES_DEFAULT - 1 else raw
 }
 
 /**
@@ -103,10 +108,19 @@ internal fun importedAllDayReminderDate(
  * [rawMinutes] — the inverse of [toProviderAllDayMinutes], for the form and the
  * detail screen. Delegates to [allDayLeadDays], so the day displayed is the day
  * the reminder actually fires on.
+ *
+ * [MINUTES_DEFAULT] passes through unchanged, the mirror of the encode side. A
+ * real encoding is often negative, so only that exact value may be treated as the
+ * sentinel — decoding it would land it on the start date and turn "use the
+ * account default" into a concrete at-start alarm.
  */
 internal fun fromProviderAllDayMinutes(
     rawMinutes: Int,
     startDate: LocalDate,
     zone: ZoneId,
     timeOfDayMinutes: Int,
-): Int = allDayLeadDays(rawMinutes, startDate, zone, timeOfDayMinutes).toInt() * MINUTES_PER_DAY
+): Int = if (rawMinutes == MINUTES_DEFAULT) {
+    rawMinutes
+} else {
+    allDayLeadDays(rawMinutes, startDate, zone, timeOfDayMinutes).toInt() * MINUTES_PER_DAY
+}

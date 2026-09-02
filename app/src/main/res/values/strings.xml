@@ -231,6 +231,8 @@
     <string name="event_detail_self_response">Your response: %1$s</string>
     <string name="reminder_at_time">At time of event</string>
     <string name="reminder_default">Default reminder</string>
+    <!-- A reminder that fires after the event starts, e.g. "2 hours after". -->
+    <string name="reminder_after">%1$s after</string>
     <plurals name="reminder_minutes">
         <item quantity="one">%d minute before</item>
         <item quantity="other">%d minutes before</item>
@@ -695,6 +697,7 @@
     <string name="import_done_skipped_label">Duplicates</string>
     <string name="import_done_failed_label">Not added</string>
     <string name="import_done_failed_note">Some events couldn\'t be added and were left out.</string>
+    <string name="import_done_stopped_title">Import stopped</string>
     <string name="import_close">Close</string>
     <string name="import_warning_recurrence">Some changed occurrences of recurring events were skipped.</string>
     <string name="import_warning_no_start">An event without a start time was skipped.</string>
@@ -714,6 +717,10 @@
     <plurals name="import_action">
         <item quantity="one">Import %d event</item>
         <item quantity="other">Import %d events</item>
+    </plurals>
+    <plurals name="import_done_stopped">
+        <item quantity="one">The calendar stopped accepting events part way through. %d event from the file was never added.</item>
+        <item quantity="other">The calendar stopped accepting events part way through. %d events from the file were never added.</item>
     </plurals>
     <plurals name="import_done_imported">
         <item quantity="one">Imported %d event.</item>

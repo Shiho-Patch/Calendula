@@ -185,6 +185,35 @@ class AllDayReminderEncodingTest {
     }
 
     @Test
+    fun `the provider default sentinel survives a round trip untouched`() {
+        // -1 is Reminders.MINUTES_DEFAULT, not an offset. Decoded it landed on
+        // the start date and came back as 0 — a concrete at-start alarm on the
+        // detail screen and in an exported file.
+        assertThat(toProviderAllDayMinutes(-1, winter, berlin, nineAm)).isEqualTo(-1)
+        assertThat(fromProviderAllDayMinutes(-1, winter, berlin, nineAm)).isEqualTo(-1)
+    }
+
+    @Test
+    fun `a real encoding that is negative is still decoded`() {
+        // "At time of event" encodes negative — the sentinel check must be the
+        // exact value, not any negative one.
+        val raw = toProviderAllDayMinutes(0, winter, berlin, nineAm)
+        assertThat(raw).isLessThan(0)
+        assertThat(fromProviderAllDayMinutes(raw, winter, berlin, nineAm)).isEqualTo(0)
+    }
+
+    @Test
+    fun `an encoding that would land on the sentinel is nudged off it`() {
+        // 01:01 Berlin in winter (CET, +1) is 00:01 UTC — one minute past the
+        // event's UTC-midnight DTSTART, i.e. exactly -1. Left there it would read
+        // back as "use the account default" and the real reminder would be gone
+        // from the screen and from an export.
+        val raw = toProviderAllDayMinutes(0, winter, berlin, 61)
+        assertThat(raw).isEqualTo(-2)
+        assertThat(fromProviderAllDayMinutes(raw, winter, berlin, 61)).isEqualTo(0)
+    }
+
+    @Test
     fun `a winter-anchored offset drifts one hour on a summer occurrence`() {
         // Known limitation: one fixed MINUTES per series can't track DST. An
         // offset tuned for a CET anchor fires an hour off once the series crosses

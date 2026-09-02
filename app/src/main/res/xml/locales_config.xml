@@ -10,6 +10,7 @@
 <locale-config xmlns:android="http://schemas.android.com/apk/res/android">
     <locale android:name="en" />
     <locale android:name="ar" />
+    <locale android:name="be" />
     <locale android:name="cs" />
     <locale android:name="de" />
     <locale android:name="es" />
@@ -19,5 +20,6 @@
     <locale android:name="pl" />
     <locale android:name="pt-BR" />
     <locale android:name="ru" />
+    <locale android:name="sk" />
     <locale android:name="zh-CN" />
 </locale-config>

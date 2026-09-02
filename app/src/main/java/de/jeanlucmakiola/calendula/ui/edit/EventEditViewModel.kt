@@ -737,7 +737,12 @@ class EventEditViewModel @Inject constructor(
                 } else {
                     when (scope) {
                         RecurringWriteScope.ThisEvent ->
-                            repository.updateOccurrence(target.eventId, target.beginMillis, form)
+                            repository.updateOccurrence(
+                                target.eventId,
+                                target.beginMillis,
+                                target.original,
+                                form,
+                            )
                         RecurringWriteScope.ThisAndFollowing ->
                             repository.updateEventFromOccurrence(
                                 eventId = target.eventId,

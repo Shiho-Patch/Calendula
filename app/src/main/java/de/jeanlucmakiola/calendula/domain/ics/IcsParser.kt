@@ -110,12 +110,24 @@ data class IcsParseResult(
  * Outcome of a bulk `.ics` import into one calendar. [failed] counts events the
  * provider rejected — the import continues past them, so a single unusable
  * event can't cost the user the rest of the file.
+ *
+ * [notAttempted] counts what a retry still has to import, because the permission
+ * or the target calendar went away mid-file and every remaining insert would have
+ * failed the same way. Events past that point whose UID is already in the
+ * calendar count under [skippedDuplicate] instead — they were never going to be
+ * added either way. It travels in the summary rather than as an exception so the
+ * counts of what *did* land survive: an import is only idempotent for events that
+ * carry a UID, so a retry told "nothing happened" would duplicate the rest.
  */
 data class IcsImportSummary(
     val imported: Int,
     val skippedDuplicate: Int,
     val failed: Int = 0,
+    val notAttempted: Int = 0,
 )
+
+/** The non-standard property most exporters name the whole calendar with. */
+private const val CALENDAR_NAME_PROPERTY = "X-WR-CALNAME"
 
 /**
  * Hand-rolled RFC 5545 reader, the inverse of [IcsWriter]. Pure and
@@ -134,11 +146,13 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
         val lines = unfoldLines(text)
         val events = mutableListOf<ParsedIcsEvent>()
         val warnings = mutableSetOf<IcsParseWarning>()
-        // Scanned up front rather than in document order: an X-WR-CALNAME after
-        // the first VEVENT still names the calendar every event came from.
+        // Scanned up front, not in document order: an X-WR-CALNAME after the
+        // first VEVENT still names the calendar. The cheap prefix test first,
+        // so a file without one doesn't pay a full parse to find nothing.
         val calendarName = lines.asSequence()
+            .filter { it.startsWith(CALENDAR_NAME_PROPERTY, ignoreCase = true) }
             .mapNotNull(::parseContentLine)
-            .firstOrNull { it.name == "X-WR-CALNAME" }
+            .firstOrNull { it.name == CALENDAR_NAME_PROPERTY }
             ?.let { unescapeText(it.value).trim().ifEmpty { null } }
 
         var i = 0

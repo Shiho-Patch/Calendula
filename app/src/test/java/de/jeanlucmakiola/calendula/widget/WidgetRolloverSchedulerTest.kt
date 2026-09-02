@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.widget
 
+import android.content.Intent
 import com.google.common.truth.Truth.assertThat
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -160,5 +161,29 @@ class WidgetRolloverSchedulerTest {
         // fires, the receiver drops it on the action guard, nothing redraws.
         assertThat(WidgetUpdateReceiver.HANDLED_ACTIONS)
             .contains(WidgetUpdateReceiver.ACTION_ROLLOVER)
+    }
+
+    @Test
+    fun `a data change is handled, and re-arms only on the throttle`() {
+        // PROVIDER_CHANGED fires on every calendar write — each event of a bulk
+        // import, each drop of a drag — so it is not an unconditional re-arm.
+        // It is not dropped either: the alarm is inexact and the system may lose
+        // it, and this is the only signal that keeps arriving to notice.
+        assertThat(WidgetUpdateReceiver.HANDLED_ACTIONS)
+            .containsAtLeast(Intent.ACTION_PROVIDER_CHANGED, Intent.ACTION_DATE_CHANGED)
+        assertThat(WidgetUpdateReceiver.REARM_ACTIONS)
+            .doesNotContain(Intent.ACTION_PROVIDER_CHANGED)
+    }
+
+    @Test
+    fun `everything that loses the alarm re-arms it`() {
+        assertThat(WidgetUpdateReceiver.REARM_ACTIONS).containsAtLeast(
+            WidgetUpdateReceiver.ACTION_ROLLOVER,
+            Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_MY_PACKAGE_REPLACED,
+            Intent.ACTION_TIME_CHANGED,
+            Intent.ACTION_TIMEZONE_CHANGED,
+            Intent.ACTION_DATE_CHANGED,
+        )
     }
 }

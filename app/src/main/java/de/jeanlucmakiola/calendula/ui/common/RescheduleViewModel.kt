@@ -202,6 +202,10 @@ class RescheduleViewModel @Inject constructor(
      * Take a drop, unless one is already being written. False means nothing will
      * be written; [abandoned] ticks for that refusal too, so a held copy is let
      * go by the one signal rather than by every caller remembering to.
+     *
+     * The Boolean is diagnostic — the tests read it, [EventMoveScope] does not
+     * hand it on. A caller that gated on it would be back to releasing its copy
+     * from two places, and it answers before the write is resolved anyway.
      */
     fun move(request: MoveRequest): Boolean {
         if (busy || _scopePrompt.value != null) {
@@ -254,6 +258,12 @@ class RescheduleViewModel @Inject constructor(
      * inverse write reports back, so the one chip changes what it says rather
      * than closing and reopening. False when another write is already running —
      * the chip hides its action for that window, so this is the backstop.
+     *
+     * [abandoned] ticks once an inverse that *started* fails to land: [undoStarted]
+     * has sent the chip back on its journey by then and nothing else will seat it.
+     * A refusal ticks nothing — it launched no journey of its own, and the counter
+     * is global, so a tick here would release some other drop's held copy before
+     * the grid has drawn it.
      */
     fun undo(undo: MoveUndo): Boolean {
         if (busy) return false
@@ -272,6 +282,9 @@ class RescheduleViewModel @Inject constructor(
             } catch (e: Exception) {
                 MoveOutcome.Failed
             }
+            // Read off the outcome, the way [write] does — no second copy of the
+            // same fact to drift from it.
+            if (_outcome.value !is MoveOutcome.Undone) _abandoned.value += 1
             busy = false
         }
         return true
@@ -368,6 +381,7 @@ class RescheduleViewModel @Inject constructor(
                     repository.updateOccurrence(
                         request.eventId,
                         request.beginMillis,
+                        prepared.original,
                         prepared.updated,
                     )
 

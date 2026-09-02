@@ -1,0 +1,10 @@
+Fixed
+• An occurrence you deleted from a repeating event stays deleted — through a re-timing, a backup and a restore.
+• "Only this event" now saves your edit on calendars that have never synced, and deleting one from an event that doesn't repeat deletes the event.
+• A reminder left on your account's default no longer goes off as the event starts.
+• The widgets turn the page at midnight instead of leaving yesterday as "today".
+• An event running past midnight can be dragged by either half.
+• One event the calendar refuses no longer costs you the whole import, and an import cut short tells you how far it got.
+
+Added
+• Belarusian and Slovak, from community translators on Weblate.

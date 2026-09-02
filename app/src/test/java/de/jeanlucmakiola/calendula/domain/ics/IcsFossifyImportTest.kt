@@ -323,6 +323,27 @@ class IcsFossifyImportTest {
     }
 
     @Test
+    fun `X-WR-CALNAME names the calendar wherever in the file it sits`() {
+        // Why the property is scanned up front instead of in document order: an
+        // exporter that writes it at the tail still names the calendar every
+        // event in the file came from.
+        val result = IcsParser().parse(
+            listOf(
+                "BEGIN:VCALENDAR",
+                "BEGIN:VEVENT",
+                "SUMMARY:Standup",
+                "DTSTART:20260819T080000Z",
+                "DTEND:20260819T090000Z",
+                "END:VEVENT",
+                "X-WR-CALNAME:Work",
+                "END:VCALENDAR",
+            ).joinToString("\r\n"),
+        )
+
+        assertThat(result.events.single().calendarName).isEqualTo("Work")
+    }
+
+    @Test
     fun `a multi-valued CATEGORIES is a tag list, not a calendar name`() {
         val result = parser.parse(
             fossify(

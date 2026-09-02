@@ -180,4 +180,30 @@ class TimedBlockShapeTest {
     fun `an event outside the columns shown is sliced into nothing`() {
         assertThat(dragSlices(-3 * MINUTES_PER_DAY, 60, within = 0..2)).isEmpty()
     }
+
+    // --- the copy never blinks out from under the finger (#253) ---
+
+    @Test
+    fun `a short tail dragged to its floor still has a piece to draw`() {
+        // 23:50-00:05: on the tail's day the clip offset is 10 and the floor is
+        // one snap step above midnight, which puts the whole event on the day
+        // before. Day view has no column for that day, so dragSlices hands back
+        // nothing and the floating copy used to vanish mid-gesture.
+        val span = 15
+        val floor = dragFloorMin(clipOffsetMin = 10, eventSpanMin = span)
+        val eventStartMin = floor - 10
+        val visible = 0..0
+
+        assertThat(dragSlices(eventStartMin, span, visible)).isEmpty()
+        val edge = edgeDragSlice(eventStartMin, span, visible)
+        assertThat(edge).isNotNull()
+        assertThat(edge!!.dayOffset).isEqualTo(0)
+        assertThat(edge.startMin).isEqualTo(0)
+        assertThat(edge.continuesBefore).isTrue()
+    }
+
+    @Test
+    fun `an event a visible column does hold gets no edge piece`() {
+        assertThat(edgeDragSlice(9 * 60, 60, 0..0)).isNull()
+    }
 }

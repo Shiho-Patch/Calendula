@@ -228,7 +228,8 @@ class CalendarRepositoryImpl @Inject constructor(
         var imported = 0
         var skipped = 0
         var failed = 0
-        for (event in events) {
+        var notAttempted = 0
+        for ((index, event) in events.withIndex()) {
             // A known UID means the event is already in this calendar — skip,
             // keeping a restore idempotent (no overwrite this pass).
             if (event.uid != null && event.uid in existing) {
@@ -240,6 +241,17 @@ class CalendarRepositoryImpl @Inject constructor(
                 imported++
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: SecurityException) {
+                // Not this event's fault: the permission or the target calendar is
+                // gone, so every remaining insert would fail the same way.
+                Log.w(TAG, "Import stopped: the calendar is no longer writable", e)
+                // A known UID would have been skipped whatever happened, so it is
+                // no part of what a retry still has to import.
+                val remaining = events.drop(index)
+                val duplicates = remaining.count { it.uid?.let { uid -> uid in existing } == true }
+                skipped += duplicates
+                notAttempted = remaining.size - duplicates
+                break
             } catch (e: Exception) {
                 // One event the provider won't take must not cost the user the
                 // rest of the file — foreign exports do carry rows it rejects
@@ -248,7 +260,12 @@ class CalendarRepositoryImpl @Inject constructor(
                 Log.w(TAG, "Skipped an unimportable event", e)
             }
         }
-        IcsImportSummary(imported = imported, skippedDuplicate = skipped, failed = failed)
+        IcsImportSummary(
+            imported = imported,
+            skippedDuplicate = skipped,
+            failed = failed,
+            notAttempted = notAttempted,
+        )
     }
 
     override suspend fun createEvent(form: EventForm): Long = withContext(io) {
@@ -281,9 +298,12 @@ class CalendarRepositoryImpl @Inject constructor(
     override suspend fun updateOccurrence(
         eventId: Long,
         beginMillis: Long,
+        original: EventForm,
         form: EventForm,
     ): Long = withContext(io) {
-        dataSource.updateOccurrence(eventId, beginMillis, form, allDayReminderTimeMinutes())
+        dataSource.updateOccurrence(
+            eventId, beginMillis, original, form, allDayReminderTimeMinutes(),
+        )
     }
 
     override suspend fun updateEventFromOccurrence(

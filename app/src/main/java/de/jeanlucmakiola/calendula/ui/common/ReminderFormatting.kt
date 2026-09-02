@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.calendar.MINUTES_DEFAULT
 import de.jeanlucmakiola.floret.reminders.ReminderUnit
 
 /** Common reminder lead times offered as quick picks in the form and settings. */
@@ -20,15 +21,20 @@ fun reminderUnitLabel(unit: ReminderUnit): Int = when (unit) {
 
 /**
  * Humanise a reminder lead time (minutes before the event start) into one
- * line: "Default reminder" (negative = the provider default), "At time of
- * event" (0), "10 minutes before", "1 hour before", … Shared by the detail
- * screen, the event form and the default-reminder settings so the wording
- * never drifts.
+ * line: "Default reminder" ([MINUTES_DEFAULT]), "At time of event" (0),
+ * "10 minutes before", "1 hour before", … Shared by the detail screen, the event
+ * form and the default-reminder settings so the wording never drifts.
+ *
+ * Only the sentinel itself is the account default. Any other negative is a real
+ * lead time firing *after* the start — rare, but a foreign all-day row decodes to
+ * one — and naming it "Default reminder" would tell the user an alarm that does
+ * go off is not ours.
  */
 @Composable
 fun reminderLeadTimeLabel(minutes: Int): String = when {
-    minutes < 0 -> stringResource(R.string.reminder_default)
+    minutes == MINUTES_DEFAULT -> stringResource(R.string.reminder_default)
     minutes == 0 -> stringResource(R.string.reminder_at_time)
+    minutes < 0 -> stringResource(R.string.reminder_after, durationLabel(-minutes))
     minutes % 10_080 == 0 ->
         pluralStringResource(R.plurals.reminder_weeks, minutes / 10_080, minutes / 10_080)
     minutes % 1_440 == 0 ->

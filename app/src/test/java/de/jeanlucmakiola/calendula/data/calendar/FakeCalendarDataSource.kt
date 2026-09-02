@@ -100,6 +100,10 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     /** Thrown instead of [writeError] for events whose summary is in this set. */
     val failingImportSummaries = mutableSetOf<String>()
 
+    /** Imports let through before [writeError] applies, for part-way failures. */
+    var importsBeforeError: Int = 0
+    private var imports = 0
+
     /** The [colorPalette] the last [insertImportedEvent] call received. */
     var lastImportPalette: List<EventColorOption> = emptyList()
 
@@ -110,7 +114,7 @@ internal class FakeCalendarDataSource : CalendarDataSource {
         colorPalette: List<EventColorOption>,
     ): Long {
         lastImportPalette = colorPalette
-        writeError?.let { throw it }
+        if (imports++ >= importsBeforeError) writeError?.let { throw it }
         if (event.summary in failingImportSummaries) error("rejected: ${event.summary}")
         importedEvents += event to calendarId
         return nextInsertId
@@ -192,6 +196,7 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     override fun updateOccurrence(
         eventId: Long,
         beginMillis: Long,
+        original: EventForm,
         form: EventForm,
         allDayReminderTimeMinutes: Int,
     ): Long {

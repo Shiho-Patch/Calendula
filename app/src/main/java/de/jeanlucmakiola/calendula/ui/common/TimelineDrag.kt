@@ -83,6 +83,12 @@ data class TimelineDrag(
     val eventSpanMin: Int,
     /** The event as the grid would draw it, one piece per day column it covers. */
     val pieces: List<TimelineDragPiece>,
+    /**
+     * True when [pieces] is only [edgeDragSlice]'s stand-in — the event has left
+     * every column this timeline shows. A hint under the finger, not where the
+     * drop lands, so it is dropped once the gesture ends ([finish]).
+     */
+    val edgeOnly: Boolean = false,
 ) {
     /** What the snap haptics key off: one tick per changed slot, not per frame. */
     val slot: Pair<LocalDate, Int> get() = date to startMin
@@ -117,9 +123,9 @@ internal fun dragSlices(
 ): List<DragSlice> {
     val span = spanMin.coerceAtLeast(0)
     val end = eventStartMin + span
-    val first = eventStartMin.floorDiv(MINUTES_PER_DAY)
-    // A zero-length event still has a block, on the one day it sits in.
-    val last = maxOf((end - 1).floorDiv(MINUTES_PER_DAY), first)
+    val days = dragDayRange(eventStartMin, spanMin)
+    val first = days.first
+    val last = days.last
     val from = maxOf(first, within?.first ?: first)
     val to = minOf(last, within?.last ?: last)
     if (from > to) return emptyList()
@@ -135,6 +141,39 @@ internal fun dragSlices(
             continuesAfter = day < last,
         )
     }
+}
+
+/**
+ * The one piece to draw when a drag has carried the whole event clear of the
+ * columns this timeline shows, so [dragSlices] has nothing to hand back — where a
+ * short clipped tail lands at its [dragFloorMin]: the event then belongs to the
+ * day before, which Day view has no column for, and the copy would blink out from
+ * under the finger mid-gesture. Pinned to the top of the nearest visible column
+ * at minimum height instead, cut at that edge, so it reads as having slid off the
+ * top. Null whenever a real slice exists. The drop is unaffected either way — it
+ * reads [TimelineDrag.startMin], not the pieces.
+ */
+internal fun edgeDragSlice(eventStartMin: Int, spanMin: Int, within: IntRange): DragSlice? {
+    if (dragDayRange(eventStartMin, spanMin).last >= within.first) return null
+    return DragSlice(
+        dayOffset = within.first,
+        startMin = 0,
+        spanMin = 0,
+        continuesBefore = true,
+        continuesAfter = false,
+    )
+}
+
+/**
+ * The day offsets a run of [spanMin] minutes beginning [eventStartMin] covers,
+ * before any clipping to what a timeline shows. One rule, so [dragSlices] and
+ * [edgeDragSlice] can't drift apart on where an event's days begin and end.
+ */
+private fun dragDayRange(eventStartMin: Int, spanMin: Int): IntRange {
+    val end = eventStartMin + spanMin.coerceAtLeast(0)
+    val first = eventStartMin.floorDiv(MINUTES_PER_DAY)
+    // A zero-length event still has a block, on the one day it sits in.
+    return first..maxOf((end - 1).floorDiv(MINUTES_PER_DAY), first)
 }
 
 /**
@@ -366,7 +405,11 @@ class TimelineDragController {
         val clipOffset = clipOffsetMin
         cancel()
         if (landed == null || landed.slot == origin) return null
-        settling = landed
+        // An edge piece is a hint for the finger, not a preview of the landing
+        // slot: the event belongs to a day this timeline has no column for, so
+        // [noteGrid] can never seat it and it would sit at the top of today for
+        // the whole settle timeout, long after the event moved off-screen.
+        settling = if (landed.edgeOnly) landed.copy(pieces = emptyList()) else landed
         liftedInstanceId = landed.event.instanceId
         settledOrigin = landed.event.eventId to landed.event.start
         settledAbandonedMark = abandonedTicks?.value ?: 0
@@ -413,6 +456,11 @@ class TimelineDragController {
         val eventStartMin = startMin - clipOffsetMin
         val column = ((pointer.x - origin.x) / columnPx).toInt().coerceIn(0, days.lastIndex)
         val dayIndex = if (geometry.isRtl) days.lastIndex - column else column
+        val visible = -dayIndex..days.lastIndex - dayIndex
+        val onGrid = dragSlices(eventStartMin, eventSpan, within = visible)
+        val slices = onGrid.ifEmpty {
+            listOfNotNull(edgeDragSlice(eventStartMin, eventSpan, visible))
+        }
         drag = TimelineDrag(
             event = block.event,
             date = days[dayIndex],
@@ -421,29 +469,27 @@ class TimelineDragController {
             eventSpanMin = eventSpan,
             // Bounded to the columns this timeline actually shows: a day it
             // doesn't has no piece to draw. The write is unaffected.
-            pieces = dragSlices(
-                eventStartMin,
-                eventSpan,
-                within = -dayIndex..days.lastIndex - dayIndex,
-            ).map { slice ->
-                val day = dayIndex + slice.dayOffset
-                val col = if (geometry.isRtl) days.lastIndex - day else day
-                TimelineDragPiece(
-                    topLeftInRoot = Offset(
-                        x = origin.x + col * columnPx,
-                        y = origin.y + slice.startMin / 60f * hourPx,
-                    ),
-                    sizePx = IntSize(
-                        (columnPx - geometry.columnGapPx).roundToInt(),
-                        maxOf(
-                            slice.spanMin / 60f * hourPx,
-                            MIN_EVENT_FRACTION * hourPx,
-                        ).roundToInt(),
-                    ),
-                    continuesBefore = slice.continuesBefore,
-                    continuesAfter = slice.continuesAfter,
-                )
-            },
+            pieces = slices
+                .map { slice ->
+                    val day = dayIndex + slice.dayOffset
+                    val col = if (geometry.isRtl) days.lastIndex - day else day
+                    TimelineDragPiece(
+                        topLeftInRoot = Offset(
+                            x = origin.x + col * columnPx,
+                            y = origin.y + slice.startMin / 60f * hourPx,
+                        ),
+                        sizePx = IntSize(
+                            (columnPx - geometry.columnGapPx).roundToInt(),
+                            maxOf(
+                                slice.spanMin / 60f * hourPx,
+                                MIN_EVENT_FRACTION * hourPx,
+                            ).roundToInt(),
+                        ),
+                        continuesBefore = slice.continuesBefore,
+                        continuesAfter = slice.continuesAfter,
+                    )
+                },
+            edgeOnly = onGrid.isEmpty(),
         )
     }
 

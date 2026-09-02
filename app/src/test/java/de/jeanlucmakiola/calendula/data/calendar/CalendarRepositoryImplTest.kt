@@ -22,6 +22,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.time.Instant
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.nio.file.Path
 
@@ -642,7 +643,12 @@ class CalendarRepositoryImplTest {
             end = LocalDateTime(LocalDate(2026, 6, 12), LocalTime(10, 0)),
         )
 
-        val id = repo.updateOccurrence(eventId = 42L, beginMillis = 1_000L, form = form)
+        val id = repo.updateOccurrence(
+            eventId = 42L,
+            beginMillis = 1_000L,
+            original = form,
+            form = form,
+        )
 
         assertThat(id).isEqualTo(88L)
         assertThat(fake.updatedOccurrences).containsExactly(Triple(42L, 1_000L, form))
@@ -820,6 +826,57 @@ class CalendarRepositoryImplTest {
         assertThat(summary.imported).isEqualTo(2)
         assertThat(summary.failed).isEqualTo(1)
         assertThat(fake.importedEvents.map { it.first.uid }).containsExactly("a@x", "c@x")
+    }
+
+    @Test
+    fun `importEvents stops at a permission failure and reports what landed`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        // The permission or the target calendar is gone, so every remaining insert
+        // would fail the same way. Counted per event, the screen reported "N events
+        // couldn't be added" for a file it never had a chance at; thrown, it
+        // reported that nothing landed — and since only events carrying a UID dedup,
+        // the retry that invites duplicated everything that already had.
+        val fake = FakeCalendarDataSource().apply {
+            importsBeforeError = 2
+            writeError = SecurityException("WRITE_CALENDAR revoked")
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+
+        val summary = repo.importEvents(
+            targetCalendarId = 3L,
+            events = List(5) { parsedEvent("e$it@x") },
+        )
+
+        assertThat(summary.imported).isEqualTo(2)
+        // The one that threw and the two never reached.
+        assertThat(summary.notAttempted).isEqualTo(3)
+        assertThat(summary.failed).isEqualTo(0)
+    }
+
+    @Test
+    fun `a stopped import does not count known duplicates as work left to do`(
+        @TempDir tempDir: Path,
+    ) = runTest {
+        // The remainder is not all work: a UID already in the calendar would have
+        // been skipped whatever happened, so counting it against a retry
+        // overstates how much of the file is missing.
+        val fake = FakeCalendarDataSource().apply {
+            existingUidsResult = setOf("e3@x", "e4@x")
+            importsBeforeError = 1
+            writeError = SecurityException("WRITE_CALENDAR revoked")
+        }
+        val repo = CalendarRepositoryImpl(fake, newPrefs(tempDir), newSettings(tempDir), Dispatchers.Unconfined)
+
+        val summary = repo.importEvents(
+            targetCalendarId = 3L,
+            events = List(5) { parsedEvent("e$it@x") },
+        )
+
+        assertThat(summary.imported).isEqualTo(1)
+        // e1 threw and e2 was never reached; e3 and e4 were duplicates either way.
+        assertThat(summary.notAttempted).isEqualTo(2)
+        assertThat(summary.skippedDuplicate).isEqualTo(2)
     }
 
     @Test

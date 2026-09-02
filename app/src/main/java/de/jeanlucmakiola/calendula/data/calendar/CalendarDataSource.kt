@@ -261,11 +261,13 @@ interface CalendarDataSource {
      * without gets the occurrence excluded from the parent via EXDATE plus a
      * standalone event carrying the edits — an exception cannot link to its
      * parent there (Codeberg #234, the same constraint as [deleteOccurrence]).
-     * [allDayReminderTimeMinutes]: see [insertEvent].
+     * A row that turns out not to recur at all is edited whole, which is what
+     * [original] is for. [allDayReminderTimeMinutes]: see [insertEvent].
      */
     fun updateOccurrence(
         eventId: Long,
         beginMillis: Long,
+        original: EventForm,
         form: EventForm,
         allDayReminderTimeMinutes: Int,
     ): Long
@@ -878,7 +880,17 @@ class AndroidCalendarDataSource @Inject constructor(
                 put(CalendarContract.Reminders.MINUTES, providerMinutes)
                 put(CalendarContract.Reminders.METHOD, CalendarContract.Reminders.METHOD_ALERT)
             }
-            if (resolver.insert(CalendarContract.Reminders.CONTENT_URI, reminder) == null) {
+            // The event row is already in. A reminder that won't attach costs
+            // that one alarm, not the event: throwing here would have the import
+            // count an event it did create as failed, and the retry would then
+            // skip it as a duplicate.
+            val attached = try {
+                resolver.insert(CalendarContract.Reminders.CONTENT_URI, reminder)
+            } catch (e: Exception) {
+                Log.w(TAG, "Reminder insert threw for imported event $eventId", e)
+                null
+            }
+            if (attached == null) {
                 Log.w(TAG, "Failed to attach reminder ($minutes min) to imported event $eventId")
             }
         }
@@ -1222,14 +1234,20 @@ class AndroidCalendarDataSource @Inject constructor(
     override fun updateOccurrence(
         eventId: Long,
         beginMillis: Long,
+        original: EventForm,
         form: EventForm,
         allDayReminderTimeMinutes: Int,
     ): Long {
         val row = querySeriesRow(eventId)
-        // Stricter than deleteOccurrence's bare _sync_id check: EXDATE only means
-        // something on a row that recurs, so a non-recurring one keeps the
-        // exception path rather than getting a recurrence set written onto it.
-        if (row.syncId == null && !row.rrule.isNullOrBlank()) {
+        // Not a series, so there is no occurrence to single out: the row *is* the
+        // event, and an exception with nothing to be an exception to would leave
+        // an orphan holding the edit (the same test deleteOccurrence makes).
+        if (!row.recurs) {
+            updateEvent(eventId, original, form, allDayReminderTimeMinutes)
+            return eventId
+        }
+        // EXDATE needs no _sync_id; a modified exception does.
+        if (row.syncId == null) {
             return detachOccurrence(eventId, beginMillis, row, form, allDayReminderTimeMinutes)
         }
         // The provider clones the series row and applies these values on top.
@@ -1285,7 +1303,7 @@ class AndroidCalendarDataSource @Inject constructor(
         // Already detached (or deleted) from a stale screen still pointing at the
         // parent: the EXDATE merge would fold the repeat away and still report a
         // changed row, quietly leaving a *second* standalone copy.
-        if (exdateContains(row.exdate, beginMillis, isAllDay = row.allDay != 0)) {
+        if (exdateContains(row.exdate, beginMillis, row.allDay != 0, row.timezone)) {
             throw NoSuchEventException(eventId)
         }
         // Reminders, guests and colour come along like any new event, and so does
@@ -1297,6 +1315,7 @@ class AndroidCalendarDataSource @Inject constructor(
             occurrenceMillis = beginMillis,
             dtStartMillis = row.dtStartMillis,
             rrule = row.rrule,
+            rdate = row.rdate,
             duration = row.duration,
             timezone = row.timezone,
             allDay = row.allDay,
@@ -1381,7 +1400,12 @@ class AndroidCalendarDataSource @Inject constructor(
         // exclusion means nothing on a row that doesn't recur.
         if (updated.rrule.isNullOrBlank()) return
         val carried = shiftedExdate(
-            existingExdate = exdateAfter(parent.exdate, beginMillis, original.isAllDay),
+            existingExdate = exdateAfter(
+                parent.exdate,
+                beginMillis,
+                original.isAllDay,
+                parent.timezone,
+            ),
             original = original,
             updated = updated,
             zone = ZoneId.systemDefault(),
@@ -1461,6 +1485,7 @@ class AndroidCalendarDataSource @Inject constructor(
             CalendarContract.Events.ALL_DAY,
             CalendarContract.Events._SYNC_ID,
             CalendarContract.Events.EXDATE,
+            CalendarContract.Events.RDATE,
         ),
         null, null, null,
     )?.use { c ->
@@ -1473,6 +1498,7 @@ class AndroidCalendarDataSource @Inject constructor(
                 allDay = c.getInt(4),
                 syncId = c.getString(5),
                 exdate = c.getString(6),
+                rdate = c.getString(7),
             )
         } else {
             null
@@ -1488,7 +1514,16 @@ class AndroidCalendarDataSource @Inject constructor(
         /** Null on a local calendar (and before a synced event's first push). */
         val syncId: String? = null,
         val exdate: String? = null,
+        val rdate: String? = null,
     ) {
+        /**
+         * Whether this row expands into more than itself. RDATE counts as much as
+         * RRULE: a sync adapter may list the occurrences instead of naming a rule,
+         * and the provider expands either — as does the read side, which marks
+         * such a row recurring too.
+         */
+        val recurs: Boolean get() = !rrule.isNullOrBlank() || !rdate.isNullOrBlank()
+
         /** UNTIL cutoff for ending the series before the occurrence at [beginMillis]. */
         fun truncationCutoff(beginMillis: Long): Long = previousLocalDayEndUtcMillis(
             beginMillis = beginMillis,
@@ -1679,6 +1714,12 @@ class AndroidCalendarDataSource @Inject constructor(
 
     override fun deleteOccurrence(eventId: Long, beginMillis: Long) {
         val row = querySeriesRow(eventId)
+        // Not a series, so the row *is* the event: an exclusion would put a
+        // recurrence set on a one-off, an exception would leave an orphan.
+        if (!row.recurs) {
+            deleteEvent(eventId)
+            return
+        }
         if (row.syncId == null) {
             // No _sync_id — a local calendar, or a synced event not pushed yet.
             // A cancelled exception can only attach to its parent through
@@ -1692,6 +1733,7 @@ class AndroidCalendarDataSource @Inject constructor(
                 occurrenceMillis = beginMillis,
                 dtStartMillis = row.dtStartMillis,
                 rrule = row.rrule,
+                rdate = row.rdate,
                 duration = row.duration,
                 timezone = row.timezone,
                 allDay = row.allDay,
