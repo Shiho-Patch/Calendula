@@ -165,4 +165,36 @@ class IcsParserTest {
         assertThat(result.events.map { it.uid }).containsExactly("good")
         assertThat(result.warnings).contains(IcsParseWarning.EventWithoutStartSkipped)
     }
+
+    @Test
+    fun `round-trips a timed series' deleted occurrences`() {
+        val event = IcsEvent(
+            uid = "u20@calendula",
+            summary = "Weekly",
+            start = instantUtc(2026, 6, 18, 13, 0),
+            end = instantUtc(2026, 6, 18, 13, 30),
+            isAllDay = false,
+            zoneId = "UTC",
+            recurrenceRule = "FREQ=WEEKLY",
+            exDates = listOf("20260625T130000Z"),
+        )
+
+        assertThat(roundTrip(event).exDates).containsExactly("20260625T130000Z")
+    }
+
+    @Test
+    fun `round-trips an all-day series' deleted occurrences`() {
+        val event = IcsEvent(
+            uid = "u21@calendula",
+            summary = "Holiday",
+            start = LocalDate(2026, 6, 18).atStartOfDayIn(TimeZone.UTC),
+            end = LocalDate(2026, 6, 19).atStartOfDayIn(TimeZone.UTC),
+            isAllDay = true,
+            zoneId = "UTC",
+            recurrenceRule = "FREQ=YEARLY",
+            exDates = listOf("20270618"),
+        )
+
+        assertThat(roundTrip(event).exDates).containsExactly("20270618")
+    }
 }

@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import de.jeanlucmakiola.calendula.data.calendar.CalendarDataSource
+import de.jeanlucmakiola.calendula.data.calendar.withoutProviderDefaults
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.ReminderStatePrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
@@ -90,7 +91,8 @@ class ReminderScanner @Inject constructor(
         val occurrences = source.occurrences(now - PAST_WINDOW_MILLIS, now + lookahead)
         val planned = planReminders(
             instances = occurrences,
-            minutesByEvent = source.reminderMinutes(occurrences.map { it.eventId }),
+            minutesByEvent = source.reminderMinutes(occurrences.map { it.eventId })
+                .withoutProviderDefaults(),
             zone = ZoneId.systemDefault(),
             allDayTimeMinutes = settingsPrefs.allDayReminderTimeMinutes.first(),
         )

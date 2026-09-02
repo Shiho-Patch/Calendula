@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
+import android.provider.CalendarContract
 import com.google.common.truth.Truth.assertThat
 import kotlin.time.Instant
 import org.junit.jupiter.api.Test
@@ -17,6 +18,7 @@ class InstanceMapperTest {
         eventColor: Any? = null,
         calendarColor: Int = 0xFFAABBCC.toInt(),
         location: String? = null,
+        selfAttendeeStatus: Int = CalendarContract.Attendees.ATTENDEE_STATUS_NONE,
     ): MapColumnReader = MapColumnReader(
         InstanceProjection.IDX_INSTANCE_ID to instanceId,
         InstanceProjection.IDX_EVENT_ID to eventId,
@@ -28,6 +30,7 @@ class InstanceMapperTest {
         InstanceProjection.IDX_EVENT_COLOR to eventColor,
         InstanceProjection.IDX_CALENDAR_COLOR to calendarColor,
         InstanceProjection.IDX_LOCATION to location,
+        InstanceProjection.IDX_SELF_ATTENDEE_STATUS to selfAttendeeStatus,
     )
 
     @Test
@@ -89,5 +92,21 @@ class InstanceMapperTest {
     fun `location passes through when present`() {
         val inst = reader(location = "Berlin").toEventInstance()
         assertThat(inst!!.location).isEqualTo("Berlin")
+    }
+
+    @Test
+    fun `a declined invitation is marked, any other answer is not`() {
+        assertThat(reader().toEventInstance()!!.isDeclined).isFalse()
+        assertThat(
+            reader(selfAttendeeStatus = CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED)
+                .toEventInstance()!!.isDeclined,
+        ).isTrue()
+        listOf(
+            CalendarContract.Attendees.ATTENDEE_STATUS_ACCEPTED,
+            CalendarContract.Attendees.ATTENDEE_STATUS_TENTATIVE,
+            CalendarContract.Attendees.ATTENDEE_STATUS_INVITED,
+        ).forEach { status ->
+            assertThat(reader(selfAttendeeStatus = status).toEventInstance()!!.isDeclined).isFalse()
+        }
     }
 }

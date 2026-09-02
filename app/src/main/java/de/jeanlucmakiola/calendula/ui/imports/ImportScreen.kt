@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -93,15 +94,11 @@ fun ImportScreen(
     }
 
     // Hoisted target calendar so the always-visible top-bar Import action can
-    // read it without the user scrolling to a bottom button. Defaults to the
-    // first *local* calendar — the first row the picker shows ("Your calendars"
-    // group leads) — so the pre-selection lines up with the top of the list;
-    // falls back to the first calendar if there are no local ones. Re-defaults
-    // when the "many" list first arrives (keyed on it), then holds the pick.
+    // read it without the user scrolling to a bottom button (see
+    // [defaultImportTarget] for the choice). Re-defaults when the "many" list
+    // first arrives (keyed on it), then holds the pick.
     val many = state as? ImportUiState.Many
-    val defaultTarget = many?.calendars?.let { cals ->
-        (cals.firstOrNull { it.isLocal } ?: cals.firstOrNull())?.id
-    }
+    val defaultTarget = many?.let { defaultImportTarget(it.calendars, it.fileCalendarName) }
     var selected by rememberSaveable(defaultTarget) { mutableStateOf(defaultTarget) }
 
     Scaffold(
@@ -223,6 +220,10 @@ private fun DoneContent(state: ImportUiState.Done, onClose: () -> Unit) {
         )
     }
 
+    // Part of the file never reached the calendar, so the screen doesn't get to
+    // read as a plain success.
+    val stopped = state.summary.notAttempted > 0
+
     Column(
         Modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -236,28 +237,64 @@ private fun DoneContent(state: ImportUiState.Done, onClose: () -> Unit) {
                     scaleY = badgeScale.value
                 }
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
+                .background(
+                    if (stopped) {
+                        MaterialTheme.colorScheme.errorContainer
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer
+                    },
+                ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                Icons.Default.Check,
+                if (stopped) Icons.Default.PriorityHigh else Icons.Default.Check,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                tint = if (stopped) {
+                    MaterialTheme.colorScheme.onErrorContainer
+                } else {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                },
                 modifier = Modifier.size(56.dp),
             )
         }
         Spacer(Modifier.height(24.dp))
         Text(
-            stringResource(R.string.import_done_title),
+            stringResource(
+                if (stopped) R.string.import_done_stopped_title else R.string.import_done_title,
+            ),
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
         )
+        if (state.summary.failed > 0) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.import_done_failed_note),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
         if (state.summary.skippedDuplicate > 0) {
             Spacer(Modifier.height(8.dp))
             Text(
                 stringResource(R.string.import_done_dedup_note),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
+        // The one note that isn't about individual events: the counts below cover
+        // the part of the file that was tried, so say how much never was.
+        if (stopped) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                pluralStringResource(
+                    R.plurals.import_done_stopped,
+                    state.summary.notAttempted,
+                    state.summary.notAttempted,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
                 textAlign = TextAlign.Center,
             )
         }
@@ -290,6 +327,19 @@ private fun DoneContent(state: ImportUiState.Done, onClose: () -> Unit) {
                     onContainer = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (state.summary.failed > 0) {
+                ImportStatCard(
+                    count = state.summary.failed,
+                    label = stringResource(R.string.import_done_failed_label),
+                    contentDescription = pluralStringResource(
+                        R.plurals.import_done_failed,
+                        state.summary.failed,
+                        state.summary.failed,
+                    ),
+                    container = MaterialTheme.colorScheme.errorContainer,
+                    onContainer = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
         }
         Spacer(Modifier.weight(1f))
         Button(
@@ -301,7 +351,7 @@ private fun DoneContent(state: ImportUiState.Done, onClose: () -> Unit) {
     }
 }
 
-/** A big-number tonal tile summarising one import outcome (added / skipped). */
+/** A big-number tonal tile summarising one import outcome (added / skipped / failed). */
 @Composable
 private fun RowScope.ImportStatCard(
     count: Int,
@@ -343,6 +393,9 @@ private fun WarningText(warning: IcsParseWarning) {
         IcsParseWarning.EventWithoutStartSkipped -> stringResource(R.string.import_warning_no_start)
         IcsParseWarning.AttendeesIgnored -> stringResource(R.string.import_warning_attendees)
         IcsParseWarning.UnknownTimezone -> stringResource(R.string.import_warning_timezone)
+        IcsParseWarning.TasksImportedAsEvents -> stringResource(R.string.import_warning_tasks)
+        IcsParseWarning.RecurrenceRuleRepaired ->
+            stringResource(R.string.import_warning_recurrence_repaired)
     }
     Text(
         text = text,

@@ -63,6 +63,12 @@ private const val MINUTES_PER_DAY = 1_440
  * for *which day* it means ([allDayLeadDays]) and take the hour from
  * [allDayTimeMinutes], recomposed against each occurrence's own date in [zone].
  * Duplicate offsets in [minutesByEvent] collapse.
+ *
+ * Every offset given is planned. The provider's "use the account default"
+ * sentinel names a lead time no reader can resolve, and is translated out on the
+ * way in
+ * ([de.jeanlucmakiola.calendula.data.calendar.withoutProviderDefaults]) — taken
+ * as an offset it would arm an alarm a minute after the event began.
  */
 fun planReminders(
     instances: List<ReminderEventInstance>,
@@ -70,17 +76,19 @@ fun planReminders(
     zone: ZoneId,
     allDayTimeMinutes: Int,
 ): List<PlannedReminder> = instances.flatMap { instance ->
-    minutesByEvent[instance.eventId].orEmpty().distinct().map { minutes ->
-        PlannedReminder(
-            instance = instance,
-            minutes = minutes,
-            alarmMillis = if (instance.isAllDay) {
-                allDayAlarmMillis(instance.beginMillis, minutes, zone, allDayTimeMinutes)
-            } else {
-                instance.beginMillis - minutes * MILLIS_PER_MINUTE
-            },
-        )
-    }
+    minutesByEvent[instance.eventId].orEmpty()
+        .distinct()
+        .map { minutes ->
+            PlannedReminder(
+                instance = instance,
+                minutes = minutes,
+                alarmMillis = if (instance.isAllDay) {
+                    allDayAlarmMillis(instance.beginMillis, minutes, zone, allDayTimeMinutes)
+                } else {
+                    instance.beginMillis - minutes * MILLIS_PER_MINUTE
+                },
+            )
+        }
 }
 
 /** UTC midnight of an all-day occurrence, as the calendar date it stands for. */

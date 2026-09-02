@@ -22,6 +22,12 @@ data class IcsEvent(
     val zoneId: String,
     /** Bare RRULE value (no `RRULE:` prefix), or null for a one-off event. */
     val recurrenceRule: String? = null,
+    /**
+     * Occurrences deleted from the series, in the provider's `EXDATE` shape —
+     * `yyyyMMdd` for an all-day series, a UTC `yyyyMMddTHHmmssZ` stamp
+     * otherwise. Empty for a one-off event.
+     */
+    val exDates: List<String> = emptyList(),
     val location: String? = null,
     val description: String? = null,
     /** Reminder lead times in minutes before start (raw provider offsets). */

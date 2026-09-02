@@ -7,14 +7,25 @@ import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.number
 import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
+import kotlin.math.ceil
 import kotlin.time.Instant
+
+/** Milliseconds in a calendar day; all-day times are UTC midnights, so this is exact. */
+private const val DAY_MILLIS = 86_400_000L
+private const val MINUTES_PER_DAY = 1_440
 
 /**
  * A `VEVENT` parsed from an `.ics` file — the read-side mirror of [IcsEvent],
  * but [uid] is nullable (an incoming event may carry none; the insert layer
  * then assigns one). Times are absolute instants; [isAllDay]/[zoneId] mirror
  * how the writer encoded them.
+ *
+ * [reminderMinutes] holds raw lead times as the file's `VALARM`s expressed
+ * them — minutes *before* start, so a negative entry means "after start".
+ * [semanticReminderMinutes] turns those into the lead times Calendula models.
  */
 data class ParsedIcsEvent(
     val uid: String?,
@@ -30,7 +41,44 @@ data class ParsedIcsEvent(
     val status: EventStatus = EventStatus.Confirmed,
     val availability: Availability = Availability.Busy,
     val calendarName: String? = null,
+    /** Opaque ARGB the source file gave this event, if any (see [parseIcsColorValue]). */
+    val color: Int? = null,
+    /** Excluded occurrences, already in the provider's `EXDATE` shape. */
+    val exDates: List<String> = emptyList(),
+    /** True when this came from a `VTODO` rather than a `VEVENT`. */
+    val isTask: Boolean = false,
 )
+
+/**
+ * [reminderMinutes] mapped onto Calendula's model: a lead time in minutes before
+ * the event, never negative.
+ *
+ * For a timed event the raw lead time already is that, and a trigger that fires
+ * *after* the start models no lead time at all — it is dropped rather than
+ * clamped, which would invent a reminder at the start the file never asked for
+ * (a legal `TRIGGER:PT30M` follow-up alarm is the case). All-day reminders are
+ * whole days before the event, fired at the user's configured time of day (see
+ * `AllDayReminderEncoding`), so a raw offset counts the whole days its trigger
+ * lands *earlier than* the event's UTC midnight — i.e. it rounds **up**.
+ *
+ * Rounding to the nearest day instead would lose a day for every producer whose
+ * all-day notifications fire after noon: a file's raw offset is
+ * `days × 1440 − timeOfDay`, so "1 day before at 18:00" arrives as
+ * `TRIGGER:-PT6H` (raw 360) and would read as "on the day". Rounding up also
+ * lands Fossify's encoding correctly — it writes "on the day at 09:00" as a
+ * *positive* `TRIGGER:P0DT9H0M0S`, nine hours after the UTC midnight, which
+ * ceils to zero days before.
+ */
+fun ParsedIcsEvent.semanticReminderMinutes(): List<Int> = reminderMinutes
+    .mapNotNull { raw ->
+        if (isAllDay) {
+            ceil(raw.toDouble() / MINUTES_PER_DAY).toInt().coerceAtLeast(0) * MINUTES_PER_DAY
+        } else {
+            raw.takeIf { it >= 0 }
+        }
+    }
+    .distinct()
+    .sorted()
 
 /** Things the parser dropped rather than failing — surfaced in the import report. */
 enum class IcsParseWarning {
@@ -45,6 +93,12 @@ enum class IcsParseWarning {
 
     /** A `TZID` couldn't be resolved against the device tz database (used local zone). */
     UnknownTimezone,
+
+    /** `VTODO` components were imported as events — Calendula has no task model. */
+    TasksImportedAsEvents,
+
+    /** A malformed `RRULE` was repaired or dropped (see [sanitizeRrule]). */
+    RecurrenceRuleRepaired,
 }
 
 data class IcsParseResult(
@@ -52,8 +106,28 @@ data class IcsParseResult(
     val warnings: Set<IcsParseWarning>,
 )
 
-/** Outcome of a bulk `.ics` import into one calendar. */
-data class IcsImportSummary(val imported: Int, val skippedDuplicate: Int)
+/**
+ * Outcome of a bulk `.ics` import into one calendar. [failed] counts events the
+ * provider rejected — the import continues past them, so a single unusable
+ * event can't cost the user the rest of the file.
+ *
+ * [notAttempted] counts what a retry still has to import, because the permission
+ * or the target calendar went away mid-file and every remaining insert would have
+ * failed the same way. Events past that point whose UID is already in the
+ * calendar count under [skippedDuplicate] instead — they were never going to be
+ * added either way. It travels in the summary rather than as an exception so the
+ * counts of what *did* land survive: an import is only idempotent for events that
+ * carry a UID, so a retry told "nothing happened" would duplicate the rest.
+ */
+data class IcsImportSummary(
+    val imported: Int,
+    val skippedDuplicate: Int,
+    val failed: Int = 0,
+    val notAttempted: Int = 0,
+)
+
+/** The non-standard property most exporters name the whole calendar with. */
+private const val CALENDAR_NAME_PROPERTY = "X-WR-CALNAME"
 
 /**
  * Hand-rolled RFC 5545 reader, the inverse of [IcsWriter]. Pure and
@@ -62,6 +136,9 @@ data class IcsImportSummary(val imported: Int, val skippedDuplicate: Int)
  * (`RECURRENCE-ID`, attendees, unresolved `TZID`) are reported as [warnings]
  * rather than silently dropped. `VTIMEZONE` blocks are skipped — a `TZID` is
  * resolved against the OS tz database instead ([deviceZone] is the fallback).
+ *
+ * `VTODO` components are read as all-day/timed events: Calendula models no
+ * tasks, and dropping them would silently lose half of some exports.
  */
 class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault()) {
 
@@ -69,42 +146,57 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
         val lines = unfoldLines(text)
         val events = mutableListOf<ParsedIcsEvent>()
         val warnings = mutableSetOf<IcsParseWarning>()
-        var calendarName: String? = null
+        // Scanned up front, not in document order: an X-WR-CALNAME after the
+        // first VEVENT still names the calendar. The cheap prefix test first,
+        // so a file without one doesn't pay a full parse to find nothing.
+        val calendarName = lines.asSequence()
+            .filter { it.startsWith(CALENDAR_NAME_PROPERTY, ignoreCase = true) }
+            .mapNotNull(::parseContentLine)
+            .firstOrNull { it.name == CALENDAR_NAME_PROPERTY }
+            ?.let { unescapeText(it.value).trim().ifEmpty { null } }
 
         var i = 0
         while (i < lines.size) {
             val line = parseContentLine(lines[i])
             if (line == null) { i++; continue }
+            val component = when {
+                line.isBegin("VEVENT") -> "VEVENT"
+                line.isBegin("VTODO") -> "VTODO"
+                else -> null
+            }
             when {
-                line.isBegin("VEVENT") -> {
-                    val end = indexOfEnd(lines, i + 1, "VEVENT")
-                    parseVevent(lines.subList(i + 1, end), calendarName, warnings)
-                        ?.let(events::add)
+                component != null -> {
+                    val end = indexOfEnd(lines, i + 1, component)
+                    parseComponent(
+                        body = lines.subList(i + 1, end),
+                        fileCalendarName = calendarName,
+                        warnings = warnings,
+                        isTask = component == "VTODO",
+                    )?.let(events::add)
                     i = end + 1
                 }
                 line.isBegin("VTIMEZONE") -> {
                     // Skipped wholesale; TZIDs resolve against the OS tz database.
                     i = indexOfEnd(lines, i + 1, "VTIMEZONE") + 1
                 }
-                line.name == "X-WR-CALNAME" -> {
-                    calendarName = unescapeText(line.value).trim().ifEmpty { null }
-                    i++
-                }
                 else -> i++
             }
         }
+        if (events.any { it.isTask }) warnings.add(IcsParseWarning.TasksImportedAsEvents)
         return IcsParseResult(events, warnings)
     }
 
-    private fun parseVevent(
+    private fun parseComponent(
         body: List<String>,
         fileCalendarName: String?,
         warnings: MutableSet<IcsParseWarning>,
+        isTask: Boolean,
     ): ParsedIcsEvent? {
         var uid: String? = null
         var summary = ""
         var dtStart: IcsDateTime? = null
         var dtEnd: IcsDateTime? = null
+        var due: IcsDateTime? = null
         var duration: String? = null
         var rrule: String? = null
         var location: String? = null
@@ -112,7 +204,11 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
         var status = EventStatus.Confirmed
         var availability = Availability.Busy
         var calendarName = fileCalendarName
+        var category: String? = null
+        var eventColor: Int? = null
+        var calendarColor: Int? = null
         val reminders = mutableListOf<Int>()
+        val exDateLines = mutableListOf<IcsContentLine>()
         var skipAsOverride = false
 
         var i = 0
@@ -129,9 +225,11 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
                 "UID" -> uid = line.value.trim().ifEmpty { null }
                 "SUMMARY" -> summary = unescapeText(line.value)
                 "DTSTART" -> dtStart = parseIcsDateTime(line, warnings)
+                "DUE" -> if (isTask) due = parseIcsDateTime(line, warnings)
                 "DTEND" -> dtEnd = parseIcsDateTime(line, warnings)
                 "DURATION" -> duration = line.value.trim()
                 "RRULE" -> rrule = line.value.trim().ifEmpty { null }
+                "EXDATE" -> exDateLines.add(line)
                 "LOCATION" -> location = unescapeText(line.value).ifEmpty { null }
                 "DESCRIPTION" -> description = unescapeText(line.value).ifEmpty { null }
                 "STATUS" -> status = mapIcsStatus(line.value)
@@ -142,6 +240,19 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
                 "ATTENDEE" -> warnings.add(IcsParseWarning.AttendeesIgnored)
                 "X-CALENDULA-CALENDAR" ->
                     calendarName = unescapeText(line.value).trim().ifEmpty { calendarName }
+                // Fossify names the source calendar per event; it never writes
+                // an X-WR-CALNAME, so this is the only calendar label its files
+                // carry. Elsewhere CATEGORIES is a plain tag list, so it only
+                // stands in where nothing named the calendar outright.
+                "CATEGORIES" -> category = singleCategory(line.value) ?: category
+                // Per-event colour, most specific encoding first (see parseIcsColorValue).
+                "X-FOSSIFY-EVENT-COLOR", "X-SMT-EVENT-COLOR" ->
+                    eventColor = parseIcsColorValue(line.value) ?: eventColor
+                "COLOR" -> eventColor = eventColor ?: parseIcsColorValue(line.value)
+                // The *calendar's* colour. Kept as a fallback so a migration that
+                // folds several source calendars into one keeps them apart visually.
+                "X-FOSSIFY-CATEGORY-COLOR", "X-SMT-CATEGORY-COLOR", "CATEGORY_COLOR" ->
+                    calendarColor = parseIcsColorValue(line.value) ?: calendarColor
             }
             i++
         }
@@ -150,37 +261,125 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
             warnings.add(IcsParseWarning.ModifiedOccurrenceSkipped)
             return null
         }
+        // Most producers give a VTODO only a DUE, which is then the moment the
+        // task sits at. One that carries a DTSTART too means the span between
+        // them, so DUE stands in for the end it has no DTEND for. Resolved after
+        // the sweep rather than inside it: property order isn't guaranteed, and
+        // a DUE ahead of the DTSTART would otherwise be taken for the start.
+        if (isTask && due != null) {
+            if (dtStart == null) dtStart = due else if (dtEnd == null) dtEnd = due
+        }
         val start = dtStart ?: run {
             warnings.add(IcsParseWarning.EventWithoutStartSkipped)
             return null
         }
-        val end = dtEnd
-            ?: duration?.let {
-                start.copy(
-                    instant = Instant.fromEpochMilliseconds(
-                        start.instant.toEpochMilliseconds() + parseRfc2445DurationMillis(it),
-                    ),
-                )
-            }
-            ?: start
+        val recurrence = sanitizeRrule(rrule)
+        if (recurrence.repaired) warnings.add(IcsParseWarning.RecurrenceRuleRepaired)
+        val end = resolveEnd(start, dtEnd, duration)
         return ParsedIcsEvent(
             uid = uid,
             summary = summary,
             start = start.instant,
-            end = end.instant,
+            end = end,
             isAllDay = start.isAllDay,
             zoneId = start.zoneId,
-            recurrenceRule = rrule,
+            recurrenceRule = recurrence.rule,
             location = location,
             description = description,
             reminderMinutes = reminders.distinct(),
             status = status,
             availability = availability,
-            calendarName = calendarName,
+            calendarName = calendarName ?: category,
+            color = eventColor ?: calendarColor,
+            exDates = if (recurrence.rule == null) {
+                emptyList()
+            } else {
+                normalizeExDates(exDateLines, start)
+            },
+            isTask = isTask,
         )
     }
 
-    /** A VALARM's lead time in minutes before start, or null if not a usable relative trigger. */
+    /**
+     * The event's end instant.
+     *
+     * All-day events get two RFC 5545 §3.6.1 rules applied that a literal read
+     * would miss: a `DATE`-valued `DTSTART` with no `DTEND` lasts one day, and —
+     * since the provider expands a zero-length all-day series into no instances
+     * at all — an all-day event may never end at or before it starts.
+     */
+    private fun resolveEnd(
+        start: IcsDateTime,
+        dtEnd: IcsDateTime?,
+        duration: String?,
+    ): Instant {
+        val explicit = dtEnd?.instant ?: duration?.let {
+            Instant.fromEpochMilliseconds(
+                start.instant.toEpochMilliseconds() + parseRfc2445DurationMillis(it),
+            )
+        }
+        if (!start.isAllDay) return explicit ?: start.instant
+        return explicit?.takeIf { it > start.instant } ?: start.instant.plusDays(1)
+    }
+
+    /**
+     * `EXDATE` values in the shape `Events.EXDATE` wants: `yyyyMMdd` for an
+     * all-day series, a UTC `yyyyMMddTHHmmssZ` stamp otherwise.
+     *
+     * Fossify stores its excluded occurrences as bare day codes and writes them
+     * out that way even for timed series, where the property is then ambiguous.
+     * Such a value is resolved against the series' own time of day, which is
+     * what it meant — its repetitions never move within the day.
+     *
+     * An all-day exclusion names a calendar day, so a zone-qualified DATE-TIME
+     * still means the day it spells out; resolving it to an instant first and
+     * reading *that* back in UTC would roll a midnight east of UTC onto the day
+     * before and exclude an occurrence that doesn't exist.
+     */
+    private fun normalizeExDates(lines: List<IcsContentLine>, start: IcsDateTime): List<String> {
+        if (lines.isEmpty()) return emptyList()
+        val startZone = runCatching { TimeZone.of(start.zoneId) }.getOrNull() ?: deviceZone
+        val startTime = start.instant.toLocalDateTime(startZone).time
+        return lines
+            .flatMap { line -> line.value.split(',').map { line to it.trim() } }
+            .mapNotNull { (line, token) ->
+                when {
+                    token.isEmpty() -> null
+                    start.isAllDay -> parseBasicDate(token.substringBefore('T'))?.let(::dayCode)
+                    token.contains('T') -> parseExDateTime(token, line, startZone)?.let(::utcStamp)
+                    else -> parseBasicDate(token)
+                        ?.let { utcStamp(LocalDateTime(it, startTime).toInstant(startZone)) }
+                }
+            }
+            .distinct()
+    }
+
+    /**
+     * [startZone] is the series' own zone, which a floating value (no `Z`, no
+     * `TZID`) has to be read in — RFC 5545 ties `EXDATE` to `DTSTART`'s form,
+     * and reading it in the device's zone instead would put the exclusion on an
+     * instant no occurrence has.
+     */
+    private fun parseExDateTime(
+        token: String,
+        line: IcsContentLine,
+        startZone: TimeZone,
+    ): Instant? {
+        val ldt = parseBasicDateTime(token.removeSuffix("Z")) ?: return null
+        val zone = when {
+            token.endsWith("Z") -> TimeZone.UTC
+            else -> line.params["TZID"]?.let { runCatching { TimeZone.of(it) }.getOrNull() }
+                ?: startZone
+        }
+        return ldt.toInstant(zone)
+    }
+
+    /**
+     * A `VALARM`'s offset from the event start, in minutes *before* it — so a
+     * trigger that fires after the start (which is how the Fossify family
+     * encodes "on the day at 09:00") comes back negative. Null when the trigger
+     * isn't a usable relative offset.
+     */
     private fun parseAlarmMinutes(body: List<String>): Int? {
         val trigger = body.asSequence()
             .mapNotNull { parseContentLine(it) }
@@ -189,8 +388,7 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
         // Absolute (DATE-TIME) triggers can't be expressed as a lead time.
         if (trigger.params["VALUE"].equals("DATE-TIME", true)) return null
         val millis = parseRfc2445DurationMillis(trigger.value)
-        // Negative = before start (the normal case) → positive lead minutes.
-        return (-millis / 60_000L).toInt().coerceAtLeast(0)
+        return (-millis / 60_000L).toInt()
     }
 
     private fun parseIcsDateTime(line: IcsContentLine, warnings: MutableSet<IcsParseWarning>): IcsDateTime? {
@@ -217,6 +415,34 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
     private companion object {
         fun IcsContentLine.isBegin(component: String) =
             name == "BEGIN" && value.trim().equals(component, true)
+
+        fun Instant.plusDays(days: Int): Instant =
+            Instant.fromEpochMilliseconds(toEpochMilliseconds() + days * DAY_MILLIS)
+
+        fun dayCode(date: LocalDate): String =
+            "%04d%02d%02d".format(date.year, date.month.number, date.day)
+
+        fun utcStamp(instant: Instant): String = with(instant.toLocalDateTime(TimeZone.UTC)) {
+            "%04d%02d%02dT%02d%02d%02dZ".format(year, month.number, day, hour, minute, second)
+        }
+
+        /**
+         * A single-valued `CATEGORIES`, which is what the Fossify family writes
+         * for the source calendar's name. A multi-item list is a tag list and
+         * names no calendar, so it is ignored.
+         */
+        fun singleCategory(raw: String): String? {
+            var escaped = false
+            for (c in raw) {
+                when {
+                    escaped -> escaped = false
+                    c == '\\' -> escaped = true
+                    c == ',' -> return null
+                }
+            }
+            return unescapeText(raw).trim()
+                .takeIf { it.isNotEmpty() && !it.equals("null", true) }
+        }
 
         /** Index of the matching `END:<component>` at/after [from], or list end. */
         fun indexOfEnd(lines: List<String>, from: Int, component: String): Int {

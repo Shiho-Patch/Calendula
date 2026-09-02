@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
+import android.provider.CalendarContract
 import de.jeanlucmakiola.floret.time.toKotlinInstantFromEpochMillis
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.ics.parseRfc2445DurationMillis
@@ -42,5 +43,7 @@ internal fun ColumnReader.toSearchResult(): EventInstance? {
         location = getString(SearchProjection.IDX_LOCATION),
         isRecurring = !getString(SearchProjection.IDX_RRULE).isNullOrEmpty() ||
             !getString(SearchProjection.IDX_RDATE).isNullOrEmpty(),
+        isDeclined = getInt(SearchProjection.IDX_SELF_ATTENDEE_STATUS) ==
+            CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED,
     )
 }

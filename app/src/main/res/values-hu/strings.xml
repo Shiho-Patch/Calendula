@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="backup_interval_units">
+        <item>Minutes</item>
+        <item>Hours</item>
+        <item>Days</item>
+        <item>Weeks</item>
+    </string-array>
+    <string name="app_name">Calendula</string>
+    <string name="app_tagline">Egy modern naptár.</string>
+    <string name="state_loading">Töltés…</string>
+    <string name="state_retry">Újra</string>
+    <string name="state_failure_unknown">Hiba történt.</string>
+    <string name="state_failure_permission">Naptár hozzáférés szükséges.</string>
+    <string name="state_failure_permission_action">Hozzáférés engedélyezése</string>
+    <string name="state_failure_no_calendars">Nincs naptár beállítva.</string>
+    <string name="state_failure_no_calendars_action">Rendszernaptár beállítások megnyitása</string>
+    <string name="state_failure_provider">A naptárat nem lehetett beolvasni.</string>
+    <string name="permission_rationale_title">Lásd az eseményeid, szépen</string>
+    <string name="permission_rationale_body">A Calendula alkalmazásnak hozzáférésre van szüksége a naptáradhoz az események megjelenítéséhez és kezeléséhez.</string>
+    <string name="permission_request_button">Naptár hozzáférés engedélyezése</string>
+    <string name="permission_denied_title">Naptár hozzáférés megtagadva</string>
+    <string name="permission_denied_body">A Calendula nem tud eseményeket megjeleníteni naptár-hozzáférés nélkül. Ezt a jogosultságot a rendszerbeállításokban adhatja meg újra.</string>
+    <string name="permission_open_settings_button">Rendszerbeállítások megnyitása</string>
+    <string name="permission_retry_button">Próbáld újra</string>
+    <string name="permission_benefit_private_title">Eleve privát</string>
+    <string name="permission_benefit_private_body">Nem kell internetelérés, nincs telemetria — semmi sem hagyja el a telefonod.</string>
+    <string name="permission_benefit_sync_title">Az összes naptárad, egy helyen</string>
+    <string name="permission_benefit_sync_body">Google, CalDAV, helyi — minden, ami szinkronizálva van az eszközzel, egyszerűen megjelenik.</string>
+    <string name="permission_benefit_privacy_body">Nulla telemetria, nulla analitika, nulla hirdetés.</string>
+    <string name="permission_privacy_footnote">Az eszközödön marad · nem kell internetelérés</string>
+    <string name="month_prev">Előző hónap</string>
+    <string name="month_next">Következő hónap</string>
+    <string name="month_today_action">Ma</string>
+    <string name="month_more_actions">További műveletek</string>
+    <string name="month_open_menu">Menü megnyitása</string>
+    <string name="month_action_settings">Beállítások</string>
+    <string name="month_a11y_today_prefix">Ma</string>
+    <string name="week_today_action">Ez a hét</string>
+    <string name="week_number_label">Hét</string>
+    <string name="day_today_action">Ma</string>
+    <string name="event_detail_back">Vissza</string>
+    <string name="event_detail_edit">Szerkeszt</string>
+    <string name="event_detail_delete">Töröl</string>
+    <string name="event_detail_share">Megoszt</string>
+    <string name="event_detail_duplicate">Másolat</string>
+    <string name="event_share_chooser_title">Esemény megosztása</string>
+    <string name="event_share_failed">Ezt az eseményt nem lehet megosztani.</string>
+    <string name="event_delete_title">Esemény törlése?</string>
+    <string name="event_delete_body">Az esemény törlődik a naptárból és minden olyan eszközről, amelyhez szinkronizálódik.</string>
+    <string name="event_delete_recurring_title">Ismétlődő esemény törlése</string>
+    <string name="event_delete_option_occurrence">Csak ezt az eseményt</string>
+    <string name="event_delete_option_following">Ezt és az összes további eseményt</string>
+    <string name="event_delete_option_series">A sorozat összes eseményét</string>
+    <string name="event_edit_recurring_title">Ismétlődő esemény szerkesztése</string>
+    <string name="event_delete_failed">Nem sikerült törölni az eseményt</string>
+    <string name="event_delete_write_denied">A Calendula írási hozzáférést igényel az események törléséhez</string>
+    <string name="event_move_action">Áthelyez…</string>
+    <string name="event_move_recurring_title">Ismétlődő esemény áthelyezése</string>
+    <string name="event_move_occurrence_only">A teljes sorozat áthelyezése megváltoztatná, hogy mely napokra esik, így csak ez az esemény helyezhető át.</string>
+    <string name="event_move_done">Áthelyezve ide: %1$s</string>
+    <string name="event_move_undo">Visszavon</string>
+    <string name="event_move_undone">Visszavont áthelyezése</string>
+    <string name="event_detail_calendar">Naptár</string>
+</resources>

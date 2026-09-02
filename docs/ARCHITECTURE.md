@@ -346,6 +346,101 @@ a latch that disables its own scheduling once a real broadcast arrives — canno
 be copied, because our failure mode includes a broadcast that arrives with no
 alert row behind it.
 
+## Importing foreign `.ics`
+
+`IcsParser` is deliberately liberal, because the files it is handed were written
+by other people's calendars. What that costs us, learned from reading the Simple
+Calendar / Fossify exporter (#225):
+
+**An all-day event may never reach the provider zero days long.** This is what
+#225 was: Fossify mirrors Contacts birthdays and anniversaries with
+`startTS = endTS` (`MainActivity`), so its exporter's `dayCode(endTS + 12h)`
+rounds back to the starting day and writes `DTEND == DTSTART`. Taken literally
+that is a yearly series of zero-length occurrences, which the provider expands
+into no instances at all — the import reports success and the birthdays are
+nowhere. Nothing is logged, because nothing failed. `resolveEnd` floors an
+all-day span at a day (also RFC 5545 §3.6.1, which gives a `DATE` `DTSTART` with
+no `DTEND` a one-day duration) and `buildImportedEventValues` floors an all-day
+`DURATION` at `P1D`.
+
+Do **not** generalise that into correcting the producer's `DTEND` by sniffing its
+`PRODID`. The same exporter is right everywhere else: `Event.endTS` anchors a
+UI-created all-day event at *noon* of its last day
+(`EventActivity.getStartEndTimes`), or at the exclusive midnight when the row
+came from CalDAV, and `+ TWELVE_HOURS` rounds either to the following midnight.
+Shifting those would push every one of them out by a day. The holiday files
+bundled inside Fossify are a second trap: their `PRODID` reads
+`Fossify Calendar Holiday Generator` and their content is plain conformant
+iCalendar. Both that file and a contact-birthday export are kept as fixtures in
+`app/src/test/resources/ics`. Clamp the degenerate case; never rewrite the
+conformant one.
+
+**One bad event must not cost the file.** The provider validates `RRULE` through
+`EventRecurrence.parse`, which *throws* — out of `insert`, not out of a later
+read. That parser works off a fixed table of part names and throws on anything
+outside it, so `sanitizeRrule` is a **whitelist**: unrecognised parts (RFC 7529
+`RSCALE`, vendor `X-` extensions) and unusable values go, and only a missing
+`FREQ` gives up on the rule. It reports whether it actually *dropped* something,
+separately from the rule text it returns — case and a trailing `;` normalise away
+and must not raise the "faulty repeat rule" warning at the user. Behind all that,
+`CalendarRepositoryImpl.importEvents` isolates each event, counting rejects into
+`IcsImportSummary.failed` rather than unwinding the batch and reporting only
+"couldn't read this file".
+
+Smaller dialect handling: `VTODO` components import as events (Calendula models
+no tasks; dropping them silently lost half of some exports), a single-valued
+`CATEGORIES` stands in for the `X-WR-CALNAME` Fossify never writes and preselects
+a target calendar of that name — as a *fallback* only, since everywhere else the
+property is a tag list and must not outrank something that names the calendar
+outright — bare `EXDATE` day codes on a timed series are resolved against the
+series' own time of day (as is a floating `EXDATE` DATE-TIME — RFC 5545 ties it
+to `DTSTART`'s zone, not the device's) while an all-day `EXDATE` keeps the day it
+spells out rather than the day its resolved instant lands on in UTC, and an
+all-day `VALARM` trigger pointing *after* the start — which is how that family
+encodes "on the day at 09:00" — is read as zero days before. On a *timed* event
+the same shape means a follow-up alarm and is dropped: clamping it to zero would
+invent a reminder at the start that the file never asked for.
+
+All-day reminder offsets are **whole days, rounded up** in both directions. A
+file's raw offset is `days × 1440 − timeOfDay`, so rounding to the nearest day
+would drop a day for every producer whose all-day notifications fire after noon
+("1 day before at 18:00" arrives as `TRIGGER:-PT6H`). The export side is the
+mirror image: an all-day row's raw provider `MINUTES` has the firing time encoded
+into it and is normally *negative*, which the writer used to discard as a trigger
+after the event — so `toIcsEvent` decodes it back through
+`fromProviderAllDayMinutes` first, and the importing device re-encodes it against
+its own setting.
+
+**A backup carries the series' deleted occurrences.** `EXDATE` lives on the
+master row, so the export query's `ORIGINAL_ID IS NULL` filter — which does drop
+`RECURRENCE-ID` overrides — never hid it; it simply wasn't read. It is now part
+of `EventExportProjection`, and `IcsWriter` marks an all-day series' exclusions
+`VALUE=DATE`, because RFC 5545 ties `EXDATE`'s value type to `DTSTART`'s and a
+bare day code without it reads as a malformed DATE-TIME. Sync adapters disagree
+on whether an all-day exclusion is `yyyyMMdd` or a padded midnight stamp, so
+`exportExDates` drops the time part on the way out. Without this, an in-app
+backup→restore resurrected every occurrence the user had deleted.
+
+That re-encode is sampled where the reminder will actually *fire*, not at
+`DTSTART` (`importedAllDayReminderDate`). An imported series' `DTSTART` is only an
+anchor and is routinely ancient — Fossify writes a year-less contact birthday at
+1970, and a real birth year is usually older still — from a year whose timezone
+rules predate DST across most of Europe. Sampling the UTC offset there skews every
+modern occurrence by the delta, the same trap `nextYearlyOccurrence` exists for on
+the managed special-dates path. Decoding is unaffected and stays anchored at
+`DTSTART`: it only asks which local *day* the encoded instant falls on.
+
+Colour arrives as a raw ARGB from an app with no idea which account it is landing
+in. A calendar whose account publishes a palette rejects a raw `EVENT_COLOR`, so
+`buildImportedEventValues` snaps the imported colour to the nearest published key
+(`nearestTo`, measured in Oklab) and writes the raw value only where there is no
+palette. The match runs against `publishedEventColors`, **not** the curated
+`eventColorPalette`: curation is a picker concession that folds look-alikes and
+drops the neutrals outright from an oversized palette, but every published key is
+one the calendar accepts. The single-event review form deliberately keeps no colour at all: its
+first question is which calendar to use, and answering it clears the colour
+anyway.
+
 ## Testing
 
 JUnit 5 + Truth + Turbine on the JVM. The seams that make it work:

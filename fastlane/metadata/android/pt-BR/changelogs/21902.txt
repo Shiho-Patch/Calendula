@@ -1,0 +1,8 @@
+Corrigido
+• Tocar em um evento na visualização de mês abre o evento, e não o seu dia.
+• Uma alteração aparece assim que o evento é reaberto.
+• As setas do widget de mês não morrem mais depois de alguns toques: uma atualização grande demais derrubava o host de widgets do launcher.
+• "Hoje" nas semanas contínuas chega exatamente na semana atual, e as visualizações de dia e semana voltaram a ter margem à direita.
+
+Alterações
+• Um evento recusado fica riscado em todo lugar e não lembra mais você.

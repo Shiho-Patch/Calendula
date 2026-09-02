@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="backup_interval_units">
+        <item>Minutes</item>
+        <item>Hours</item>
+        <item>Days</item>
+        <item>Weeks</item>
+    </string-array>
+    <string name="app_tagline">モダンなカレンダー。</string>
+    <string name="state_loading">読み込み中…</string>
+    <string name="state_retry">リトライ</string>
+    <string name="month_today_action">今日</string>
+    <string name="month_action_settings">設定</string>
+    <string name="event_detail_description">説明</string>
+    <string name="event_edit_add_reminder">リマインダーを追加</string>
+    <string name="event_edit_save">保存</string>
+    <string name="event_detail_all_day">終日</string>
+    <string name="view_month">月</string>
+    <string name="view_week">週</string>
+    <string name="view_day">日</string>
+    <string name="settings_section_backup">バックアップと復元</string>
+    <string name="settings_special_dates_type_birthday">誕生日</string>
+    <string name="settings_special_dates_sync_now">今すぐ同期</string>
+    <string name="settings_special_dates_last_synced">最終同期 %1$s</string>
+    <string name="settings_section_notifications">通知</string>
+    <string name="drawer_jump_to_date">日付に移動</string>
+    <string name="state_failure_permission">カレンダーへのアクセス権限が必要です。</string>
+    <string name="permission_rationale_body">Calendulaで予定を表示・管理するには、カレンダーへのアクセス許可が必要です。</string>
+    <string name="permission_request_button">カレンダーへのアクセスを許可</string>
+    <string name="permission_denied_title">カレンダーへのアクセスが拒否されました</string>
+    <string name="permission_denied_body">Calendulaはカレンダーへのアクセス権がないと予定を表示できません。システム設定から再度許可をお願いします。</string>
+    <string name="permission_open_settings_button">システム設定を開く</string>
+    <string name="permission_retry_button">再試行</string>
+    <string name="permission_benefit_private_title">プライバシーを重視した設計</string>
+    <string name="permission_benefit_private_body">インターネットへのアクセス権限は不要で、テレメトリも送信しません。すべてのデータはスマートフォン内に保持されます。</string>
+    <string name="permission_benefit_sync_title">すべてのカレンダーをひとつに</string>
+    <string name="permission_benefit_sync_body">Google、CalDAV、ローカルなど、デバイスに同期されているすべてのカレンダーが自動的に表示されます。</string>
+    <string name="event_detail_delete">削除</string>
+    <string name="event_detail_share">共有</string>
+    <string name="event_detail_duplicate">複製</string>
+    <string name="event_delete_title">予定を削除しますか？</string>
+    <string name="event_delete_body">この予定はカレンダーだけでなく、同期しているすべてのデバイスからも削除されます。</string>
+    <string name="event_delete_recurring_title">定期的な予定を削除</string>
+    <string name="event_delete_option_occurrence">この予定のみ</string>
+    <string name="event_delete_option_following">この予定とそれ以降すべて</string>
+    <string name="event_edit_recurring_title">定期的な予定を編集</string>
+    <string name="event_delete_failed">予定を削除できませんでした</string>
+    <string name="recurrence_unit_years">毎年</string>
+    <string name="reminder_unit_weeks">週</string>
+    <string name="recurrence_unit_weeks">毎週</string>
+    <string name="recurrence_unit_months">毎月</string>
+    <string name="reminder_unit_minutes">分</string>
+    <string name="reminder_unit_hours">時間</string>
+    <string name="reminder_unit_days">日</string>
+    <string name="recurrence_unit_days">毎日</string>
+    <string name="reminder_day_yesterday">前日</string>
+    <string name="settings_section_widgets">ウィジットとタイル</string>
+    <string name="settings_week_start">週の開始日</string>
+    <string name="settings_week_numbers">週番号</string>
+    <string name="settings_theme_light">ライト</string>
+    <string name="settings_theme_dark">ダーク</string>
+    <string name="settings_font_headings">見出しのフォント</string>
+    <string name="settings_font_body">本文のフォント</string>
+    <string name="settings_font_system">システムの標準</string>
+    <string name="settings_font_choose_file">ファイルを選択…</string>
+    <string name="settings_week_start_auto">自動</string>
+    <string name="settings_week_start_auto_summary">現在は %1$s</string>
+    <string name="settings_app_name">アプリの名前</string>
+    <string name="settings_section_language">言語</string>
+    <string name="settings_language">アプリの言語</string>
+    <string name="settings_language_auto">システムの既定</string>
+    <string name="settings_group_app">アプリ</string>
+    <string name="settings_appearance_subtitle">テーマ、カラー、フォント</string>
+    <string name="settings_about_privacy">プライバシーポリシー</string>
+    <string name="settings_about_support">開発を支援する</string>
+    <string name="settings_license">ライセンス</string>
+    <string name="settings_report_problem">問題を報告</string>
+    <string name="settings_title">設定</string>
+    <string name="settings_theme">テーマ</string>
+    <string name="settings_theme_system">システム</string>
+    <string name="settings_dynamic_color">ダイナミックカラー</string>
+</resources>

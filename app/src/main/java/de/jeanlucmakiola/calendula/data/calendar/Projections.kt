@@ -52,6 +52,7 @@ internal object InstanceProjection {
         CalendarContract.Instances.EVENT_COLOR,
         CalendarContract.Instances.CALENDAR_COLOR,
         CalendarContract.Instances.EVENT_LOCATION,
+        CalendarContract.Instances.SELF_ATTENDEE_STATUS,
     )
 
     const val IDX_INSTANCE_ID = 0
@@ -64,6 +65,7 @@ internal object InstanceProjection {
     const val IDX_EVENT_COLOR = 7
     const val IDX_CALENDAR_COLOR = 8
     const val IDX_LOCATION = 9
+    const val IDX_SELF_ATTENDEE_STATUS = 10
 }
 
 internal object EventDetailProjection {
@@ -119,10 +121,12 @@ internal object EventDetailProjection {
 /**
  * Master/one-off Events rows for a whole-calendar backup. Unlike
  * [EventDetailProjection] this reads `UID_2445` (to keep a row's identity across
- * backups) and `DURATION` (recurring rows carry it instead of DTEND). Modified-
+ * backups) and `DURATION` (recurring rows carry it instead of DTEND), plus
+ * `EXDATE` so a series exports the occurrences deleted from it. Modified-
  * occurrence and cancelled-exception rows are filtered out by the query
- * (`ORIGINAL_ID IS NULL`), so RECURRENCE-ID overrides and EXDATEs aren't
- * exported yet — a documented v1 limit (import skips them too).
+ * (`ORIGINAL_ID IS NULL`), so RECURRENCE-ID overrides aren't exported — a
+ * documented v1 limit (import skips them too). EXDATE is unaffected by that
+ * filter: it lives on the master row, not on an exception of its own.
  */
 internal object EventExportProjection {
     val COLUMNS: Array<String> = arrayOf(
@@ -135,6 +139,7 @@ internal object EventExportProjection {
         CalendarContract.Events.ALL_DAY,
         CalendarContract.Events.EVENT_TIMEZONE,
         CalendarContract.Events.RRULE,
+        CalendarContract.Events.EXDATE,
         CalendarContract.Events.EVENT_LOCATION,
         CalendarContract.Events.DESCRIPTION,
         CalendarContract.Events.STATUS,
@@ -151,11 +156,12 @@ internal object EventExportProjection {
     const val IDX_ALL_DAY = 6
     const val IDX_EVENT_TIMEZONE = 7
     const val IDX_RRULE = 8
-    const val IDX_LOCATION = 9
-    const val IDX_DESCRIPTION = 10
-    const val IDX_STATUS = 11
-    const val IDX_AVAILABILITY = 12
-    const val IDX_CALENDAR_ID = 13
+    const val IDX_EXDATE = 9
+    const val IDX_LOCATION = 10
+    const val IDX_DESCRIPTION = 11
+    const val IDX_STATUS = 12
+    const val IDX_AVAILABILITY = 13
+    const val IDX_CALENDAR_ID = 14
 }
 
 /**
@@ -182,6 +188,7 @@ internal object SearchProjection {
         CalendarContract.Events.RDATE,
         // Excerpted, not just filtered on: a hit has to show what it matched.
         CalendarContract.Events.DESCRIPTION,
+        CalendarContract.Events.SELF_ATTENDEE_STATUS,
     )
 
     const val IDX_ID = 0
@@ -197,6 +204,7 @@ internal object SearchProjection {
     const val IDX_RRULE = 10
     const val IDX_RDATE = 11
     const val IDX_DESCRIPTION = 12
+    const val IDX_SELF_ATTENDEE_STATUS = 13
 }
 
 /**

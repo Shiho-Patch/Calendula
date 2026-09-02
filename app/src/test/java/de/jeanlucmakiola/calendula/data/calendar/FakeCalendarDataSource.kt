@@ -23,6 +23,7 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     var searchResult: (String) -> List<SearchCandidate> = { _ -> emptyList() }
     var eventDetailResult: (Long) -> EventDetail? = { null }
     var eventColorPaletteResult: (Long) -> List<EventColorOption> = { emptyList() }
+    var publishedEventColorsResult: (Long) -> List<EventColorOption> = { emptyList() }
     var exportableEventsResult: List<IcsEvent> = emptyList()
     /** The [calendarIds] the last [exportableEvents] call received (null = all). */
     var lastExportableEventsCalendarIds: Set<Long>? = null
@@ -81,7 +82,12 @@ internal class FakeCalendarDataSource : CalendarDataSource {
         eventDetailResult(eventId)
     override fun eventColorPalette(calendarId: Long): List<EventColorOption> =
         eventColorPaletteResult(calendarId)
-    override fun exportableEvents(calendarIds: Set<Long>?): List<IcsEvent> {
+    override fun publishedEventColors(calendarId: Long): List<EventColorOption> =
+        publishedEventColorsResult(calendarId)
+    override fun exportableEvents(
+        calendarIds: Set<Long>?,
+        allDayReminderTimeMinutes: Int,
+    ): List<IcsEvent> {
         lastExportableEventsCalendarIds = calendarIds
         return exportableEventsResult
     }
@@ -91,8 +97,25 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     /** (event, targetCalendarId) pairs passed to [insertImportedEvent]. */
     val importedEvents = mutableListOf<Pair<ParsedIcsEvent, Long>>()
 
-    override fun insertImportedEvent(event: ParsedIcsEvent, calendarId: Long): Long {
-        writeError?.let { throw it }
+    /** Thrown instead of [writeError] for events whose summary is in this set. */
+    val failingImportSummaries = mutableSetOf<String>()
+
+    /** Imports let through before [writeError] applies, for part-way failures. */
+    var importsBeforeError: Int = 0
+    private var imports = 0
+
+    /** The [colorPalette] the last [insertImportedEvent] call received. */
+    var lastImportPalette: List<EventColorOption> = emptyList()
+
+    override fun insertImportedEvent(
+        event: ParsedIcsEvent,
+        calendarId: Long,
+        allDayReminderTimeMinutes: Int,
+        colorPalette: List<EventColorOption>,
+    ): Long {
+        lastImportPalette = colorPalette
+        if (imports++ >= importsBeforeError) writeError?.let { throw it }
+        if (event.summary in failingImportSummaries) error("rejected: ${event.summary}")
         importedEvents += event to calendarId
         return nextInsertId
     }
@@ -173,6 +196,7 @@ internal class FakeCalendarDataSource : CalendarDataSource {
     override fun updateOccurrence(
         eventId: Long,
         beginMillis: Long,
+        original: EventForm,
         form: EventForm,
         allDayReminderTimeMinutes: Int,
     ): Long {

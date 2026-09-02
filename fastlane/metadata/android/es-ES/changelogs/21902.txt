@@ -1,0 +1,8 @@
+Corregido
+• Tocar un evento en la vista de mes abre el evento, no su día.
+• Un cambio se ve en cuanto vuelves a abrir el evento.
+• Las flechas del widget de mes ya no se quedan muertas tras unos toques: una actualización demasiado grande tumbaba el host de widgets del launcher.
+• «Hoy» en semanas continuas llega justo a la semana actual, y las vistas de día y semana vuelven a tener margen a la derecha.
+
+Cambios
+• Un evento que has rechazado aparece tachado en todas partes y ya no avisa.

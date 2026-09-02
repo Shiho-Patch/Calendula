@@ -48,8 +48,13 @@ class EventDetailViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _target = MutableStateFlow<Target?>(null)
-    // Bumped by retry() to re-run the load for the same target.
+    // Bumped by retry() and by re-opening the target already shown, to re-run
+    // the load without changing the target.
     private val _reload = MutableStateFlow(0)
+
+    // Last target whose content is already on screen; a re-read of it skips the
+    // Loading skeleton so the sheet doesn't blank out between two identical reads.
+    private var loadedTarget: Target? = null
 
     private val _deleteState = MutableStateFlow<DeleteUiState>(DeleteUiState.Idle)
     val deleteState: StateFlow<DeleteUiState> = _deleteState.asStateFlow()
@@ -58,11 +63,14 @@ class EventDetailViewModel @Inject constructor(
         combine(_target, _reload) { target, _ -> target }
             .flatMapLatest { target ->
                 if (target == null) {
+                    loadedTarget = null
                     flowOf<EventDetailUiState>(EventDetailUiState.Loading)
                 } else {
                     flow {
-                        emit(EventDetailUiState.Loading)
-                        emit(loadDetail(target))
+                        if (loadedTarget != target) emit(EventDetailUiState.Loading)
+                        val loaded = loadDetail(target)
+                        loadedTarget = target.takeIf { loaded is EventDetailUiState.Success }
+                        emit(loaded)
                     }
                 }
             }
@@ -78,9 +86,15 @@ class EventDetailViewModel @Inject constructor(
      * the occurrence's own times (from `CalendarContract.Instances`); they
      * override the series DTSTART/DTEND so recurring events show the correct
      * date instead of the first occurrence.
+     *
+     * Re-opening the *same* occurrence always re-reads it. The view model
+     * outlives the sheet, and a `StateFlow` conflates an identical value away,
+     * so assigning the target alone would leave an edit that changed no time —
+     * adding a description, say (#196) — showing the state from before the save.
      */
     fun open(eventId: Long, beginMillis: Long, endMillis: Long) {
-        _target.value = Target(eventId, beginMillis, endMillis)
+        val target = Target(eventId, beginMillis, endMillis)
+        if (_target.value == target) _reload.value += 1 else _target.value = target
     }
 
     /** Re-run the current load after a failure. */

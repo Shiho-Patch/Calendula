@@ -90,7 +90,10 @@ import de.jeanlucmakiola.calendula.ui.common.NowLine
 import de.jeanlucmakiola.calendula.ui.common.TimelineDragController
 import de.jeanlucmakiola.calendula.ui.common.TimelineDragOverlay
 import de.jeanlucmakiola.calendula.ui.common.TimelineDrop
-import de.jeanlucmakiola.calendula.ui.common.beginsOn
+import de.jeanlucmakiola.calendula.ui.common.clipOffsetMinutes
+import de.jeanlucmakiola.calendula.ui.common.continuesAfter
+import de.jeanlucmakiola.calendula.ui.common.continuesBefore
+import de.jeanlucmakiola.calendula.ui.common.timedBlockShape
 import de.jeanlucmakiola.calendula.ui.common.eventDragAllowed
 import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
 import de.jeanlucmakiola.calendula.ui.common.eventTitleOverflow
@@ -104,8 +107,10 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSwipe
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.EventChipShape
 import de.jeanlucmakiola.calendula.ui.common.eventFill
 import de.jeanlucmakiola.calendula.ui.common.eventInk
+import de.jeanlucmakiola.calendula.ui.common.declinedDecoration
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
@@ -118,6 +123,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.common.GUTTER_WIDTH
 import de.jeanlucmakiola.calendula.ui.common.HourGutter
+import de.jeanlucmakiola.calendula.ui.common.TIMELINE_CONTENT_END_INSET
 import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
 import de.jeanlucmakiola.calendula.ui.common.tappedMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.week.TimedBlock
@@ -350,7 +356,7 @@ private fun DayContent(
                     onEventClick = onEventClick,
                     onCreateAt = onCreateAt,
                     onDrop = { drop ->
-                        val took = move?.move(
+                        move?.move(
                             MoveRequest(
                                 eventId = drop.event.eventId,
                                 beginMillis = drop.event.start.toEpochMilliseconds(),
@@ -358,9 +364,6 @@ private fun DayContent(
                                 target = MoveTarget.Start(drop.startInstant(zone)),
                             ),
                         )
-                        // Refused, so nothing will land: let the copy go now
-                        // rather than hold it out for a settle that never comes.
-                        if (took != true) dragController.release()
                     },
                 )
             }
@@ -478,7 +481,11 @@ private fun AllDayStrip(
             // Height is hoisted + animated so it resizes smoothly; padding sits
             // inside it so the content area is lanes * row height.
             .height(height)
-            .padding(vertical = ALL_DAY_VERTICAL_PADDING),
+            .padding(
+                top = ALL_DAY_VERTICAL_PADDING,
+                bottom = ALL_DAY_VERTICAL_PADDING,
+                end = TIMELINE_CONTENT_END_INSET,
+            ),
     ) {
         // Keep the gutter-width offset so the bars line up with the day column.
         Spacer(Modifier.width(GUTTER_WIDTH))
@@ -520,7 +527,7 @@ private fun AllDayBar(
     val fill = eventFill(event.color, dark, soften)
     Box(
         modifier = modifier
-            .background(fill, RoundedCornerShape(4.dp))
+            .background(fill, EventChipShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 2.dp)
             .semantics { contentDescription = title },
@@ -534,6 +541,7 @@ private fun AllDayBar(
             overflow = titleOverflow.overflow,
             softWrap = titleOverflow.softWrap,
             color = eventInk(fill),
+            textDecoration = declinedDecoration(event.isDeclined),
         )
     }
 }
@@ -579,6 +587,7 @@ private fun Timeline(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    .padding(end = TIMELINE_CONTENT_END_INSET)
                     .clip(RoundedCornerShape(16.dp))
                     .verticalScroll(scrollState)
                     .onGloballyPositioned { dragController.geometry.viewport = it },
@@ -745,24 +754,30 @@ private fun EventBlock(
     val fill = eventFill(block.event.color, dark, soften)
     val zone = remember { TimeZone.currentSystemDefault() }
     val moveAction = eventMoveAction(block.event)
-    // A block clipped at the top continues from the previous day: its top edge
-    // is midnight, not the event's start, so dragging it would invent a time.
-    val draggable = eventDragAllowed(block.event) && block.beginsOn(date, zone)
+    val draggable = eventDragAllowed(block.event)
+    // The drop takes this offset back off, so a tail clipped at midnight lands
+    // where the event's own start belongs (#253).
+    val clipOffset = remember(block, date, zone) { block.clipOffsetMinutes(date, zone) }
+    val shape = remember(block, date, zone) {
+        timedBlockShape(block.continuesBefore(date, zone), block.continuesAfter(date, zone))
+    }
     val dragModifier = rememberEventDragSource(
         enabled = draggable,
         key = block.event.instanceId,
-        onPickUp = { pointer, blockRoot, _ -> dragController.begin(block, pointer, blockRoot) },
+        onPickUp = { pointer, blockRoot, _ ->
+            dragController.begin(block, clipOffset, pointer, blockRoot)
+        },
         onMove = dragController::move,
         onDrop = { dragController.finish()?.let(onDrop) },
         onCancel = dragController::cancel,
     )
-    val lifted = draggable && dragController.ghosts(block, date)
+    val lifted = draggable && dragController.ghosts(block)
     val ghost = ghostAlpha(lifted)
     Box(
         modifier = modifier
             // The source stays put as a ghost while its floating copy travels.
             .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
-            .background(fill, RoundedCornerShape(4.dp))
+            .background(fill, shape)
             .clickable(onClick = onClick)
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.
@@ -783,6 +798,7 @@ private fun EventBlock(
                     overflow = titleOverflow.overflow,
                     softWrap = titleOverflow.softWrap,
                     color = eventInk(fill, alpha = 0.85f),
+                    textDecoration = declinedDecoration(block.event.isDeclined),
                 )
             }
             if (showTime) {
@@ -803,7 +819,12 @@ private fun DayLoading() {
         // Same scale resolution as the loaded timeline, so the skeleton's column
         // doesn't resize the moment the real day arrives.
         val totalHeight = scale.hourHeight(maxHeight) * 24
-        Row(modifier = Modifier.fillMaxSize().verticalScroll(scrollState)) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(end = TIMELINE_CONTENT_END_INSET)
+                .verticalScroll(scrollState),
+        ) {
             Spacer(Modifier.width(GUTTER_WIDTH))
             Box(
                 modifier = Modifier

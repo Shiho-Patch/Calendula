@@ -128,7 +128,8 @@ class EventWriteMapperTest {
         original: EventForm,
         updated: EventForm,
         series: Long = seriesStart,
-    ): Map<String, Any?> = buildEventUpdateValues(original, updated, series, berlin)
+        exdate: String? = null,
+    ): Map<String, Any?> = buildEventUpdateValues(original, updated, series, exdate, berlin)
 
     /** The instant [local] names in [zoneId], as the provider would store it. */
     private fun instantAt(local: String, zoneId: String): Long =
@@ -497,6 +498,7 @@ class EventWriteMapperTest {
             occurrenceMillis = 1_784_102_400_000L,
             dtStartMillis = 1_783_929_600_000L,
             rrule = "FREQ=DAILY;COUNT=5",
+            rdate = null,
             duration = "PT1H",
             timezone = "Europe/Berlin",
             allDay = 0,
@@ -520,6 +522,7 @@ class EventWriteMapperTest {
             occurrenceMillis = 1_784_102_400_000L,
             dtStartMillis = 1_783_929_600_000L,
             rrule = "FREQ=DAILY;COUNT=5",
+            rdate = null,
             duration = "PT1H",
             timezone = "Europe/Berlin",
             allDay = 0,
@@ -535,11 +538,33 @@ class EventWriteMapperTest {
             occurrenceMillis = 1_784_102_400_000L,
             dtStartMillis = 1_783_929_600_000L,
             rrule = "FREQ=DAILY;COUNT=5",
+            rdate = null,
             duration = "PT1H",
             timezone = "Europe/Berlin",
             allDay = 0,
         )
         assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260715T080000Z")
+    }
+
+    @Test
+    fun `an all-day drop folds away a padded repeat of the same day`() {
+        // Compared verbatim, the two spellings of 15 July are different strings:
+        // the day ends up excluded twice, and exdateContains — the guard against
+        // detaching the same occurrence twice — misses it entirely.
+        val occurrence = 1_784_073_600_000L // 2026-07-15T00:00:00Z
+        val values = buildOccurrenceExdateValues(
+            existingExdate = "20260715T000000Z",
+            occurrenceMillis = occurrence,
+            dtStartMillis = 1_783_900_800_000L,
+            rrule = "FREQ=WEEKLY",
+            rdate = null,
+            duration = "P1D",
+            timezone = "UTC",
+            allDay = 1,
+        )
+        assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260715")
+        assertThat(exdateContains("20260715T000000Z", occurrence, isAllDay = true, timezone = null))
+            .isTrue()
     }
 
     @Test
@@ -550,12 +575,446 @@ class EventWriteMapperTest {
             occurrenceMillis = 1_784_073_600_000L, // 2026-07-15T00:00:00Z
             dtStartMillis = 1_783_900_800_000L,
             rrule = "FREQ=YEARLY",
+            rdate = null,
             duration = "P1D",
             timezone = "UTC",
             allDay = 1,
         )
         assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260715")
         assertThat(values[CalendarContract.Events.ALL_DAY]).isEqualTo(1)
+    }
+
+    @Test
+    fun `an exdate list zoned the way the provider writes it is read in that zone`() {
+        // AOSP's RecurrenceSet keeps the TZID parameter's *value*, not the
+        // parameter: `Europe/Berlin;<stamps>`, no `TZID=`. Matching only the
+        // iCalendar spelling read every list the provider itself wrote as if its
+        // floating stamps were UTC — hours off for any zone but UTC.
+        assertThat(exdateListZone("Europe/Berlin;20260708T100000", "UTC"))
+            .isEqualTo(ZoneId.of("Europe/Berlin"))
+        assertThat(exdateListZone("TZID=Europe/Berlin;20260708T100000", "UTC"))
+            .isEqualTo(ZoneId.of("Europe/Berlin"))
+        // No prefix, or one this device can't place: the row's own zone.
+        assertThat(exdateListZone("20260708T100000", "Europe/Berlin"))
+            .isEqualTo(ZoneId.of("Europe/Berlin"))
+        assertThat(exdateListZone("W. Europe Standard Time;20260708T100000", "Europe/Berlin"))
+            .isEqualTo(ZoneId.of("Europe/Berlin"))
+    }
+
+    @Test
+    fun `a bare-zoned exclusion list splits on the instants its prefix names`() {
+        assertThat(
+            exdateAfter(
+                "Europe/Berlin;20260708T100000,20260729T100000",
+                instantAt("2026-07-15T08:00", "UTC"),
+                isAllDay = false,
+                timezone = null,
+            ),
+        ).isEqualTo("20260729T080000Z")
+    }
+
+    @Test
+    fun `an exdate drop keeps a list it cannot read whole, prefix and all`() {
+        // Stripping the prefix off a list and re-emitting the stamps it can't
+        // parse leaves them floating: "09:00 in Berlin" silently becomes 09:00 in
+        // whatever zone the next reader picks.
+        val values = buildOccurrenceExdateValues(
+            existingExdate = "Europe/Berlin;20260722T090000",
+            occurrenceMillis = 1_784_073_600_000L, // 2026-07-15T00:00:00Z
+            dtStartMillis = 1_783_900_800_000L,
+            rrule = "FREQ=WEEKLY",
+            rdate = null,
+            duration = "P1D",
+            timezone = "Europe/Berlin",
+            allDay = 1,
+        )
+        assertThat(values[CalendarContract.Events.EXDATE])
+            .isEqualTo("Europe/Berlin;20260722T090000,20260715")
+    }
+
+    @Test
+    fun `a new exclusion joins an unreadable timed list in that list's own form`() {
+        val values = buildOccurrenceExdateValues(
+            existingExdate = "Europe/Berlin;sometime next Tuesday",
+            occurrenceMillis = 1_784_102_400_000L, // 2026-07-15T08:00:00Z == 10:00 Berlin
+            dtStartMillis = 1_783_929_600_000L,
+            rrule = "FREQ=DAILY",
+            rdate = null,
+            duration = "PT1H",
+            timezone = "Europe/Berlin",
+            allDay = 0,
+        )
+        assertThat(values[CalendarContract.Events.EXDATE])
+            .isEqualTo("Europe/Berlin;sometime next Tuesday,20260715T100000")
+    }
+
+    @Test
+    fun `an exdate drop rewrites RDATE along with the rule`() {
+        // A series may be a list of dates with no rule at all. Left out of the
+        // rewrite, the provider has only DTSTART to re-expand from and collapses
+        // the series to its first occurrence.
+        val values = buildOccurrenceExdateValues(
+            existingExdate = null,
+            occurrenceMillis = 1_784_102_400_000L,
+            dtStartMillis = 1_783_929_600_000L,
+            rrule = null,
+            rdate = "20260716T080000Z,20260722T080000Z",
+            duration = "PT1H",
+            timezone = "Europe/Berlin",
+            allDay = 0,
+        )
+        assertThat(values[CalendarContract.Events.RDATE])
+            .isEqualTo("20260716T080000Z,20260722T080000Z")
+        assertThat(values[CalendarContract.Events.RRULE]).isNull()
+    }
+
+    // --- EXDATE follows the series when its times change (Codeberg #248) ---
+
+    /** A weekly series whose displayed occurrence runs 15 July 2026, 09:00–10:00. */
+    private fun julySeries(): EventForm = form(
+        start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(9, 0)),
+        end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(10, 0)),
+    ).copy(rrule = "FREQ=WEEKLY")
+
+    /** [julySeries] pushed to [hour]:00, the shift an "all events" time edit makes. */
+    private fun EventForm.atHour(hour: Int): EventForm = copy(
+        start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(hour, 0)),
+        end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(hour + 1, 0)),
+    )
+
+    @Test
+    fun `a series time edit moves its exclusions with the anchor`() {
+        // The bug: the stamp stayed at the old instant, which the moved series no
+        // longer generates, so the occurrence the user deleted came back.
+        val series = instantAt("2026-07-01T09:00", "Europe/Berlin")
+        val original = julySeries()
+        // 8 July 09:00 Berlin (CEST, +2) == 07:00Z; at 10:00 it must read 08:00Z.
+        val values = update(original, original.atHour(10), series, "20260708T070000Z")
+        assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260708T080000Z")
+    }
+
+    @Test
+    fun `an exclusion keeps its wall clock across a DST boundary`() {
+        // Anchor and edited occurrence are in July (CEST, +2); the excluded
+        // occurrence sits in January (CET, +1). Shifting by the millisecond delta
+        // measured at the edited occurrence would leave it an hour off.
+        val series = instantAt("2026-01-07T09:00", "Europe/Berlin")
+        val original = julySeries()
+        // 14 January 09:00 Berlin == 08:00Z; at 10:00 it must read 09:00Z.
+        val values = update(original, original.atHour(10), series, "20260114T080000Z")
+        assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260114T090000Z")
+    }
+
+    @Test
+    fun `pinning a series to another zone re-resolves its exclusions there`() {
+        val series = instantAt("2026-07-01T09:00", "Europe/Berlin")
+        val original = julySeries()
+        val values = update(
+            original,
+            original.copy(timezone = "Asia/Tokyo"),
+            series,
+            "20260716T070000Z",
+        )
+        // The exclusion still reads 09:00 — now 09:00 in Tokyo (+9) == 00:00Z.
+        assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260716T000000Z")
+    }
+
+    @Test
+    fun `an all-day series move shifts its exclusions by whole days`() {
+        val series = instantAt("2026-07-01T00:00", "UTC")
+        val original = form(
+            isAllDay = true,
+            start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(0, 0)),
+        ).copy(rrule = "FREQ=WEEKLY")
+        val moved = original.copy(
+            start = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(0, 0)),
+        )
+
+        assertThat(update(original, moved, series, "20260722")[CalendarContract.Events.EXDATE])
+            .isEqualTo("20260724")
+    }
+
+    @Test
+    fun `an all-day exclusion a sync adapter padded still moves with the series`() {
+        // The bug: only the bare yyyyMMdd form parsed, so a padded midnight stamp
+        // bailed the whole list and buildEventUpdateValues wrote no EXDATE at all
+        // — the deleted occurrence came back the moment the series was re-timed.
+        val series = instantAt("2026-07-01T00:00", "UTC")
+        val original = form(
+            isAllDay = true,
+            start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(0, 0)),
+        ).copy(rrule = "FREQ=WEEKLY")
+        val moved = original.copy(
+            start = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(0, 0)),
+        )
+
+        val values = update(original, moved, series, "20260722T000000Z")
+        assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260724")
+    }
+
+    @Test
+    fun `an all-day exclusion padded without a Z is read the same way`() {
+        // DAVx5 and AOSP's own RecurrenceSet write a floating midnight for a
+        // date value. Only the trailing-Z spelling parsed, so the floating one
+        // bailed the whole list and the deleted occurrence came back.
+        val series = instantAt("2026-07-01T00:00", "UTC")
+        val original = form(
+            isAllDay = true,
+            start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(0, 0)),
+        ).copy(rrule = "FREQ=WEEKLY")
+        val moved = original.copy(
+            start = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(0, 0)),
+        )
+
+        val values = update(original, moved, series, "20260722T000000")
+        assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260724")
+    }
+
+    @Test
+    fun `a padded all-day stamp naming any other time is still left alone`() {
+        // Not a form an all-day series is written in, so it could be naming
+        // something else entirely — guessing could exclude the wrong occurrence.
+        val series = instantAt("2026-07-01T00:00", "UTC")
+        val original = form(
+            isAllDay = true,
+            start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(0, 0)),
+        ).copy(rrule = "FREQ=WEEKLY")
+        val moved = original.copy(
+            start = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(0, 0)),
+        )
+
+        val values = update(original, moved, series, "20260722T090000Z")
+        assertThat(values).doesNotContainKey(CalendarContract.Events.EXDATE)
+    }
+
+    @Test
+    fun `switching a series to all-day rewrites its exclusions as dates`() {
+        // The two forms aren't interchangeable: a date-time stamp on an all-day
+        // series matches no occurrence, so the exclusion would be lost.
+        val series = instantAt("2026-07-01T09:00", "Europe/Berlin")
+        val original = julySeries()
+        val values = update(original, original.copy(isAllDay = true), series, "20260722T070000Z")
+        assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260722")
+    }
+
+    @Test
+    fun `switching a series back to timed rewrites its exclusions as instants`() {
+        val series = instantAt("2026-07-01T00:00", "UTC")
+        val original = form(
+            isAllDay = true,
+            start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(0, 0)),
+        ).copy(rrule = "FREQ=WEEKLY")
+        val timed = original.copy(
+            isAllDay = false,
+            start = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(9, 0)),
+            end = LocalDateTime(LocalDate(2026, 7, 15), LocalTime(10, 0)),
+        )
+        // The excluded day gains the new 09:00 Berlin time-of-day == 07:00Z.
+        assertThat(update(original, timed, series, "20260722")[CalendarContract.Events.EXDATE])
+            .isEqualTo("20260722T070000Z")
+    }
+
+    @Test
+    fun `a text-only edit leaves the exclusions alone`() {
+        val original = julySeries()
+        val values = update(original, original.copy(title = "Renamed"), exdate = "20260722T070000Z")
+        assertThat(values).doesNotContainKey(CalendarContract.Events.EXDATE)
+    }
+
+    @Test
+    fun `changing only the rule rewrites no exclusions`() {
+        // The times are untouched, so every surviving occurrence keeps its instant
+        // and the stamps still name the right ones.
+        val original = julySeries()
+        val values = update(original, original.copy(rrule = "FREQ=DAILY"), exdate = "20260722T070000Z")
+        assertThat(values[CalendarContract.Events.RRULE]).isEqualTo("FREQ=DAILY")
+        assertThat(values).doesNotContainKey(CalendarContract.Events.EXDATE)
+    }
+
+    @Test
+    fun `a zoned exdate list is read in the zone its prefix names`() {
+        // AOSP's RecurrenceSet form, TZID=<zone>;<floating stamps>. Read as UTC the
+        // stamps name the wrong instants; skipped, every exclusion of the series is
+        // dropped the moment it is re-timed.
+        val original = julySeries()
+        val values = update(
+            original,
+            original.atHour(10),
+            instantAt("2026-07-01T09:00", "Europe/Berlin"),
+            "TZID=Europe/Berlin;20260722T090000",
+        )
+        // 22 July 09:00 Berlin (CEST, +2) == 07:00Z; the +1h edit puts it at 08:00Z.
+        assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260722T080000Z")
+    }
+
+    @Test
+    fun `a zoned list whose zone this device cannot place falls back to the event's`() {
+        // Exchange spells zones its own way, so ZoneId.of refuses the name. The
+        // series' own zone is what such a list is written in anyway.
+        val original = julySeries()
+        val values = update(
+            original,
+            original.atHour(10),
+            instantAt("2026-07-01T09:00", "Europe/Berlin"),
+            "TZID=W. Europe Standard Time;20260722T090000",
+        )
+        assertThat(values[CalendarContract.Events.EXDATE]).isEqualTo("20260722T080000Z")
+    }
+
+    @Test
+    fun `an exdate form we do not write is left untouched`() {
+        // A stale stamp excludes nothing; a mangled one could exclude the wrong
+        // occurrence, so anything unreadable is left exactly as it stands.
+        val original = julySeries()
+        val values = update(
+            original,
+            original.atHour(10),
+            instantAt("2026-07-01T09:00", "Europe/Berlin"),
+            "sometime next Tuesday",
+        )
+        assertThat(values).doesNotContainKey(CalendarContract.Events.EXDATE)
+    }
+
+    @Test
+    fun `removing the recurrence clears the exclusions with it`() {
+        // Dormant, not harmless: adding a recurrence back later would punch the old
+        // holes into the new one.
+        val original = julySeries()
+        val values = update(original, original.copy(rrule = null), exdate = "20260722T070000Z")
+        assertThat(values).containsEntry(CalendarContract.Events.EXDATE, null)
+    }
+
+    @Test
+    fun `undoing a series move lands the exclusions back where they started`() {
+        val series = instantAt("2026-01-07T09:00", "Europe/Berlin")
+        val original = julySeries()
+        val moved = original.copy(
+            start = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(14, 30)),
+            end = LocalDateTime(LocalDate(2026, 7, 17), LocalTime(15, 30)),
+        )
+        val exdate = "20260722T070000Z"
+
+        val forward = update(original, moved, series, exdate)
+        val movedExdate = forward[CalendarContract.Events.EXDATE] as String
+        assertThat(movedExdate).isNotEqualTo(exdate)
+
+        val back = update(
+            moved,
+            original,
+            forward[CalendarContract.Events.DTSTART] as Long,
+            movedExdate,
+        )
+        assertThat(back[CalendarContract.Events.EXDATE]).isEqualTo(exdate)
+    }
+
+    @Test
+    fun `a series with no exclusions writes no exdate column`() {
+        val series = instantAt("2026-07-01T09:00", "Europe/Berlin")
+        val original = julySeries()
+        assertThat(update(original, original.atHour(10), series, exdate = null))
+            .doesNotContainKey(CalendarContract.Events.EXDATE)
+    }
+
+    // --- exdateAfter (the exclusions a "this and following" split inherits) ---
+
+    @Test
+    fun `a split carries only the exclusions past the split point`() {
+        // The occurrence at the split point is the one being edited, so it exists
+        // by definition — a stale exclusion for it would swallow the edit whole.
+        assertThat(
+            exdateAfter(
+                existingExdate = "20260708T080000Z,20260715T080000Z,20260722T080000Z",
+                beginMillis = instantAt("2026-07-15T08:00", "UTC"),
+                isAllDay = false,
+                timezone = null,
+            ),
+        ).isEqualTo("20260722T080000Z")
+    }
+
+    @Test
+    fun `a split carries nothing when every exclusion is behind it`() {
+        assertThat(
+            exdateAfter(
+                "20260708T080000Z",
+                instantAt("2026-07-15T08:00", "UTC"),
+                isAllDay = false,
+                timezone = null,
+            ),
+        ).isNull()
+        assertThat(exdateAfter(null, 0L, isAllDay = false, timezone = null)).isNull()
+    }
+
+    @Test
+    fun `all-day exclusions split on their UTC date`() {
+        assertThat(
+            exdateAfter(
+                "20260708,20260722",
+                instantAt("2026-07-15T00:00", "UTC"),
+                isAllDay = true,
+                timezone = null,
+            ),
+        ).isEqualTo("20260722")
+    }
+
+    @Test
+    fun `an unreadable exclusion carries nothing across a split`() {
+        assertThat(
+            exdateAfter(
+                "20260722T080000Z,sometime next Tuesday",
+                instantAt("2026-07-15T08:00", "UTC"),
+                isAllDay = false,
+                timezone = null,
+            ),
+        ).isNull()
+    }
+
+    @Test
+    fun `a zoned exclusion list splits on the instants its prefix names`() {
+        // Canonicalised on the way out: the prefix that explained how to read the
+        // stamps doesn't survive the filter, so the survivors can't stay floating.
+        assertThat(
+            exdateAfter(
+                "TZID=Europe/Berlin;20260708T100000,20260729T100000",
+                instantAt("2026-07-15T08:00", "UTC"),
+                isAllDay = false,
+                timezone = null,
+            ),
+        ).isEqualTo("20260729T080000Z")
+    }
+
+    @Test
+    fun `split exclusions move by the same shift as the new series start`() {
+        // What the split path composes: filter to the tail, then re-time it by the
+        // shift the user applied to the occurrence they split at.
+        val original = julySeries()
+        val carried = shiftedExdate(
+            existingExdate = exdateAfter(
+                "20260716T070000Z",
+                instantAt("2026-07-15T07:00", "UTC"),
+                isAllDay = false,
+                timezone = null,
+            ),
+            original = original,
+            updated = original.atHour(11),
+            zone = berlin,
+        )
+        // 16 July 09:00 Berlin, pushed two hours, is 11:00 Berlin == 09:00Z.
+        assertThat(carried).isEqualTo("20260716T090000Z")
+    }
+
+    @Test
+    fun `nothing to shift yields no exdate`() {
+        assertThat(shiftedExdate(null, julySeries(), julySeries().atHour(10), berlin)).isNull()
+        assertThat(shiftedExdate("  ", julySeries(), julySeries().atHour(10), berlin)).isNull()
     }
 
     // --- per-event colour ---
@@ -745,5 +1204,174 @@ class EventWriteMapperTest {
     fun `copied modified occurrence keeps a stored duration verbatim`() {
         val values = buildCopiedExceptionValues(exceptionSnapshot(duration = "P900S", dtEndMillis = null))
         assertThat(values[CalendarContract.Events.DURATION]).isEqualTo("P900S")
+    }
+
+    @Test
+    fun `a detached all-day occurrence matches its date-only exdate stamp`() {
+        val parent = buildOccurrenceExdateValues(
+            existingExdate = null,
+            occurrenceMillis = 1_781_136_000_000L, // 2026-06-11T00:00:00Z
+            dtStartMillis = 1_749_600_000_000L,
+            rrule = "FREQ=YEARLY",
+            rdate = null,
+            duration = "P1D",
+            timezone = "UTC",
+            allDay = 1,
+        )
+        val detached = form(
+            isAllDay = true,
+            start = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(0, 0)),
+        ).copy(rrule = "FREQ=YEARLY").toDetachedOccurrence()
+        val inserted = buildEventInsertValues(
+            form = detached,
+            uid = "uid@calendula",
+            times = detached.toWriteTimes(berlin),
+        )
+        assertThat(parent[CalendarContract.Events.EXDATE]).isEqualTo("20260611")
+        assertThat(inserted[CalendarContract.Events.DTSTART]).isEqualTo(1_781_136_000_000L)
+    }
+
+    @Test
+    fun `a detached all-day occurrence stays on UTC midnights`() {
+        val edited = form(
+            isAllDay = true,
+            start = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(0, 0)),
+            end = LocalDateTime(LocalDate(2026, 6, 11), LocalTime(0, 0)),
+        ).copy(title = "Birthday", rrule = "FREQ=YEARLY")
+        val detached = edited.toDetachedOccurrence()
+
+        val values = buildEventInsertValues(
+            form = detached,
+            uid = "uid@calendula",
+            times = detached.toWriteTimes(berlin),
+        )
+        assertThat(values[CalendarContract.Events.ALL_DAY]).isEqualTo(1)
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("UTC")
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_781_136_000_000L)
+        // Exclusive DTEND — the next UTC midnight.
+        assertThat(values[CalendarContract.Events.DTEND]).isEqualTo(1_781_222_400_000L)
+        assertThat(values).doesNotContainKey(CalendarContract.Events.RRULE)
+    }
+
+    @Test
+    fun `a detached occurrence carries every edited field onto the new row`() {
+        // Built from the form, not cloned from the parent: a field dropped here
+        // is an edit silently lost.
+        val edited = form(timezone = "America/New_York").copy(
+            title = "  Standup  ",
+            location = "Room 2",
+            description = "notes",
+            reminders = listOf(10),
+            availability = Availability.Free,
+            accessLevel = AccessLevel.Private,
+            rrule = "FREQ=DAILY",
+        )
+        val detached = edited.toDetachedOccurrence()
+
+        val values = buildEventInsertValues(
+            form = detached,
+            uid = "uid@calendula",
+            times = detached.toWriteTimes(berlin),
+        )
+        assertThat(values[CalendarContract.Events.TITLE]).isEqualTo("Standup")
+        assertThat(values[CalendarContract.Events.EVENT_LOCATION]).isEqualTo("Room 2")
+        assertThat(values[CalendarContract.Events.DESCRIPTION]).isEqualTo("notes")
+        assertThat(values[CalendarContract.Events.AVAILABILITY])
+            .isEqualTo(CalendarContract.Events.AVAILABILITY_FREE)
+        assertThat(values[CalendarContract.Events.ACCESS_LEVEL])
+            .isEqualTo(CalendarContract.Events.ACCESS_PRIVATE)
+        // The pinned zone survives — never re-anchored to the device.
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("America/New_York")
+        assertThat(values[CalendarContract.Events.UID_2445]).isEqualTo("uid@calendula")
+        // Reminders aren't columns; the insert path seeds them from the form.
+        assertThat(detached.reminders).containsExactly(10)
+    }
+
+    @Test
+    fun `a detached occurrence drops the series rule and becomes a one-off row`() {
+        val edited = form().copy(title = "Moved", rrule = "FREQ=WEEKLY;BYDAY=TH")
+        val detached = edited.toDetachedOccurrence()
+
+        val values = buildEventInsertValues(
+            form = detached,
+            uid = "uid@calendula",
+            times = detached.toWriteTimes(berlin),
+        )
+        assertThat(values[CalendarContract.Events.TITLE]).isEqualTo("Moved")
+        // A surviving rule would insert a second *series* overlapping the first
+        // (Codeberg #234's stray duplicate).
+        assertThat(values).doesNotContainKey(CalendarContract.Events.RRULE)
+        assertThat(values).doesNotContainKey(CalendarContract.Events.DURATION)
+        // A one-off row carries DTEND rather than a duration.
+        assertThat(values[CalendarContract.Events.DTSTART]).isEqualTo(1_781_164_800_000L)
+        assertThat(values[CalendarContract.Events.DTEND]).isEqualTo(1_781_170_200_000L)
+        assertThat(values[CalendarContract.Events.EVENT_TIMEZONE]).isEqualTo("Europe/Berlin")
+    }
+
+    @Test
+    fun `an exclusion is found anywhere in a multi-entry exdate list`() {
+        // Whitespace after a comma is legal in the stored column.
+        assertThat(
+            exdateContains(
+                "20260604T080000Z, 20260611T080000Z,20260618T080000Z",
+                1_781_164_800_000L,
+                isAllDay = false,
+                timezone = null,
+            ),
+        ).isTrue()
+    }
+
+    @Test
+    fun `an occurrence already excluded is recognised, timed and all-day`() {
+        // Detaching twice would leave a second standalone copy.
+        assertThat(
+            exdateContains("20260611T080000Z", 1_781_164_800_000L, isAllDay = false, timezone = null),
+        ).isTrue()
+        assertThat(
+            exdateContains("20260611", 1_781_136_000_000L, isAllDay = true, timezone = null),
+        ).isTrue()
+    }
+
+    @Test
+    fun `an occurrence not in the exdate list is not mistaken for an excluded one`() {
+        assertThat(exdateContains(null, 1_781_164_800_000L, isAllDay = false, timezone = null))
+            .isFalse()
+        assertThat(exdateContains("", 1_781_164_800_000L, isAllDay = false, timezone = null))
+            .isFalse()
+        // A neighbouring occurrence must not match — the guard is per-instant.
+        assertThat(
+            exdateContains("20260610T080000Z", 1_781_164_800_000L, isAllDay = false, timezone = null),
+        ).isFalse()
+    }
+
+    @Test
+    fun `the detached row lands exactly where the parent's exdate removes it`() {
+        // The two halves must agree on the instant, or the user sees the
+        // occurrence twice or not at all.
+        val edited = form().copy(title = "Renamed", rrule = "FREQ=WEEKLY")
+        val occurrenceMillis = 1_781_164_800_000L
+
+        val parent = buildOccurrenceExdateValues(
+            existingExdate = null,
+            occurrenceMillis = occurrenceMillis,
+            dtStartMillis = 1_780_560_000_000L,
+            rrule = "FREQ=WEEKLY",
+            rdate = null,
+            duration = "P5400S",
+            timezone = "Europe/Berlin",
+            allDay = 0,
+        )
+        val detached = edited.toDetachedOccurrence()
+        val inserted = buildEventInsertValues(
+            form = detached,
+            uid = "uid@calendula",
+            times = detached.toWriteTimes(berlin),
+        )
+        assertThat(parent[CalendarContract.Events.EXDATE]).isEqualTo("20260611T080000Z")
+        assertThat(inserted[CalendarContract.Events.DTSTART]).isEqualTo(occurrenceMillis)
+        // The parent keeps its own anchor and rule — only this occurrence leaves.
+        assertThat(parent[CalendarContract.Events.DTSTART]).isEqualTo(1_780_560_000_000L)
+        assertThat(parent[CalendarContract.Events.RRULE]).isEqualTo("FREQ=WEEKLY")
     }
 }

@@ -1,0 +1,5 @@
+Added
+• Calendula now speaks Czech, Japanese and Russian, contributed by community translators on Weblate. All three are early, so untranslated parts still show in English — pick one under Settings → Language.
+
+Changed
+• The Brazilian Portuguese translation is now complete.

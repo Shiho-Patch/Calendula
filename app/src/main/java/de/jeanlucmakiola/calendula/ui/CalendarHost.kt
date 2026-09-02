@@ -319,9 +319,10 @@ fun CalendarHost(
         EventMoveScope(
             movableCalendarIds = movableCalendarIds,
             dragEnabled = dragToReschedule,
-            move = reschedule::move,
+            move = { reschedule.move(it) },
             inFlight = reschedule.inFlight,
             undoStarted = reschedule.undoStarted,
+            abandoned = reschedule.abandoned,
             edit = onEditEvent,
         )
     }

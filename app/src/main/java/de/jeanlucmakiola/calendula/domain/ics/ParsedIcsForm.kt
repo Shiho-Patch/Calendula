@@ -13,6 +13,11 @@ import kotlinx.datetime.toLocalDateTime
  * calendar, exactly like a fresh create — the user confirms the target and
  * reviews everything before saving. Mirrors `EventDetail.toEditForm`'s all-day
  * handling (provider all-day times are UTC midnights with an exclusive end).
+ *
+ * [ParsedIcsEvent.color] is deliberately not carried over: picking the calendar
+ * is the first thing this form asks for, and that clears any colour (a raw ARGB
+ * is invalid on a calendar whose account publishes a palette). Bulk import,
+ * where the target is known up front, does keep it.
  */
 fun ParsedIcsEvent.toEventForm(zone: TimeZone): EventForm {
     val (start, end) = if (isAllDay) {
@@ -31,7 +36,7 @@ fun ParsedIcsEvent.toEventForm(zone: TimeZone): EventForm {
         end = end,
         location = location.orEmpty(),
         description = description.orEmpty(),
-        reminders = reminderMinutes.distinct().sorted(),
+        reminders = semanticReminderMinutes(),
         availability = availability,
         rrule = recurrenceRule?.removePrefix("RRULE:")?.takeIf { it.isNotBlank() },
     )

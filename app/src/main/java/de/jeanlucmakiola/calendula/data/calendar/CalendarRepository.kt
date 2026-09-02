@@ -88,9 +88,15 @@ interface CalendarRepository {
 
     /**
      * Change a single occurrence of a recurring event (exception row with the
-     * form's values); returns the exception's `Events._ID`.
+     * form's values); returns the exception's `Events._ID`. [original] is what
+     * the row holds now, for the case where it turns out not to recur.
      */
-    suspend fun updateOccurrence(eventId: Long, beginMillis: Long, form: EventForm): Long
+    suspend fun updateOccurrence(
+        eventId: Long,
+        beginMillis: Long,
+        original: EventForm,
+        form: EventForm,
+    ): Long
 
     /**
      * Change a recurring event from [beginMillis] onwards (series split);
