@@ -97,6 +97,13 @@ data class MonthChipDrag(
     val targetDate: LocalDate?,
     val topLeftInRoot: Offset,
     val sizePx: IntSize,
+    /**
+     * The start time of the chip this lifted off, already formatted (#219).
+     * Carried rather than re-derived: the overlay has no row to ask whether the
+     * bar was carried in from the previous week, and no zone the grid laid out
+     * in. Null where the source chip had no time to show.
+     */
+    val time: String? = null,
 )
 
 /** Where a finished chip drag asks its event to go, as a whole-day shift. */
@@ -172,6 +179,7 @@ class MonthDragController {
 
     private var event: EventInstance? = null
     private var grabDate: LocalDate? = null
+    private var time: String? = null
     private var grab = Offset.Zero
     private var pointer = Offset.Zero
     private var sizePx = IntSize.Zero
@@ -190,9 +198,11 @@ class MonthDragController {
         pointerInRoot: Offset,
         chipInRoot: Offset,
         size: IntSize,
+        time: String? = null,
     ) {
         this.event = event
         this.grabDate = grabDate
+        this.time = time
         settling = null
         isDragging = true
         liftedInstanceId = event.instanceId
@@ -210,6 +220,7 @@ class MonthDragController {
     fun cancel() {
         event = null
         grabDate = null
+        time = null
         isDragging = false
         liftedInstanceId = null
         drag = null
@@ -331,6 +342,7 @@ class MonthDragController {
             targetDate = resolved ?: drag?.targetDate,
             topLeftInRoot = pointer - grab,
             sizePx = sizePx,
+            time = time,
         )
     }
 }

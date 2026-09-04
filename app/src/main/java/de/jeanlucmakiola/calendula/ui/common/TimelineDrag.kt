@@ -733,12 +733,13 @@ private fun DragCopy(
                 maxLines = 1,
                 overflow = titleOverflow.overflow,
                 softWrap = titleOverflow.softWrap,
-                color = eventInk(fill, alpha = 0.85f),
+                color = eventInk(fill, alpha = TITLE_INK_ALPHA),
             )
             if (label != null) {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelSmall,
+                    // As the block it lifted off sets its own time (#219).
+                    style = MaterialTheme.typography.labelSmall.asEventTime(),
                     maxLines = 1,
                     overflow = titleOverflow.overflow,
                     softWrap = titleOverflow.softWrap,
