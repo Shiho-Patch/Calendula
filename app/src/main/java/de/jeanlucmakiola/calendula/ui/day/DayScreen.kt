@@ -39,6 +39,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -69,6 +70,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.common.LocalChipGround
+import de.jeanlucmakiola.calendula.ui.common.eventPaint
+import de.jeanlucmakiola.calendula.ui.common.eventSurface
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarTitleButton
@@ -95,6 +99,7 @@ import de.jeanlucmakiola.calendula.ui.common.TimelineDrop
 import de.jeanlucmakiola.calendula.ui.common.clipOffsetMinutes
 import de.jeanlucmakiola.calendula.ui.common.continuesAfter
 import de.jeanlucmakiola.calendula.ui.common.continuesBefore
+import de.jeanlucmakiola.calendula.ui.common.timedBlockCuts
 import de.jeanlucmakiola.calendula.ui.common.timedBlockShape
 import de.jeanlucmakiola.calendula.ui.common.eventDragAllowed
 import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
@@ -108,11 +113,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSwipe
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.calendula.ui.common.next
-import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
-import de.jeanlucmakiola.calendula.ui.common.eventFill
-import de.jeanlucmakiola.calendula.ui.common.eventInk
-import de.jeanlucmakiola.calendula.ui.common.declinedDecoration
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
@@ -120,8 +121,6 @@ import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.MIN_EVENT_FRACTION
 import de.jeanlucmakiola.calendula.ui.common.asEventTime
-import de.jeanlucmakiola.calendula.ui.common.SECONDARY_INK_ALPHA
-import de.jeanlucmakiola.calendula.ui.common.TITLE_INK_ALPHA
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
@@ -373,14 +372,20 @@ internal fun DaySuccess(
     Column(modifier = Modifier.fillMaxSize()) {
         // All-day strip collapses to nothing when the day has no all-day events,
         // so the timeline sits directly under the app bar.
-        AllDayStrip(
-            state = state,
-            height = allDayHeight,
-            onEventClick = onEventClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface),
-        )
+        // This strip is painted on `surface`, so an outlined chip has to fill
+        // with that and not with the column's container (#230).
+        CompositionLocalProvider(
+            LocalChipGround provides MaterialTheme.colorScheme.surface,
+        ) {
+            AllDayStrip(
+                state = state,
+                height = allDayHeight,
+                onEventClick = onEventClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface),
+            )
+        }
         // Breathing room between the top section and the scrolling timeline
         // below.
         Spacer(Modifier.height(8.dp))
@@ -511,11 +516,10 @@ private fun AllDayBar(
     modifier: Modifier = Modifier,
 ) {
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
-    val soften = LocalSoftenColors.current
-    val fill = eventFill(event.color, dark, soften)
+    val paint = eventPaint(event, dark)
     Box(
         modifier = modifier
-            .background(fill, EventChipShape)
+            .eventSurface(paint, EventChipShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 2.dp)
             .semantics { contentDescription = title },
@@ -528,8 +532,9 @@ private fun AllDayBar(
             maxLines = 1,
             overflow = titleOverflow.overflow,
             softWrap = titleOverflow.softWrap,
-            color = eventInk(fill, alpha = TITLE_INK_ALPHA),
-            textDecoration = declinedDecoration(event.isDeclined),
+            color = paint.titleInk,
+            fontWeight = paint.titleWeight,
+            textDecoration = paint.decoration,
         )
     }
 }
@@ -760,17 +765,17 @@ private fun EventBlock(
     } else {
         1
     }
-    val soften = LocalSoftenColors.current
-    val fill = eventFill(block.event.color, dark, soften)
+    val paint = eventPaint(block.event, dark)
     val zone = remember { TimeZone.currentSystemDefault() }
     val moveAction = eventMoveAction(block.event)
     val draggable = eventDragAllowed(block.event)
     // The drop takes this offset back off, so a tail clipped at midnight lands
     // where the event's own start belongs (#253).
     val clipOffset = remember(block, date, zone) { block.clipOffsetMinutes(date, zone) }
-    val shape = remember(block, date, zone) {
-        timedBlockShape(block.continuesBefore(date, zone), block.continuesAfter(date, zone))
+    val cuts = remember(block, date, zone) {
+        timedBlockCuts(block.continuesBefore(date, zone), block.continuesAfter(date, zone))
     }
+    val shape = remember(cuts) { timedBlockShape(cuts.top, cuts.bottom) }
     val dragModifier = rememberEventDragSource(
         enabled = draggable,
         key = block.event.instanceId,
@@ -787,7 +792,7 @@ private fun EventBlock(
         modifier = modifier
             // The source stays put as a ghost while its floating copy travels.
             .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
-            .background(fill, shape)
+            .eventSurface(paint, shape, cuts)
             .clickable(onClick = onClick)
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.
@@ -804,14 +809,15 @@ private fun EventBlock(
                     title = title,
                     maxLines = titleMaxLines,
                     textWidth = textWidth,
-                    color = eventInk(fill, alpha = TITLE_INK_ALPHA),
-                    textDecoration = declinedDecoration(block.event.isDeclined),
+                    color = paint.titleInk,
+                    textDecoration = paint.decoration,
+                    fontWeight = paint.titleWeight,
                 )
             }
             if (showTime) {
                 BlockTimeLabel(
                     label = timeLabel,
-                    color = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
+                    color = paint.secondaryInk,
                     maxLines = timeMaxLines,
                 )
             }

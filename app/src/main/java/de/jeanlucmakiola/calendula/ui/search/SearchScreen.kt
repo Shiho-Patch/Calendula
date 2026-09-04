@@ -82,6 +82,7 @@ import de.jeanlucmakiola.calendula.domain.MatchSpan
 import de.jeanlucmakiola.calendula.domain.RecurringWriteScope
 import de.jeanlucmakiola.calendula.domain.SearchHit
 import de.jeanlucmakiola.calendula.domain.SearchMonth
+import de.jeanlucmakiola.calendula.domain.isDeclined
 import de.jeanlucmakiola.floret.identity.animateItemMotion
 import de.jeanlucmakiola.floret.identity.fadeThrough
 import de.jeanlucmakiola.floret.identity.predictiveBack

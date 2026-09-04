@@ -4,6 +4,7 @@ import de.jeanlucmakiola.floret.time.toKotlinInstantFromEpochMillis
 import android.provider.CalendarContract
 import android.util.Log
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.EventResponse
 
 private const val TAG = "InstanceMapper"
 
@@ -39,7 +40,17 @@ internal fun ColumnReader.toEventInstance(): EventInstance? {
         isAllDay = getInt(InstanceProjection.IDX_ALL_DAY) != 0,
         color = color,
         location = getString(InstanceProjection.IDX_LOCATION),
-        isDeclined = getInt(InstanceProjection.IDX_SELF_ATTENDEE_STATUS) ==
-            CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED,
+        response = mapEventResponse(getInt(InstanceProjection.IDX_SELF_ATTENDEE_STATUS)),
     )
+}
+
+/**
+ * `SELF_ATTENDEE_STATUS` as the calendar surfaces read it: a tentative "maybe"
+ * counts as going, and everything that is not an open or refused invitation —
+ * your own events included — falls through to [EventResponse.Going].
+ */
+internal fun mapEventResponse(raw: Int): EventResponse = when (raw) {
+    CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED -> EventResponse.Declined
+    CalendarContract.Attendees.ATTENDEE_STATUS_INVITED -> EventResponse.Invited
+    else -> EventResponse.Going
 }
