@@ -12,16 +12,18 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.EventResponse
+import de.jeanlucmakiola.calendula.domain.isDeclined
 
-/** Stroke an event that is not yours to be at yet is outlined with. */
+/** Stroke an invitation you have not answered is outlined with. */
 val EVENT_OUTLINE_WIDTH = 1.dp
 
 /**
  * How one event's chip or block is painted, which turns on your answer to its
- * invitation (#230). An event you are going to keeps the solid fill; one still
- * waiting on your answer, and one you refused, are drawn hollow with their
- * calendar's colour as an outline, so a glance at the grid separates "mine" from
- * "asked of me". Declined additionally keeps its strike-through (#180).
+ * invitation (#230). An invitation you have not answered is drawn hollow — its
+ * calendar's colour as an outline, nothing filled in — so a glance at the grid
+ * separates "mine" from "still asked of me". Everything you have answered keeps
+ * the solid fill, declined included: its strike-through needs a container under
+ * it to read at chip size.
  */
 @Immutable
 data class EventPaint(
@@ -45,24 +47,24 @@ fun eventPaint(
     hollowFill: Color = Color.Transparent,
 ): EventPaint {
     val soften = LocalSoftenColors.current
-    if (event.response == EventResponse.Going) {
-        val fill = eventFill(event.color, dark, soften)
+    if (event.response == EventResponse.Invited) {
         return EventPaint(
-            fill = fill,
-            outline = null,
-            titleInk = eventInk(fill, alpha = TITLE_INK_ALPHA),
-            secondaryInk = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
+            fill = hollowFill,
+            outline = eventAccent(event.color, dark, soften),
+            // Ink off the page rather than off the chip: there is no container
+            // behind the text to pin a contrast against.
+            titleInk = MaterialTheme.colorScheme.onSurface,
+            secondaryInk = MaterialTheme.colorScheme.onSurfaceVariant,
             decoration = null,
         )
     }
+    val fill = eventFill(event.color, dark, soften)
     return EventPaint(
-        fill = hollowFill,
-        outline = eventAccent(event.color, dark, soften),
-        // Ink off the page rather than off the chip: there is no container
-        // behind the text any more to pin a contrast against.
-        titleInk = MaterialTheme.colorScheme.onSurface,
-        secondaryInk = MaterialTheme.colorScheme.onSurfaceVariant,
-        decoration = declinedDecoration(event.response == EventResponse.Declined),
+        fill = fill,
+        outline = null,
+        titleInk = eventInk(fill, alpha = TITLE_INK_ALPHA),
+        secondaryInk = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
+        decoration = declinedDecoration(event.isDeclined),
     )
 }
 

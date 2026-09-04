@@ -10,6 +10,7 @@ import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
+import de.jeanlucmakiola.calendula.domain.isDeclined
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -158,7 +159,10 @@ internal fun layoutAllDay(
             val covered = days.indices.filter { ev.coversDay(days[it], zone) }
             if (covered.isEmpty()) null else Raw(ev, covered.first(), covered.last())
         }
-        .sortedWith(compareBy({ it.startCol }, { it.endCol }))
+        // Declined bars are packed after every other one, so on any day they
+        // cover they land in a lane below it (#230). First-fit still refuses a
+        // lane that is occupied on their own columns, so lanes stay overlap-free.
+        .sortedWith(compareBy({ it.event.isDeclined }, { it.startCol }, { it.endCol }))
 
     val laneEnd = ArrayList<Int>() // last occupied column per lane
     return raw.map { r ->

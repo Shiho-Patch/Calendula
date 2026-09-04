@@ -2,6 +2,7 @@ package de.jeanlucmakiola.calendula.ui.month
 
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.EventResponse
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -267,4 +268,42 @@ class MonthLayoutTest {
         assertThat(byDay.keys).containsExactlyElementsIn(weekOf8th)
         assertThat(byDay.values.flatten()).isEmpty()
     }
+
+    @Test
+    fun `a declined event sorts behind every answered one on its day`() {
+        val day = LocalDate(2026, 6, 10)
+        // Earliest of the three, and all-day on top of that, so only the
+        // declined ordering can put it last.
+        val declined = allDay(day, id = 1L, title = "Declined")
+            .copy(response = EventResponse.Declined)
+        val morning = timed(day, 9, 10, id = 2L, title = "Morning")
+        val evening = timed(day, 18, 19, id = 3L, title = "Evening")
+        val events = listOf(declined, morning, evening)
+
+        assertThat(instancesByDay(listOf(day), events, zone).getValue(day).map { it.title })
+            .containsExactly("Morning", "Evening", "Declined").inOrder()
+
+        val timedOnly =
+            layoutCalendarWeek(weekOf8th, listOf(evening, morning, declinedTimed(day)), zone)
+        assertThat(timedOnly.timedByDay.getValue(day).map { it.title })
+            .containsExactly("Morning", "Evening", "Declined early").inOrder()
+    }
+
+    @Test
+    fun `a declined all-day bar takes a lane below the ones you answered`() {
+        val day = LocalDate(2026, 6, 10)
+        val declined =
+            allDay(day, id = 1L, title = "Declined").copy(response = EventResponse.Declined)
+        val going = allDay(day, id = 2L, title = "Going")
+        // Declined listed first: only the sort, not the input order, may decide.
+        val week = layoutCalendarWeek(weekOf8th, listOf(declined, going), zone)
+
+        val lanes = week.spans.associate { it.event.title to it.lane }
+        assertThat(lanes.getValue("Going")).isLessThan(lanes.getValue("Declined"))
+    }
+
+    /** A declined timed event starting before every other one in its test. */
+    private fun declinedTimed(date: LocalDate) =
+        timed(date, 7, 8, id = 4L, title = "Declined early")
+            .copy(response = EventResponse.Declined)
 }
