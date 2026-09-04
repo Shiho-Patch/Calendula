@@ -724,12 +724,9 @@ private fun DragCopy(
     val timeLineHeight = with(density) {
         MaterialTheme.typography.labelSmall.lineHeight.toDp()
     }
-    // The copy is the block's size and spends its height the same way, so text
-    // wraps here exactly where it wrapped there rather than reflowing under the
-    // finger and snapping back on drop (#267). The range is paid for first —
-    // where the drop lands is what the drag is for, and the block may have been
-    // too short to show it — and the title takes what of its lines still fit,
-    // since nothing clips a copy that outgrows its block.
+    // The block's size, spent the block's way, so nothing reflows under the
+    // finger (#267) — but the range is paid for first, since it may be showing
+    // where a block too short for it will land, and nothing clips the overrun.
     val available = height - BLOCK_TEXT_INSET * 2
     val reserved = if (label == null) 0.dp else timeLineHeight
     val titleBudget = ((available - reserved) / titleLineHeight).toInt().coerceAtLeast(0)
