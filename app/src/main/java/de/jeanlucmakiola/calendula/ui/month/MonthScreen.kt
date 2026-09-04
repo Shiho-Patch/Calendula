@@ -147,6 +147,7 @@ import de.jeanlucmakiola.calendula.ui.common.declinedDecoration
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
+import de.jeanlucmakiola.calendula.ui.common.SECONDARY_INK_ALPHA
 import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
 import de.jeanlucmakiola.calendula.ui.common.monthBarShape
@@ -2471,11 +2472,13 @@ private fun MonthBar(
         null
     }
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
-    val label = if (time != null) "$time $title" else title
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && event.hasEnded(dimCutoff)
     val soften = LocalSoftenColors.current
     val fill = eventFill(event.color, dark, soften)
+    // The same title/secondary ink pairing the week and day blocks use, with
+    // the time on the quieter half.
+    val label = monthChipLabel(time, title, eventInk(fill, alpha = SECONDARY_INK_ALPHA))
     val moveAction = eventMoveAction(event)
     // The source stays put as a ghost while its floating copy travels.
     val monthDrag = LocalMonthDrag.current
@@ -2489,7 +2492,7 @@ private fun MonthBar(
             .background(fill, shape)
             .padding(horizontal = MONTH_CHIP_TEXT_PADDING)
             .semantics {
-                contentDescription = label
+                contentDescription = label.text
                 if (moveAction != null) customActions = listOf(moveAction)
             },
         contentAlignment = Alignment.CenterStart,
@@ -2501,7 +2504,7 @@ private fun MonthBar(
             maxLines = 1,
             overflow = titleOverflow.overflow,
             softWrap = titleOverflow.softWrap,
-            color = eventInk(fill),
+            color = eventInk(fill, alpha = TITLE_INK_ALPHA),
             textDecoration = declinedDecoration(event.isDeclined),
         )
     }

@@ -3,12 +3,20 @@ package de.jeanlucmakiola.calendula.ui.month
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
+import de.jeanlucmakiola.calendula.ui.common.SECONDARY_INK_ALPHA
 import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
 import de.jeanlucmakiola.floret.locale.currentLocale
 import kotlinx.datetime.TimeZone
@@ -45,6 +53,36 @@ private const val SAMPLE_HOUR = 12
 private const val SAMPLE_MINUTE = 45
 
 /**
+ * Ink for a chip's title, against [SECONDARY_INK_ALPHA] for the time in front of
+ * it — the same pairing the week and day blocks put a title and its time label
+ * in, so a chip that carries both reads the way a block does.
+ */
+internal const val TITLE_INK_ALPHA = 0.85f
+
+/**
+ * How the time is set apart from the title it precedes (#219). labelSmall's
+ * medium weight steps down to regular and its 0.5sp tracking closes up, so the
+ * two read as a time and a title rather than as one run-on string. Both moves
+ * also narrow the prefix, which is worth most on the column that only just
+ * earned it.
+ *
+ * The ink is handed in rather than dimmed further: at this size a fainter grey
+ * would give up the contrast [SECONDARY_INK_ALPHA] exists to hold, so the
+ * weight carries the difference instead.
+ */
+private val TIME_SPAN = SpanStyle(fontWeight = FontWeight.Normal, letterSpacing = 0.sp)
+
+/** A chip's text — its [time], set apart in [timeInk], before the [title]. */
+internal fun monthChipLabel(time: String?, title: String, timeInk: Color): AnnotatedString =
+    buildAnnotatedString {
+        if (time != null) {
+            withStyle(TIME_SPAN.copy(color = timeInk)) { append(time) }
+            append(" ")
+        }
+        append(title)
+    }
+
+/**
  * The start time a chip shows before its title (#219), or null when it has none
  * to show: an all-day chip never carries a time, and neither does a bar carried
  * in from an earlier week, whose start is not in this segment.
@@ -78,7 +116,8 @@ internal fun rememberMonthTimeChipWidth(): Dp {
     val locale = currentLocale()
     val sample = formatTimeOfDay(SAMPLE_HOUR, SAMPLE_MINUTE, LocalUse24HourFormat.current, locale)
     return remember(sample, style, density, measurer) {
-        val textPx = measurer.measure("$sample $TITLE_SAMPLE", style).size.width
+        val label = monthChipLabel(sample, TITLE_SAMPLE, Color.Unspecified)
+        val textPx = measurer.measure(label, style).size.width
         with(density) { textPx.toDp() } + CHIP_CHROME
     }
 }
