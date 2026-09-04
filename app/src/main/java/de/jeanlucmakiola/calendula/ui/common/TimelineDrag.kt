@@ -733,7 +733,7 @@ private fun DragCopy(
                 maxLines = 1,
                 overflow = titleOverflow.overflow,
                 softWrap = titleOverflow.softWrap,
-                color = eventInk(fill, alpha = 0.85f),
+                color = eventInk(fill, alpha = TITLE_INK_ALPHA),
             )
             if (label != null) {
                 Text(

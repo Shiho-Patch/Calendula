@@ -123,6 +123,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -561,8 +562,10 @@ private fun MonthDragOverlay(controller: MonthDragController) {
             dark = dark,
             continuesLeft = false,
             continuesRight = false,
-            // The copy is a cut-out of the chip it lifted off, so it answers the
-            // gate at the same width the grid did.
+            // The time the source chip carried, drawn only if this one-column
+            // cut-out of it has the room — which a slice of a multi-day bar has
+            // not, however wide the bar was.
+            time = drag.time,
             showTime = with(density) { drag.sizePx.width.toDp() } >= timeChipWidth,
             modifier = Modifier
                 // Absolute: these are root coordinates, and the direction-aware
@@ -766,7 +769,6 @@ private val DAY_NUMBER_HEIGHT = 22.dp
 private val WEEK_NUMBER_GUTTER = 40.dp
 private val DAY_NUMBER_GAP = 4.dp
 private val CELL_TOP_PADDING = 6.dp
-internal val CELL_GAP = 2.dp
 /** Named separately because the split style's selection outline draws its own
  *  rounded rect and has to match this radius exactly. */
 private val CELL_CORNER = 12.dp
@@ -815,10 +817,15 @@ internal fun MonthGrid(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         val month = state.month
+        // Once per grid: the value depends on the typography, the density, the
+        // locale and the 24-hour setting, none of which vary by row (#219).
+        val timeChipWidth = rememberMonthTimeChipWidth()
         state.weeks.forEach { week ->
             MonthWeekRow(
                 week = week,
                 today = state.today,
+                zone = state.zone,
+                timeChipWidth = timeChipWidth,
                 inMonth = { it.month == month.month && it.year == month.year },
                 showWeekNumbers = showWeekNumbers,
                 onOpenDay = onOpenDay,
@@ -858,6 +865,7 @@ internal fun ContinuousMonthGrid(
 ) {
     val monthCount = remember { continuousMonthCount() }
     val todayMonth = remember(state.today) { YearMonth(state.today.year, state.today.month) }
+    val timeChipWidth = rememberMonthTimeChipWidth()
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
@@ -879,6 +887,8 @@ internal fun ContinuousMonthGrid(
                     weeks = state.monthsByIndex[index],
                     weekStart = state.weekStart,
                     today = state.today,
+                    zone = state.zone,
+                    timeChipWidth = timeChipWidth,
                     showWeekNumbers = showWeekNumbers,
                     onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
@@ -899,6 +909,8 @@ private fun ContinuousMonthBlock(
     weeks: List<MonthWeek>?,
     weekStart: DayOfWeek,
     today: LocalDate,
+    zone: TimeZone,
+    timeChipWidth: Dp,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
     onEventClick: (EventInstance) -> Unit,
@@ -918,6 +930,8 @@ private fun ContinuousMonthBlock(
                 MonthWeekRow(
                     week = week,
                     today = today,
+                    zone = zone,
+                    timeChipWidth = timeChipWidth,
                     inMonth = { it.month == month.month && it.year == month.year },
                     // The block owns its month alone: a day from either
                     // neighbour is left out entirely rather than dimmed.
@@ -987,6 +1001,7 @@ internal fun DenseMonthGrid(
     modifier: Modifier = Modifier,
 ) {
     val weekCount = remember(state.weekStart) { continuousWeekCount(state.weekStart) }
+    val timeChipWidth = rememberMonthTimeChipWidth()
     LazyColumn(
         state = listState,
         modifier = modifier
@@ -1009,6 +1024,8 @@ internal fun DenseMonthGrid(
                 MonthWeekRow(
                     week = week,
                     today = state.today,
+                    zone = state.zone,
+                    timeChipWidth = timeChipWidth,
                     // Every day in the stream belongs to a month equally — there
                     // is no "other month" to recede here.
                     inMonth = { true },
@@ -1894,6 +1911,10 @@ private fun rememberSkeletonPulse(): Float {
 private fun MonthWeekRow(
     week: MonthWeek,
     today: LocalDate,
+    /** The zone the grid was laid out in — never re-read here (see [MonthUiState.Success.zone]). */
+    zone: TimeZone,
+    /** The narrowest chip that may carry a start time, measured once per grid (#219). */
+    timeChipWidth: Dp,
     inMonth: (LocalDate) -> Boolean,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
@@ -1913,6 +1934,27 @@ private fun MonthWeekRow(
     val laneCount = (week.spans.maxOfOrNull { it.lane } ?: -1) + 1
     val shownLanes = laneCount.coerceAtMost(MAX_EVENT_ROWS)
     val morphing = morphInFlight()
+    // Every chip's start time for this row at once, and only when the row's own
+    // inputs change: formatting is a parsed pattern per call, and the dim cutoff
+    // ticks every minute while a drag recomposes every frame (#219).
+    val is24Hour = LocalUse24HourFormat.current
+    val locale = currentLocale()
+    val chipTimes = remember(week, zone, is24Hour, locale) {
+        buildMap {
+            week.spans.forEach { span ->
+                put(
+                    span.event.instanceId,
+                    monthChipTime(span.event, span.continuesLeft, zone, is24Hour, locale),
+                )
+            }
+            week.timedByDay.values.flatten().forEach { event ->
+                put(
+                    event.instanceId,
+                    monthChipTime(event, continuesLeft = false, zone, is24Hour, locale),
+                )
+            }
+        }
+    }
 
     // Drag to reschedule (#68). The chips can take no pointer input of their own
     // — the full-bleed tap layer sits on top of them — so one detector on the
@@ -1987,14 +2029,13 @@ private fun MonthWeekRow(
                         band = bandCoordinates,
                         rowHeightPx = rowHeightPx,
                         isRtl = isRtl,
+                        chipTimes = chipTimes,
                     ),
                 ),
         ) {
+            // What a chip has to spend, against the [timeChipWidth] a start time
+            // costs it (#219).
             val colW = maxWidth / 7
-            // The width a chip needs before its start time is worth the title
-            // characters it costs (#219) — measured here, so the same column in
-            // landscape or on a foldable answers differently on its own.
-            val timeChipWidth = rememberMonthTimeChipWidth()
 
             // Per-day background pills — same surfaceContainer rounded surface the
             // week/day views use, so the three views share one visual language.
@@ -2074,6 +2115,7 @@ private fun MonthWeekRow(
                             continuesLeft = span.continuesLeft,
                             continuesRight = span.continuesRight,
                             days = week.days.subList(span.startCol, span.endCol + 1),
+                            time = chipTimes[span.event.instanceId],
                             showTime = colW * cols >= timeChipWidth,
                             modifier = Modifier
                                 .offset(
@@ -2145,6 +2187,7 @@ private fun MonthWeekRow(
                                 continuesLeft = false,
                                 continuesRight = false,
                                 days = listOf(d),
+                                time = chipTimes[ev.instanceId],
                                 showTime = colW >= timeChipWidth,
                                 modifier = Modifier
                                     .offset(
@@ -2306,6 +2349,9 @@ private fun monthChipDragModifier(
     band: Array<LayoutCoordinates?>,
     rowHeightPx: Float,
     isRtl: Boolean,
+    /** The row's formatted chip times by instance id, so the copy carries the
+     *  one its source chip had rather than deriving another (#219). */
+    chipTimes: Map<Long, String?>,
 ): Modifier = rememberDragSurface(
     enabled = moveScope?.dragEnabled == true && controller != null,
     key = week.days.first(),
@@ -2334,6 +2380,7 @@ private fun monthChipDragModifier(
                     y = requireNotNull(bandTop) + lane * rowHeightPx,
                 ),
                 size = IntSize(columnPx.toInt(), rowHeightPx.toInt()),
+                time = chipTimes[event.instanceId],
             )
             true
         }
@@ -2458,21 +2505,11 @@ private fun MonthBar(
      * the provider hands the re-read instance a new one.
      */
     days: List<LocalDate>? = null,
-    /** Whether this chip has the width to carry its start time (#219). */
+    /** The chip's start time, or null where it has none — see `monthChipTime` (#219). */
+    time: String? = null,
+    /** Whether this chip has the width to draw [time]; a screen reader gets it either way. */
     showTime: Boolean = false,
 ) {
-    val zone = remember { TimeZone.currentSystemDefault() }
-    val time = if (showTime) {
-        monthChipTime(
-            event = event,
-            continuesLeft = continuesLeft,
-            zone = zone,
-            is24Hour = LocalUse24HourFormat.current,
-            locale = currentLocale(),
-        )
-    } else {
-        null
-    }
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && event.hasEnded(dimCutoff)
@@ -2480,7 +2517,15 @@ private fun MonthBar(
     val fill = eventFill(event.color, dark, soften)
     // The same title/secondary ink pairing the week and day blocks use, with
     // the time on the quieter half.
-    val label = inlineTimeLabel(time, title, eventInk(fill, alpha = SECONDARY_INK_ALPHA))
+    val label = inlineTimeLabel(
+        time = time.takeIf { showTime },
+        title = title,
+        timeInk = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
+    )
+    // Announced whether or not it is drawn, and comma-separated as the week and
+    // day blocks do it: what a screen reader hears shouldn't turn on how wide
+    // the chip happens to be (#219).
+    val description = if (time != null) "$title, $time" else title
     val moveAction = eventMoveAction(event)
     // The source stays put as a ghost while its floating copy travels.
     val monthDrag = LocalMonthDrag.current
@@ -2494,7 +2539,7 @@ private fun MonthBar(
             .background(fill, shape)
             .padding(horizontal = MONTH_CHIP_TEXT_PADDING)
             .semantics {
-                contentDescription = label.text
+                contentDescription = description
                 if (moveAction != null) customActions = listOf(moveAction)
             },
         contentAlignment = Alignment.CenterStart,

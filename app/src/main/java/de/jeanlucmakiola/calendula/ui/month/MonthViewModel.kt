@@ -238,6 +238,7 @@ class MonthViewModel @Inject constructor(
             monthsByIndex = months,
             weeksByIndex = weeks,
             weekStart = weekStart,
+            zone = zone,
         )
     }
 

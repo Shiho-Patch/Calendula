@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the title now simply runs to the edge of its chip — a few more letters per
   cell, which is often the difference between two events you can tell apart and
   two you can't ([#164]).
+- Month-view events now show their start time before the title, where the chip
+  is wide enough to keep the title readable — in landscape, on a foldable and on
+  a tablet, and never at the cost of a narrow phone column. All-day events show
+  no time, and neither does a bar carried in from the previous week, whose start
+  is not in that row. Event times across the month, week and day views are also
+  set in a regular weight against the title's, so a time reads as a time rather
+  than as part of the name next to it ([#219]).
 - The calendar titles now shorten instead of being cut off. When the full month
   name doesn't fit the top bar, the month and week views fall back to its
   three-letter form and the day view drops the weekday, rather than trailing off
@@ -1583,5 +1590,6 @@ automatically, with zero telemetry and no internet permission.
 [#225]: https://codeberg.org/jlmakiola/calendula/issues/225
 [#228]: https://codeberg.org/jlmakiola/calendula/issues/228
 [#234]: https://codeberg.org/jlmakiola/calendula/issues/234
+[#219]: https://codeberg.org/jlmakiola/calendula/issues/219
 [#248]: https://codeberg.org/jlmakiola/calendula/issues/248
 [#253]: https://codeberg.org/jlmakiola/calendula/issues/253

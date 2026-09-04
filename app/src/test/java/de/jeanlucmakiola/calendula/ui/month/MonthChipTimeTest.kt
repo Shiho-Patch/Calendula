@@ -1,9 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.month
 
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import com.google.common.truth.Truth.assertThat
-import de.jeanlucmakiola.calendula.ui.common.inlineTimeLabel
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -15,7 +12,8 @@ import kotlinx.datetime.toInstant
 import org.junit.jupiter.api.Test
 import java.util.Locale
 
-/** Which month chips carry a start time, and how it reads (#219). */
+/** Which month chips carry a start time, and how it reads (#219).
+ *  How it is *set* against the title lives in `EventTimeStyleTest`. */
 class MonthChipTimeTest {
 
     private val zone = TimeZone.UTC
@@ -56,26 +54,6 @@ class MonthChipTimeTest {
     fun `the 12-hour setting is honoured`() {
         val time = monthChipTime(timed(14, 30), continuesLeft = false, zone, is24Hour = false, locale)
         assertThat(time).isEqualTo("2:30 pm")
-    }
-
-    @Test
-    fun `the time is set apart from the title it precedes`() {
-        val label = inlineTimeLabel("09:05", "Standup", Color.Black)
-        assertThat(label.text).isEqualTo("09:05 Standup")
-        // Only the time is restyled: the title keeps labelSmall as the theme
-        // sets it, so the two read as separate things on one line (#219).
-        val spans = label.spanStyles
-        assertThat(spans).hasSize(1)
-        assertThat(spans.single().start).isEqualTo(0)
-        assertThat(spans.single().end).isEqualTo("09:05".length)
-        assertThat(spans.single().item.fontWeight).isEqualTo(FontWeight.Normal)
-    }
-
-    @Test
-    fun `a chip without a time is styled title and nothing else`() {
-        val label = inlineTimeLabel(null, "Standup", Color.Black)
-        assertThat(label.text).isEqualTo("Standup")
-        assertThat(label.spanStyles).isEmpty()
     }
 
     @Test

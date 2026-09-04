@@ -129,7 +129,9 @@ import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.MIN_EVENT_FRACTION
 import de.jeanlucmakiola.calendula.ui.common.MIN_TITLE_WRAP_WIDTH
+import de.jeanlucmakiola.calendula.ui.common.asEventTime
 import de.jeanlucmakiola.calendula.ui.common.SECONDARY_INK_ALPHA
+import de.jeanlucmakiola.calendula.ui.common.TITLE_INK_ALPHA
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
@@ -661,7 +663,7 @@ private fun AllDayBar(
             maxLines = 1,
             overflow = titleOverflow.overflow,
             softWrap = titleOverflow.softWrap,
-            color = eventInk(fill),
+            color = eventInk(fill, alpha = TITLE_INK_ALPHA),
             textDecoration = declinedDecoration(event.isDeclined),
         )
     }
@@ -916,7 +918,9 @@ private fun EventBlock(
     val timeMaxLines = if (showTime && spare >= timeLineHeight) {
         blockTextLines(
             text = timeLabel,
-            style = MaterialTheme.typography.labelSmall,
+            // The style it is drawn in, or the budget measures a line the label
+            // never uses (#219).
+            style = MaterialTheme.typography.labelSmall.asEventTime(),
             textWidth = textWidth,
             max = MAX_TIME_LINES,
         )
@@ -969,7 +973,7 @@ private fun EventBlock(
                     title = title,
                     maxLines = titleMaxLines,
                     textWidth = textWidth,
-                    color = eventInk(fill, alpha = 0.85f),
+                    color = eventInk(fill, alpha = TITLE_INK_ALPHA),
                     textDecoration = declinedDecoration(block.event.isDeclined),
                 )
             }
