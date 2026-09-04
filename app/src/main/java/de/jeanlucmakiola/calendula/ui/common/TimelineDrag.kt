@@ -652,13 +652,7 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
             animationSpec = tween(SETTLE_FADE_MILLIS),
             label = "drag-handover",
         )
-        // A lifted copy needs a body under its shadow, so an outlined event
-        // (#230) fills with a surface here instead of staying see-through.
-        val paint = eventPaint(
-            event = drag.event,
-            dark = dark,
-            hollowFill = MaterialTheme.colorScheme.surfaceContainerHighest,
-        )
+        val paint = eventPaint(drag.event, dark)
         val title = drag.event.title.ifBlank { stringResource(R.string.event_untitled) }
         // Read off the event rather than the held block, so grabbing either half
         // of an event that crosses midnight names the same hours. An end past

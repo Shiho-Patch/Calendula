@@ -83,7 +83,7 @@ enum class EventResponse {
     /** Your own event, or one you accepted — including a tentative "maybe". */
     Going,
 
-    /** Invited, no answer given yet: drawn hollow so it reads as still open. */
+    /** Invited, no answer given yet: drawn hatched so it reads as still open. */
     Invited,
 
     /**
