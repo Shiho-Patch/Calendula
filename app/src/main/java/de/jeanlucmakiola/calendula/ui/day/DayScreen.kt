@@ -524,6 +524,7 @@ private fun AllDayBar(
             overflow = titleOverflow.overflow,
             softWrap = titleOverflow.softWrap,
             color = paint.titleInk,
+            fontWeight = paint.titleWeight,
             textDecoration = paint.decoration,
         )
     }
@@ -800,6 +801,7 @@ private fun EventBlock(
                     textWidth = textWidth,
                     color = paint.titleInk,
                     textDecoration = paint.decoration,
+                    fontWeight = paint.titleWeight,
                 )
             }
             if (showTime) {

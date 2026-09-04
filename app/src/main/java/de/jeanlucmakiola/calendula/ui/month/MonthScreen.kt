@@ -2548,6 +2548,7 @@ private fun MonthBar(
             overflow = titleOverflow.overflow,
             softWrap = titleOverflow.softWrap,
             color = paint.titleInk,
+            fontWeight = paint.titleWeight,
             textDecoration = paint.decoration,
         )
     }

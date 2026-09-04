@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -81,8 +82,12 @@ fun BlockTitle(
     color: Color,
     modifier: Modifier = Modifier,
     textDecoration: TextDecoration? = null,
+    fontWeight: FontWeight? = null,
 ) {
+    // Folded into the style rather than passed to the Text, so the wrap measured
+    // below is the wrap that gets drawn.
     val style = MaterialTheme.typography.labelMedium
+        .let { if (fontWeight == null) it else it.copy(fontWeight = fontWeight) }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val measurer = rememberTextMeasurer()
     val widthPx = with(LocalDensity.current) { textWidth.roundToPx() }

@@ -8,6 +8,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.domain.EventInstance
@@ -15,7 +16,7 @@ import de.jeanlucmakiola.calendula.domain.EventResponse
 import de.jeanlucmakiola.calendula.domain.isDeclined
 
 /** Stroke an invitation you have not answered is outlined with. */
-val EVENT_OUTLINE_WIDTH = 2.dp
+val EVENT_OUTLINE_WIDTH = 1.dp
 
 /**
  * How one event's chip or block is painted, which turns on your answer to its
@@ -35,6 +36,11 @@ data class EventPaint(
     val titleInk: Color,
     val secondaryInk: Color,
     val decoration: TextDecoration?,
+    /**
+     * Weight to set the title at, or null to keep whatever the surface's own
+     * text style carries.
+     */
+    val titleWeight: FontWeight?,
 )
 
 /** [EventPaint] for [event] on a [dark] scheme. */
@@ -52,6 +58,10 @@ fun eventPaint(event: EventInstance, dark: Boolean): EventPaint {
             titleInk = accent,
             secondaryInk = accent.copy(alpha = SECONDARY_INK_ALPHA),
             decoration = null,
+            // The label styles' medium weight is set to carry ink on a filled
+            // container. In a calendar colour on a plain one it thickens into
+            // something harder to read, so step it back to regular.
+            titleWeight = FontWeight.Normal,
         )
     }
     val fill = eventFill(event.color, dark, soften)
@@ -61,6 +71,7 @@ fun eventPaint(event: EventInstance, dark: Boolean): EventPaint {
         titleInk = eventInk(fill, alpha = TITLE_INK_ALPHA),
         secondaryInk = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
         decoration = declinedDecoration(event.isDeclined),
+        titleWeight = null,
     )
 }
 

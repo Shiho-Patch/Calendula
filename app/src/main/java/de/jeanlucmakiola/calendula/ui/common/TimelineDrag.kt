@@ -732,6 +732,7 @@ private fun DragCopy(
                 overflow = titleOverflow.overflow,
                 softWrap = titleOverflow.softWrap,
                 color = paint.titleInk,
+                fontWeight = paint.titleWeight,
                 textDecoration = paint.decoration,
             )
             if (label != null) {
