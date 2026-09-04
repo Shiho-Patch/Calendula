@@ -62,6 +62,33 @@ fun blockTextLines(text: String, style: TextStyle, textWidth: Dp, max: Int): Int
 }
 
 /**
+ * Lines the time label may take at [textWidth], out of the [spare] height left
+ * once the title and the label's own first line are paid for.
+ *
+ * A week column is narrower than a "09:30–11:00" range, so the label takes a
+ * second line rather than lose its end — but only out of a line the title
+ * measured itself as not needing, never one it would have filled.
+ */
+@Composable
+fun blockTimeLines(label: String, textWidth: Dp, spare: Dp): Int {
+    val timeLineHeight = with(LocalDensity.current) {
+        MaterialTheme.typography.labelSmall.lineHeight.toDp()
+    }
+    return if (spare >= timeLineHeight) {
+        blockTextLines(
+            text = label,
+            // The style it is drawn in, or the budget measures a line the label
+            // never uses (#219).
+            style = MaterialTheme.typography.labelSmall.asEventTime(),
+            textWidth = textWidth,
+            max = MAX_TIME_LINES,
+        )
+    } else {
+        1
+    }
+}
+
+/**
  * A timed block's title, over at most [maxLines].
  *
  * Wrapping and clipping pull against each other, which is why #164 left the

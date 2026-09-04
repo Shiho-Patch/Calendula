@@ -85,8 +85,7 @@ import de.jeanlucmakiola.calendula.ui.common.BLOCK_OUTER_INSET
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_PADDING
 import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.BlockTitle
-import de.jeanlucmakiola.calendula.ui.common.MAX_TIME_LINES
-import de.jeanlucmakiola.calendula.ui.common.blockTextLines
+import de.jeanlucmakiola.calendula.ui.common.blockTimeLines
 import de.jeanlucmakiola.calendula.ui.common.animatedBlockPlacement
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
@@ -120,7 +119,6 @@ import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.MIN_EVENT_FRACTION
-import de.jeanlucmakiola.calendula.ui.common.asEventTime
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
@@ -748,23 +746,11 @@ private fun EventBlock(
     val showTitle = available >= titleLineHeight
     val textWidth = width - (BLOCK_OUTER_INSET + BLOCK_TEXT_PADDING) * 2
     val titleMaxLines = if (showTime) 1 else 2
-    // The range only wraps out of a line the title has not claimed, which on a
-    // day column — wide enough for "09:30–11:00" several times over — means it
-    // never does, until lanes cut the column down.
+    // On a day column — wide enough for "09:30–11:00" several times over — the
+    // range never needs the second line, until lanes cut the column down.
     val spare = available - titleLineHeight * titleMaxLines -
         if (showTime) timeLineHeight else 0.dp
-    val timeMaxLines = if (showTime && spare >= timeLineHeight) {
-        blockTextLines(
-            text = timeLabel,
-            // The style it is drawn in, or the budget measures a line the label
-            // never uses (#219).
-            style = MaterialTheme.typography.labelSmall.asEventTime(),
-            textWidth = textWidth,
-            max = MAX_TIME_LINES,
-        )
-    } else {
-        1
-    }
+    val timeMaxLines = if (showTime) blockTimeLines(timeLabel, textWidth, spare) else 1
     val paint = eventPaint(block.event, dark)
     val zone = remember { TimeZone.currentSystemDefault() }
     val moveAction = eventMoveAction(block.event)
@@ -780,7 +766,7 @@ private fun EventBlock(
         enabled = draggable,
         key = block.event.instanceId,
         onPickUp = { pointer, blockRoot, _ ->
-            dragController.begin(block, clipOffset, pointer, blockRoot)
+            dragController.begin(block, clipOffset, titleMaxLines, pointer, blockRoot)
         },
         onMove = dragController::move,
         onDrop = { dragController.finish()?.let(onDrop) },

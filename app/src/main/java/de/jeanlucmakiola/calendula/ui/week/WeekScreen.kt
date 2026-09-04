@@ -93,8 +93,8 @@ import de.jeanlucmakiola.calendula.ui.common.BLOCK_OUTER_INSET
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_PADDING
 import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.BlockTitle
-import de.jeanlucmakiola.calendula.ui.common.MAX_TIME_LINES
 import de.jeanlucmakiola.calendula.ui.common.blockTextLines
+import de.jeanlucmakiola.calendula.ui.common.blockTimeLines
 import de.jeanlucmakiola.calendula.ui.common.animatedBlockPlacement
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
@@ -130,7 +130,6 @@ import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.MIN_EVENT_FRACTION
 import de.jeanlucmakiola.calendula.ui.common.MIN_TITLE_WRAP_WIDTH
-import de.jeanlucmakiola.calendula.ui.common.asEventTime
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
@@ -918,23 +917,9 @@ private fun EventBlock(
             max = titleBudget,
         )
     }
-    // A week column is narrower than a "09:30–11:00" range, so the label takes a
-    // second line rather than lose its end — but only out of a line the title
-    // measured itself as not needing, never one it would have filled.
     val spare = available - titleLineHeight * titleMaxLines -
         if (showTime) timeLineHeight else 0.dp
-    val timeMaxLines = if (showTime && spare >= timeLineHeight) {
-        blockTextLines(
-            text = timeLabel,
-            // The style it is drawn in, or the budget measures a line the label
-            // never uses (#219).
-            style = MaterialTheme.typography.labelSmall.asEventTime(),
-            textWidth = textWidth,
-            max = MAX_TIME_LINES,
-        )
-    } else {
-        1
-    }
+    val timeMaxLines = if (showTime) blockTimeLines(timeLabel, textWidth, spare) else 1
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && block.event.hasEnded(dimCutoff)
     val zone = remember { TimeZone.currentSystemDefault() }
@@ -951,7 +936,7 @@ private fun EventBlock(
         enabled = draggable,
         key = block.event.instanceId,
         onPickUp = { pointer, blockRoot, _ ->
-            dragController.begin(block, clipOffset, pointer, blockRoot)
+            dragController.begin(block, clipOffset, titleMaxLines, pointer, blockRoot)
         },
         onMove = dragController::move,
         onDrop = { dragController.finish()?.let(onDrop) },
