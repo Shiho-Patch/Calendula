@@ -90,6 +90,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.geometry.Offset
 import de.jeanlucmakiola.calendula.ui.common.eventPaint
 import de.jeanlucmakiola.calendula.ui.common.eventSurface
+import de.jeanlucmakiola.calendula.ui.common.monthBarCuts
 import kotlin.math.roundToInt
 import de.jeanlucmakiola.calendula.ui.common.rememberDragSurface
 import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
@@ -2532,7 +2533,7 @@ private fun MonthBar(
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
             .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
-            .eventSurface(paint, shape)
+            .eventSurface(paint, shape, monthBarCuts(continuesLeft, continuesRight))
             .padding(horizontal = MONTH_CHIP_TEXT_PADDING)
             .semantics {
                 contentDescription = description

@@ -673,6 +673,7 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
                 sizePx = piece.sizePx,
                 paint = paint,
                 shape = timedBlockShape(piece.continuesBefore, piece.continuesAfter),
+                cuts = timedBlockCuts(piece.continuesBefore, piece.continuesAfter),
                 lift = lift,
                 alpha = copyAlpha,
                 title = title,
@@ -691,6 +692,7 @@ private fun DragCopy(
     sizePx: IntSize,
     paint: EventPaint,
     shape: RoundedCornerShape,
+    cuts: ChipCuts,
     lift: Float,
     alpha: Float,
     title: String,
@@ -720,7 +722,7 @@ private fun DragCopy(
                 this.shape = shape
                 clip = false
             }
-            .eventSurface(paint, shape)
+            .eventSurface(paint, shape, cuts)
             .padding(horizontal = BLOCK_TEXT_PADDING, vertical = 2.dp),
     ) {
         Column {

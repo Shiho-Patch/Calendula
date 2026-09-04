@@ -290,6 +290,20 @@ class MonthLayoutTest {
     }
 
     @Test
+    fun `a declined bar packed last still shares a lane it does not overlap`() {
+        // Sorting declined last means this bar is seated after one that reaches
+        // further right than it starts. A lane must still be offered on the
+        // columns it is actually free on, or the row grows a wasted rank.
+        val mon = weekOf8th[0]
+        val declined = allDay(mon, id = 1L, title = "Declined")
+            .copy(response = EventResponse.Declined)
+        val going = allDay(weekOf8th[2], weekOf8th[3], id = 2L, title = "Going")
+        val week = layoutCalendarWeek(weekOf8th, listOf(declined, going), zone)
+
+        assertThat(week.spans.map { it.lane }).containsExactly(0, 0)
+    }
+
+    @Test
     fun `a declined all-day bar takes a lane below the ones you answered`() {
         val day = LocalDate(2026, 6, 10)
         val declined =
@@ -300,6 +314,20 @@ class MonthLayoutTest {
 
         val lanes = week.spans.associate { it.event.title to it.lane }
         assertThat(lanes.getValue("Going")).isLessThan(lanes.getValue("Declined"))
+    }
+
+    @Test
+    fun `overlapping bars never share a lane, whatever order they arrive in`() {
+        val a = allDay(weekOf8th[0], weekOf8th[3], id = 1L, title = "A")
+        val b = allDay(weekOf8th[2], weekOf8th[5], id = 2L, title = "B")
+        val c = allDay(weekOf8th[3], weekOf8th[4], id = 3L, title = "C")
+            .copy(response = EventResponse.Declined)
+        val lanes = layoutCalendarWeek(weekOf8th, listOf(c, b, a), zone)
+            .spans.associate { it.event.title to it.lane }
+
+        assertThat(lanes.getValue("A")).isNotEqualTo(lanes.getValue("B"))
+        assertThat(lanes.getValue("B")).isNotEqualTo(lanes.getValue("C"))
+        assertThat(lanes.getValue("A")).isNotEqualTo(lanes.getValue("C"))
     }
 
     /** A declined timed event starting before every other one in its test. */

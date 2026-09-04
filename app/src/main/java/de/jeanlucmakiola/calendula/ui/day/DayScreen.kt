@@ -39,6 +39,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -69,6 +70,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.common.LocalChipGround
 import de.jeanlucmakiola.calendula.ui.common.eventPaint
 import de.jeanlucmakiola.calendula.ui.common.eventSurface
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
@@ -97,6 +99,7 @@ import de.jeanlucmakiola.calendula.ui.common.TimelineDrop
 import de.jeanlucmakiola.calendula.ui.common.clipOffsetMinutes
 import de.jeanlucmakiola.calendula.ui.common.continuesAfter
 import de.jeanlucmakiola.calendula.ui.common.continuesBefore
+import de.jeanlucmakiola.calendula.ui.common.timedBlockCuts
 import de.jeanlucmakiola.calendula.ui.common.timedBlockShape
 import de.jeanlucmakiola.calendula.ui.common.eventDragAllowed
 import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
@@ -369,14 +372,20 @@ internal fun DaySuccess(
     Column(modifier = Modifier.fillMaxSize()) {
         // All-day strip collapses to nothing when the day has no all-day events,
         // so the timeline sits directly under the app bar.
-        AllDayStrip(
-            state = state,
-            height = allDayHeight,
-            onEventClick = onEventClick,
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface),
-        )
+        // This strip is painted on `surface`, so an outlined chip has to fill
+        // with that and not with the column's container (#230).
+        CompositionLocalProvider(
+            LocalChipGround provides MaterialTheme.colorScheme.surface,
+        ) {
+            AllDayStrip(
+                state = state,
+                height = allDayHeight,
+                onEventClick = onEventClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface),
+            )
+        }
         // Breathing room between the top section and the scrolling timeline
         // below.
         Spacer(Modifier.height(8.dp))
@@ -763,9 +772,10 @@ private fun EventBlock(
     // The drop takes this offset back off, so a tail clipped at midnight lands
     // where the event's own start belongs (#253).
     val clipOffset = remember(block, date, zone) { block.clipOffsetMinutes(date, zone) }
-    val shape = remember(block, date, zone) {
-        timedBlockShape(block.continuesBefore(date, zone), block.continuesAfter(date, zone))
+    val cuts = remember(block, date, zone) {
+        timedBlockCuts(block.continuesBefore(date, zone), block.continuesAfter(date, zone))
     }
+    val shape = remember(cuts) { timedBlockShape(cuts.top, cuts.bottom) }
     val dragModifier = rememberEventDragSource(
         enabled = draggable,
         key = block.event.instanceId,
@@ -782,7 +792,7 @@ private fun EventBlock(
         modifier = modifier
             // The source stays put as a ghost while its floating copy travels.
             .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
-            .eventSurface(paint, shape)
+            .eventSurface(paint, shape, cuts)
             .clickable(onClick = onClick)
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.

@@ -145,7 +145,7 @@ class WeekViewModel @Inject constructor(
 /**
  * Lay out all-day events as connected horizontal spans across the visible week.
  * Each event becomes one [AllDaySpan] from its first to its last covered column;
- * overlapping spans are stacked on separate lanes (greedy first-fit by start).
+ * overlapping spans are stacked on separate lanes (greedy first-fit).
  */
 internal fun layoutAllDay(
     events: List<EventInstance>,
@@ -160,22 +160,33 @@ internal fun layoutAllDay(
             if (covered.isEmpty()) null else Raw(ev, covered.first(), covered.last())
         }
         // Declined bars are packed after every other one, so on any day they
-        // cover they land in a lane below it (#230). First-fit still refuses a
-        // lane that is occupied on their own columns, so lanes stay overlap-free.
+        // cover they land in a lane below it (#230).
         .sortedWith(compareBy({ it.event.isDeclined }, { it.startCol }, { it.endCol }))
 
-    val laneEnd = ArrayList<Int>() // last occupied column per lane
+    // What each lane already holds, rather than just how far right it reaches.
+    // A single "last occupied column" only answers correctly while spans arrive
+    // in non-decreasing start order, which the declined-last rule above breaks:
+    // a Monday bar seated after a Wednesday one would be refused a lane it is
+    // nowhere near, and each wasted lane costs the all-day strip a whole row and
+    // pushes a bar closer to the month grid's MAX_EVENT_ROWS cap. Seven columns
+    // and a handful of bars, so the scan is cheaper than the sort above it.
+    val laneCols = ArrayList<MutableList<IntRange>>()
     return raw.map { r ->
-        var lane = laneEnd.indexOfFirst { it < r.startCol }
+        val cols = r.startCol..r.endCol
+        var lane = laneCols.indexOfFirst { seated -> seated.none { it overlaps cols } }
         if (lane == -1) {
-            laneEnd.add(r.endCol)
-            lane = laneEnd.size - 1
+            laneCols.add(mutableListOf(cols))
+            lane = laneCols.size - 1
         } else {
-            laneEnd[lane] = r.endCol
+            laneCols[lane].add(cols)
         }
         AllDaySpan(r.event, r.startCol, r.endCol, lane)
     }
 }
+
+/** Whether two column ranges share a column, so they cannot share a lane. */
+private infix fun IntRange.overlaps(other: IntRange): Boolean =
+    first <= other.last && other.first <= last
 
 /** Beginning of the week (at [weekStart]) that contains this date. */
 internal fun LocalDate.startOfWeek(weekStart: DayOfWeek): LocalDate {
