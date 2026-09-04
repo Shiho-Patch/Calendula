@@ -738,7 +738,8 @@ private fun DragCopy(
             if (label != null) {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelSmall,
+                    // As the block it lifted off sets its own time (#219).
+                    style = MaterialTheme.typography.labelSmall.asEventTime(),
                     maxLines = 1,
                     overflow = titleOverflow.overflow,
                     softWrap = titleOverflow.softWrap,

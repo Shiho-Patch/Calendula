@@ -172,7 +172,8 @@ fun BlockTimeLabel(
     ) { text ->
         Text(
             text = text,
-            style = MaterialTheme.typography.labelSmall,
+            // Regular weight against the title's medium above it (#219).
+            style = MaterialTheme.typography.labelSmall.asEventTime(),
             maxLines = maxLines,
             overflow = overflow.overflow,
             softWrap = overflow.softWrap,

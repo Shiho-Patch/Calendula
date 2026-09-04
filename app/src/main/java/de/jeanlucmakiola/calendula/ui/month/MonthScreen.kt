@@ -148,6 +148,8 @@ import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.SECONDARY_INK_ALPHA
+import de.jeanlucmakiola.calendula.ui.common.TITLE_INK_ALPHA
+import de.jeanlucmakiola.calendula.ui.common.inlineTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
 import de.jeanlucmakiola.calendula.ui.common.monthBarShape
@@ -2478,7 +2480,7 @@ private fun MonthBar(
     val fill = eventFill(event.color, dark, soften)
     // The same title/secondary ink pairing the week and day blocks use, with
     // the time on the quieter half.
-    val label = monthChipLabel(time, title, eventInk(fill, alpha = SECONDARY_INK_ALPHA))
+    val label = inlineTimeLabel(time, title, eventInk(fill, alpha = SECONDARY_INK_ALPHA))
     val moveAction = eventMoveAction(event)
     // The source stays put as a ghost while its floating copy travels.
     val monthDrag = LocalMonthDrag.current
