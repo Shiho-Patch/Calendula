@@ -2,6 +2,8 @@ package de.jeanlucmakiola.calendula.data.calendar
 
 import android.provider.CalendarContract
 import com.google.common.truth.Truth.assertThat
+import de.jeanlucmakiola.calendula.domain.EventResponse
+import de.jeanlucmakiola.calendula.domain.isDeclined
 import kotlin.time.Instant
 import org.junit.jupiter.api.Test
 
@@ -107,6 +109,24 @@ class InstanceMapperTest {
             CalendarContract.Attendees.ATTENDEE_STATUS_INVITED,
         ).forEach { status ->
             assertThat(reader(selfAttendeeStatus = status).toEventInstance()!!.isDeclined).isFalse()
+        }
+    }
+
+    @Test
+    fun `an unanswered invitation reads as invited, an answered one does not`() {
+        assertThat(
+            reader(selfAttendeeStatus = CalendarContract.Attendees.ATTENDEE_STATUS_INVITED)
+                .toEventInstance()!!.response,
+        ).isEqualTo(EventResponse.Invited)
+        mapOf(
+            CalendarContract.Attendees.ATTENDEE_STATUS_NONE to EventResponse.Going,
+            CalendarContract.Attendees.ATTENDEE_STATUS_ACCEPTED to EventResponse.Going,
+            // "Maybe" is still an answer, so it keeps the solid chip (#230).
+            CalendarContract.Attendees.ATTENDEE_STATUS_TENTATIVE to EventResponse.Going,
+            CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED to EventResponse.Declined,
+        ).forEach { (status, expected) ->
+            assertThat(reader(selfAttendeeStatus = status).toEventInstance()!!.response)
+                .isEqualTo(expected)
         }
     }
 }

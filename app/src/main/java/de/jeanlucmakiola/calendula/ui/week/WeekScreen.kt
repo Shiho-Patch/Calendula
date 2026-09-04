@@ -77,6 +77,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.hasEnded
+import de.jeanlucmakiola.calendula.ui.common.eventPaint
+import de.jeanlucmakiola.calendula.ui.common.eventSurface
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarTitleButton
@@ -86,7 +88,6 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
-import de.jeanlucmakiola.calendula.ui.common.declinedDecoration
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_OUTER_INSET
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_PADDING
 import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
@@ -112,10 +113,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberEventDragSource
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelineDragController
 import de.jeanlucmakiola.calendula.ui.common.startInstant
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
-import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
-import de.jeanlucmakiola.calendula.ui.common.eventFill
-import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.ui.common.NowLine
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
@@ -130,8 +128,6 @@ import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.MIN_EVENT_FRACTION
 import de.jeanlucmakiola.calendula.ui.common.MIN_TITLE_WRAP_WIDTH
 import de.jeanlucmakiola.calendula.ui.common.asEventTime
-import de.jeanlucmakiola.calendula.ui.common.SECONDARY_INK_ALPHA
-import de.jeanlucmakiola.calendula.ui.common.TITLE_INK_ALPHA
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
@@ -646,11 +642,10 @@ private fun AllDayBar(
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && event.hasEnded(dimCutoff)
-    val soften = LocalSoftenColors.current
-    val fill = eventFill(event.color, dark, soften)
+    val paint = eventPaint(event, dark)
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
-            .background(fill, EventChipShape)
+            .eventSurface(paint, EventChipShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 2.dp)
             .semantics { contentDescription = title },
@@ -663,8 +658,8 @@ private fun AllDayBar(
             maxLines = 1,
             overflow = titleOverflow.overflow,
             softWrap = titleOverflow.softWrap,
-            color = eventInk(fill, alpha = TITLE_INK_ALPHA),
-            textDecoration = declinedDecoration(event.isDeclined),
+            color = paint.titleInk,
+            textDecoration = paint.decoration,
         )
     }
 }
@@ -929,8 +924,7 @@ private fun EventBlock(
     }
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && block.event.hasEnded(dimCutoff)
-    val soften = LocalSoftenColors.current
-    val fill = eventFill(block.event.color, dark, soften)
+    val paint = eventPaint(block.event, dark)
     val zone = remember { TimeZone.currentSystemDefault() }
     val moveAction = eventMoveAction(block.event)
     val draggable = eventDragAllowed(block.event)
@@ -956,7 +950,7 @@ private fun EventBlock(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
             // The source stays put as a ghost while its floating copy travels.
             .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
-            .background(fill, shape)
+            .eventSurface(paint, shape)
             .clickable(onClick = onClick)
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.
@@ -973,14 +967,14 @@ private fun EventBlock(
                     title = title,
                     maxLines = titleMaxLines,
                     textWidth = textWidth,
-                    color = eventInk(fill, alpha = TITLE_INK_ALPHA),
-                    textDecoration = declinedDecoration(block.event.isDeclined),
+                    color = paint.titleInk,
+                    textDecoration = paint.decoration,
                 )
             }
             if (showTime) {
                 BlockTimeLabel(
                     label = timeLabel,
-                    color = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
+                    color = paint.secondaryInk,
                     maxLines = timeMaxLines,
                 )
             }

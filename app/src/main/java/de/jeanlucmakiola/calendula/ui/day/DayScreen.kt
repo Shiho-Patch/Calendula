@@ -69,6 +69,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.ui.common.eventPaint
+import de.jeanlucmakiola.calendula.ui.common.eventSurface
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.CalendarTitleButton
@@ -108,11 +110,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSwipe
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.calendula.ui.common.next
-import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
-import de.jeanlucmakiola.calendula.ui.common.eventFill
-import de.jeanlucmakiola.calendula.ui.common.eventInk
-import de.jeanlucmakiola.calendula.ui.common.declinedDecoration
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
@@ -120,8 +118,6 @@ import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.MIN_EVENT_FRACTION
 import de.jeanlucmakiola.calendula.ui.common.asEventTime
-import de.jeanlucmakiola.calendula.ui.common.SECONDARY_INK_ALPHA
-import de.jeanlucmakiola.calendula.ui.common.TITLE_INK_ALPHA
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
@@ -511,11 +507,10 @@ private fun AllDayBar(
     modifier: Modifier = Modifier,
 ) {
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
-    val soften = LocalSoftenColors.current
-    val fill = eventFill(event.color, dark, soften)
+    val paint = eventPaint(event, dark)
     Box(
         modifier = modifier
-            .background(fill, EventChipShape)
+            .eventSurface(paint, EventChipShape)
             .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 2.dp)
             .semantics { contentDescription = title },
@@ -528,8 +523,8 @@ private fun AllDayBar(
             maxLines = 1,
             overflow = titleOverflow.overflow,
             softWrap = titleOverflow.softWrap,
-            color = eventInk(fill, alpha = TITLE_INK_ALPHA),
-            textDecoration = declinedDecoration(event.isDeclined),
+            color = paint.titleInk,
+            textDecoration = paint.decoration,
         )
     }
 }
@@ -760,8 +755,7 @@ private fun EventBlock(
     } else {
         1
     }
-    val soften = LocalSoftenColors.current
-    val fill = eventFill(block.event.color, dark, soften)
+    val paint = eventPaint(block.event, dark)
     val zone = remember { TimeZone.currentSystemDefault() }
     val moveAction = eventMoveAction(block.event)
     val draggable = eventDragAllowed(block.event)
@@ -787,7 +781,7 @@ private fun EventBlock(
         modifier = modifier
             // The source stays put as a ghost while its floating copy travels.
             .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
-            .background(fill, shape)
+            .eventSurface(paint, shape)
             .clickable(onClick = onClick)
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.
@@ -804,14 +798,14 @@ private fun EventBlock(
                     title = title,
                     maxLines = titleMaxLines,
                     textWidth = textWidth,
-                    color = eventInk(fill, alpha = TITLE_INK_ALPHA),
-                    textDecoration = declinedDecoration(block.event.isDeclined),
+                    color = paint.titleInk,
+                    textDecoration = paint.decoration,
                 )
             }
             if (showTime) {
                 BlockTimeLabel(
                     label = timeLabel,
-                    color = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
+                    color = paint.secondaryInk,
                     maxLines = timeMaxLines,
                 )
             }

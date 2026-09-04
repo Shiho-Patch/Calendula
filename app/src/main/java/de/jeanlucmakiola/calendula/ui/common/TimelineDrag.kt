@@ -25,7 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
@@ -604,7 +603,6 @@ const val SETTLE_FADE_MILLIS: Int = 250
 fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier = Modifier) {
     var origin by remember { mutableStateOf(Offset.Zero) }
     val dark = isSystemInDarkTheme()
-    val soften = LocalSoftenColors.current
     val use24Hour = LocalUse24HourFormat.current
     val locale = currentLocale()
     val reduceMotion = rememberReduceMotion()
@@ -654,7 +652,13 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
             animationSpec = tween(SETTLE_FADE_MILLIS),
             label = "drag-handover",
         )
-        val fill = eventFill(drag.event.color, dark, soften)
+        // A lifted copy needs a body under its shadow, so an outlined event
+        // (#230) fills with a surface here instead of staying see-through.
+        val paint = eventPaint(
+            event = drag.event,
+            dark = dark,
+            hollowFill = MaterialTheme.colorScheme.surfaceContainerHighest,
+        )
         val title = drag.event.title.ifBlank { stringResource(R.string.event_untitled) }
         // Read off the event rather than the held block, so grabbing either half
         // of an event that crosses midnight names the same hours. An end past
@@ -673,7 +677,7 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
                 topLeftInRoot = piece.topLeftInRoot,
                 overlayOrigin = origin,
                 sizePx = piece.sizePx,
-                fill = fill,
+                paint = paint,
                 shape = timedBlockShape(piece.continuesBefore, piece.continuesAfter),
                 lift = lift,
                 alpha = copyAlpha,
@@ -691,7 +695,7 @@ private fun DragCopy(
     topLeftInRoot: Offset,
     overlayOrigin: Offset,
     sizePx: IntSize,
-    fill: Color,
+    paint: EventPaint,
     shape: RoundedCornerShape,
     lift: Float,
     alpha: Float,
@@ -722,7 +726,7 @@ private fun DragCopy(
                 this.shape = shape
                 clip = false
             }
-            .background(fill, shape)
+            .eventSurface(paint, shape)
             .padding(horizontal = BLOCK_TEXT_PADDING, vertical = 2.dp),
     ) {
         Column {
@@ -733,7 +737,8 @@ private fun DragCopy(
                 maxLines = 1,
                 overflow = titleOverflow.overflow,
                 softWrap = titleOverflow.softWrap,
-                color = eventInk(fill, alpha = TITLE_INK_ALPHA),
+                color = paint.titleInk,
+                textDecoration = paint.decoration,
             )
             if (label != null) {
                 Text(
@@ -743,7 +748,7 @@ private fun DragCopy(
                     maxLines = 1,
                     overflow = titleOverflow.overflow,
                     softWrap = titleOverflow.softWrap,
-                    color = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
+                    color = paint.secondaryInk,
                 )
             }
         }

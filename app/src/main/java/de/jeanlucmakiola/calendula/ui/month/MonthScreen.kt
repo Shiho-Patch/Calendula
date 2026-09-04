@@ -88,6 +88,8 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.geometry.Offset
+import de.jeanlucmakiola.calendula.ui.common.eventPaint
+import de.jeanlucmakiola.calendula.ui.common.eventSurface
 import kotlin.math.roundToInt
 import de.jeanlucmakiola.calendula.ui.common.rememberDragSurface
 import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
@@ -144,18 +146,13 @@ import de.jeanlucmakiola.calendula.ui.common.CALENDAR_SWIPE_THRESHOLD
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
-import de.jeanlucmakiola.calendula.ui.common.declinedDecoration
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
-import de.jeanlucmakiola.calendula.ui.common.SECONDARY_INK_ALPHA
-import de.jeanlucmakiola.calendula.ui.common.TITLE_INK_ALPHA
 import de.jeanlucmakiola.calendula.ui.common.inlineTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
 import de.jeanlucmakiola.calendula.ui.common.monthBarShape
-import de.jeanlucmakiola.calendula.ui.common.eventFill
-import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
@@ -2513,14 +2510,13 @@ private fun MonthBar(
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && event.hasEnded(dimCutoff)
-    val soften = LocalSoftenColors.current
-    val fill = eventFill(event.color, dark, soften)
+    val paint = eventPaint(event, dark)
     // The same title/secondary ink pairing the week and day blocks use, with
     // the time on the quieter half.
     val label = inlineTimeLabel(
         time = time.takeIf { showTime },
         title = title,
-        timeInk = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
+        timeInk = paint.secondaryInk,
     )
     // Announced whether or not it is drawn, and comma-separated as the week and
     // day blocks do it: what a screen reader hears shouldn't turn on how wide
@@ -2536,7 +2532,7 @@ private fun MonthBar(
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
             .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
-            .background(fill, shape)
+            .eventSurface(paint, shape)
             .padding(horizontal = MONTH_CHIP_TEXT_PADDING)
             .semantics {
                 contentDescription = description
@@ -2551,8 +2547,8 @@ private fun MonthBar(
             maxLines = 1,
             overflow = titleOverflow.overflow,
             softWrap = titleOverflow.softWrap,
-            color = eventInk(fill, alpha = TITLE_INK_ALPHA),
-            textDecoration = declinedDecoration(event.isDeclined),
+            color = paint.titleInk,
+            textDecoration = paint.decoration,
         )
     }
 }
