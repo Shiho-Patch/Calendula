@@ -33,6 +33,9 @@ val BLOCK_OUTER_INSET = 1.dp
 /** Padding between a timed block's edge and its text. */
 val BLOCK_TEXT_PADDING = 4.dp
 
+/** The same, above and below — what a block's height has to pay before any text. */
+val BLOCK_TEXT_INSET = 2.dp
+
 /** Most lines a time label may wrap over before it is worth more than a title line. */
 const val MAX_TIME_LINES = 2
 

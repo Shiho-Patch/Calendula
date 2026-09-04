@@ -82,9 +82,10 @@ data class TimelineDrag(
     /** The event as the grid would draw it, one piece per day column it covers. */
     val pieces: List<TimelineDragPiece>,
     /**
-     * Lines the block the finger picked up gave its title. The floating copy is
-     * that block's size, so it has to spend its height the same way or the text
-     * re-wraps under the finger and snaps back on drop (#267).
+     * Lines the block the finger picked up drew its title over, zero for one too
+     * short to have drawn it at all. The floating copy is that block's size, so
+     * it has to spend its height the same way or the text re-wraps under the
+     * finger and snaps back on drop (#267).
      */
     val titleLines: Int,
     /**
@@ -317,8 +318,8 @@ class TimelineDragController {
      */
     private var clipOffsetMin = 0
 
-    /** What the picked-up block measured its title over — see [TimelineDrag.titleLines]. */
-    private var titleLines = 1
+    /** What the picked-up block drew its title over — see [TimelineDrag.titleLines]. */
+    private var titleLines = 0
 
     /**
      * The slot the block already occupied when it was picked up — not the same
@@ -354,7 +355,7 @@ class TimelineDragController {
     fun cancel() {
         source = null
         clipOffsetMin = 0
-        titleLines = 1
+        titleLines = 0
         isDragging = false
         liftedInstanceId = null
         originSlot = null
@@ -717,18 +718,23 @@ private fun DragCopy(
     val width = with(density) { sizePx.width.toDp() }
     val height = with(density) { sizePx.height.toDp() }
     val textWidth = width - (BLOCK_OUTER_INSET + BLOCK_TEXT_PADDING) * 2
-    // The copy is the block's size and spends its height the same way, so text
-    // wraps here exactly where it wrapped there. Held to one line the range
-    // clipped for the drag's duration and snapped back on drop (#267). The one
-    // thing the copy does that a short block won't is always show the range —
-    // that is the feedback the drag is for.
     val titleLineHeight = with(density) {
         MaterialTheme.typography.labelMedium.lineHeight.toDp()
     }
     val timeLineHeight = with(density) {
         MaterialTheme.typography.labelSmall.lineHeight.toDp()
     }
-    val spare = height - 4.dp - titleLineHeight * titleLines - timeLineHeight
+    // The copy is the block's size and spends its height the same way, so text
+    // wraps here exactly where it wrapped there rather than reflowing under the
+    // finger and snapping back on drop (#267). The range is paid for first —
+    // where the drop lands is what the drag is for, and the block may have been
+    // too short to show it — and the title takes what of its lines still fit,
+    // since nothing clips a copy that outgrows its block.
+    val available = height - BLOCK_TEXT_INSET * 2
+    val reserved = if (label == null) 0.dp else timeLineHeight
+    val titleBudget = ((available - reserved) / titleLineHeight).toInt().coerceAtLeast(0)
+    val lines = titleLines.coerceAtMost(titleBudget)
+    val spare = available - titleLineHeight * lines - reserved
     val timeMaxLines = if (label == null) 1 else blockTimeLines(label, textWidth, spare)
     Box(
         modifier = Modifier
@@ -751,17 +757,19 @@ private fun DragCopy(
                 clip = false
             }
             .eventSurface(paint, shape, cuts)
-            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = 2.dp),
+            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = BLOCK_TEXT_INSET),
     ) {
         Column {
-            BlockTitle(
-                title = title,
-                maxLines = titleLines,
-                textWidth = textWidth,
-                color = paint.titleInk,
-                textDecoration = paint.decoration,
-                fontWeight = paint.titleWeight,
-            )
+            if (lines > 0) {
+                BlockTitle(
+                    title = title,
+                    maxLines = lines,
+                    textWidth = textWidth,
+                    color = paint.titleInk,
+                    textDecoration = paint.decoration,
+                    fontWeight = paint.titleWeight,
+                )
+            }
             if (label != null) {
                 val overflow = eventTitleOverflow(singleLine = timeMaxLines == 1)
                 Text(

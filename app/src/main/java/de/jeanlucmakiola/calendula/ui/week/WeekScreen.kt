@@ -91,6 +91,7 @@ import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_OUTER_INSET
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_PADDING
+import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_INSET
 import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.BlockTitle
 import de.jeanlucmakiola.calendula.ui.common.blockTextLines
@@ -882,8 +883,7 @@ private fun EventBlock(
     val timeLineHeight = with(density) {
         MaterialTheme.typography.labelSmall.lineHeight.toDp()
     }
-    // What's left for text once the 2.dp top/bottom padding is paid for.
-    val available = height - 4.dp
+    val available = height - BLOCK_TEXT_INSET * 2
     // Only full-width (non-overlapping) blocks that are tall enough show the
     // time. On narrow overlapping columns we drop it so the title can wrap to
     // fill the whole block, mirroring Google Calendar — and a block that cannot
@@ -936,7 +936,13 @@ private fun EventBlock(
         enabled = draggable,
         key = block.event.instanceId,
         onPickUp = { pointer, blockRoot, _ ->
-            dragController.begin(block, clipOffset, titleMaxLines, pointer, blockRoot)
+            dragController.begin(
+                block = block,
+                clipOffsetMin = clipOffset,
+                titleLines = if (showTitle) titleMaxLines else 0,
+                pointerInRoot = pointer,
+                blockInRoot = blockRoot,
+            )
         },
         onMove = dragController::move,
         onDrop = { dragController.finish()?.let(onDrop) },
@@ -953,7 +959,7 @@ private fun EventBlock(
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.
             .then(dragModifier)
-            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = 2.dp)
+            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = BLOCK_TEXT_INSET)
             .semantics {
                 contentDescription = "$title, $timeLabel"
                 if (moveAction != null) customActions = listOf(moveAction)
