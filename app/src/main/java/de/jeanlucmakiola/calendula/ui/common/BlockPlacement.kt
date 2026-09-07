@@ -4,7 +4,6 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -15,14 +14,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
@@ -32,6 +28,9 @@ val BLOCK_OUTER_INSET = 1.dp
 
 /** Padding between a timed block's edge and its text. */
 val BLOCK_TEXT_PADDING = 4.dp
+
+/** The same, above and below — what a block's height has to pay before any text. */
+val BLOCK_TEXT_INSET = 2.dp
 
 /** Most lines a time label may wrap over before it is worth more than a title line. */
 const val MAX_TIME_LINES = 2
@@ -62,88 +61,61 @@ fun blockTextLines(text: String, style: TextStyle, textWidth: Dp, max: Int): Int
 }
 
 /**
- * A timed block's title, over at most [maxLines].
+ * Lines the time label may take at [textWidth], out of the [spare] height left
+ * once the title and the label's own first line are paid for.
  *
- * Wrapping and clipping pull against each other, which is why #164 left the
- * ellipsis on multi-line chips: with `softWrap` on, the last visible line ends
- * at a word boundary, so "Farmers Market" in a six-character column would clip
- * to "Farmer" / "s" where the ellipsis at least reached "s Mar…".
+ * A week column is narrower than a "09:30–11:00" range, so the label takes a
+ * second line rather than lose its end — but only out of a line the title
+ * measured itself as not needing, never one it would have filled.
+ */
+@Composable
+fun blockTimeLines(label: String, textWidth: Dp, spare: Dp): Int {
+    val timeLineHeight = with(LocalDensity.current) {
+        MaterialTheme.typography.labelSmall.lineHeight.toDp()
+    }
+    return if (spare >= timeLineHeight) {
+        blockTextLines(
+            text = label,
+            // The style it is drawn in, or the budget measures a line the label
+            // never uses (#219).
+            style = MaterialTheme.typography.labelSmall.asEventTime(),
+            textWidth = textWidth,
+            max = MAX_TIME_LINES,
+        )
+    } else {
+        1
+    }
+}
+
+/**
+ * A timed block's title, over at most [maxLines], breaking at word boundaries.
  *
- * So the block wraps every line but the last through one `Text` and hands the
- * remainder to a second that clips mid-glyph the way a single-line chip does.
- * Every line is then full and none of them spends two of its few characters on
- * a "…". RTL keeps the ellipsis for the reason [eventTitleOverflowFor] gives.
+ * #164 clipped the last line mid-glyph so none of a narrow chip's few
+ * characters went on an ellipsis. On a block that can wrap, whole words read
+ * better than full lines do: "Farmers Market" over two lines beats "Farmer" /
+ * "s Marke". A single line still clips, having nowhere to wrap to.
  */
 @Composable
 fun BlockTitle(
     title: String,
     maxLines: Int,
-    textWidth: Dp,
     color: Color,
     modifier: Modifier = Modifier,
     textDecoration: TextDecoration? = null,
     fontWeight: FontWeight? = null,
 ) {
-    // Folded into the style rather than passed to the Text, so the wrap measured
-    // below is the wrap that gets drawn.
-    val style = MaterialTheme.typography.labelMedium
-        .let { if (fontWeight == null) it else it.copy(fontWeight = fontWeight) }
-    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val measurer = rememberTextMeasurer()
-    val widthPx = with(LocalDensity.current) { textWidth.roundToPx() }
-    // Where the wrapped lines stop and the clipped tail starts — null when the
-    // title fits, and nothing needs splitting.
-    val headEnd = remember(title, style, widthPx, maxLines, rtl, measurer) {
-        if (rtl || maxLines < 2 || widthPx <= 0) {
-            null
-        } else {
-            val layout = measurer.measure(
-                text = title,
-                style = style,
-                constraints = Constraints(maxWidth = widthPx),
-            )
-            if (layout.lineCount <= maxLines) {
-                null
-            } else {
-                layout.getLineEnd(maxLines - 2, visibleEnd = true)
-            }
-        }
-    }
-    if (headEnd == null) {
-        val overflow = eventTitleOverflow(singleLine = maxLines == 1)
-        Text(
-            text = title,
-            modifier = modifier,
-            style = style,
-            maxLines = maxLines,
-            overflow = overflow.overflow,
-            softWrap = overflow.softWrap,
-            color = color,
-            textDecoration = textDecoration,
-        )
-    } else {
-        val tail = eventTitleOverflow(singleLine = true)
-        Column(modifier = modifier) {
-            Text(
-                text = title.substring(0, headEnd),
-                style = style,
-                maxLines = maxLines - 1,
-                overflow = TextOverflow.Clip,
-                softWrap = true,
-                color = color,
-                textDecoration = textDecoration,
-            )
-            Text(
-                text = title.substring(headEnd).trimStart(),
-                style = style,
-                maxLines = 1,
-                overflow = tail.overflow,
-                softWrap = tail.softWrap,
-                color = color,
-                textDecoration = textDecoration,
-            )
-        }
-    }
+    val overflow = eventTitleOverflow(singleLine = maxLines == 1)
+    Text(
+        text = title,
+        modifier = modifier,
+        style = MaterialTheme.typography.labelMedium
+            .let { if (fontWeight == null) it else it.copy(fontWeight = fontWeight) },
+        maxLines = maxLines,
+        overflow = overflow.overflow,
+        softWrap = overflow.softWrap,
+        color = color,
+        textDecoration = textDecoration,
+    )
 }
 
 /**

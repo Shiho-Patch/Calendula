@@ -25,16 +25,16 @@ class EventTitleOverflowTest {
     }
 
     @Test
-    fun `a multi-line block keeps the ellipsis, since wrapping needs softWrap`() {
+    fun `a multi-line block wraps whole words and clips, spending none on a dot`() {
         val result = eventTitleOverflowFor(rtl = false, singleLine = false)
-        assertThat(result.overflow).isEqualTo(TextOverflow.Ellipsis)
+        assertThat(result.overflow).isEqualTo(TextOverflow.Clip)
         assertThat(result.softWrap).isTrue()
     }
 
     @Test
-    fun `multi-line in RTL keeps the ellipsis too`() {
+    fun `multi-line in RTL clips too, since softWrap cuts the logical end`() {
         val result = eventTitleOverflowFor(rtl = true, singleLine = false)
-        assertThat(result.overflow).isEqualTo(TextOverflow.Ellipsis)
+        assertThat(result.overflow).isEqualTo(TextOverflow.Clip)
         assertThat(result.softWrap).isTrue()
     }
 }

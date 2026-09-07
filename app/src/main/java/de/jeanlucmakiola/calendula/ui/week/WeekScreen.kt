@@ -91,10 +91,11 @@ import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_OUTER_INSET
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_PADDING
+import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_INSET
 import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.BlockTitle
-import de.jeanlucmakiola.calendula.ui.common.MAX_TIME_LINES
 import de.jeanlucmakiola.calendula.ui.common.blockTextLines
+import de.jeanlucmakiola.calendula.ui.common.blockTimeLines
 import de.jeanlucmakiola.calendula.ui.common.animatedBlockPlacement
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
@@ -129,8 +130,6 @@ import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.MIN_EVENT_FRACTION
-import de.jeanlucmakiola.calendula.ui.common.MIN_TITLE_WRAP_WIDTH
-import de.jeanlucmakiola.calendula.ui.common.asEventTime
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
@@ -883,8 +882,7 @@ private fun EventBlock(
     val timeLineHeight = with(density) {
         MaterialTheme.typography.labelSmall.lineHeight.toDp()
     }
-    // What's left for text once the 2.dp top/bottom padding is paid for.
-    val available = height - 4.dp
+    val available = height - BLOCK_TEXT_INSET * 2
     // Only full-width (non-overlapping) blocks that are tall enough show the
     // time. On narrow overlapping columns we drop it so the title can wrap to
     // fill the whole block, mirroring Google Calendar — and a block that cannot
@@ -906,35 +904,20 @@ private fun EventBlock(
     val contentHeight = available - if (showTime) timeLineHeight else 0.dp
     val titleBudget = (contentHeight / titleLineHeight).toInt().coerceAtLeast(1)
     val paint = eventPaint(block.event, dark)
-    val titleMaxLines = if (width < MIN_TITLE_WRAP_WIDTH) {
-        1
-    } else {
-        blockTextLines(
-            text = title,
-            // At the weight BlockTitle will set it in, or an invited block —
-            // drawn a weight lighter — is budgeted a line it never fills (#230).
-            style = MaterialTheme.typography.labelMedium.withTitleWeight(paint),
-            textWidth = textWidth,
-            max = titleBudget,
-        )
-    }
-    // A week column is narrower than a "09:30–11:00" range, so the label takes a
-    // second line rather than lose its end — but only out of a line the title
-    // measured itself as not needing, never one it would have filled.
+    // Every line the height affords, however narrow the lane: two events side by
+    // side leave columns well under a word wide, and cutting the title to one
+    // line there lost it outright where the block had the room to wrap it.
+    val titleMaxLines = blockTextLines(
+        text = title,
+        // At the weight BlockTitle will set it in, or an invited block — drawn a
+        // weight lighter — is budgeted a line it never fills (#230).
+        style = MaterialTheme.typography.labelMedium.withTitleWeight(paint),
+        textWidth = textWidth,
+        max = titleBudget,
+    )
     val spare = available - titleLineHeight * titleMaxLines -
         if (showTime) timeLineHeight else 0.dp
-    val timeMaxLines = if (showTime && spare >= timeLineHeight) {
-        blockTextLines(
-            text = timeLabel,
-            // The style it is drawn in, or the budget measures a line the label
-            // never uses (#219).
-            style = MaterialTheme.typography.labelSmall.asEventTime(),
-            textWidth = textWidth,
-            max = MAX_TIME_LINES,
-        )
-    } else {
-        1
-    }
+    val timeMaxLines = if (showTime) blockTimeLines(timeLabel, textWidth, spare) else 1
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && block.event.hasEnded(dimCutoff)
     val zone = remember { TimeZone.currentSystemDefault() }
@@ -951,7 +934,13 @@ private fun EventBlock(
         enabled = draggable,
         key = block.event.instanceId,
         onPickUp = { pointer, blockRoot, _ ->
-            dragController.begin(block, clipOffset, pointer, blockRoot)
+            dragController.begin(
+                block = block,
+                clipOffsetMin = clipOffset,
+                titleLines = if (showTitle) titleMaxLines else 0,
+                pointerInRoot = pointer,
+                blockInRoot = blockRoot,
+            )
         },
         onMove = dragController::move,
         onDrop = { dragController.finish()?.let(onDrop) },
@@ -968,7 +957,7 @@ private fun EventBlock(
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.
             .then(dragModifier)
-            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = 2.dp)
+            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = BLOCK_TEXT_INSET)
             .semantics {
                 contentDescription = "$title, $timeLabel"
                 if (moveAction != null) customActions = listOf(moveAction)
@@ -979,7 +968,6 @@ private fun EventBlock(
                 BlockTitle(
                     title = title,
                     maxLines = titleMaxLines,
-                    textWidth = textWidth,
                     color = paint.titleInk,
                     textDecoration = paint.decoration,
                     fontWeight = paint.titleWeight,

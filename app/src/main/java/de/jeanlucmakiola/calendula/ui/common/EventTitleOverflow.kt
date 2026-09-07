@@ -11,23 +11,21 @@ data class EventTitleOverflow(val overflow: TextOverflow, val softWrap: Boolean)
 /**
  * Overflow for an event chip's title (#164). Chips are narrow enough that the
  * "…" costs a couple of readable characters, so the title runs to the chip's
- * edge and clips mid-glyph instead.
+ * edge and clips instead — mid-glyph on one line, at the last whole word it
+ * could fit on several.
  *
- * Two cases keep the ellipsis:
- *
- * - **[rtl].** With `softWrap` off Compose lays the line out at its full
- *   intrinsic width and clips to the node's left edge, which in RTL is the *end*
- *   of the string — an Arabic title would lose its beginning. The ellipsis
- *   truncates at the logical end in both directions.
- * - **More than one line** ([singleLine] false). Wrapping needs `softWrap` on,
- *   and clipping with it on breaks the last line at the last whole word — less
- *   title than the ellipsis showed, not more.
+ * One case keeps the ellipsis: a single **[rtl]** line. With `softWrap` off
+ * Compose lays the line out at its full intrinsic width and clips to the node's
+ * left edge, which in RTL is the *end* of the string — an Arabic title would
+ * lose its beginning. The ellipsis truncates at the logical end in both
+ * directions. Wrapping needs `softWrap` on, which clips the right end either
+ * way, so more than one line needs no such exception.
  */
 fun eventTitleOverflowFor(rtl: Boolean, singleLine: Boolean): EventTitleOverflow =
-    if (rtl || !singleLine) {
-        EventTitleOverflow(TextOverflow.Ellipsis, softWrap = true)
-    } else {
-        EventTitleOverflow(TextOverflow.Clip, softWrap = false)
+    when {
+        !singleLine -> EventTitleOverflow(TextOverflow.Clip, softWrap = true)
+        rtl -> EventTitleOverflow(TextOverflow.Ellipsis, softWrap = true)
+        else -> EventTitleOverflow(TextOverflow.Clip, softWrap = false)
     }
 
 /** [eventTitleOverflowFor] against the current layout direction. */
