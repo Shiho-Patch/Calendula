@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Language
@@ -54,6 +55,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
+import de.jeanlucmakiola.calendula.ui.licences.LicencesScreen
 import de.jeanlucmakiola.floret.components.AboutCard
 import de.jeanlucmakiola.floret.components.CollapsingScaffold
 import de.jeanlucmakiola.floret.components.GroupedListInset
@@ -67,7 +69,9 @@ import de.jeanlucmakiola.floret.crash.submitCrashReport
 import de.jeanlucmakiola.floret.locale.AppLanguage
 
 /** The settings sub-screens reached from the hub's category rows. */
-private enum class SettingsSection { Appearance, Views, EventForm, Notifications, SpecialDates, Widgets }
+private enum class SettingsSection {
+    Appearance, Views, EventForm, Notifications, SpecialDates, Widgets, Licences
+}
 
 /**
  * Settings hub: three labelled groups of category rows, each opening a
@@ -145,6 +149,13 @@ fun SettingsScreen(
             exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
         ) {
             WidgetsScreen(state = state, viewModel = viewModel, onBack = { section = null })
+        }
+        AnimatedVisibility(
+            visible = section == SettingsSection.Licences,
+            enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
+            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+        ) {
+            LicencesScreen(onBack = { section = null })
         }
     }
 }
@@ -252,6 +263,13 @@ private fun SettingsHub(
             url = stringResource(R.string.about_license_url),
             icon = Icons.Default.Gavel,
             position = Position.Middle,
+        )
+        GroupedRow(
+            title = stringResource(R.string.settings_licences),
+            summary = stringResource(R.string.settings_licences_subtitle),
+            position = Position.Middle,
+            leading = { CategoryIcon(Icons.Default.Code, ChipAccent.Neutral) },
+            onClick = { onOpenSection(SettingsSection.Licences) },
         )
         AboutLinkRow(
             label = stringResource(R.string.settings_about_privacy),
