@@ -861,7 +861,12 @@ private fun DayLoading() {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         // Same scale resolution as the loaded timeline, so the skeleton's column
         // doesn't resize the moment the real day arrives.
-        val totalHeight = scale.hourHeight(maxHeight) * 24
+        val hourHeight = scale.hourHeight(maxHeight)
+        val totalHeight = hourHeight * 24
+        // The skeleton wears the loaded column's own ground, so the arrival of
+        // the real day doesn't flash a solid block into a gapped grid.
+        val showHourGrid = LocalShowHourGrid.current
+        val hourPx = with(LocalDensity.current) { hourHeight.toPx() }
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -874,7 +879,11 @@ private fun DayLoading() {
                     .weight(1f)
                     .height(totalHeight)
                     .padding(horizontal = 2.dp)
-                    .background(MaterialTheme.colorScheme.surfaceContainer),
+                    .background(
+                        if (showHourGrid) MaterialTheme.colorScheme.surface
+                        else MaterialTheme.colorScheme.surfaceContainer,
+                    )
+                    .hourGridCells(showHourGrid, hourPx, MaterialTheme.colorScheme.surfaceContainer),
             )
         }
     }
