@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -616,6 +617,7 @@ const val SETTLE_FADE_MILLIS: Int = 250
 @Composable
 fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier = Modifier) {
     var origin by remember { mutableStateOf(Offset.Zero) }
+    val density = LocalDensity.current
     val dark = isSystemInDarkTheme()
     val use24Hour = LocalUse24HourFormat.current
     val locale = currentLocale()
@@ -677,24 +679,69 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
         val endMin = if (rawEnd > MINUTES_PER_DAY) rawEnd % MINUTES_PER_DAY else rawEnd
         val label = "${formatMinuteOfDay(startMin, use24Hour, locale)}–" +
             formatMinuteOfDay(endMin, use24Hour, locale)
-        // The tallest piece carries the range: on the smallest it would be
-        // clipped away, which is exactly the case when a short tail is held.
-        val labelled = drag.pieces.indices.maxByOrNull { drag.pieces[it].sizePx.height }
-        drag.pieces.forEachIndexed { index, piece ->
-            DragCopy(
-                topLeftInRoot = piece.topLeftInRoot,
-                overlayOrigin = origin,
-                sizePx = piece.sizePx,
-                paint = paint,
-                shape = timedBlockShape(piece.continuesBefore, piece.continuesAfter),
-                cuts = timedBlockCuts(piece.continuesBefore, piece.continuesAfter),
-                lift = lift,
-                alpha = copyAlpha,
-                title = title,
-                titleLines = drag.titleLines,
-                // Once for the whole event: repeated, it would name it per day.
-                label = label.takeIf { index == labelled },
-            )
+        // The timeline's own bounds. The copy is drawn over the whole calendar
+        // so no column clip or rounded corner cuts it, but it still belongs to
+        // the timeline: a piece a whole day tall reaches far past both ends of
+        // the viewport, and unclipped it paints over the headers above (#267).
+        val port = controller.geometry.viewport?.takeIf { it.isAttached }?.boundsInRoot()
+        // How much of each piece the viewport actually shows. A multi-day event
+        // has a piece per day, and the widest one is a full 24 hours — taller
+        // than the screen, its top at a midnight scrolled out of sight. Picking
+        // the range's piece by raw height put it there, off the top of the
+        // timeline; picking by *visible* height puts it where it can be read.
+        val shown = drag.pieces.map { piece ->
+            if (port == null) {
+                piece.sizePx.height.toFloat()
+            } else {
+                val top = maxOf(piece.topLeftInRoot.y, port.top)
+                val bottom = minOf(piece.topLeftInRoot.y + piece.sizePx.height, port.bottom)
+                bottom - top
+            }
+        }
+        val labelled = shown.indices.maxByOrNull { shown[it] }
+        Box(
+            modifier = if (port == null) {
+                Modifier
+            } else {
+                Modifier
+                    .absoluteOffset {
+                        IntOffset(
+                            (port.left - origin.x).roundToInt(),
+                            (port.top - origin.y).roundToInt(),
+                        )
+                    }
+                    .size(
+                        width = with(density) { port.width.toDp() },
+                        height = with(density) { port.height.toDp() },
+                    )
+                    .clipToBounds()
+            },
+        ) {
+            val pieceOrigin = port?.topLeft ?: origin
+            drag.pieces.forEachIndexed { index, piece ->
+                DragCopy(
+                    topLeftInRoot = piece.topLeftInRoot,
+                    overlayOrigin = pieceOrigin,
+                    sizePx = piece.sizePx,
+                    paint = paint,
+                    shape = timedBlockShape(piece.continuesBefore, piece.continuesAfter),
+                    cuts = timedBlockCuts(piece.continuesBefore, piece.continuesAfter),
+                    lift = lift,
+                    alpha = copyAlpha,
+                    title = title,
+                    titleLines = drag.titleLines,
+                    // How far this piece's top has scrolled out of the timeline,
+                    // so its text can come down to meet the edge instead of
+                    // being clipped away with it.
+                    hiddenTopPx = if (port == null) {
+                        0f
+                    } else {
+                        (port.top - piece.topLeftInRoot.y).coerceAtLeast(0f)
+                    },
+                    // Once for the whole event: repeated, it would name it per day.
+                    label = label.takeIf { index == labelled },
+                )
+            }
         }
     }
 }
@@ -712,6 +759,7 @@ private fun DragCopy(
     alpha: Float,
     title: String,
     titleLines: Int,
+    hiddenTopPx: Float,
     label: String?,
 ) {
     val density = LocalDensity.current
@@ -725,14 +773,25 @@ private fun DragCopy(
         MaterialTheme.typography.labelSmall.lineHeight.toDp()
     }
     // The block's size, spent the block's way, so nothing reflows under the
-    // finger (#267) — but the range is paid for first, since it may be showing
-    // where a block too short for it will land, and nothing clips the overrun.
+    // finger (#267). The title is served in full first and the range lives off
+    // what is left: the hour gutter down the side still says where the copy
+    // sits, so the range is the half that can afford to go.
     val available = height - BLOCK_TEXT_INSET * 2
-    val reserved = if (label == null) 0.dp else timeLineHeight
-    val titleBudget = ((available - reserved) / titleLineHeight).toInt().coerceAtLeast(0)
+    // A piece whose top has scrolled off brings its text down to the edge, and
+    // budgets against what is left below it rather than against a height most
+    // of which is above the timeline.
+    val textTop = with(density) { hiddenTopPx.toDp() }
+        .coerceIn(0.dp, (available - titleLineHeight).coerceAtLeast(0.dp))
+    val room = available - textTop
+    val titleBudget = (room / titleLineHeight).toInt().coerceAtLeast(0)
     val lines = titleLines.coerceAtMost(titleBudget)
-    val spare = available - titleLineHeight * lines - reserved
-    val timeMaxLines = if (label == null) 1 else blockTimeLines(label, textWidth, spare)
+    val left = room - titleLineHeight * lines
+    val showTime = label != null && left >= timeLineHeight
+    val timeMaxLines = if (showTime) {
+        blockTimeLines(label!!, textWidth, left - timeLineHeight)
+    } else {
+        1
+    }
     Box(
         modifier = Modifier
             // Absolute: these are root coordinates, and the direction-aware
@@ -756,7 +815,7 @@ private fun DragCopy(
             .eventSurface(paint, shape, cuts)
             .padding(horizontal = BLOCK_TEXT_PADDING, vertical = BLOCK_TEXT_INSET),
     ) {
-        Column {
+        Column(modifier = Modifier.padding(top = textTop)) {
             if (lines > 0) {
                 BlockTitle(
                     title = title,
@@ -767,7 +826,7 @@ private fun DragCopy(
                     fontWeight = paint.titleWeight,
                 )
             }
-            if (label != null) {
+            if (showTime) {
                 val overflow = eventTitleOverflow(singleLine = timeMaxLines == 1)
                 Text(
                     text = label,
