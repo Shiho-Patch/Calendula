@@ -59,6 +59,9 @@ import javax.inject.Inject
 
 private const val TAG = "EventEdit"
 
+/** Any line break, with the whitespace around it, as one match. */
+private val LINE_BREAK = Regex("""[ \t]*\R[ \t]*""")
+
 /**
  * Where a prefilled [EventEditViewModel.openImported] form came from. The sources
  * want different reminder handling (#49), and differ in whether they own the
@@ -532,7 +535,11 @@ class EventEditViewModel @Inject constructor(
     // paste would introduce, so it never reaches the provider's TITLE column.
     fun setTitle(value: String) =
         update { it.copy(title = value.replace("\n", "").replace("\r", "")) }
-    fun setLocation(value: String) = update { it.copy(location = value) }
+    // The location wraps too (#273) but is likewise one logical line. A pasted
+    // multi-line address joins the way the contact picker's does (#146), so it
+    // never runs together into "12 Main St10115 Berlin".
+    fun setLocation(value: String) =
+        update { it.copy(location = value.replace(LINE_BREAK, ", ")) }
     fun setDescription(value: String) = update { it.copy(description = value) }
     fun setAllDay(value: Boolean) {
         // Going all-day drops any pinned zone: the times become bare dates that
