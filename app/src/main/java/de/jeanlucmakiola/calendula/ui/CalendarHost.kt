@@ -31,6 +31,7 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.EventMoveHost
 import de.jeanlucmakiola.calendula.ui.common.EventMoveScope
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
+import de.jeanlucmakiola.calendula.ui.common.LocalManageCalendars
 import de.jeanlucmakiola.calendula.ui.common.RescheduleViewModel
 import de.jeanlucmakiola.calendula.ui.common.drillToDay
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
@@ -344,7 +345,12 @@ fun CalendarHost(
         // navigation, so it fades through rather than sliding — paging *within* a
         // view keeps the directional slide. AnimatedContent keyed on the view type.
         val viewSwitch = fadeThrough()
-        CompositionLocalProvider(LocalEventMove provides moveScope) {
+        CompositionLocalProvider(
+            LocalEventMove provides moveScope,
+            // The failure state's way out when every calendar is switched off
+            // (#239); nothing else in the calendar surfaces navigates here.
+            LocalManageCalendars provides { showCalendars = true },
+        ) {
         AnimatedContent(
             targetState = view,
             transitionSpec = { viewSwitch },

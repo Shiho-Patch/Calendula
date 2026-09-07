@@ -121,4 +121,24 @@ class CalendarVisibilityPlanTest {
             ),
         ).isTrue()
     }
+
+    @Test
+    fun `no calendars on the device is its own failure`() {
+        assertThat(calendarListFailure(emptyList()))
+            .isEqualTo(FailureReason.NoCalendarsConfigured)
+    }
+
+    @Test
+    fun `calendars that are all switched off read as hidden, not missing`() {
+        // The remedy differs: one needs a calendar made, the other needs one
+        // switched back on (#239).
+        assertThat(calendarListFailure(listOf(cal(1L, visible = false), cal(2L, visible = false))))
+            .isEqualTo(FailureReason.AllCalendarsHidden)
+    }
+
+    @Test
+    fun `one visible calendar is enough to show something`() {
+        assertThat(calendarListFailure(listOf(cal(1L, visible = false), cal(2L, visible = true))))
+            .isNull()
+    }
 }

@@ -11,6 +11,7 @@ import de.jeanlucmakiola.calendula.data.prefs.firstDayOfWeek
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
+import de.jeanlucmakiola.calendula.domain.calendarListFailure
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -156,9 +157,7 @@ class AgendaViewModel @Inject constructor(
         calendars: List<CalendarSource>,
         instances: List<EventInstance>,
     ): AgendaUiState {
-        if (calendars.isEmpty()) {
-            return AgendaUiState.Failure(FailureReason.NoCalendarsConfigured)
-        }
+        calendarListFailure(calendars)?.let { return AgendaUiState.Failure(it) }
         val anchor = params.anchor
         val rangeEnd = anchor.plus(
             params.range.dayCount(anchor, params.weekStart) - 1,

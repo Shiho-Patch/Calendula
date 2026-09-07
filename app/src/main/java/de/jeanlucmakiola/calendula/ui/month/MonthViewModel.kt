@@ -10,6 +10,7 @@ import de.jeanlucmakiola.calendula.data.prefs.firstDayOfWeek
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
+import de.jeanlucmakiola.calendula.domain.calendarListFailure
 import de.jeanlucmakiola.calendula.domain.isDeclined
 import de.jeanlucmakiola.calendula.ui.week.coversDay
 import de.jeanlucmakiola.calendula.ui.week.layoutAllDay
@@ -208,9 +209,7 @@ class MonthViewModel @Inject constructor(
         calendars: List<CalendarSource>,
         instances: List<EventInstance>,
     ): ContinuousMonthUiState {
-        if (calendars.isEmpty()) {
-            return ContinuousMonthUiState.Failure(FailureReason.NoCalendarsConfigured)
-        }
+        calendarListFailure(calendars)?.let { return ContinuousMonthUiState.Failure(it) }
         // Bucketed once for the whole window: a row then takes the handful of
         // events on its seven days instead of re-scanning a year of them.
         val byDay = DayIndex(instances, zone)
@@ -314,9 +313,7 @@ class MonthViewModel @Inject constructor(
         calendars: List<CalendarSource>,
         instances: List<EventInstance>,
     ): MonthUiState {
-        if (calendars.isEmpty()) {
-            return MonthUiState.Failure(FailureReason.NoCalendarsConfigured)
-        }
+        calendarListFailure(calendars)?.let { return MonthUiState.Failure(it) }
         val weeks = layoutMonthWeeks(ym, weekStart, instances, zone)
         return MonthUiState.Success(
             month = ym,

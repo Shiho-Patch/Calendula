@@ -46,3 +46,19 @@ fun hasSystemHiddenCalendars(
     calendars: List<CalendarSource>,
     pendingDisabledIds: Set<Long>,
 ): Boolean = calendars.any { !it.isVisibleInSystem && it.id !in pendingDisabledIds }
+
+/**
+ * The failure a calendar list implies, or null when there is something to show.
+ * Distinguishes "the device has no calendars" from "every one of them is
+ * switched off" (#239) — both leave the grid empty, but only the second is
+ * fixed from Settings → Calendars.
+ *
+ * The filter sheet's own hidden set is deliberately not folded in: emptying it
+ * is a deliberate act taken moments earlier, in a sheet that is still one tap
+ * away.
+ */
+fun calendarListFailure(calendars: List<CalendarSource>): FailureReason? = when {
+    calendars.isEmpty() -> FailureReason.NoCalendarsConfigured
+    calendars.none { it.isVisibleInSystem } -> FailureReason.AllCalendarsHidden
+    else -> null
+}

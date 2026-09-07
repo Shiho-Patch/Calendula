@@ -125,6 +125,7 @@ private fun FilterLoading(modifier: Modifier = Modifier) {
 private fun FilterMessage(reason: FailureReason, modifier: Modifier = Modifier) {
     val msg = when (reason) {
         FailureReason.NoCalendarsConfigured -> R.string.state_failure_no_calendars
+        FailureReason.AllCalendarsHidden -> R.string.state_failure_all_hidden
         FailureReason.PermissionRevoked -> R.string.state_failure_permission
         else -> R.string.state_failure_provider
     }

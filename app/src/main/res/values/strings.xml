@@ -14,6 +14,8 @@
     <string name="state_failure_permission_action">Grant access</string>
     <string name="state_failure_no_calendars">No calendars configured.</string>
     <string name="state_failure_no_calendars_action">Open system calendar settings</string>
+    <string name="state_failure_all_hidden">All your calendars are switched off.</string>
+    <string name="state_failure_all_hidden_action">Manage calendars</string>
     <string name="state_failure_provider">Could not read the calendar.</string>
 
     <!-- Long-press a field to copy it (#195) -->
