@@ -31,7 +31,7 @@ import de.jeanlucmakiola.calendula.data.prefs.is24Hour
 import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.buildInsertEventForm
 import de.jeanlucmakiola.calendula.ui.RootScreen
-import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
+import de.jeanlucmakiola.calendula.ui.common.LocalShowHourGrid
 import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
@@ -171,7 +171,7 @@ class MainActivity : AppCompatActivity() {
                 Box(modifier = Modifier.fillMaxSize()) {
                     CompositionLocalProvider(
                         LocalUse24HourFormat provides use24Hour,
-                        LocalShowHourLines provides settings.showHourLines,
+                        LocalShowHourGrid provides settings.showHourGrid,
                         LocalTimelineZoom provides timelineZoom,
                         LocalSoftenColors provides settings.softenColors,
                     ) {

@@ -212,14 +212,15 @@ class SettingsPrefs @Inject constructor(
     }
 
     /**
-     * Whether the week/day timeline draws a faint separator line at each hour
-     * (v2.11). Defaults to OFF — the historical clean look; users opt in.
+     * Whether the week/day timeline seats each hour in its own cell (v2.11, a
+     * separator line until v2.20). Defaults to OFF — the historical flat column;
+     * users opt in. The stored key keeps its original name.
      */
-    val showHourLines: Flow<Boolean> = store.data.map { prefs ->
+    val showHourGrid: Flow<Boolean> = store.data.map { prefs ->
         prefs[SHOW_HOUR_LINES_KEY] ?: false
     }
 
-    suspend fun setShowHourLines(enabled: Boolean) {
+    suspend fun setShowHourGrid(enabled: Boolean) {
         store.edit { it[SHOW_HOUR_LINES_KEY] = enabled }
     }
 

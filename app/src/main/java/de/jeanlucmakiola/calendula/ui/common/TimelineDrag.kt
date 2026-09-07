@@ -200,6 +200,32 @@ internal fun dragFloorMin(clipOffsetMin: Int, eventSpanMin: Int): Int =
         0
     }
 
+/**
+ * Where one dragged piece's top edge sits below its column's top, and how tall
+ * it is drawn, at [hourPx] to the hour. [insetPx] is the half-gap a block seated
+ * in the hour grid gives up at each end, zero with the grid off — taken off the
+ * copy exactly as the grid takes it off the block, or the copy is a gap taller
+ * than the block it lifted off and spends the difference on a time label that
+ * block had no room for (#267). An end cut at midnight keeps none of it, as the
+ * block's own squared-off edge does.
+ */
+internal fun dragPieceBounds(
+    slice: DragSlice,
+    hourPx: Float,
+    insetPx: Float,
+): DragPieceBounds {
+    val top = if (slice.continuesBefore) 0f else insetPx
+    val bottom = if (slice.continuesAfter) 0f else insetPx
+    val full = maxOf(slice.spanMin / 60f * hourPx, MIN_EVENT_FRACTION * hourPx)
+    return DragPieceBounds(
+        top = slice.startMin / 60f * hourPx + top,
+        height = (full - top - bottom).coerceAtLeast(0f),
+    )
+}
+
+/** A piece's placement within its column — see [dragPieceBounds]. */
+internal data class DragPieceBounds(val top: Float, val height: Float)
+
 /** One day's share of a dragged event, before it is placed on screen. */
 internal data class DragSlice(
     val dayOffset: Int,
@@ -242,6 +268,13 @@ class TimelineGeometry {
     var edgePx: Float = 0f
     var stepPx: Float = 0f
     var days: List<LocalDate> = emptyList()
+
+    /**
+     * The half-gap a block gives up at each uncut end when the hour grid seats
+     * it in a cell, zero with the grid off. The floating copy gives up the same,
+     * so it is the size of the block it lifted off (#267).
+     */
+    var blockInsetPx: Float = 0f
 
     /**
      * Whether the columns are laid out right-to-left. Pointer coordinates are
@@ -488,17 +521,15 @@ class TimelineDragController {
                 .map { slice ->
                     val day = dayIndex + slice.dayOffset
                     val col = if (geometry.isRtl) days.lastIndex - day else day
+                    val bounds = dragPieceBounds(slice, hourPx, geometry.blockInsetPx)
                     TimelineDragPiece(
                         topLeftInRoot = Offset(
                             x = origin.x + col * columnPx,
-                            y = origin.y + slice.startMin / 60f * hourPx,
+                            y = origin.y + bounds.top,
                         ),
                         sizePx = IntSize(
                             (columnPx - geometry.columnGapPx).roundToInt(),
-                            maxOf(
-                                slice.spanMin / 60f * hourPx,
-                                MIN_EVENT_FRACTION * hourPx,
-                            ).roundToInt(),
+                            bounds.height.roundToInt(),
                         ),
                         continuesBefore = slice.continuesBefore,
                         continuesAfter = slice.continuesAfter,

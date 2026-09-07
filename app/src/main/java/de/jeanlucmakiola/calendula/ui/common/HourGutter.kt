@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -72,6 +73,11 @@ fun HourGutter(
         targetValue = if (dragStartMin != null) DIMMED_HOUR_ALPHA else 1f,
         label = "hourLabelAlpha",
     )
+    // Each label straddles the boundary it names, so it lines up with the seam
+    // the hour grid leaves there instead of hanging below it. Derived from the
+    // label's own line height, so it holds at any font scale.
+    val labelStyle = MaterialTheme.typography.labelSmall
+    val labelLift = with(LocalDensity.current) { labelStyle.lineHeight.toDp() } / 2
 
     Box(
         modifier = modifier
@@ -90,12 +96,12 @@ fun HourGutter(
                     if (h > 0) {
                         Text(
                             text = formatHourLabel(h, use24Hour, locale),
-                            style = MaterialTheme.typography.labelSmall,
+                            style = labelStyle,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                 .copy(alpha = hourAlpha),
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
-                                .offset(y = (-6).dp),
+                                .offset(y = -labelLift),
                         )
                     }
                 }

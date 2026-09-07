@@ -99,6 +99,7 @@ import de.jeanlucmakiola.calendula.ui.common.TimelineDrop
 import de.jeanlucmakiola.calendula.ui.common.clipOffsetMinutes
 import de.jeanlucmakiola.calendula.ui.common.continuesAfter
 import de.jeanlucmakiola.calendula.ui.common.continuesBefore
+import de.jeanlucmakiola.calendula.ui.common.ChipCuts
 import de.jeanlucmakiola.calendula.ui.common.timedBlockCuts
 import de.jeanlucmakiola.calendula.ui.common.timedBlockShape
 import de.jeanlucmakiola.calendula.ui.common.eventDragAllowed
@@ -117,7 +118,7 @@ import de.jeanlucmakiola.calendula.ui.common.EventChipShape
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
-import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
+import de.jeanlucmakiola.calendula.ui.common.LocalShowHourGrid
 import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.MIN_EVENT_FRACTION
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
@@ -126,7 +127,8 @@ import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.common.GUTTER_WIDTH
 import de.jeanlucmakiola.calendula.ui.common.HourGutter
 import de.jeanlucmakiola.calendula.ui.common.TIMELINE_CONTENT_END_INSET
-import de.jeanlucmakiola.calendula.ui.common.hourSeparatorLines
+import de.jeanlucmakiola.calendula.ui.common.hourCellBlockInset
+import de.jeanlucmakiola.calendula.ui.common.hourGridCells
 import de.jeanlucmakiola.calendula.ui.common.tappedMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.week.TimedBlock
 import kotlinx.coroutines.flow.first
@@ -551,6 +553,12 @@ private fun Timeline(
     val zoom = LocalTimelineZoom.current
     val density = LocalDensity.current
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    // What the hour grid takes off a block's ends, for the floating copy to
+    // take off its own. Per-end, a cut edge keeps it — that much the drag
+    // geometry decides itself, from the slice it is drawing.
+    val blockInsetPx = with(density) {
+        hourCellBlockInset(LocalShowHourGrid.current, cut = false).toPx()
+    }
 
     // BoxWithConstraints rather than Box: the fit-the-whole-day scale needs the
     // timeline's own viewport height, which is only known here — below the top
@@ -604,6 +612,7 @@ private fun Timeline(
                                 it.grid = coords
                                 it.scroll = scrollState
                                 it.hourPx = with(density) { hourHeight.toPx() }
+                                it.blockInsetPx = blockInsetPx
                                 it.columnGapPx = 0f
                                 it.columnWidthPx = coords.size.width.toFloat()
                                 it.days = listOf(state.date)
@@ -630,8 +639,8 @@ private fun DayColumnCard(
     modifier: Modifier = Modifier,
 ) {
     val hourPx = with(LocalDensity.current) { hourHeight.toPx() }
-    val showHourLines = LocalShowHourLines.current
-    val hourLineColor = MaterialTheme.colorScheme.outlineVariant
+    val showHourGrid = LocalShowHourGrid.current
+    val zone = remember { TimeZone.currentSystemDefault() }
     // Tells a settled drop when this column has caught up with it.
     LaunchedEffect(blocks, dragController.settling) {
         dragController.noteGrid(date, blocks)
@@ -647,16 +656,23 @@ private fun DayColumnCard(
         // rounded scroll viewport, so inner rounding would look odd at the edges.
         shape = RectangleShape,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            // With the grid on, the container colour moves onto the hour cells
+            // and the column behind them recedes to surface, so an hour boundary
+            // reads as negative space between two surfaces.
+            containerColor = if (showHourGrid) {
+                MaterialTheme.colorScheme.surface
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
         ),
         modifier = modifier,
     ) {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                // Faint hour separators sit over the column background but under
-                // the event blocks (drawBehind paints before the children).
-                .hourSeparatorLines(showHourLines, hourPx, hourLineColor)
+                // The hour cells sit over the column background but under the
+                // event blocks (drawBehind paints before the children).
+                .hourGridCells(showHourGrid, hourPx, MaterialTheme.colorScheme.surfaceContainer)
                 // Tap an empty slot to create an event there. Taps on event
                 // blocks are consumed by their own click handler first, so this
                 // only fires on the column background. Snaps to the tapped hour.
@@ -688,19 +704,33 @@ private fun DayColumnCard(
                         width = laneWidth,
                         height = height,
                     )
+                    // Where this block is cut at midnight, which decides both
+                    // its shape and the half-gap it gives up to the hour cells.
+                    val cuts = remember(block, date, zone) {
+                        timedBlockCuts(
+                            block.continuesBefore(date, zone),
+                            block.continuesAfter(date, zone),
+                        )
+                    }
+                    val topInset = hourCellBlockInset(showHourGrid, cuts.top)
+                    val bottomInset = hourCellBlockInset(showHourGrid, cuts.bottom)
+                    val blockHeight = (place.height - topInset - bottomInset)
+                        .coerceAtLeast(0.dp)
                     EventBlock(
                         block = block,
                         dark = dark,
-                        height = place.height,
+                        height = blockHeight,
                         width = place.width,
                         date = date,
+                        cuts = cuts,
+                        topInset = topInset,
                         dragController = dragController,
                         onClick = { onEventClick(block.event) },
                         onDrop = onDrop,
                         modifier = Modifier
-                            .offset(x = place.x, y = place.y)
+                            .offset(x = place.x, y = place.y + topInset)
                             .width(place.width)
-                            .height(place.height)
+                            .height(blockHeight)
                             .padding(horizontal = BLOCK_OUTER_INSET),
                     )
                 }
@@ -720,6 +750,8 @@ private fun EventBlock(
     height: Dp,
     width: Dp,
     date: LocalDate,
+    cuts: ChipCuts,
+    topInset: Dp,
     dragController: TimelineDragController,
     onClick: () -> Unit,
     onDrop: (TimelineDrop) -> Unit,
@@ -763,10 +795,8 @@ private fun EventBlock(
     // The drop takes this offset back off, so a tail clipped at midnight lands
     // where the event's own start belongs (#253).
     val clipOffset = remember(block, date, zone) { block.clipOffsetMinutes(date, zone) }
-    val cuts = remember(block, date, zone) {
-        timedBlockCuts(block.continuesBefore(date, zone), block.continuesAfter(date, zone))
-    }
     val shape = remember(cuts) { timedBlockShape(cuts.top, cuts.bottom) }
+    val topInsetPx = with(density) { topInset.toPx() }
     val dragModifier = rememberEventDragSource(
         enabled = draggable,
         key = block.event.instanceId,
@@ -776,7 +806,10 @@ private fun EventBlock(
                 clipOffsetMin = clipOffset,
                 titleLines = if (showTitle) titleMaxLines else 0,
                 pointerInRoot = pointer,
-                blockInRoot = blockRoot,
+                // Measured off the block's placement rather than off where the
+                // hour grid seats it: the copy is drawn from that placement and
+                // re-seated the same half-gap down (#267).
+                blockInRoot = blockRoot.copy(y = blockRoot.y - topInsetPx),
             )
         },
         onMove = dragController::move,

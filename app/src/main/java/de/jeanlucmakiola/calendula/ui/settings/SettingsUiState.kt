@@ -32,8 +32,8 @@ data class SettingsUiState(
     val weekStart: WeekStartPref = WeekStartPref.Auto,
     /** Clock convention for time labels (v2.11). AUTO follows the system setting. */
     val timeFormat: TimeFormatPref = TimeFormatPref.AUTO,
-    /** Whether the week/day timeline draws an hour separator line (v2.11). */
-    val showHourLines: Boolean = false,
+    /** Whether the week/day timeline seats each hour in its own cell (v2.11). */
+    val showHourGrid: Boolean = false,
     /** How the Agenda screen treats events that already ended today. */
     val pastEventDisplay: PastEventDisplay = PastEventDisplay.SHOW,
     /** Whether the month/week grids fade events that have already finished. */
