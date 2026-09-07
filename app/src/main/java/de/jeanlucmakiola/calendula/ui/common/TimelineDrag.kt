@@ -26,6 +26,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
@@ -730,14 +731,6 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
                     alpha = copyAlpha,
                     title = title,
                     titleLines = drag.titleLines,
-                    // How far this piece's top has scrolled out of the timeline,
-                    // so its text can come down to meet the edge instead of
-                    // being clipped away with it.
-                    hiddenTopPx = if (port == null) {
-                        0f
-                    } else {
-                        (port.top - piece.topLeftInRoot.y).coerceAtLeast(0f)
-                    },
                     // Once for the whole event: repeated, it would name it per day.
                     label = label.takeIf { index == labelled },
                 )
@@ -759,7 +752,6 @@ private fun DragCopy(
     alpha: Float,
     title: String,
     titleLines: Int,
-    hiddenTopPx: Float,
     label: String?,
 ) {
     val density = LocalDensity.current
@@ -772,20 +764,15 @@ private fun DragCopy(
     val timeLineHeight = with(density) {
         MaterialTheme.typography.labelSmall.lineHeight.toDp()
     }
-    // The block's size, spent the block's way, so nothing reflows under the
-    // finger (#267). The title is served in full first and the range lives off
-    // what is left: the hour gutter down the side still says where the copy
-    // sits, so the range is the half that can afford to go.
+    // The block's size, spent the block's way — text sits at the top as it does
+    // on the block, so the copy hands back to the grid without shifting (#267).
+    // The title is served in full first and the range lives off what is left:
+    // the hour gutter down the side still says where the copy sits, so the
+    // range is the half that can afford to go.
     val available = height - BLOCK_TEXT_INSET * 2
-    // A piece whose top has scrolled off brings its text down to the edge, and
-    // budgets against what is left below it rather than against a height most
-    // of which is above the timeline.
-    val textTop = with(density) { hiddenTopPx.toDp() }
-        .coerceIn(0.dp, (available - titleLineHeight).coerceAtLeast(0.dp))
-    val room = available - textTop
-    val titleBudget = (room / titleLineHeight).toInt().coerceAtLeast(0)
+    val titleBudget = (available / titleLineHeight).toInt().coerceAtLeast(0)
     val lines = titleLines.coerceAtMost(titleBudget)
-    val left = room - titleLineHeight * lines
+    val left = available - titleLineHeight * lines
     val showTime = label != null && left >= timeLineHeight
     val timeMaxLines = if (showTime) {
         blockTimeLines(label!!, textWidth, left - timeLineHeight)
@@ -805,6 +792,13 @@ private fun DragCopy(
             .size(width = width, height = height)
             .padding(horizontal = BLOCK_OUTER_INSET)
             .graphicsLayer {
+                // Anchored at the top edge, not the middle: scaled about the
+                // centre, the 2% lift raises the top by 1% of the height — a few
+                // pixels on an hour, but a steady upward creep of the text as a
+                // dragged multi-day piece grows, and a shear against the
+                // timeline's clip. It snapped back when the lift animated out
+                // on drop (#267).
+                transformOrigin = TransformOrigin(0.5f, 0f)
                 scaleX = 1f + 0.02f * lift
                 scaleY = 1f + 0.02f * lift
                 shadowElevation = 8.dp.toPx() * lift
@@ -815,7 +809,7 @@ private fun DragCopy(
             .eventSurface(paint, shape, cuts)
             .padding(horizontal = BLOCK_TEXT_PADDING, vertical = BLOCK_TEXT_INSET),
     ) {
-        Column(modifier = Modifier.padding(top = textTop)) {
+        Column {
             if (lines > 0) {
                 BlockTitle(
                     title = title,
