@@ -745,7 +745,12 @@ private fun EventBlock(
     val showTime = available >= titleLineHeight + timeLineHeight
     val showTitle = available >= titleLineHeight
     val textWidth = width - (BLOCK_OUTER_INSET + BLOCK_TEXT_PADDING) * 2
-    val titleMaxLines = if (showTime) 1 else 2
+    // Only lines the block can actually draw: a block too short for the time is
+    // too short for a second title line too, and asking for one served a sliced
+    // one — as well as handing the drag copy a count it couldn't honour, so the
+    // title re-wrapped the moment the block was lifted (#267).
+    val titleBudget = (available / titleLineHeight).toInt().coerceAtLeast(1)
+    val titleMaxLines = if (showTime) 1 else titleBudget.coerceAtMost(2)
     // On a day column — wide enough for "09:30–11:00" several times over — the
     // range never needs the second line, until lanes cut the column down.
     val spare = available - titleLineHeight * titleMaxLines -
