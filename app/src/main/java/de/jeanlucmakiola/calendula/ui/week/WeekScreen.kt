@@ -130,7 +130,6 @@ import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourLines
 import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.MIN_EVENT_FRACTION
-import de.jeanlucmakiola.calendula.ui.common.MIN_TITLE_WRAP_WIDTH
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
 import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
@@ -905,18 +904,17 @@ private fun EventBlock(
     val contentHeight = available - if (showTime) timeLineHeight else 0.dp
     val titleBudget = (contentHeight / titleLineHeight).toInt().coerceAtLeast(1)
     val paint = eventPaint(block.event, dark)
-    val titleMaxLines = if (width < MIN_TITLE_WRAP_WIDTH) {
-        1
-    } else {
-        blockTextLines(
-            text = title,
-            // At the weight BlockTitle will set it in, or an invited block —
-            // drawn a weight lighter — is budgeted a line it never fills (#230).
-            style = MaterialTheme.typography.labelMedium.withTitleWeight(paint),
-            textWidth = textWidth,
-            max = titleBudget,
-        )
-    }
+    // Every line the height affords, however narrow the lane: two events side by
+    // side leave columns well under a word wide, and cutting the title to one
+    // line there lost it outright where the block had the room to wrap it.
+    val titleMaxLines = blockTextLines(
+        text = title,
+        // At the weight BlockTitle will set it in, or an invited block — drawn a
+        // weight lighter — is budgeted a line it never fills (#230).
+        style = MaterialTheme.typography.labelMedium.withTitleWeight(paint),
+        textWidth = textWidth,
+        max = titleBudget,
+    )
     val spare = available - titleLineHeight * titleMaxLines -
         if (showTime) timeLineHeight else 0.dp
     val timeMaxLines = if (showTime) blockTimeLines(timeLabel, textWidth, spare) else 1
@@ -970,7 +968,6 @@ private fun EventBlock(
                 BlockTitle(
                     title = title,
                     maxLines = titleMaxLines,
-                    textWidth = textWidth,
                     color = paint.titleInk,
                     textDecoration = paint.decoration,
                     fontWeight = paint.titleWeight,

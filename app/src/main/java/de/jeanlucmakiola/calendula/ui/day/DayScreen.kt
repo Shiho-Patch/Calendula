@@ -800,7 +800,6 @@ private fun EventBlock(
                 BlockTitle(
                     title = title,
                     maxLines = titleMaxLines,
-                    textWidth = textWidth,
                     color = paint.titleInk,
                     textDecoration = paint.decoration,
                     fontWeight = paint.titleWeight,

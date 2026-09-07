@@ -814,7 +814,6 @@ private fun DragCopy(
                 BlockTitle(
                     title = title,
                     maxLines = lines,
-                    textWidth = textWidth,
                     color = paint.titleInk,
                     textDecoration = paint.decoration,
                     fontWeight = paint.titleWeight,

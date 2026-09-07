@@ -96,17 +96,6 @@ fun tappedMinuteOfDay(offsetY: Float, hourPx: Float): Int =
  */
 const val MIN_EVENT_FRACTION = 26f / 60f
 
-/**
- * Narrowest an event block may be and still wrap its title over several lines.
- *
- * Wrapping is driven by the block's height, so a tall block on a lane-split
- * column would otherwise stack two or three characters per line — "Da/ily",
- * "Fa/rmer/s…" — which reads worse than one ellipsised line. A full week column
- * clears this on any phone; a split one never does, while the day view's much
- * wider columns keep wrapping even several lanes deep.
- */
-val MIN_TITLE_WRAP_WIDTH = 36.dp
-
 /** Smallest hour height [TimelineScale.FitDay] will resolve to. */
 val FIT_DAY_MIN = 24.dp
 
