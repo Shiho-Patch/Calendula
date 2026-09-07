@@ -170,11 +170,11 @@ internal fun ViewsScreen(
             position = Position.Bottom,
             trailing = {
                 Switch(
-                    checked = state.showHourLines,
-                    onCheckedChange = viewModel::setShowHourLines,
+                    checked = state.showHourGrid,
+                    onCheckedChange = viewModel::setShowHourGrid,
                 )
             },
-            onClick = { viewModel.setShowHourLines(!state.showHourLines) },
+            onClick = { viewModel.setShowHourGrid(!state.showHourGrid) },
         )
 
         Spacer(Modifier.height(8.dp))

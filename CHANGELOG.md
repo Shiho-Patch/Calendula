@@ -20,6 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is not in that row. Event times across the month, week and day views are also
   set in a regular weight against the title's, so a time reads as a time rather
   than as part of the name next to it ([#219]).
+- **The hour lines in week and day view are now an hour grid.** The setting
+  that drew a faint separator line at each hour now seats every hour in its own
+  rounded cell, so an hour boundary reads as the seam between two surfaces
+  rather than a line drawn across one — the same negative space that separates
+  the month grid's days and the week's columns. An event that starts on the hour
+  fills its cell instead of overhanging the seam, and one that runs past
+  midnight still meets the edge of its column ([#113]).
 - The calendar titles now shorten instead of being cut off. When the full month
   name doesn't fit the top bar, the month and week views fall back to its
   three-letter form and the day view drops the weekday, rather than trailing off
@@ -1603,3 +1610,4 @@ automatically, with zero telemetry and no internet permission.
 [#248]: https://codeberg.org/jlmakiola/calendula/issues/248
 [#253]: https://codeberg.org/jlmakiola/calendula/issues/253
 [#273]: https://codeberg.org/jlmakiola/calendula/issues/273
+[#113]: https://codeberg.org/jlmakiola/calendula/issues/113
