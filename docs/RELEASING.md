@@ -54,6 +54,15 @@ Published version codes so far: `v0.1.0`→100 … `v1.0.0`→10000 … `v2.0.0`
    solely when the file is missing, so the self-hosted pipeline always has
    something to publish. The pipeline runs the same script, so forgetting to
    write the file yields a long auto-generated changelog rather than none.
+
+   To check every locale rather than just en-US, run
+   ```bash
+   scripts/check_changelog_lengths.sh
+   ```
+   It fails on any file for the current `versionCode` that is missing, empty or
+   over the limit, and only warns about older ones (already published; Play
+   never re-reads them). CI runs it on every pull request. `--strict` fails on
+   the older files too.
 4. **Verify the release build on a real device** — the mandatory gate. The
    shipped APK is R8-shrunk/obfuscated, and bugs that only appear there, or
    only on first run, never show up in the debug build or on a device that
