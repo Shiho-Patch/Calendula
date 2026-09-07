@@ -620,12 +620,19 @@
     <string name="settings_license_value">MIT</string>
     <string name="settings_about_author">by Jean-Luc Makiola</string>
     <string name="settings_about_source">Source</string>
+    <string name="settings_licences">Open source licenses</string>
+    <string name="settings_licences_subtitle">The projects Calendula is built on</string>
     <string name="settings_about_privacy">Privacy policy</string>
     <string name="settings_about_support">Support development</string>
     <string name="settings_about_version">Version %1$s</string>
     <string name="settings_about_logo_desc">Calendula app icon</string>
     <string name="settings_report_problem">Report a problem</string>
     <string name="settings_report_problem_hint">Send a crash report or open the issue tracker</string>
+
+    <!-- Open source licences -->
+    <string name="licences_title">Open source licenses</string>
+    <string name="licences_intro">Calendula includes the work below. Tap any entry to get its source code.</string>
+    <string name="licences_footer">Every project here is included unmodified, under the license shown.</string>
 
     <!-- Calendar manager -->
     <string name="calendars_title">Calendars</string>
