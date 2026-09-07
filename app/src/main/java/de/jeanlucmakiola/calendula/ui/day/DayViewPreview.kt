@@ -1,7 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.day
 
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -41,7 +40,6 @@ internal fun DayViewPreview(
     ScaledViewPreview(height = height, modifier = modifier) {
         DaySuccess(
             state = state,
-            topSectionColor = MaterialTheme.colorScheme.surface,
             scrollState = scrollState,
             allDayHeight = state.allDayStripHeight(),
             dragController = rememberTimelineDragController(),

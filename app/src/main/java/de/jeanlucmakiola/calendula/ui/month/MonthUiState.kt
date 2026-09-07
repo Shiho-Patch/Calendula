@@ -74,7 +74,7 @@ fun MonthWeek.laneEvents(col: Int, day: LocalDate, laneCap: Int): List<EventInst
  */
 fun MonthWeek.chipAt(col: Int, lane: Int, laneCap: Int): EventInstance? {
     if (col !in days.indices || lane !in 0 until laneCap) return null
-    spans.firstOrNull { it.lane == lane && col in it.startCol..it.endCol }?.let { return it.event }
+    spanAt(col, lane)?.let { return it.event }
     val occupied = spans
         .filter { it.lane < laneCap && col in it.startCol..it.endCol }
         .map { it.lane }
@@ -91,8 +91,11 @@ fun MonthWeek.chipAt(col: Int, lane: Int, laneCap: Int): EventInstance? {
  * [col] for a single-day chip, and for an empty slot no one should be asking
  * about.
  */
-fun MonthWeek.chipStartCol(col: Int, lane: Int): Int =
-    spans.firstOrNull { it.lane == lane && col in it.startCol..it.endCol }?.startCol ?: col
+fun MonthWeek.chipStartCol(col: Int, lane: Int): Int = spanAt(col, lane)?.startCol ?: col
+
+/** The bar covering lane [lane] of column [col], or null where a pill sits there. */
+fun MonthWeek.spanAt(col: Int, lane: Int): MonthSpan? =
+    spans.firstOrNull { it.lane == lane && col in it.startCol..it.endCol }
 
 /**
  * The events on [day] that [laneEvents] had no lane left for — its exact
@@ -136,6 +139,8 @@ sealed interface ContinuousMonthUiState {
         val monthsByIndex: Map<Int, List<MonthWeek>>,
         val weeksByIndex: Map<Int, MonthWeek>,
         val weekStart: DayOfWeek,
+        /** As [MonthUiState.Success.zone], and for the same reason. */
+        val zone: TimeZone = TimeZone.currentSystemDefault(),
     ) : ContinuousMonthUiState
 }
 

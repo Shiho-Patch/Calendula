@@ -9,7 +9,6 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -98,6 +97,9 @@ import de.jeanlucmakiola.calendula.domain.timeZoneOptionOf
 import de.jeanlucmakiola.calendula.domain.zoneDescriptor
 import de.jeanlucmakiola.floret.identity.predictiveBack
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
+import de.jeanlucmakiola.calendula.ui.common.FieldCopier
+import de.jeanlucmakiola.calendula.ui.common.copyOnLongPress
+import de.jeanlucmakiola.calendula.ui.common.rememberFieldCopier
 import de.jeanlucmakiola.calendula.ui.common.icuTimeZoneRegion
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventAccent
@@ -150,6 +152,7 @@ fun EventDetailScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    val copyField = rememberFieldCopier(snackbarHostState)
 
     // Sharing is read-only, so it needs no WRITE_CALENDAR upgrade. The VM stages
     // an .ics in the cache and hands back a content Uri for the chooser.
@@ -300,7 +303,7 @@ fun EventDetailScreen(
                 reason = s.reason,
                 onRetry = viewModel::retry,
             )
-            is EventDetailUiState.Success -> EventDetailContent(s, contentModifier)
+            is EventDetailUiState.Success -> EventDetailContent(s, copyField, contentModifier)
         }
     }
 
@@ -382,7 +385,11 @@ private fun DeleteEventDialog(
 
 
 @Composable
-private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modifier = Modifier) {
+private fun EventDetailContent(
+    state: EventDetailUiState.Success,
+    copyField: FieldCopier,
+    modifier: Modifier = Modifier,
+) {
     val detail = state.detail
     val instance = detail.instance
     val dark = isSystemInDarkTheme()
@@ -399,6 +406,7 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
         // event, so it's left implicit — only Free is worth surfacing. A
         // cancelled event strikes through its title.
         Row(verticalAlignment = Alignment.Top) {
+            val titleLabel = stringResource(R.string.event_detail_title)
             Text(
                 text = instance.title.ifBlank { stringResource(R.string.event_untitled) },
                 style = MaterialTheme.typography.headlineMedium,
@@ -408,7 +416,17 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
                 } else {
                     null
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .then(
+                        // Nothing to copy off an untitled event — the placeholder
+                        // isn't the event's own text.
+                        if (instance.title.isNotBlank()) {
+                            Modifier.copyOnLongPress(titleLabel, instance.title, copyField)
+                        } else {
+                            Modifier
+                        },
+                    ),
             )
             if (detail.availability == Availability.Free) {
                 Spacer(Modifier.width(12.dp))
@@ -516,10 +534,11 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
         // Location (conditional, tap → maps).
         instance.location?.takeIf { it.isNotBlank() }?.let { location ->
             val context = LocalContext.current
+            val locationLabel = stringResource(R.string.event_detail_location)
             Spacer(Modifier.height(gap))
             DetailCard(
                 icon = Icons.Default.Place,
-                iconContentDescription = stringResource(R.string.event_detail_location),
+                iconContentDescription = locationLabel,
             ) {
                 Text(
                     text = location,
@@ -527,7 +546,12 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { openInMaps(context, location) }
+                        .copyOnLongPress(
+                            label = locationLabel,
+                            text = location,
+                            copy = copyField,
+                            onTap = { openInMaps(context, location) },
+                        )
                         .padding(vertical = 2.dp),
                 )
             }
@@ -535,10 +559,15 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
 
         // Description (conditional). URLs are auto-linked.
         detail.description?.takeIf { it.isNotBlank() }?.let { description ->
+            val descriptionLabel = stringResource(R.string.event_detail_description)
             Spacer(Modifier.height(gap))
             DetailCard(
                 icon = Icons.AutoMirrored.Filled.Notes,
-                iconContentDescription = stringResource(R.string.event_detail_description),
+                iconContentDescription = descriptionLabel,
+                // The gesture sits on the card so the icon and padding answer
+                // it too: every linkified URL owns the pointer over its own
+                // glyphs, which leaves the text itself a patchy target.
+                modifier = Modifier.copyOnLongPress(descriptionLabel, description, copyField),
             ) {
                 Text(
                     text = linkifyUrls(description, MaterialTheme.colorScheme.primary),
@@ -611,13 +640,14 @@ private fun EventDetailContent(state: EventDetailUiState.Success, modifier: Modi
 private fun DetailCard(
     icon: ImageVector,
     iconContentDescription: String?,
+    modifier: Modifier = Modifier,
     iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),

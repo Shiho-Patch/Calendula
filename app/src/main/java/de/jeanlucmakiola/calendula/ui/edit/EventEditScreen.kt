@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -90,6 +91,7 @@ import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.pluralStringResource
@@ -101,6 +103,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -788,38 +791,59 @@ private fun EventEditContent(
             EditCard(
                 icon = Icons.Default.Place,
                 iconContentDescription = stringResource(R.string.event_detail_location),
+                iconAtTop = true,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.Top) {
                     InlineField(
                         value = form.location,
                         onValueChange = viewModel::setLocation,
                         placeholder = stringResource(R.string.event_detail_location),
+                        // A location is as often a meeting URL as an address,
+                        // and "Zoom.us/j/123" reads wrong (#146).
+                        capitalization = KeyboardCapitalization.None,
+                        // Multi-line so a long address or meeting URL wraps and
+                        // the card grows instead of scrolling off one line
+                        // (#273). The field holds no newlines of its own, so
+                        // the IME's action key closes the keyboard rather than
+                        // inserting a break setLocation would only fold away.
+                        singleLine = false,
+                        imeAction = ImeAction.Done,
                         modifier = Modifier
                             .weight(1f)
+                            .animateContentSizeMotion()
                             .padding(vertical = 4.dp),
                     )
-                    IconButton(
-                        onClick = {
-                            runCatching {
-                                pickContactAddress.launch(
-                                    Intent(
-                                        Intent.ACTION_PICK,
-                                        ContactsContract.CommonDataKinds.StructuredPostal
-                                            .CONTENT_URI,
-                                    ),
-                                )
-                            }
-                        },
-                        modifier = Modifier.size(40.dp),
+                    // The box is exactly one text line tall, so the button
+                    // centres on the first line without making a single-line
+                    // card taller than its text; requiredSize keeps the
+                    // button's own 40dp ripple.
+                    Box(
+                        modifier = Modifier.height(firstLineHeight()),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Contacts,
-                            contentDescription = stringResource(
-                                R.string.event_edit_location_from_contacts,
-                            ),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp),
-                        )
+                        IconButton(
+                            onClick = {
+                                runCatching {
+                                    pickContactAddress.launch(
+                                        Intent(
+                                            Intent.ACTION_PICK,
+                                            ContactsContract.CommonDataKinds.StructuredPostal
+                                                .CONTENT_URI,
+                                        ),
+                                    )
+                                }
+                            },
+                            modifier = Modifier.requiredSize(40.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Contacts,
+                                contentDescription = stringResource(
+                                    R.string.event_edit_location_from_contacts,
+                                ),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -1989,8 +2013,8 @@ private fun readContactEmail(context: Context, uri: Uri): Pair<String, String>? 
 /**
  * Read the formatted postal address from a contact-pick result URI. No
  * READ_CONTACTS needed: ACTION_PICK grants this URI temporary read access.
- * The provider's formatted address is multi-line; collapse it to one line so
- * it sits cleanly in the single-line location field.
+ * The provider's formatted address is multi-line; collapse it to one comma-
+ * separated line, which is what the location field holds.
  */
 private fun readContactAddress(context: Context, uri: Uri): String? =
     context.contentResolver.query(
@@ -2174,14 +2198,19 @@ private fun EditCard(
                 modifier = Modifier.padding(16.dp),
                 verticalAlignment = if (iconAtTop) Alignment.Top else Alignment.CenterVertically,
             ) {
+                // A top-aligned icon centres on the first text line, whatever
+                // that line measures at the user's font scale.
+                val iconOffset = if (iconAtTop) {
+                    ((firstLineHeight() - 24.dp) / 2).coerceAtLeast(0.dp)
+                } else {
+                    0.dp
+                }
                 Icon(
                     imageVector = icon,
                     contentDescription = iconContentDescription,
                     tint = iconTint,
-                    // 4dp mirrors InlineField's vertical padding, so a
-                    // top-aligned icon (24dp) centres on the ~24sp first line.
                     modifier = Modifier
-                        .padding(top = if (iconAtTop) 4.dp else 0.dp)
+                        .padding(top = iconOffset)
                         .size(24.dp),
                 )
                 Spacer(Modifier.width(16.dp))
@@ -2223,7 +2252,9 @@ private fun formatTimeRange(start: LocalDateTime, end: LocalDateTime, locale: Lo
 /**
  * Borderless text input used inside the cards (and as the headline title).
  * Thin wrapper over the shared [InlineTextField] so the form and the rest of
- * the app share one input style.
+ * the app share one input style. Sentence-case by default, as floret-kit is;
+ * a field holding an identifier rather than prose passes
+ * [KeyboardCapitalization.None].
  */
 @Composable
 private fun InlineField(
@@ -2235,6 +2266,8 @@ private fun InlineField(
     minLines: Int = 1,
     enabled: Boolean = true,
     keyboardType: KeyboardType = KeyboardType.Text,
+    capitalization: KeyboardCapitalization = KeyboardCapitalization.Sentences,
+    imeAction: ImeAction = ImeAction.Default,
     modifier: Modifier = Modifier
         .fillMaxWidth()
         .padding(vertical = 4.dp),
@@ -2249,8 +2282,23 @@ private fun InlineField(
         minLines = minLines,
         enabled = enabled,
         keyboardType = keyboardType,
-        capitalization = KeyboardCapitalization.None,
+        capitalization = capitalization,
+        imeAction = imeAction,
     )
+}
+
+/**
+ * Height of one [InlineField] line: the resolved [TextStyle.lineHeight] plus the
+ * field's 4dp vertical padding. In dp, so it tracks the user's font scale
+ * instead of assuming the 24sp line of a 1.0 scale (#165).
+ */
+@Composable
+private fun firstLineHeight(
+    textStyle: TextStyle = MaterialTheme.typography.titleMedium,
+): Dp {
+    val lineHeight = textStyle.lineHeight
+    if (!lineHeight.isSp) return 32.dp
+    return with(LocalDensity.current) { lineHeight.toDp() } + 8.dp
 }
 
 /** One schedule row: label, then tappable date and (unless all-day) time. */

@@ -1,7 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.week
 
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -47,7 +46,6 @@ internal fun WeekViewPreview(
     ScaledViewPreview(height = height, modifier = modifier) {
         WeekSuccess(
             state = state,
-            topSectionColor = MaterialTheme.colorScheme.surface,
             scrollState = scrollState,
             allDayHeight = state.allDayStripHeight(),
             dragController = rememberTimelineDragController(),

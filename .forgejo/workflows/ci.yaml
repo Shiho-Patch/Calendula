@@ -37,6 +37,12 @@ jobs:
       - name: Reproducible-release invariant
         run: bash scripts/check_reproducible_release.sh
 
+      # Play rejects a "What's New" over 500 characters, which would fail the
+      # upload after the release had already shipped everywhere else. Cheap, so
+      # it runs on every PR rather than only on the release merge.
+      - name: Changelog length invariant
+        run: bash scripts/check_changelog_lengths.sh
+
       # Decide whether anything that affects the app build changed. Docs, store
       # metadata, licence texts and forge housekeeping don't, so those PRs skip
       # the SDK + Gradle work below but still report a green `ci`.

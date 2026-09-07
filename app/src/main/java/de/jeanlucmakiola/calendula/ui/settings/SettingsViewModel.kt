@@ -141,7 +141,7 @@ class SettingsViewModel @Inject constructor(
                 // Display toggles folded into one flow so they fit this group —
                 // the outer combine is already at its five-arg limit.
                 combine(
-                    prefs.showHourLines,
+                    prefs.showHourGrid,
                     prefs.showWeekNumbers,
                     prefs.agendaShowToday,
                     prefs.softenCalendarColors,
@@ -158,7 +158,7 @@ class SettingsViewModel @Inject constructor(
             ) { view, screenRange, widgetRange, timeFormat, toggles ->
                 ViewSettings(
                     view, screenRange, widgetRange, timeFormat,
-                    showHourLines = toggles.showHourLines,
+                    showHourGrid = toggles.showHourGrid,
                     showWeekNumbers = toggles.showWeekNumbers,
                     agendaShowToday = toggles.agendaShowToday,
                     softenColors = toggles.softenColors,
@@ -191,7 +191,7 @@ class SettingsViewModel @Inject constructor(
                 agendaScreenRange = views.agendaScreenRange,
                 agendaWidgetRange = views.agendaWidgetRange,
                 timeFormat = views.timeFormat,
-                showHourLines = views.showHourLines,
+                showHourGrid = views.showHourGrid,
                 showWeekNumbers = views.showWeekNumbers,
                 agendaShowToday = views.agendaShowToday,
                 softenColors = views.softenColors,
@@ -292,7 +292,7 @@ class SettingsViewModel @Inject constructor(
         val agendaScreenRange: AgendaRange,
         val agendaWidgetRange: AgendaRange,
         val timeFormat: TimeFormatPref,
-        val showHourLines: Boolean,
+        val showHourGrid: Boolean,
         val showWeekNumbers: Boolean,
         val agendaShowToday: Boolean,
         val softenColors: Boolean,
@@ -301,7 +301,7 @@ class SettingsViewModel @Inject constructor(
     )
 
     private data class DisplayToggles(
-        val showHourLines: Boolean,
+        val showHourGrid: Boolean,
         val showWeekNumbers: Boolean,
         val agendaShowToday: Boolean,
         val softenColors: Boolean,
@@ -532,8 +532,8 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setTimeFormat(pref) }
     }
 
-    fun setShowHourLines(enabled: Boolean) {
-        viewModelScope.launch { prefs.setShowHourLines(enabled) }
+    fun setShowHourGrid(enabled: Boolean) {
+        viewModelScope.launch { prefs.setShowHourGrid(enabled) }
     }
 
     fun setShowWeekNumbers(enabled: Boolean) {
@@ -591,15 +591,15 @@ class SettingsViewModel @Inject constructor(
 
     /**
      * Enable or disable [view] in the quick-switch cycle, via an atomic
-     * read-modify-write so a concurrent reorder can't clobber it. The
-     * MIN_ENABLED floor is re-checked inside the transform, because the screen's
-     * own guard reads an async-echoed snapshot.
+     * read-modify-write so a concurrent reorder can't clobber it. Any number of
+     * views may be turned off; below two the pill hides itself (#150).
      */
     fun setQuickSwitchViewEnabled(view: CalendarView, enabled: Boolean) {
         viewModelScope.launch {
             prefs.updateQuickSwitch { config ->
-                val next = if (enabled) config.enabled + view else config.enabled - view
-                if (next.size < QuickSwitchConfig.MIN_ENABLED) config else config.copy(enabled = next)
+                config.copy(
+                    enabled = if (enabled) config.enabled + view else config.enabled - view,
+                )
             }
         }
     }

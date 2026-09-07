@@ -30,7 +30,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.TopAppBarScrollBehavior
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,9 +39,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -51,6 +50,8 @@ import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.hasEnded
 import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
+import de.jeanlucmakiola.calendula.ui.common.AppBarSpacing
+import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.floret.identity.animateItemMotion
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
@@ -95,7 +96,6 @@ fun AgendaScreen(
     val showToday by viewModel.showToday.collectAsStateWithLifecycle()
     val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
 
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var showRangePicker by remember { mutableStateOf(false) }
@@ -130,16 +130,16 @@ fun AgendaScreen(
         },
     ) {
         Scaffold(
-            modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            modifier = modifier,
             topBar = {
                 AgendaTopBar(
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
+                    quickSwitchViews = quickSwitchViews,
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
                     showTodayButton = todayInToolbar,
                     onToday = viewModel::goToToday,
-                    scrollBehavior = scrollBehavior,
                 )
             },
             floatingActionButton = {
@@ -159,13 +159,24 @@ fun AgendaScreen(
                 // One bar at the top: the "showing …" header on the left and the
                 // session range switcher on the right (one settings toggle).
                 successState?.takeIf { it.showRangeBar }?.let { s ->
+                    // end lines the selector up with whatever ends the top bar:
+                    // the view switcher's background, or — once #150 hides it —
+                    // the search icon's glyph.
+                    val selectorEnd = if (quickSwitchViews.size >= QuickSwitchConfig.MIN_CYCLE) {
+                        AppBarSpacing.Inset
+                    } else {
+                        AppBarSpacing.IconTrailingInset
+                    }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        // end aligns the selector's right edge with the top-bar view
-                        // switcher (its 8.dp margin + the app bar's 4.dp inset).
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 28.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+                            .padding(
+                                start = RANGE_BAR_TEXT_INSET,
+                                end = selectorEnd,
+                                top = 8.dp,
+                                bottom = 8.dp,
+                            ),
                     ) {
                         AgendaRangeBanner(
                             range = s.range,
@@ -244,6 +255,9 @@ private fun AgendaRangePill(
         )
     }
 }
+
+/** Optical start inset for the range bar's text, set against the title above it. */
+private val RANGE_BAR_TEXT_INSET = 28.dp
 
 /**
  * A header naming the concrete window currently shown under a "showing …" label,
@@ -409,17 +423,22 @@ private fun AgendaEmpty(modifier: Modifier = Modifier) {
 private fun AgendaTopBar(
     selectedView: CalendarView,
     onCycleView: () -> Unit,
+    quickSwitchViews: List<CalendarView>,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
     showTodayButton: Boolean,
     onToday: () -> Unit,
-    scrollBehavior: TopAppBarScrollBehavior,
 ) {
     TopAppBar(
         title = {
+            // A plain label rather than a CalendarTitleButton, so it takes that
+            // one's inset and one-line clamp itself.
             Text(
                 text = stringResource(R.string.view_agenda),
                 style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = AppBarSpacing.TitleInset),
             )
         },
         navigationIcon = {
@@ -440,14 +459,16 @@ private fun AgendaTopBar(
             }
             ViewSwitcherPill(
                 current = selectedView,
+                cycle = quickSwitchViews,
                 onCycle = onCycleView,
-                modifier = Modifier.padding(end = 8.dp),
             )
         },
+        // Deliberately flat: M3 lifts the bar to mark content scrolling under
+        // it, but here the bar meets the header on the same surface and the
+        // tint is what makes that seam look like a separate block (#186).
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            scrolledContainerColor = MaterialTheme.colorScheme.surface,
         ),
-        scrollBehavior = scrollBehavior,
     )
 }

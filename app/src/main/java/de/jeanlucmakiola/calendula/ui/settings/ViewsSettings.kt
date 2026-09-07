@@ -32,7 +32,6 @@ import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.PickerDescription
-import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.common.TimelineScale
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.calendula.ui.common.descriptionRes
@@ -55,8 +54,8 @@ import java.time.format.TextStyle as JavaTextStyle
  * it belongs to, plus the two cross-view ordering lists (#24, #69).
  *
  * The quick-switch cycle and the drawer list are independent orders — a view
- * off in the cycle is still reachable from the drawer. The cycle needs at least
- * [QuickSwitchConfig.MIN_ENABLED] targets.
+ * off in the cycle is still reachable from the drawer, including when the cycle
+ * is emptied and the pill disappears (#150).
  */
 @Composable
 internal fun ViewsScreen(
@@ -171,11 +170,11 @@ internal fun ViewsScreen(
             position = Position.Bottom,
             trailing = {
                 Switch(
-                    checked = state.showHourLines,
-                    onCheckedChange = viewModel::setShowHourLines,
+                    checked = state.showHourGrid,
+                    onCheckedChange = viewModel::setShowHourGrid,
                 )
             },
-            onClick = { viewModel.setShowHourLines(!state.showHourLines) },
+            onClick = { viewModel.setShowHourGrid(!state.showHourGrid) },
         )
 
         Spacer(Modifier.height(8.dp))
@@ -221,8 +220,6 @@ internal fun ViewsScreen(
         SectionHeader(stringResource(R.string.settings_quick_switch_header))
         SettingsHint(stringResource(R.string.settings_quick_switch_hint))
         Spacer(Modifier.height(8.dp))
-        // Turning a view off is blocked once only the minimum remain enabled.
-        val canDisable = config.enabled.size > QuickSwitchConfig.MIN_ENABLED
         ReorderableColumn(
             items = config.order,
             keyOf = { it },
@@ -238,8 +235,6 @@ internal fun ViewsScreen(
                 trailing = {
                     Switch(
                         checked = checked,
-                        // Keep the last two on: with fewer, the pill can't switch.
-                        enabled = !checked || canDisable,
                         onCheckedChange = { on -> viewModel.setQuickSwitchViewEnabled(view, on) },
                     )
                 },

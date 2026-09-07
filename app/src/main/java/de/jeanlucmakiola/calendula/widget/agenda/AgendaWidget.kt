@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.widget.agenda
 
+import de.jeanlucmakiola.calendula.domain.isDeclined
 import de.jeanlucmakiola.calendula.widget.glanceDeclinedDecoration
 import android.content.Context
 import android.content.res.Configuration

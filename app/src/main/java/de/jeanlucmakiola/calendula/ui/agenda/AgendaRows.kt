@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.isDeclined
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.declinedTitle
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors

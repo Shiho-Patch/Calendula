@@ -88,9 +88,13 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.geometry.Offset
+import de.jeanlucmakiola.calendula.ui.common.eventPaint
+import de.jeanlucmakiola.calendula.ui.common.eventSurface
+import de.jeanlucmakiola.calendula.ui.common.monthBarCuts
 import kotlin.math.roundToInt
 import de.jeanlucmakiola.calendula.ui.common.rememberDragSurface
 import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
+import de.jeanlucmakiola.calendula.ui.common.eventTitleOverflow
 import de.jeanlucmakiola.calendula.ui.common.MoveTarget
 import de.jeanlucmakiola.calendula.ui.common.MoveRequest
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
@@ -113,7 +117,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -123,6 +126,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -134,6 +138,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaEmptyDayRow
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaEventRow
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
 import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
+import de.jeanlucmakiola.calendula.ui.common.AppBarSpacing
 import de.jeanlucmakiola.calendula.ui.common.CalendarTitleButton
 import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
 import de.jeanlucmakiola.calendula.ui.common.TodayAction
@@ -142,14 +147,13 @@ import de.jeanlucmakiola.calendula.ui.common.CALENDAR_SWIPE_THRESHOLD
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
-import de.jeanlucmakiola.calendula.ui.common.declinedDecoration
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
+import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
+import de.jeanlucmakiola.calendula.ui.common.inlineTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
 import de.jeanlucmakiola.calendula.ui.common.monthBarShape
-import de.jeanlucmakiola.calendula.ui.common.eventFill
-import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
@@ -212,7 +216,6 @@ fun MonthScreen(
         derivedStateOf { if (dimCompleted) nowState.value else null }
     }
 
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
@@ -298,10 +301,14 @@ fun MonthScreen(
     // carries the year instead of repeating it two lines further down. Dense has
     // no header to defer to, so it keeps the full title.
     val locale = currentLocale()
-    val topBarTitle = if (viewStyle == MonthViewStyle.Continuous) {
-        titleMonth.year.toString()
-    } else {
-        formatMonthTitle(titleMonth, locale, currentYear = today.year)
+    val (topBarTitle, topBarShortTitle) = remember(viewStyle, titleMonth, locale, today.year) {
+        if (viewStyle == MonthViewStyle.Continuous) {
+            val year = titleMonth.year.toString()
+            year to year
+        } else {
+            formatMonthTitle(titleMonth, locale, currentYear = today.year) to
+                formatMonthTitle(titleMonth, locale, currentYear = today.year, abbreviated = true)
+        }
     }
 
     // Slide direction for the grid transition: +1 = next, -1 = prev, 0 = jump (no slide).
@@ -386,19 +393,20 @@ fun MonthScreen(
         },
     ) {
         Scaffold(
-            modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            modifier = modifier,
             topBar = {
                 MonthTopBar(
                     title = topBarTitle,
+                    shortTitle = topBarShortTitle,
                     titleDate = LocalDate(titleMonth.year, titleMonth.month, 1),
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
+                    quickSwitchViews = quickSwitchViews,
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
                     onJumpToDate = jumpToDate,
                     showTodayButton = todayInToolbar,
                     onToday = jumpToToday,
-                    scrollBehavior = scrollBehavior,
                 )
             },
             floatingActionButton = {
@@ -494,6 +502,7 @@ private fun MonthDragOverlay(controller: MonthDragController) {
     var origin by remember { mutableStateOf(Offset.Zero) }
     val dark = isSystemInDarkTheme()
     val density = LocalDensity.current
+    val timeChipWidth = rememberMonthTimeChipWidth()
     val reduceMotion = rememberReduceMotion()
     val moveInFlight = moveInFlight()
     // Here rather than beside the controller: this reads [drag], which changes
@@ -551,6 +560,11 @@ private fun MonthDragOverlay(controller: MonthDragController) {
             dark = dark,
             continuesLeft = false,
             continuesRight = false,
+            // The time the source chip carried, drawn only if this one-column
+            // cut-out of it has the room — which a slice of a multi-day bar has
+            // not, however wide the bar was.
+            time = drag.time,
+            showTime = with(density) { drag.sizePx.width.toDp() } >= timeChipWidth,
             modifier = Modifier
                 // Absolute: these are root coordinates, and the direction-aware
                 // offset would mirror them across the screen in an RTL layout.
@@ -563,7 +577,7 @@ private fun MonthDragOverlay(controller: MonthDragController) {
                 }
                 .width(with(density) { drag.sizePx.width.toDp() })
                 .height(with(density) { drag.sizePx.height.toDp() })
-                .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp)
+                .padding(horizontal = MONTH_CHIP_INSET, vertical = 1.dp)
                 .graphicsLayer {
                     scaleX = 1f + 0.04f * lift
                     scaleY = 1f + 0.04f * lift
@@ -664,15 +678,16 @@ private fun ContinuousMonthContent(
 @Composable
 private fun MonthTopBar(
     title: String,
+    shortTitle: String,
     titleDate: LocalDate,
     selectedView: CalendarView,
     onCycleView: () -> Unit,
+    quickSwitchViews: List<CalendarView>,
     onOpenDrawer: () -> Unit,
     onOpenSearch: () -> Unit,
     onJumpToDate: (LocalDate) -> Unit,
     showTodayButton: Boolean,
     onToday: () -> Unit,
-    scrollBehavior: androidx.compose.material3.TopAppBarScrollBehavior,
 ) {
     TopAppBar(
         title = {
@@ -680,6 +695,7 @@ private fun MonthTopBar(
                 title = title,
                 currentDate = titleDate,
                 onJumpToDate = onJumpToDate,
+                shortTitle = shortTitle,
             )
         },
         navigationIcon = {
@@ -700,11 +716,17 @@ private fun MonthTopBar(
             }
             ViewSwitcherPill(
                 current = selectedView,
+                cycle = quickSwitchViews,
                 onCycle = onCycleView,
-                modifier = Modifier.padding(end = 8.dp),
             )
         },
-        scrollBehavior = scrollBehavior,
+        // Deliberately flat: M3 lifts the bar to mark content scrolling under
+        // it, but here the bar meets the header on the same surface and the
+        // tint is what makes that seam look like a separate block (#186).
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            scrolledContainerColor = MaterialTheme.colorScheme.surface,
+        ),
     )
 }
 
@@ -719,7 +741,7 @@ internal fun WeekdayHeader(weekStart: DayOfWeek, showWeekNumbers: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = AppBarSpacing.Inset, vertical = 4.dp),
     ) {
         // Reserve the gutter so the weekday labels stay over their day columns.
         if (showWeekNumbers) Spacer(Modifier.width(WEEK_NUMBER_GUTTER))
@@ -745,7 +767,6 @@ private val DAY_NUMBER_HEIGHT = 22.dp
 private val WEEK_NUMBER_GUTTER = 40.dp
 private val DAY_NUMBER_GAP = 4.dp
 private val CELL_TOP_PADDING = 6.dp
-private val CELL_GAP = 2.dp
 /** Named separately because the split style's selection outline draws its own
  *  rounded rect and has to match this radius exactly. */
 private val CELL_CORNER = 12.dp
@@ -787,17 +808,22 @@ internal fun MonthGrid(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // Match the weekday header's 8dp inset so day cells sit under their
+            // Match the weekday header's inset so day cells sit under their
             // labels, and so the week-number gutter's centre lines up with the
             // top bar's hamburger (4dp bar inset + 24dp half icon button).
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = AppBarSpacing.Inset, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         val month = state.month
+        // Once per grid: the value depends on the typography, the density, the
+        // locale and the 24-hour setting, none of which vary by row (#219).
+        val timeChipWidth = rememberMonthTimeChipWidth()
         state.weeks.forEach { week ->
             MonthWeekRow(
                 week = week,
                 today = state.today,
+                zone = state.zone,
+                timeChipWidth = timeChipWidth,
                 inMonth = { it.month == month.month && it.year == month.year },
                 showWeekNumbers = showWeekNumbers,
                 onOpenDay = onOpenDay,
@@ -837,6 +863,7 @@ internal fun ContinuousMonthGrid(
 ) {
     val monthCount = remember { continuousMonthCount() }
     val todayMonth = remember(state.today) { YearMonth(state.today.year, state.today.month) }
+    val timeChipWidth = rememberMonthTimeChipWidth()
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
@@ -858,6 +885,8 @@ internal fun ContinuousMonthGrid(
                     weeks = state.monthsByIndex[index],
                     weekStart = state.weekStart,
                     today = state.today,
+                    zone = state.zone,
+                    timeChipWidth = timeChipWidth,
                     showWeekNumbers = showWeekNumbers,
                     onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
@@ -878,6 +907,8 @@ private fun ContinuousMonthBlock(
     weeks: List<MonthWeek>?,
     weekStart: DayOfWeek,
     today: LocalDate,
+    zone: TimeZone,
+    timeChipWidth: Dp,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
     onEventClick: (EventInstance) -> Unit,
@@ -886,7 +917,7 @@ private fun ContinuousMonthBlock(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = AppBarSpacing.Inset)
             .padding(bottom = CONTINUOUS_MONTH_GAP),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
@@ -897,6 +928,8 @@ private fun ContinuousMonthBlock(
                 MonthWeekRow(
                     week = week,
                     today = today,
+                    zone = zone,
+                    timeChipWidth = timeChipWidth,
                     inMonth = { it.month == month.month && it.year == month.year },
                     // The block owns its month alone: a day from either
                     // neighbour is left out entirely rather than dimmed.
@@ -966,6 +999,7 @@ internal fun DenseMonthGrid(
     modifier: Modifier = Modifier,
 ) {
     val weekCount = remember(state.weekStart) { continuousWeekCount(state.weekStart) }
+    val timeChipWidth = rememberMonthTimeChipWidth()
     LazyColumn(
         state = listState,
         modifier = modifier
@@ -974,7 +1008,7 @@ internal fun DenseMonthGrid(
             // padding: a lazy list scrolls its rows *through* the before-content
             // padding, so scrolling to a week landed its row that far down with
             // the tail of the previous one showing above it (#191).
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = AppBarSpacing.Inset)
             .padding(top = DENSE_HEADER_GAP),
         verticalArrangement = Arrangement.spacedBy(2.dp),
         // Bottom inset clears the FAB stack so the last row stays tappable.
@@ -988,6 +1022,8 @@ internal fun DenseMonthGrid(
                 MonthWeekRow(
                     week = week,
                     today = state.today,
+                    zone = state.zone,
+                    timeChipWidth = timeChipWidth,
                     // Every day in the stream belongs to a month equally — there
                     // is no "other month" to recede here.
                     inMonth = { true },
@@ -1441,7 +1477,7 @@ internal fun SplitMonthGrid(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = AppBarSpacing.Inset, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         state.weeks.forEach { week ->
@@ -1806,7 +1842,7 @@ private fun ContinuousMonthSkeleton(dense: Boolean) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = AppBarSpacing.Inset)
             .clipToBounds(),
     ) {
         if (!dense) {
@@ -1873,6 +1909,10 @@ private fun rememberSkeletonPulse(): Float {
 private fun MonthWeekRow(
     week: MonthWeek,
     today: LocalDate,
+    /** The zone the grid was laid out in — never re-read here (see [MonthUiState.Success.zone]). */
+    zone: TimeZone,
+    /** The narrowest chip that may carry a start time, measured once per grid (#219). */
+    timeChipWidth: Dp,
     inMonth: (LocalDate) -> Boolean,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
@@ -1892,6 +1932,27 @@ private fun MonthWeekRow(
     val laneCount = (week.spans.maxOfOrNull { it.lane } ?: -1) + 1
     val shownLanes = laneCount.coerceAtMost(MAX_EVENT_ROWS)
     val morphing = morphInFlight()
+    // Every chip's start time for this row at once, and only when the row's own
+    // inputs change: formatting is a parsed pattern per call, and the dim cutoff
+    // ticks every minute while a drag recomposes every frame (#219).
+    val is24Hour = LocalUse24HourFormat.current
+    val locale = currentLocale()
+    val chipTimes = remember(week, zone, is24Hour, locale) {
+        buildMap {
+            week.spans.forEach { span ->
+                put(
+                    span.event.instanceId,
+                    monthChipTime(span.event, span.continuesLeft, zone, is24Hour, locale),
+                )
+            }
+            week.timedByDay.values.flatten().forEach { event ->
+                put(
+                    event.instanceId,
+                    monthChipTime(event, continuesLeft = false, zone, is24Hour, locale),
+                )
+            }
+        }
+    }
 
     // Drag to reschedule (#68). The chips can take no pointer input of their own
     // — the full-bleed tap layer sits on top of them — so one detector on the
@@ -1966,9 +2027,12 @@ private fun MonthWeekRow(
                         band = bandCoordinates,
                         rowHeightPx = rowHeightPx,
                         isRtl = isRtl,
+                        chipTimes = chipTimes,
                     ),
                 ),
         ) {
+            // What a chip has to spend, against the [timeChipWidth] a start time
+            // costs it (#219).
             val colW = maxWidth / 7
 
             // Per-day background pills — same surfaceContainer rounded surface the
@@ -2049,6 +2113,8 @@ private fun MonthWeekRow(
                             continuesLeft = span.continuesLeft,
                             continuesRight = span.continuesRight,
                             days = week.days.subList(span.startCol, span.endCol + 1),
+                            time = chipTimes[span.event.instanceId],
+                            showTime = colW * cols >= timeChipWidth,
                             modifier = Modifier
                                 .offset(
                                     x = colW * span.startCol,
@@ -2072,7 +2138,7 @@ private fun MonthWeekRow(
                                 )
                                 .width(colW * cols)
                                 .height(EVENT_ROW_HEIGHT)
-                                .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
+                                .padding(horizontal = MONTH_CHIP_INSET, vertical = 1.dp),
                         )
                         // One invisible slice of the bar per further column it
                         // covers. A multi-day event has a dot on every day but
@@ -2096,7 +2162,7 @@ private fun MonthWeekRow(
                                     )
                                     .width(colW)
                                     .height(EVENT_ROW_HEIGHT)
-                                    .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
+                                    .padding(horizontal = MONTH_CHIP_INSET, vertical = 1.dp),
                             )
                         }
                     }
@@ -2119,6 +2185,8 @@ private fun MonthWeekRow(
                                 continuesLeft = false,
                                 continuesRight = false,
                                 days = listOf(d),
+                                time = chipTimes[ev.instanceId],
+                                showTime = colW >= timeChipWidth,
                                 modifier = Modifier
                                     .offset(
                                         x = colW * col,
@@ -2127,7 +2195,7 @@ private fun MonthWeekRow(
                                     .morphBounds(MonthMorphKey.Event(d, ev.instanceId))
                                     .width(colW)
                                     .height(EVENT_ROW_HEIGHT)
-                                    .padding(horizontal = CELL_GAP + 1.dp, vertical = 1.dp),
+                                    .padding(horizontal = MONTH_CHIP_INSET, vertical = 1.dp),
                             )
                         }
                         val hidden = (week.countByDay[d] ?: 0) - occupied.size - pillsShown.size
@@ -2279,6 +2347,9 @@ private fun monthChipDragModifier(
     band: Array<LayoutCoordinates?>,
     rowHeightPx: Float,
     isRtl: Boolean,
+    /** The row's formatted chip times by instance id, so the copy carries the
+     *  one its source chip had rather than deriving another (#219). */
+    chipTimes: Map<Long, String?>,
 ): Modifier = rememberDragSurface(
     enabled = moveScope?.dragEnabled == true && controller != null,
     key = week.days.first(),
@@ -2307,6 +2378,7 @@ private fun monthChipDragModifier(
                     y = requireNotNull(bandTop) + lane * rowHeightPx,
                 ),
                 size = IntSize(columnPx.toInt(), rowHeightPx.toInt()),
+                time = chipTimes[event.instanceId],
             )
             true
         }
@@ -2414,7 +2486,10 @@ private fun shortMonthName(date: LocalDate): String {
     }
 }
 
-/** A filled event pill/bar — softened (or raw) fill, title clipped to one line. */
+/**
+ * A filled event pill/bar — softened (or raw) fill, title clipped to one line,
+ * with the start time before it where the chip is wide enough ([showTime], #219).
+ */
 @Composable
 private fun MonthBar(
     event: de.jeanlucmakiola.calendula.domain.EventInstance,
@@ -2428,12 +2503,26 @@ private fun MonthBar(
      * the provider hands the re-read instance a new one.
      */
     days: List<LocalDate>? = null,
+    /** The chip's start time, or null where it has none — see `monthChipTime` (#219). */
+    time: String? = null,
+    /** Whether this chip has the width to draw [time]; a screen reader gets it either way. */
+    showTime: Boolean = false,
 ) {
     val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && event.hasEnded(dimCutoff)
-    val soften = LocalSoftenColors.current
-    val fill = eventFill(event.color, dark, soften)
+    val paint = eventPaint(event, dark)
+    // The same title/secondary ink pairing the week and day blocks use, with
+    // the time on the quieter half.
+    val label = inlineTimeLabel(
+        time = time.takeIf { showTime },
+        title = title,
+        timeInk = paint.secondaryInk,
+    )
+    // Announced whether or not it is drawn, and comma-separated as the week and
+    // day blocks do it: what a screen reader hears shouldn't turn on how wide
+    // the chip happens to be (#219).
+    val description = if (time != null) "$title, $time" else title
     val moveAction = eventMoveAction(event)
     // The source stays put as a ghost while its floating copy travels.
     val monthDrag = LocalMonthDrag.current
@@ -2444,21 +2533,24 @@ private fun MonthBar(
     Box(
         modifier = (if (dimmed) modifier.alpha(EventDimAlpha) else modifier)
             .then(if (ghost < 1f) Modifier.alpha(ghost) else Modifier)
-            .background(fill, shape)
-            .padding(horizontal = 4.dp)
+            .eventSurface(paint, shape, monthBarCuts(continuesLeft, continuesRight))
+            .padding(horizontal = MONTH_CHIP_TEXT_PADDING)
             .semantics {
-                contentDescription = title
+                contentDescription = description
                 if (moveAction != null) customActions = listOf(moveAction)
             },
         contentAlignment = Alignment.CenterStart,
     ) {
+        val titleOverflow = eventTitleOverflow()
         Text(
-            text = title,
+            text = label,
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            color = eventInk(fill),
-            textDecoration = declinedDecoration(event.isDeclined),
+            overflow = titleOverflow.overflow,
+            softWrap = titleOverflow.softWrap,
+            color = paint.titleInk,
+            fontWeight = paint.titleWeight,
+            textDecoration = paint.decoration,
         )
     }
 }
@@ -2514,7 +2606,7 @@ private fun MonthGridLoading() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = AppBarSpacing.Inset, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         repeat(6) {
@@ -2540,10 +2632,16 @@ private fun MonthGridLoading() {
     }
 }
 
-private fun formatMonthTitle(ym: YearMonth, locale: Locale, currentYear: Int): String =
+/** [abbreviated] swaps the full month name for its three-letter form (#165). */
+private fun formatMonthTitle(
+    ym: YearMonth,
+    locale: Locale,
+    currentYear: Int,
+    abbreviated: Boolean = false,
+): String =
     formatCalendarTitle(
         date = java.time.LocalDate.of(ym.year, ym.month.ordinal + 1, 1),
         locale = locale,
         currentYear = currentYear,
-        skeleton = "LLLL",
+        skeleton = if (abbreviated) "LLL" else "LLLL",
     )

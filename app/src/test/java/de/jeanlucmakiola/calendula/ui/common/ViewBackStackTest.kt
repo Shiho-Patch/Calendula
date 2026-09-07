@@ -120,4 +120,30 @@ class ViewBackStackTest {
         )
         assertThat(config.cycle).containsExactly(CalendarView.Agenda, CalendarView.Month).inOrder()
     }
+
+    @Test
+    fun `a cycle can be emptied down to no views at all`() {
+        // #150: the settings screen no longer holds a floor, so every view may go.
+        val config = QuickSwitchConfig(order = IMPLEMENTED_VIEWS, enabled = emptySet())
+        assertThat(config.cycle).isEmpty()
+        assertThat(config.cycle.size).isLessThan(QuickSwitchConfig.MIN_CYCLE)
+    }
+
+    @Test
+    fun `one enabled view is below the cycle minimum, so the pill hides`() {
+        // A single target is not a switch — it hides rather than becoming a
+        // jump-to-one-view button, which would be dead once you were there.
+        val config = QuickSwitchConfig(order = IMPLEMENTED_VIEWS, enabled = setOf(CalendarView.Day))
+        assertThat(config.cycle).containsExactly(CalendarView.Day)
+        assertThat(config.cycle.size).isLessThan(QuickSwitchConfig.MIN_CYCLE)
+    }
+
+    @Test
+    fun `two enabled views are enough to show the pill`() {
+        val config = QuickSwitchConfig(
+            order = IMPLEMENTED_VIEWS,
+            enabled = setOf(CalendarView.Day, CalendarView.Month),
+        )
+        assertThat(config.cycle.size).isAtLeast(QuickSwitchConfig.MIN_CYCLE)
+    }
 }

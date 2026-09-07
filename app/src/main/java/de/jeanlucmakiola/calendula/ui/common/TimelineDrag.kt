@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -24,8 +25,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
@@ -34,7 +36,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -83,6 +84,13 @@ data class TimelineDrag(
     val eventSpanMin: Int,
     /** The event as the grid would draw it, one piece per day column it covers. */
     val pieces: List<TimelineDragPiece>,
+    /**
+     * Lines the block the finger picked up drew its title over, zero for one too
+     * short to have drawn it at all. The floating copy is that block's size, so
+     * it has to spend its height the same way or the text re-wraps under the
+     * finger and snaps back on drop (#267).
+     */
+    val titleLines: Int,
     /**
      * True when [pieces] is only [edgeDragSlice]'s stand-in — the event has left
      * every column this timeline shows. A hint under the finger, not where the
@@ -192,6 +200,32 @@ internal fun dragFloorMin(clipOffsetMin: Int, eventSpanMin: Int): Int =
         0
     }
 
+/**
+ * Where one dragged piece's top edge sits below its column's top, and how tall
+ * it is drawn, at [hourPx] to the hour. [insetPx] is the half-gap a block seated
+ * in the hour grid gives up at each end, zero with the grid off — taken off the
+ * copy exactly as the grid takes it off the block, or the copy is a gap taller
+ * than the block it lifted off and spends the difference on a time label that
+ * block had no room for (#267). An end cut at midnight keeps none of it, as the
+ * block's own squared-off edge does.
+ */
+internal fun dragPieceBounds(
+    slice: DragSlice,
+    hourPx: Float,
+    insetPx: Float,
+): DragPieceBounds {
+    val top = if (slice.continuesBefore) 0f else insetPx
+    val bottom = if (slice.continuesAfter) 0f else insetPx
+    val full = maxOf(slice.spanMin / 60f * hourPx, MIN_EVENT_FRACTION * hourPx)
+    return DragPieceBounds(
+        top = slice.startMin / 60f * hourPx + top,
+        height = (full - top - bottom).coerceAtLeast(0f),
+    )
+}
+
+/** A piece's placement within its column — see [dragPieceBounds]. */
+internal data class DragPieceBounds(val top: Float, val height: Float)
+
 /** One day's share of a dragged event, before it is placed on screen. */
 internal data class DragSlice(
     val dayOffset: Int,
@@ -234,6 +268,13 @@ class TimelineGeometry {
     var edgePx: Float = 0f
     var stepPx: Float = 0f
     var days: List<LocalDate> = emptyList()
+
+    /**
+     * The half-gap a block gives up at each uncut end when the hour grid seats
+     * it in a cell, zero with the grid off. The floating copy gives up the same,
+     * so it is the size of the block it lifted off (#267).
+     */
+    var blockInsetPx: Float = 0f
 
     /**
      * Whether the columns are laid out right-to-left. Pointer coordinates are
@@ -313,6 +354,9 @@ class TimelineDragController {
      */
     private var clipOffsetMin = 0
 
+    /** What the picked-up block drew its title over — see [TimelineDrag.titleLines]. */
+    private var titleLines = 0
+
     /**
      * The slot the block already occupied when it was picked up — not the same
      * as its start, since the target snaps to the grid (09:07 lifts to 09:00).
@@ -322,11 +366,13 @@ class TimelineDragController {
     fun begin(
         block: TimedBlock,
         clipOffsetMin: Int,
+        titleLines: Int,
         pointerInRoot: Offset,
         blockInRoot: Offset,
     ) {
         source = block
         this.clipOffsetMin = clipOffsetMin
+        this.titleLines = titleLines
         settling = null
         isDragging = true
         liftedInstanceId = block.event.instanceId
@@ -345,6 +391,7 @@ class TimelineDragController {
     fun cancel() {
         source = null
         clipOffsetMin = 0
+        titleLines = 0
         isDragging = false
         liftedInstanceId = null
         originSlot = null
@@ -467,23 +514,22 @@ class TimelineDragController {
             startMin = startMin,
             eventStartMin = eventStartMin,
             eventSpanMin = eventSpan,
+            titleLines = titleLines,
             // Bounded to the columns this timeline actually shows: a day it
             // doesn't has no piece to draw. The write is unaffected.
             pieces = slices
                 .map { slice ->
                     val day = dayIndex + slice.dayOffset
                     val col = if (geometry.isRtl) days.lastIndex - day else day
+                    val bounds = dragPieceBounds(slice, hourPx, geometry.blockInsetPx)
                     TimelineDragPiece(
                         topLeftInRoot = Offset(
                             x = origin.x + col * columnPx,
-                            y = origin.y + slice.startMin / 60f * hourPx,
+                            y = origin.y + bounds.top,
                         ),
                         sizePx = IntSize(
                             (columnPx - geometry.columnGapPx).roundToInt(),
-                            maxOf(
-                                slice.spanMin / 60f * hourPx,
-                                MIN_EVENT_FRACTION * hourPx,
-                            ).roundToInt(),
+                            bounds.height.roundToInt(),
                         ),
                         continuesBefore = slice.continuesBefore,
                         continuesAfter = slice.continuesAfter,
@@ -604,8 +650,8 @@ const val SETTLE_FADE_MILLIS: Int = 250
 @Composable
 fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier = Modifier) {
     var origin by remember { mutableStateOf(Offset.Zero) }
+    val density = LocalDensity.current
     val dark = isSystemInDarkTheme()
-    val soften = LocalSoftenColors.current
     val use24Hour = LocalUse24HourFormat.current
     val locale = currentLocale()
     val reduceMotion = rememberReduceMotion()
@@ -655,7 +701,7 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
             animationSpec = tween(SETTLE_FADE_MILLIS),
             label = "drag-handover",
         )
-        val fill = eventFill(drag.event.color, dark, soften)
+        val paint = eventPaint(drag.event, dark)
         val title = drag.event.title.ifBlank { stringResource(R.string.event_untitled) }
         // Read off the event rather than the held block, so grabbing either half
         // of an event that crosses midnight names the same hours. An end past
@@ -666,22 +712,61 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
         val endMin = if (rawEnd > MINUTES_PER_DAY) rawEnd % MINUTES_PER_DAY else rawEnd
         val label = "${formatMinuteOfDay(startMin, use24Hour, locale)}–" +
             formatMinuteOfDay(endMin, use24Hour, locale)
-        // The tallest piece carries the range: on the smallest it would be
-        // clipped away, which is exactly the case when a short tail is held.
-        val labelled = drag.pieces.indices.maxByOrNull { drag.pieces[it].sizePx.height }
-        drag.pieces.forEachIndexed { index, piece ->
-            DragCopy(
-                topLeftInRoot = piece.topLeftInRoot,
-                overlayOrigin = origin,
-                sizePx = piece.sizePx,
-                fill = fill,
-                shape = timedBlockShape(piece.continuesBefore, piece.continuesAfter),
-                lift = lift,
-                alpha = copyAlpha,
-                title = title,
-                // Once for the whole event: repeated, it would name it per day.
-                label = label.takeIf { index == labelled },
-            )
+        // The timeline's own bounds. The copy is drawn over the whole calendar
+        // so no column clip or rounded corner cuts it, but it still belongs to
+        // the timeline: a piece a whole day tall reaches far past both ends of
+        // the viewport, and unclipped it paints over the headers above (#267).
+        val port = controller.geometry.viewport?.takeIf { it.isAttached }?.boundsInRoot()
+        // How much of each piece the viewport actually shows. A multi-day event
+        // has a piece per day, and the widest one is a full 24 hours — taller
+        // than the screen, its top at a midnight scrolled out of sight. Picking
+        // the range's piece by raw height put it there, off the top of the
+        // timeline; picking by *visible* height puts it where it can be read.
+        val shown = drag.pieces.map { piece ->
+            if (port == null) {
+                piece.sizePx.height.toFloat()
+            } else {
+                val top = maxOf(piece.topLeftInRoot.y, port.top)
+                val bottom = minOf(piece.topLeftInRoot.y + piece.sizePx.height, port.bottom)
+                bottom - top
+            }
+        }
+        val labelled = shown.indices.maxByOrNull { shown[it] }
+        Box(
+            modifier = if (port == null) {
+                Modifier
+            } else {
+                Modifier
+                    .absoluteOffset {
+                        IntOffset(
+                            (port.left - origin.x).roundToInt(),
+                            (port.top - origin.y).roundToInt(),
+                        )
+                    }
+                    .size(
+                        width = with(density) { port.width.toDp() },
+                        height = with(density) { port.height.toDp() },
+                    )
+                    .clipToBounds()
+            },
+        ) {
+            val pieceOrigin = port?.topLeft ?: origin
+            drag.pieces.forEachIndexed { index, piece ->
+                DragCopy(
+                    topLeftInRoot = piece.topLeftInRoot,
+                    overlayOrigin = pieceOrigin,
+                    sizePx = piece.sizePx,
+                    paint = paint,
+                    shape = timedBlockShape(piece.continuesBefore, piece.continuesAfter),
+                    cuts = timedBlockCuts(piece.continuesBefore, piece.continuesAfter),
+                    lift = lift,
+                    alpha = copyAlpha,
+                    title = title,
+                    titleLines = drag.titleLines,
+                    // Once for the whole event: repeated, it would name it per day.
+                    label = label.takeIf { index == labelled },
+                )
+            }
         }
     }
 }
@@ -692,14 +777,54 @@ private fun DragCopy(
     topLeftInRoot: Offset,
     overlayOrigin: Offset,
     sizePx: IntSize,
-    fill: Color,
+    paint: EventPaint,
     shape: RoundedCornerShape,
+    cuts: ChipCuts,
     lift: Float,
     alpha: Float,
     title: String,
+    titleLines: Int,
     label: String?,
 ) {
     val density = LocalDensity.current
+    val width = with(density) { sizePx.width.toDp() }
+    val height = with(density) { sizePx.height.toDp() }
+    val textWidth = width - (BLOCK_OUTER_INSET + BLOCK_TEXT_PADDING) * 2
+    val titleLineHeight = with(density) {
+        MaterialTheme.typography.labelMedium.lineHeight.toDp()
+    }
+    val timeLineHeight = with(density) {
+        MaterialTheme.typography.labelSmall.lineHeight.toDp()
+    }
+    // The block's size, spent the block's way — text sits at the top as it does
+    // on the block, so the copy hands back to the grid without shifting (#267).
+    // The title is served in full first and the range lives off what is left:
+    // the hour gutter down the side still says where the copy sits, so the
+    // range is the half that can afford to go.
+    val available = height - BLOCK_TEXT_INSET * 2
+    val titleBudget = (available / titleLineHeight).toInt().coerceAtLeast(0)
+    val allowed = titleLines.coerceAtMost(titleBudget)
+    // Re-measured at the copy's own width rather than spent on the source's
+    // count: a block sharing its column with another is a lane wide where the
+    // copy is a whole column, so the source's second line is one the copy never
+    // draws — and reserving it took the range away with it (#267).
+    val lines = if (allowed <= 0) {
+        0
+    } else {
+        blockTextLines(
+            text = title,
+            style = MaterialTheme.typography.labelMedium.withTitleWeight(paint),
+            textWidth = textWidth,
+            max = allowed,
+        )
+    }
+    val left = available - titleLineHeight * lines
+    val showTime = label != null && left >= timeLineHeight
+    val timeMaxLines = if (showTime) {
+        blockTimeLines(label!!, textWidth, left - timeLineHeight)
+    } else {
+        1
+    }
     Box(
         modifier = Modifier
             // Absolute: these are root coordinates, and the direction-aware
@@ -710,12 +835,20 @@ private fun DragCopy(
                     (topLeftInRoot.y - overlayOrigin.y).roundToInt(),
                 )
             }
-            .size(
-                width = with(density) { sizePx.width.toDp() },
-                height = with(density) { sizePx.height.toDp() },
-            )
-            .padding(horizontal = 1.dp)
+            // Required: the parent is the viewport's size, and a plain `size`
+            // would let it cap a piece a whole day tall at one screen — drawn
+            // from a midnight scrolled off the top, that ended the column a
+            // scroll offset short of its own bottom (#267). The parent clips it.
+            .requiredSize(width = width, height = height)
+            .padding(horizontal = BLOCK_OUTER_INSET)
             .graphicsLayer {
+                // Anchored at the top edge, not the middle: scaled about the
+                // centre, the 2% lift raises the top by 1% of the height — a few
+                // pixels on an hour, but a steady upward creep of the text as a
+                // dragged multi-day piece grows, and a shear against the
+                // timeline's clip. It snapped back when the lift animated out
+                // on drop (#267).
+                transformOrigin = TransformOrigin(0.5f, 0f)
                 scaleX = 1f + 0.02f * lift
                 scaleY = 1f + 0.02f * lift
                 shadowElevation = 8.dp.toPx() * lift
@@ -723,24 +856,29 @@ private fun DragCopy(
                 this.shape = shape
                 clip = false
             }
-            .background(fill, shape)
-            .padding(horizontal = 4.dp, vertical = 2.dp),
+            .eventSurface(paint, shape, cuts)
+            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = BLOCK_TEXT_INSET),
     ) {
         Column {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = eventInk(fill, alpha = 0.85f),
-            )
-            if (label != null) {
+            if (lines > 0) {
+                BlockTitle(
+                    title = title,
+                    maxLines = lines,
+                    color = paint.titleInk,
+                    textDecoration = paint.decoration,
+                    fontWeight = paint.titleWeight,
+                )
+            }
+            if (showTime) {
+                val overflow = eventTitleOverflow(singleLine = timeMaxLines == 1)
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = eventInk(fill, alpha = SECONDARY_INK_ALPHA),
+                    // As the block it lifted off sets its own time (#219).
+                    style = MaterialTheme.typography.labelSmall.asEventTime(),
+                    maxLines = timeMaxLines,
+                    overflow = overflow.overflow,
+                    softWrap = overflow.softWrap,
+                    color = paint.secondaryInk,
                 )
             }
         }

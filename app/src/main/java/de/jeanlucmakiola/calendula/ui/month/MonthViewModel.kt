@@ -10,6 +10,7 @@ import de.jeanlucmakiola.calendula.data.prefs.firstDayOfWeek
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
+import de.jeanlucmakiola.calendula.domain.isDeclined
 import de.jeanlucmakiola.calendula.ui.week.coversDay
 import de.jeanlucmakiola.calendula.ui.week.layoutAllDay
 import de.jeanlucmakiola.calendula.ui.week.spansMultipleDays
@@ -238,6 +239,7 @@ class MonthViewModel @Inject constructor(
             monthsByIndex = months,
             weeksByIndex = weeks,
             weekStart = weekStart,
+            zone = zone,
         )
     }
 
@@ -438,14 +440,18 @@ internal fun layoutCalendarWeek(
         days = days,
         spans = spans,
         timedByDay = days.associateWith { d ->
-            singles.filter { it.coversDay(d, zone) }.sortedBy { it.start }
+            // Declined last, so a day that overflows drops the events you said
+            // no to before the ones you are actually going to (#230).
+            singles.filter { it.coversDay(d, zone) }
+                .sortedWith(compareBy<EventInstance> { it.isDeclined }.thenBy { it.start })
         },
         countByDay = days.associateWith { d -> weekEvents.count { it.coversDay(d, zone) } },
     )
 }
 
 /**
- * Every event touching each of [days], all-day first then by start time. Unlike
+ * Every event touching each of [days], declined ones last (#230), then all-day
+ * first and by start time within each group. Unlike
  * [MonthWeek.timedByDay] this keeps multi-day and all-day events on every date
  * they cover and applies no display cap, so the split style's day pane can list a
  * date in full without querying the provider again.
@@ -458,7 +464,11 @@ internal fun instancesByDay(
     days.associateWith { day ->
         instances
             .filter { it.coversDay(day, zone) }
-            .sortedWith(compareByDescending<EventInstance> { it.isAllDay }.thenBy { it.start })
+            .sortedWith(
+                compareBy<EventInstance> { it.isDeclined }
+                    .thenByDescending { it.isAllDay }
+                    .thenBy { it.start },
+            )
     }
 
 /**

@@ -2,6 +2,7 @@ package de.jeanlucmakiola.calendula.ui.month
 
 import com.google.common.truth.Truth.assertThat
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.EventResponse
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
@@ -267,4 +268,70 @@ class MonthLayoutTest {
         assertThat(byDay.keys).containsExactlyElementsIn(weekOf8th)
         assertThat(byDay.values.flatten()).isEmpty()
     }
+
+    @Test
+    fun `a declined event sorts behind every answered one on its day`() {
+        val day = LocalDate(2026, 6, 10)
+        // Earliest of the three, and all-day on top of that, so only the
+        // declined ordering can put it last.
+        val declined = allDay(day, id = 1L, title = "Declined")
+            .copy(response = EventResponse.Declined)
+        val morning = timed(day, 9, 10, id = 2L, title = "Morning")
+        val evening = timed(day, 18, 19, id = 3L, title = "Evening")
+        val events = listOf(declined, morning, evening)
+
+        assertThat(instancesByDay(listOf(day), events, zone).getValue(day).map { it.title })
+            .containsExactly("Morning", "Evening", "Declined").inOrder()
+
+        val timedOnly =
+            layoutCalendarWeek(weekOf8th, listOf(evening, morning, declinedTimed(day)), zone)
+        assertThat(timedOnly.timedByDay.getValue(day).map { it.title })
+            .containsExactly("Morning", "Evening", "Declined early").inOrder()
+    }
+
+    @Test
+    fun `a declined bar packed last still shares a lane it does not overlap`() {
+        // Sorting declined last means this bar is seated after one that reaches
+        // further right than it starts. A lane must still be offered on the
+        // columns it is actually free on, or the row grows a wasted rank.
+        val mon = weekOf8th[0]
+        val declined = allDay(mon, id = 1L, title = "Declined")
+            .copy(response = EventResponse.Declined)
+        val going = allDay(weekOf8th[2], weekOf8th[3], id = 2L, title = "Going")
+        val week = layoutCalendarWeek(weekOf8th, listOf(declined, going), zone)
+
+        assertThat(week.spans.map { it.lane }).containsExactly(0, 0)
+    }
+
+    @Test
+    fun `a declined all-day bar takes a lane below the ones you answered`() {
+        val day = LocalDate(2026, 6, 10)
+        val declined =
+            allDay(day, id = 1L, title = "Declined").copy(response = EventResponse.Declined)
+        val going = allDay(day, id = 2L, title = "Going")
+        // Declined listed first: only the sort, not the input order, may decide.
+        val week = layoutCalendarWeek(weekOf8th, listOf(declined, going), zone)
+
+        val lanes = week.spans.associate { it.event.title to it.lane }
+        assertThat(lanes.getValue("Going")).isLessThan(lanes.getValue("Declined"))
+    }
+
+    @Test
+    fun `overlapping bars never share a lane, whatever order they arrive in`() {
+        val a = allDay(weekOf8th[0], weekOf8th[3], id = 1L, title = "A")
+        val b = allDay(weekOf8th[2], weekOf8th[5], id = 2L, title = "B")
+        val c = allDay(weekOf8th[3], weekOf8th[4], id = 3L, title = "C")
+            .copy(response = EventResponse.Declined)
+        val lanes = layoutCalendarWeek(weekOf8th, listOf(c, b, a), zone)
+            .spans.associate { it.event.title to it.lane }
+
+        assertThat(lanes.getValue("A")).isNotEqualTo(lanes.getValue("B"))
+        assertThat(lanes.getValue("B")).isNotEqualTo(lanes.getValue("C"))
+        assertThat(lanes.getValue("A")).isNotEqualTo(lanes.getValue("C"))
+    }
+
+    /** A declined timed event starting before every other one in its test. */
+    private fun declinedTimed(date: LocalDate) =
+        timed(date, 7, 8, id = 4L, title = "Declined early")
+            .copy(response = EventResponse.Declined)
 }

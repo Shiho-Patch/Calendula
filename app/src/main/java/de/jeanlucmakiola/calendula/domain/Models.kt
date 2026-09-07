@@ -68,13 +68,34 @@ data class EventInstance(
      */
     val isRecurring: Boolean = false,
     /**
-     * This device user answered "no" to the invitation
-     * (`Events.SELF_ATTENDEE_STATUS`). The event stays on the calendar — it is
-     * still an appointment someone expects an answer about — but every surface
-     * strikes it through, and it plans no reminders (#180).
+     * This device user's own answer to the invitation, as far as the grids care
+     * (#180, #230).
      */
-    val isDeclined: Boolean = false,
+    val response: EventResponse = EventResponse.Going,
 )
+
+/**
+ * How this device user stands towards an event's invitation
+ * (`Events.SELF_ATTENDEE_STATUS`), reduced to the three cases the calendar
+ * surfaces draw differently (#230).
+ */
+enum class EventResponse {
+    /** Your own event, or one you accepted — including a tentative "maybe". */
+    Going,
+
+    /** Invited, no answer given yet: drawn as an outline so it reads as still open. */
+    Invited,
+
+    /**
+     * You answered "no". The event stays on the calendar — it is still an
+     * appointment someone expects an answer about — but every surface strikes it
+     * through, and it plans no reminders (#180).
+     */
+    Declined,
+}
+
+/** Shorthand for the declined case, which most surfaces test on its own (#180). */
+val EventInstance.isDeclined: Boolean get() = response == EventResponse.Declined
 
 /**
  * Whether this event has finished relative to [now] — its end is at or before
