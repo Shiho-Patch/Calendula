@@ -431,8 +431,12 @@
     <string name="settings_time_format_24h">24-hour (14:00)</string>
     <!-- %1$s is a sample time written the way the system currently writes it. -->
     <string name="settings_time_format_auto_summary">Following the system: %1$s</string>
-    <string name="settings_hour_lines">Hour lines</string>
-    <string name="settings_hour_lines_summary">Show a separator line at each hour in week and day view</string>
+    <!-- Reworded in v2.20 (#113): this setting no longer draws a separator line
+         at each hour, it seats each hour in its own cell. The key is kept, so any
+         translation of the old wording ("Hour lines" / "show a separator line at
+         each hour") describes a feature that no longer exists and needs redoing. -->
+    <string name="settings_hour_lines">Hour grid</string>
+    <string name="settings_hour_lines_summary">Seat each hour in its own cell in week and day view</string>
     <string name="settings_timeline_scale">Hour height</string>
     <string name="settings_timeline_scale_hint">How much vertical space one hour takes in week and day view. Both views share this setting. You can also pinch the timeline with two fingers to set any height in between.</string>
     <string name="timeline_scale_fit_day">Fit whole day</string>

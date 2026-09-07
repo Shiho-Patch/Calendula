@@ -95,9 +95,9 @@ class SettingsPrefsTest {
     @Test
     fun `hour lines default off and round-trips`(@TempDir tempDir: Path) = runTest {
         val prefs = SettingsPrefs(newDataStore(tempDir))
-        assertThat(prefs.showHourLines.first()).isFalse()
-        prefs.setShowHourLines(true)
-        assertThat(prefs.showHourLines.first()).isTrue()
+        assertThat(prefs.showHourGrid.first()).isFalse()
+        prefs.setShowHourGrid(true)
+        assertThat(prefs.showHourGrid.first()).isTrue()
     }
 
     @Test
