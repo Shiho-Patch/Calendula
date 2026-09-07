@@ -1042,7 +1042,14 @@ private fun WeekLoading() {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             // Same scale resolution as the loaded timeline, so the skeleton's
             // columns don't resize the moment the real week arrives.
-            val totalHeight = scale.hourHeight(maxHeight) * 24
+            val hourHeight = scale.hourHeight(maxHeight)
+            val totalHeight = hourHeight * 24
+            // The skeleton wears the loaded columns' own ground, so the arrival
+            // of the real week doesn't flash solid blocks into a gapped grid.
+            val showHourGrid = LocalShowHourGrid.current
+            val hourPx = with(LocalDensity.current) { hourHeight.toPx() }
+            val columnGround = if (showHourGrid) MaterialTheme.colorScheme.surface
+            else MaterialTheme.colorScheme.surfaceContainer
             Row(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1056,7 +1063,12 @@ private fun WeekLoading() {
                             .weight(1f)
                             .height(totalHeight)
                             .padding(horizontal = 2.dp)
-                            .background(MaterialTheme.colorScheme.surfaceContainer),
+                            .background(columnGround)
+                            .hourGridCells(
+                                showHourGrid,
+                                hourPx,
+                                MaterialTheme.colorScheme.surfaceContainer,
+                            ),
                     )
                 }
             }
