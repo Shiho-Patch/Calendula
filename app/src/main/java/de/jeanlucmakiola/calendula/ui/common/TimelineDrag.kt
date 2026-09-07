@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -771,7 +772,21 @@ private fun DragCopy(
     // range is the half that can afford to go.
     val available = height - BLOCK_TEXT_INSET * 2
     val titleBudget = (available / titleLineHeight).toInt().coerceAtLeast(0)
-    val lines = titleLines.coerceAtMost(titleBudget)
+    val allowed = titleLines.coerceAtMost(titleBudget)
+    // Re-measured at the copy's own width rather than spent on the source's
+    // count: a block sharing its column with another is a lane wide where the
+    // copy is a whole column, so the source's second line is one the copy never
+    // draws — and reserving it took the range away with it (#267).
+    val lines = if (allowed <= 0) {
+        0
+    } else {
+        blockTextLines(
+            text = title,
+            style = MaterialTheme.typography.labelMedium.withTitleWeight(paint),
+            textWidth = textWidth,
+            max = allowed,
+        )
+    }
     val left = available - titleLineHeight * lines
     val showTime = label != null && left >= timeLineHeight
     val timeMaxLines = if (showTime) {
@@ -789,7 +804,11 @@ private fun DragCopy(
                     (topLeftInRoot.y - overlayOrigin.y).roundToInt(),
                 )
             }
-            .size(width = width, height = height)
+            // Required: the parent is the viewport's size, and a plain `size`
+            // would let it cap a piece a whole day tall at one screen — drawn
+            // from a midnight scrolled off the top, that ended the column a
+            // scroll offset short of its own bottom (#267). The parent clips it.
+            .requiredSize(width = width, height = height)
             .padding(horizontal = BLOCK_OUTER_INSET)
             .graphicsLayer {
                 // Anchored at the top edge, not the middle: scaled about the
