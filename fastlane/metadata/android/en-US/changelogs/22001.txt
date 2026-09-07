@@ -1,0 +1,3 @@
+Fixed
+• "No calendars configured" now really opens the system calendar setup — the button did nothing before.
+• When every calendar is switched off, the app says so and points at Settings → Calendars, instead of showing a blank month.

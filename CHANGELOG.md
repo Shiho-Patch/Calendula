@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.20.1] — 2026-09-07
+
+### Fixed
+- **An empty calendar now explains itself.** "No calendars configured" offered
+  an "Open system calendar settings" button that opened nothing — every screen
+  wired it to the same reload that had just produced the empty state. It now
+  opens the system's account chooser, filtered to the providers that sync
+  calendars ([#239]).
+- **Calendars that are all switched off no longer look like an empty month.**
+  When every calendar on the device is hidden at system level there is nothing
+  to draw, but the app said nothing at all: it only ever checked whether the
+  device had *no* calendars, so a device that had them and hid them fell
+  through to a blank grid with no hint. That case now says so, and points at
+  Settings → Calendars — the one screen that can switch a calendar back on. The
+  navigation drawer's calendar list drew the same conflation and is fixed with
+  it ([#239]).
+
 ## [2.20.0] — 2026-09-07
 
 ### Added
@@ -1654,3 +1671,4 @@ automatically, with zero telemetry and no internet permission.
 [#150]: https://codeberg.org/jlmakiola/calendula/issues/150
 [#146]: https://codeberg.org/jlmakiola/calendula/issues/146
 [#267]: https://codeberg.org/jlmakiola/calendula/issues/267
+[#239]: https://codeberg.org/jlmakiola/calendula/issues/239
