@@ -1,0 +1,11 @@
+New
+• Long-press an event's title, location or description to copy.
+• Settings → About lists the open-source projects we ship.
+
+Changed
+• Week & day: each hour sits in its own cell, not a line.
+• Unanswered invitations are drawn as outlines.
+
+Fixed
+• "No calendars configured" now really opens the system calendar setup.
+• When every calendar is switched off, the app says so instead of a blank month.

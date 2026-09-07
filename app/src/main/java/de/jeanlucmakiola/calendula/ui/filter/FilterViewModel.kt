@@ -8,6 +8,7 @@ import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.FailureReason
+import de.jeanlucmakiola.calendula.domain.calendarListFailure
 import de.jeanlucmakiola.calendula.ui.common.groupByAccount
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,8 +36,9 @@ class FilterViewModel @Inject constructor(
             // Calendars switched off device-wide don't belong in the drawer's
             // hide/show list; they live only in Settings → Calendars.
             val enabled = calendars.filter { it.isVisibleInSystem }
-            if (enabled.isEmpty()) {
-                FilterUiState.Failure(FailureReason.NoCalendarsConfigured)
+            val failure = calendarListFailure(calendars)
+            if (failure != null) {
+                FilterUiState.Failure(failure)
             } else {
                 FilterUiState.Success(groupCalendarsForFilter(enabled, hidden))
             }

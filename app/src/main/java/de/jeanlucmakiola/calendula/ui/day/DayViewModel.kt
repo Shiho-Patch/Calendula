@@ -8,6 +8,7 @@ import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
+import de.jeanlucmakiola.calendula.domain.calendarListFailure
 import de.jeanlucmakiola.calendula.ui.week.layoutAllDay
 import de.jeanlucmakiola.calendula.ui.week.layoutDay
 import kotlinx.coroutines.CoroutineDispatcher
@@ -88,9 +89,7 @@ class DayViewModel @Inject constructor(
         calendars: List<CalendarSource>,
         instances: List<EventInstance>,
     ): DayUiState {
-        if (calendars.isEmpty()) {
-            return DayUiState.Failure(FailureReason.NoCalendarsConfigured)
-        }
+        calendarListFailure(calendars)?.let { return DayUiState.Failure(it) }
         val days = listOf(day)
         val allDay = instances.filter { it.isAllDay }
         val timed = instances.filterNot { it.isAllDay }

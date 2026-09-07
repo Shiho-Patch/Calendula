@@ -252,6 +252,7 @@ enum class RecurringWriteScope {
 enum class FailureReason {
     PermissionRevoked,
     NoCalendarsConfigured,
+    AllCalendarsHidden,
     ProviderUnavailable,
     EventNotFound,
     Unknown,

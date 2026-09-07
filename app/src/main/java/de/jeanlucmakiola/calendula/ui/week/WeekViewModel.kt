@@ -10,6 +10,7 @@ import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
+import de.jeanlucmakiola.calendula.domain.calendarListFailure
 import de.jeanlucmakiola.calendula.domain.isDeclined
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -126,9 +127,7 @@ class WeekViewModel @Inject constructor(
         calendars: List<CalendarSource>,
         instances: List<EventInstance>,
     ): WeekUiState {
-        if (calendars.isEmpty()) {
-            return WeekUiState.Failure(FailureReason.NoCalendarsConfigured)
-        }
+        calendarListFailure(calendars)?.let { return WeekUiState.Failure(it) }
         val days = (0 until 7).map { start.plus(it, DateTimeUnit.DAY) }
         val allDay = instances.filter { it.isAllDay }
         val timed = instances.filterNot { it.isAllDay }
