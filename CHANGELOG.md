@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   three-letter form and the day view drops the weekday, rather than trailing off
   mid-word at large font sizes. The view switcher, the title and the agenda's
   range bar also line up with the grid underneath them ([#165]).
+- The jump-to-today button in the toolbar now shows today's date. It drew a
+  generic calendar icon, which told you nothing you didn't already know from
+  tapping it; it now carries the current day number in an outlined box, so the
+  bar says what day it is as well as taking you there. It rolls over at midnight
+  on its own ([#220]).
 
 ### Fixed
 - **A long location no longer runs off the edge of its field.** The location on
@@ -1611,3 +1616,4 @@ automatically, with zero telemetry and no internet permission.
 [#253]: https://codeberg.org/jlmakiola/calendula/issues/253
 [#273]: https://codeberg.org/jlmakiola/calendula/issues/273
 [#113]: https://codeberg.org/jlmakiola/calendula/issues/113
+[#220]: https://codeberg.org/jlmakiola/calendula/issues/220
