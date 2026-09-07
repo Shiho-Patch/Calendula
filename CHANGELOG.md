@@ -5,14 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.20.0] — 2026-09-07
+
+### Added
+- **Long-press to copy.** Holding down the title, the location or the
+  description on an event puts that whole field on the clipboard. Tapping still
+  does what it always did — the location opens maps, a link in the description
+  opens — and the times, calendar, repeat rule and guests stay uncopyable. Below
+  Android 13 a short confirmation appears; from Android 13 on the system shows
+  its own clipboard chip ([#195]).
+- **The open-source projects Calendula ships** are now listed under Settings →
+  About, each with its copyright holder and licence, and each row tapping
+  through to that project's source ([#281]).
 
 ### Changed
-- Month-view event titles no longer end in an ellipsis. The "…" took the width
-  of a couple of characters and told you nothing you couldn't already see, so
-  the title now simply runs to the edge of its chip — a few more letters per
-  cell, which is often the difference between two events you can tell apart and
-  two you can't ([#164]).
+- Event titles no longer end in an ellipsis. The "…" took the width of a couple
+  of characters and told you nothing you couldn't already see, so the title now
+  simply runs to the edge of its chip in the month, week and day views — a few
+  more letters per event, which is often the difference between two events you
+  can tell apart and two you can't. Right-to-left languages keep the ellipsis,
+  where clipping would cut the beginning of a title rather than its end
+  ([#164]).
 - Month-view events now show their start time before the title, where the chip
   is wide enough to keep the title readable — in landscape, on a foldable and on
   a tablet, and never at the cost of a narrow phone column. All-day events show
@@ -27,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the month grid's days and the week's columns. An event that starts on the hour
   fills its cell instead of overhanging the seam, and one that runs past
   midnight still meets the edge of its column ([#113]).
+- **An invitation you haven't answered now reads as an outline.** An event still
+  waiting on your reply is drawn with the calendar's colour on its border and
+  its title and nothing behind it, so it stands apart from the ones you have
+  accepted — on the month chips, the all-day bars and the week and day blocks
+  alike. Declined events keep their filled, struck-through chip and now sort
+  last in the month view as well, so a day with more events than fit drops the
+  ones you said no to first ([#230]).
 - The calendar titles now shorten instead of being cut off. When the full month
   name doesn't fit the top bar, the month and week views fall back to its
   three-letter form and the day view drops the weekday, rather than trailing off
@@ -37,6 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tapping it; it now carries the current day number in an outlined box, so the
   bar says what day it is as well as taking you there. It rolls over at midnight
   on its own ([#220]).
+- The quick-switch pill disappears when there is nothing left to switch between,
+  and you can now turn calendar views off all the way down to a single one — the
+  setting used to hold two open purely to keep the pill fed ([#150]).
 
 ### Fixed
 - **A long location no longer runs off the edge of its field.** The location on
@@ -46,6 +69,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   line at any font size. A multi-line address you paste in is joined with commas
   — the way one picked from your contacts always has been — instead of running
   together into a single word ([#273]).
+- **The event form capitalizes sentences again.** The title, description and
+  guest fields had stopped starting a sentence with a capital letter; they
+  follow the keyboard's usual behaviour once more. The location is deliberately
+  left alone, since it is as often a URL as an address ([#146]).
+- **A block you pick up no longer loses its second line.** Dragging an event
+  whose time or title wrapped to two lines clipped the floating copy to one line
+  for as long as you held it, and it snapped back on drop. The copy now measures
+  its text exactly as the block does ([#267]).
 
 ## [2.19.4] — 2026-09-01
 
@@ -1617,3 +1648,9 @@ automatically, with zero telemetry and no internet permission.
 [#273]: https://codeberg.org/jlmakiola/calendula/issues/273
 [#113]: https://codeberg.org/jlmakiola/calendula/issues/113
 [#220]: https://codeberg.org/jlmakiola/calendula/issues/220
+[#195]: https://codeberg.org/jlmakiola/calendula/issues/195
+[#281]: https://codeberg.org/jlmakiola/calendula/issues/281
+[#230]: https://codeberg.org/jlmakiola/calendula/issues/230
+[#150]: https://codeberg.org/jlmakiola/calendula/issues/150
+[#146]: https://codeberg.org/jlmakiola/calendula/issues/146
+[#267]: https://codeberg.org/jlmakiola/calendula/issues/267
