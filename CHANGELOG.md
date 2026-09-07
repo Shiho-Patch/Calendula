@@ -26,6 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mid-word at large font sizes. The view switcher, the title and the agenda's
   range bar also line up with the grid underneath them ([#165]).
 
+### Fixed
+- **A long location no longer runs off the edge of its field.** The location on
+  the edit screen sat on one line, so a full postal address or a long meeting
+  link scrolled sideways out of sight as you typed it. It now wraps and the card
+  grows to fit, with the pin and the contacts button staying level with the first
+  line at any font size. A multi-line address you paste in is joined with commas
+  — the way one picked from your contacts always has been — instead of running
+  together into a single word ([#273]).
+
 ## [2.19.4] — 2026-09-01
 
 ### Fixed
@@ -1593,3 +1602,4 @@ automatically, with zero telemetry and no internet permission.
 [#219]: https://codeberg.org/jlmakiola/calendula/issues/219
 [#248]: https://codeberg.org/jlmakiola/calendula/issues/248
 [#253]: https://codeberg.org/jlmakiola/calendula/issues/253
+[#273]: https://codeberg.org/jlmakiola/calendula/issues/273
