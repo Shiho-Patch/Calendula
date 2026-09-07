@@ -26,7 +26,8 @@ object AppBarSpacing {
 
     private val IconButtonSize = 48.dp
 
-    private val IconSize = 24.dp
+    /** M3's icon slot inside an icon button; the today glyph fills the same box. */
+    internal val IconSize = 24.dp
 
     /**
      * End padding for a container-backed control that ends the bar, measured to
