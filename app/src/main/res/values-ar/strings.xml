@@ -52,7 +52,7 @@
     <string name="month_a11y_today_prefix">اليوم</string>
     <string name="event_share_failed">تعذّر مشاركة هذا الحدث.</string>
     <string name="event_delete_title">حذف الحدث؟</string>
-    <string name="event_delete_body">الحدث أُزيل من تقويمك ومن كل جهاز تتم مزامنته معه.</string>
+    <string name="event_delete_body">تتم إزالة الحدث من تقويمك ومن كل جهاز تتم مزامنته معه.</string>
     <string name="event_delete_recurring_title">حذف الحدث المتكرّر</string>
     <string name="event_delete_option_occurrence">فقط هذا الحدث</string>
     <string name="event_delete_option_following">هذا وجميع الأحداث اللاحقة</string>
@@ -319,8 +319,8 @@
     <string name="settings_theme_hint">سواء التطبيق فاتحًا أو داكنًا. الاختيار يُطبق على الفور.</string>
     <string name="settings_week_start_auto_summary">الحالي %1$s</string>
     <string name="settings_time_format_auto_summary">اتباع النظام: %1$s</string>
-    <string name="settings_hour_lines">خطوط الساعات</string>
-    <string name="settings_hour_lines_summary">إظهار خط فاصل في كل ساعة في طريقة عرض الأسبوع واليوم</string>
+    <string name="settings_hour_lines">شبكة الساعة</string>
+    <string name="settings_hour_lines_summary">وضع كل ساعة في خانتها الخاصة في طريقة عرض الأسبوع واليوم</string>
     <string name="timeline_scale_fit_day_summary">جميع الـ 24 ساعة على شاشة واحدة، لا تمرير</string>
     <string name="timeline_scale_custom">مخصص</string>
     <string name="settings_widget_size_small">صغير</string>
@@ -663,7 +663,7 @@
     <string name="settings_drag_to_reschedule_summary">انقل حدثًا عن طريق سحبه إلى يوم أو وقت آخر</string>
     <string name="event_move_blocked_series_end">لا يمكن نقل حدث بعد نهاية سلسلته</string>
     <string name="crash_dialog_report">تقرير</string>
-    <string name="settings_quick_switch_hint">اختر أي طُرق العرض التي يتم التنقل بينها باستخدام الزر في أعلى اليمين، واسحب لإعادة ترتيبهم. تظل طُرق العرض التي تم إيقافها متاحة من قائمة التنقل.</string>
+    <string name="settings_quick_switch_hint">اختر أي طُرق العرض التي يتم التنقل بينها باستخدام الزر في أعلى اليمين، واسحب لإعادة ترتيبهم. مع تشغيل أقل من عرضين اثنين يكون الزر مخفيًا. تظل طُرق العرض التي تم إيقافها متاحة من قائمة التنقل.</string>
     <string name="calendars_account_from_source">%1$s (%2$s)</string>
     <string name="duration_hours_minutes">%1$s %2$s</string>
     <string name="settings_widgets_hint">إعدادات لأدوات الشاشة الرئيسية وعنصر الإعدادات السريعة. أضف أداة عن طريق الضغط لفترة طويلة على شاشتك الرئيسية.</string>
@@ -698,7 +698,7 @@
     <string name="onboarding_backup_benefit_folder_title">مجلد تختاره</string>
     <string name="import_warning_timezone">تمت إعادة منطقة زمنية غير معروفة إلى الخاصّة بجهازك.</string>
     <string name="settings_calendar_reminders_managed_hint">تعيين في تواريخ جهات الاتصال الخاصة</string>
-    <string name="settings_special_dates_disable_all_message">يؤدي هذا إلى حذف تقويمات تواريخ جهات الاتصال وأحداثها. سيتم فقدان أي تذكيرات أو ملاحظات أضفتها إليها.</string>
+    <string name="settings_special_dates_disable_all_message">يؤدي هذا لحذف تقويمات تواريخ جهات الاتصال وأحداثها. سيتم فقدان أي تذكيرات أو ملاحظات أضفتها إليها.</string>
     <string name="settings_special_dates_type_anniversary">الذكرات السنوية</string>
     <string name="settings_special_dates_template_hint">استخدم {name} لجهة الاتصال و{year} للسنة (سنة الميلاد، أو سنة بدء الذكرى السنوية؛ مخفية عندما تكون غير معروفة).</string>
     <string name="settings_special_dates_template">صيغة العنوان</string>
@@ -727,4 +727,15 @@
         <item quantity="many">تعذّر إضافة %d حدث.</item>
         <item quantity="other">تعذّر إضافة %d حدث.</item>
     </plurals>
+    <string name="state_failure_all_hidden">تم تعطيل جميع تقويماتك.</string>
+    <string name="state_failure_all_hidden_action">إدارة التقويمات</string>
+    <string name="field_copy_action">نسخ</string>
+    <string name="field_copied">تم النسخ إلى الحافظة</string>
+    <string name="field_copy_failed">تعذّر نسخ ذلك</string>
+    <string name="event_detail_title">العنوان</string>
+    <string name="settings_licences">تراخيص مفتوحة المصدر</string>
+    <string name="settings_licences_subtitle">المشاريع التي بنيت ‌‌Calendula عليها</string>
+    <string name="licences_title">تراخيص مفتوحة المصدر</string>
+    <string name="licences_intro">يتضمن Calendula العمل أدناه. اضغط على أي إدخال للحصول على شفرة المصدر الخاصة به.</string>
+    <string name="licences_footer">يتم تضمين كل مشروع هنا دون تعديل، بموجب الترخيص الموضح.</string>
 </resources>
