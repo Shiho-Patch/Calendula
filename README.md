@@ -157,6 +157,8 @@ reinstalling. Google Play is the exception — see above.</sub>
 - **[Building from source](docs/BUILDING.md)** — requirements and Gradle tasks
 - **[Architecture](docs/ARCHITECTURE.md)** — the layered design and key pipelines
 - **[Milestones](https://codeberg.org/jlmakiola/calendula/milestones)** — what's shipped and what's next
+- **[Privacy policy](docs/PRIVACY.md)** — the source of the page published at
+  [jeanlucmakiola.de/calendula/privacy](https://jeanlucmakiola.de/calendula/privacy)
 
 ## 🤝 Contributing
 
@@ -186,6 +188,16 @@ are managed on a self-hosted **Weblate**:
 No coding needed — register on the Weblate server, pick (or request) a language,
 and translate the strings in your browser. You can also reach this link in the
 app from the top of **Settings → App language**.
+
+## 🔒 Privacy
+
+No analytics, no tracking, no advertising, no crash-reporting SDK, no third-party
+services — and **no internet permission at all**, so the app is technically
+incapable of transmitting anything anywhere. Your events stay in Android's own
+calendar store, where they already were.
+
+**→ [Privacy policy](https://jeanlucmakiola.de/calendula/privacy)** — written in
+[`docs/PRIVACY.md`](docs/PRIVACY.md), which is what that page renders.
 
 ## 📜 License
 
