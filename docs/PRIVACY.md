@@ -1,15 +1,25 @@
-# Calendula — privacy policy
+---
+title: Privacy Policy — Calendula
+description: What Calendula does with your data. It collects nothing, sends nothing, and has no internet permission at all.
+updated: 2026-07-28
+---
 
-> **This file is the policy.** Edit it here, in a PR, reviewed like any other
-> change — it is the source of truth.
->
-> It is *published* at <https://jeanlucmakiola.de/calendula/privacy>, which is
-> what the app's **Settings → About → Privacy policy** row opens and what the
-> Play Console field must hold. That page holds no copy of the prose: the
-> website build checks this repository out beside itself and renders this file
-> through an Astro content collection, so there is exactly one copy of the
-> policy anywhere and the two cannot drift. An edit here reaches the live page
-> on the site's next build.
+<!--
+  THIS FILE IS THE POLICY. Edit it here, in a PR, reviewed like any other
+  change — it is the source of truth.
+
+  It is published at https://jeanlucmakiola.de/calendula/privacy, which is what
+  the app's Settings → About → Privacy policy row opens and what the Play
+  Console field must hold. That page holds no copy of the prose: the website
+  build checks this repository out beside itself and renders this file through
+  an Astro content collection, so there is exactly one copy of the policy
+  anywhere and the two cannot drift. An edit here reaches the live page on the
+  site's next build.
+
+  The page supplies its own <h1> from the `title` above, so this body starts at
+  the first section — do not add one. This comment is HTML so that it cannot
+  render on the published page.
+-->
 
 **Last updated:** 28 July 2026  
 Applies to the Android app **Calendula** (package `de.jeanlucmakiola.calendula`), all versions and all distribution channels.
