@@ -344,4 +344,15 @@
     <string name="settings_week_start">Неделя начинается в</string>
     <string name="settings_week_start_auto">Автоматически</string>
     <string name="settings_week_start_auto_summary">Выбрано: %1$s</string>
+    <string name="state_failure_all_hidden_action">Управление календарями</string>
+    <string name="field_copy_action">Копировать</string>
+    <string name="field_copied">Скопировано в буфер обмена</string>
+    <string name="event_detail_title">Заголовок</string>
+    <string name="settings_week_numbers">Номер недели</string>
+    <string name="settings_app_name">Имя приложения</string>
+    <string name="settings_app_name_summary">Отображать Calendula как “Календарь” в вашем лаунчере. Изменяется только отображаемое имя в лаунчере; иконка может переместиться на новое место после включения.</string>
+    <string name="settings_time_format">Формат времени</string>
+    <string name="settings_time_format_auto">Автоматически</string>
+    <string name="settings_time_format_12h">12-часовой формат времени</string>
+    <string name="settings_time_format_24h">24-часовой формат времени</string>
 </resources>
