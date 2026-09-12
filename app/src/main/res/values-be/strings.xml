@@ -584,4 +584,87 @@
     <string name="calendars_auto_backup_hint">Пэрыядычны экспарт лякальных календароў у каталёг у выглядзе файла .ics.</string>
     <string name="calendars_auto_backup_folder">Каталёг рэзэрвовага капіяваньня</string>
     <string name="calendars_auto_backup_folder_unset">Націсьніце, каб выбраць каталёг</string>
+    <string name="calendars_auto_backup_interval">Інтэрвал</string>
+    <string name="calendars_auto_backup_every">Кожн. %1$s</string>
+    <string name="calendars_auto_backup_interval_min">Мінімум 30 хв.</string>
+    <string name="calendars_auto_backup_status_never">Аўтаматычнае рэзэрвовае капіяваньне ня ўключана</string>
+    <string name="calendars_auto_backup_status_ok">Апошняе рэзэрвовае капіяваньне: %1$s</string>
+    <string name="calendars_auto_backup_status_failed">Апошняе няўдалае рэзэрвовае капіяваньне: %1$s</string>
+    <string name="backup_channel_name">Рэзэрвовае капіяваньне</string>
+    <string name="backup_channel_description">Папярэджвае аб шматразовых няўдачах аўтаматычнага рэзэрвовага капіяваньня.</string>
+    <string name="backup_failed_title">Памылка аўтаматычнага рэзэрвовага капіяваньня</string>
+    <string name="backup_failed_text">Calendula не ўдалося зрабіць файл рэзэрвовай копіі. Праверце каталёг рэзэрвовага капіяваньня ў наладах.</string>
+    <string name="calendars_backup_failed">Не атрымалася экспартаваць рэзэрвовую копію.</string>
+    <plurals name="calendars_backup_done">
+        <item quantity="one">Экспартавана %d падзея.</item>
+        <item quantity="few">Экспартавана падзеяў: %d.</item>
+        <item quantity="many">Экспартавана падзеяў: %d.</item>
+        <item quantity="other">Экспартавана падзеяў: %d.</item>
+    </plurals>
+    <string name="import_title">Імпартаваць падзеі</string>
+    <string name="import_target_header">Дадаць у каляндар</string>
+    <string name="import_empty">У гэтым файле падзеі ня знойдзены.</string>
+    <string name="import_failed">Не атрымалася прачытаць гэты файл.</string>
+    <string name="import_no_calendar">Няма календара з дазволам на запіс, у які можна імпартаваць зьвесткі. Спачатку стварэце лякальны каляндар.</string>
+    <string name="import_done_title">Імпарт завершаны</string>
+    <string name="import_done_dedup_note">Падзеі, якія ўжо ёсьць у календары, былі прамінутыя.</string>
+    <string name="import_done_added_label">Дадана</string>
+    <string name="import_done_skipped_label">Дублікаты</string>
+    <string name="import_close">Закрыць</string>
+    <string name="import_warning_recurrence">Былі прамінутыя некаторыя зьмененыя паўторныя падзеі.</string>
+    <string name="import_warning_no_start">Падзея бяз часу пачатку была прамінутая.</string>
+    <string name="import_warning_attendees">Сьпісы наведвальнікаў не былі імпартаваныя.</string>
+    <string name="import_warning_timezone">Замест невядомага часавага поясу ўжыты сыстэмны для вашай прылады.</string>
+    <string name="import_button">Імпарт</string>
+    <plurals name="import_title_count">
+        <item quantity="one">Імпартуецца %d падзея</item>
+        <item quantity="few">Імпартуецца падзеяў: %d</item>
+        <item quantity="many">Імпартуецца падзеяў: %d</item>
+        <item quantity="other">Імпартуецца падзеяў: %d</item>
+    </plurals>
+    <plurals name="import_event_count">
+        <item quantity="one">%d падзея ў гэтым файле.</item>
+        <item quantity="few">Падзеяў у гэтым файле: %d.</item>
+        <item quantity="many">Падзеяў у гэтым файле: %d.</item>
+        <item quantity="other">Падзеяў у гэтым файле: %d.</item>
+    </plurals>
+    <plurals name="import_action">
+        <item quantity="one">Імпарт %d падзеі</item>
+        <item quantity="few">Імпарт падзеяў: %d</item>
+        <item quantity="many">Імпарт падзеяў: %d</item>
+        <item quantity="other">Імпарт падзеяў: %d</item>
+    </plurals>
+    <plurals name="import_done_imported">
+        <item quantity="one">Імпартавана %d падзея.</item>
+        <item quantity="few">Імпартавана падзеяў: %d.</item>
+        <item quantity="many">Імпартавана падзеяў: %d.</item>
+        <item quantity="other">Імпартавана падзеяў: %d.</item>
+    </plurals>
+    <plurals name="import_done_skipped">
+        <item quantity="one">Прамінута %d падзея (ужо ёсьць у гэтым календары).</item>
+        <item quantity="few">Прамінута падзеяў: %d (ужо ёсьць у гэтым календары).</item>
+        <item quantity="many">Прамінута падзеяў: %d (ужо ёсьць у гэтым календары).</item>
+        <item quantity="other">Прамінута падзеяў: %d (ужо ёсьць у гэтым календары).</item>
+    </plurals>
+    <string name="shortcut_new_event_short">Новая падзея</string>
+    <string name="shortcut_new_event_long">Стварыць новую падзею</string>
+    <string name="qs_tile_new_event_label">Новая падзея</string>
+    <string name="settings_qs_tile">Дадаць плітку хуткіх наладаў</string>
+    <string name="settings_qs_tile_hint">Дадаць плітку «Новая падзея» на панэль хуткіх наладаў.</string>
+    <string name="crash_dialog_title">Крах %1$s</string>
+    <string name="crash_dialog_message">Апошнім разам %1$s нечакана закрылася. Вы можаце дапамагчы выправіць гэта, адправіўшы справаздачу аб праблеме. Яна застанецца на вашай прыладзе, пакуль вы не вырашыце падзяліцца ёю, і ня ўтрымлівае асабістых даных або зьмесціва календара — толькі тэхнічныя падрабязнасьці, паданыя ніжэй.</string>
+    <string name="crash_dialog_report">Справаздача</string>
+    <string name="crash_dialog_dismiss">Ня зараз</string>
+    <string name="crash_report_issue_title">Справаздача аб краху</string>
+    <string name="crash_report_clip_label">Справаздача аб краху %1$s</string>
+    <string name="crash_report_copied">Справаздача скапіявана ў буфэр абмену</string>
+    <string name="crash_report_open_failed">Не атрымалася адкрыць сыстэму адсочваньня праблемаў. Справаздача знаходзіцца ў буфэры абмену.</string>
+    <string name="crash_report_body_template">Дзякуй за справаздачу аб краху ў %1$s. Дадайце ўсё, што памятаеце пра тое, што рабілі, а затым адпраўце.\n\n### Што здарылася\n\n\n### Справаздача аб краху\n%2$s\n</string>
+    <string name="crash_report_body_paste">_(Справаздача задоўгая для гэтай спасылкі — устаўце яе з буфэра абмену сюды.)_</string>
+    <string name="special_dates_calendar_birthday">Дні нараджэньня</string>
+    <string name="special_dates_calendar_anniversary">Юбілейныя даты</string>
+    <string name="special_dates_calendar_custom">Асаблівыя даты</string>
+    <string name="special_dates_default_title_birthday">Дзень нараджэньня {name} ({year})</string>
+    <string name="special_dates_default_title_anniversary">Юбілейная дата {name} ({year})</string>
+    <string name="special_dates_default_title_custom">{name}</string>
 </resources>

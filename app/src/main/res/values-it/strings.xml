@@ -646,4 +646,18 @@
     <string name="settings_default_view_hint">La vista di default all\'apertura dell\'app.</string>
     <string name="settings_week_start_hint">Il giorno in cui inizia ogni settimana, in tutta l\'app e i suoi widget.</string>
     <string name="settings_time_format_hint">Formato degli orari in tutta l\'app. Di default viene seguito il formato di sistema.</string>
+    <string name="state_failure_all_hidden_action">Gestisci calendari</string>
+    <string name="field_copy_action">Copia</string>
+    <string name="field_copied">Copiato negli appunti</string>
+    <string name="field_copy_failed">Impossibile copiarlo</string>
+    <string name="event_detail_title">Titolo</string>
+    <string name="reminder_after">%1$s dopo</string>
+    <string name="licences_title">Licenza open source</string>
+    <string name="licences_intro">Calendula include il codice riportato di seguito. Tocca una voce qualsiasi per visualizzarne il codice sorgente.</string>
+    <string name="licences_footer">Ogni progetto qui presente è incluso senza modifiche, secondo la licenza indicata.</string>
+    <string name="import_warning_tasks">Le attività contenute in questo file sono state aggiunte come eventi.</string>
+    <string name="import_warning_recurrence_repaired">È stata corretta una regola di ripetizione errata.</string>
+    <string name="import_done_failed_label">Non aggiunto</string>
+    <string name="import_done_failed_note">Alcuni eventi non possono essere aggiunti e sono stati esclusi.</string>
+    <string name="import_done_stopped_title">Importazione interrotta</string>
 </resources>
