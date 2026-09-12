@@ -486,12 +486,9 @@
     <string name="crash_dialog_message">%1$s a été fermé de manière inattendue la dernière fois. Vous pouvez aider à le corriger en envoyant ce rapport en tant que problème. Il reste sur votre appareil jusqu’à ce que vous choisissiez de le partager, et n’inclut aucune donnée personnelle ni contenu de calendrier — seuls les détails techniques ci-dessous.</string>
     <string name="crash_dialog_report">rapport</string>
     <string name="crash_dialog_dismiss">pas maintenant</string>
-    <string name="crash_report_issue_title">rapport de plantage</string>
     <string name="crash_report_clip_label">%1$s rapport de plantage</string>
     <string name="crash_report_copied">Rapport copié dans votre presse-papiers</string>
     <string name="crash_report_open_failed">Impossible d’ouvrir le suivi des problèmes. Le rapport se trouve dans votre presse-papiers.</string>
-    <string name="crash_report_body_template">Merci d’avoir signalé un plantage dans %1$s. Veuillez ajouter tout ce dont vous vous souvenez sur ce que vous faisiez, puis soumettez-le.\n\n### Que s’est-il passé\n\n\n### Rapport de plantage\n%2$s\n</string>
-    <string name="crash_report_body_paste">_(Le rapport était trop long pour ce lien — collez-le depuis votre presse-papiers ici.)_</string>
     <string name="special_dates_calendar_birthday">anniversaires</string>
     <string name="special_dates_calendar_anniversary">Anniversaires</string>
     <string name="special_dates_calendar_custom">dates spéciales</string>

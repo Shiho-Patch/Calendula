@@ -394,12 +394,9 @@
     <string name="crash_dialog_message">%1$s si è chiuso inaspettatamente l\'ultima volta. Puoi contribuire allo sviluppo inviando questo report, che rimane sul tuo dispositivo finchè non scegli di inviarlo e non include informazioni personali o sui tuoi calendari: solo le informazioni tecniche qui sotto.</string>
     <string name="crash_dialog_report">Report</string>
     <string name="crash_dialog_dismiss">Non ora</string>
-    <string name="crash_report_issue_title">Crash report</string>
     <string name="crash_report_clip_label">%1$s crash report</string>
     <string name="crash_report_copied">Report copiato negli Appunti</string>
     <string name="crash_report_open_failed">Impossibile aprire il gestore dei problemi. Il report è negli Appunti.</string>
-    <string name="crash_report_body_template">Grazie per segnalare un crash di %1$s. Per favore, aggiungi ogni informazione che ricordi in merito a quello che stavi facendo, quindi invia\n\n### Cosa è successo\n\n\n###Crash report\n%2$s\n</string>
-    <string name="crash_report_body_paste">_(Il report era troppo lungo per questo link - copialo qui dai tuoi Appunti.)_</string>
     <string name="event_detail_recurrence">Ricorrenza</string>
     <string name="event_detail_recurring">Evento ricorrente</string>
     <string name="recurrence_on_days">%1$s da %2$s</string>

@@ -636,12 +636,9 @@
     <string name="crash_dialog_message">%1$s fechou inesperadamente da última vez. Você pode ajudar a consertar enviando este reporte como um problema. Ele fica no seu dispositivo até que decida enviá-lo, e não inclui dados pessoais ou conteúdo de calendário — somente os detalhes técnicos abaixo.</string>
     <string name="crash_dialog_report">Reportar</string>
     <string name="crash_dialog_dismiss">Agora não</string>
-    <string name="crash_report_issue_title">Reportar quebra</string>
     <string name="crash_report_clip_label">%1$s relatório de quebra</string>
     <string name="crash_report_copied">Relatório copiado para a área de transferência</string>
     <string name="crash_report_open_failed">Não foi possível abrir o tracker de problemas. O relatório está na área de transferência.</string>
-    <string name="crash_report_body_template">Obrigado por reportar uma quebra em %1$s. Por favor, escreva o que estava fazendo, depois envie. \n### O que aconteceu  \n\n\n### Relatório de quebra  \n%2$s\n</string>
-    <string name="crash_report_body_paste">_(O reporte era muito longo para este link — cole da área de transferência aqui.)_</string>
     <string name="special_dates_calendar_birthday">Aniversários</string>
     <string name="special_dates_calendar_anniversary">Aniversários de relacionamento</string>
     <string name="special_dates_calendar_custom">Datas especiais</string>
