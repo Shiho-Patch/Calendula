@@ -48,7 +48,7 @@
     <string name="day_today_action">اليوم</string>
     <string name="week_today_action">هذا الأسبوع</string>
     <string name="week_number_label">أسبوع</string>
-    <string name="event_detail_back">العودة</string>
+    <string name="event_detail_back">الرجوع</string>
     <string name="month_a11y_today_prefix">اليوم</string>
     <string name="event_share_failed">تعذّر مشاركة هذا الحدث.</string>
     <string name="event_delete_title">حذف الحدث؟</string>
