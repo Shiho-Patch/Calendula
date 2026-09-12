@@ -655,12 +655,9 @@
     <string name="crash_dialog_message">Апошнім разам %1$s нечакана закрылася. Вы можаце дапамагчы выправіць гэта, адправіўшы справаздачу аб праблеме. Яна застанецца на вашай прыладзе, пакуль вы не вырашыце падзяліцца ёю, і ня ўтрымлівае асабістых даных або зьмесціва календара — толькі тэхнічныя падрабязнасьці, паданыя ніжэй.</string>
     <string name="crash_dialog_report">Справаздача</string>
     <string name="crash_dialog_dismiss">Ня зараз</string>
-    <string name="crash_report_issue_title">Справаздача аб краху</string>
     <string name="crash_report_clip_label">Справаздача аб краху %1$s</string>
     <string name="crash_report_copied">Справаздача скапіявана ў буфэр абмену</string>
     <string name="crash_report_open_failed">Не атрымалася адкрыць сыстэму адсочваньня праблемаў. Справаздача знаходзіцца ў буфэры абмену.</string>
-    <string name="crash_report_body_template">Дзякуй за справаздачу аб краху ў %1$s. Дадайце ўсё, што памятаеце пра тое, што рабілі, а затым адпраўце.\n\n### Што здарылася\n\n\n### Справаздача аб краху\n%2$s\n</string>
-    <string name="crash_report_body_paste">_(Справаздача задоўгая для гэтай спасылкі — устаўце яе з буфэра абмену сюды.)_</string>
     <string name="special_dates_calendar_birthday">Дні нараджэньня</string>
     <string name="special_dates_calendar_anniversary">Юбілейныя даты</string>
     <string name="special_dates_calendar_custom">Асаблівыя даты</string>

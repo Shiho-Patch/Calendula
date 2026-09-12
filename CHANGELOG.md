@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **A custom agenda range crashed the app in French.** Choosing a custom range
+  for the agenda — or simply typing a number into that field — closed the app on
+  any phone set to French. The French translation of the "%d days" label was
+  missing the wording French uses for counts of two and above, and Android has
+  nothing to fall back on when that particular form is absent, so every value
+  except one day was affected ([#297], [#298]).
+
 ## [2.20.2] — 2026-09-12
 
 ### Fixed
