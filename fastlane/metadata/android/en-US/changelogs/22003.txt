@@ -1,0 +1,2 @@
+Fixed
+• A custom Agenda range no longer crashes the app in French. Choosing a custom range — or just typing a number into that field — closed the app on any phone set to French, and only a range of exactly one day escaped it. Other languages were never affected.

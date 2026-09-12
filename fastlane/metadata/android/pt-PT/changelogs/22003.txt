@@ -1,0 +1,2 @@
+Correções
+• O intervalo personalizado da Agenda já não fecha a aplicação em francês. Escolher um intervalo personalizado — ou apenas escrever um número nesse campo — fechava a aplicação em qualquer telemóvel definido em francês; só um intervalo de exatamente um dia escapava. Os outros idiomas nunca foram afetados.

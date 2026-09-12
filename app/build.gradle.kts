@@ -28,8 +28,8 @@ android {
         // which builds this version and then creates the matching vX.Y.Z tag +
         // release itself (versionCode is pinned to MAJOR*10000 + MINOR*100 +
         // PATCH from versionName, e.g. 2.7.2 -> 20702). See docs/RELEASING.md.
-        versionCode = 22002
-        versionName = "2.20.2"
+        versionCode = 22003
+        versionName = "2.20.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -113,12 +113,16 @@ android {
     lint {
         // Community translations are expected to be partial — a missing string
         // falls back to the English base at runtime — so don't fail the build on
-        // it. Likewise a translated <plurals> may not fill every CLDR quantity
-        // form its locale defines (e.g. Arabic needs "zero"); the missing form
-        // falls back to "other" at runtime, so MissingQuantity is informational
-        // too. Stale/extra keys (ExtraTranslation) stay fatal; scripts/
-        // check_translations.py guards the same invariants with clearer,
-        // translator-facing messages.
+        // it. A translated <plurals> may likewise skip a CLDR quantity form its
+        // locale defines (e.g. Arabic "zero"): Android falls back to "other" for
+        // any form it cannot find, so MissingQuantity is informational too.
+        // What a translation must NOT skip is "other" itself — nothing falls back
+        // for that one, not even the base locale, so it throws
+        // Resources$NotFoundException at runtime (Codeberg #297/#298).
+        // MissingQuantity doesn't tell the two cases apart, so that invariant is
+        // enforced by scripts/check_translations.py instead, with a clearer
+        // translator-facing message. Stale/extra keys (ExtraTranslation) stay
+        // fatal.
         informational += listOf("MissingTranslation", "MissingQuantity")
     }
 

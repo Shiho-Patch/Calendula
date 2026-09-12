@@ -323,6 +323,7 @@
     <plurals name="agenda_range_days">
         <item quantity="one">%d jour</item>
         <item quantity="many">%d jours</item>
+        <item quantity="other">%d jours</item>
     </plurals>
     <string name="settings_section_views">Vues</string>
     <string name="settings_quick_switch_header">Bouton d’interrupteur rapide</string>
