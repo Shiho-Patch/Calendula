@@ -1,0 +1,2 @@
+Poprawki
+• Niestandardowy zakres Agendy nie powoduje już awarii aplikacji w języku francuskim. Wybranie własnego zakresu – albo samo wpisanie liczby w to pole – zamykało aplikację na każdym telefonie ustawionym na francuski; bezpieczny był tylko zakres dokładnie jednego dnia. Innych języków to nigdy nie dotyczyło.

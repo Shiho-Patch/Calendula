@@ -1,0 +1,2 @@
+Correzioni
+• L’intervallo personalizzato dell’Agenda non fa più chiudere l’app in francese. Scegliere un intervallo personalizzato — o anche solo digitare un numero in quel campo — chiudeva l’app su qualsiasi telefono impostato in francese; solo un intervallo di esattamente un giorno ne era immune. Le altre lingue non sono mai state interessate.

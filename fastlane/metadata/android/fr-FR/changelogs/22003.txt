@@ -1,0 +1,2 @@
+Corrections
+• La plage personnalisée de l’Agenda ne fait plus planter l’application en français. Choisir une plage personnalisée — ou simplement saisir un nombre dans ce champ — fermait l’application sur tout téléphone en français ; seule une plage d’exactement un jour y échappait.

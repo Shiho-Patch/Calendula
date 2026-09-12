@@ -1,0 +1,2 @@
+Behoben
+• Ein benutzerdefinierter Agenda-Zeitraum stürzt auf Französisch nicht mehr ab. Einen eigenen Zeitraum zu wählen – oder auch nur eine Zahl in das Feld zu tippen – beendete die App auf jedem Gerät mit französischer Sprache; nur genau ein Tag blieb verschont. Andere Sprachen waren nie betroffen.
