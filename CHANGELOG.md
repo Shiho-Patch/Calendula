@@ -5,14 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.20.2] — 2026-09-12
 
 ### Fixed
 - **Crash reports are filed in English.** Reporting a crash from a phone set to
   another language prefilled the issue — title and body — in that language, so
-  a French crash arrived on Codeberg as a French issue. The text that is
-  *posted* is now English for everyone; the dialog that asks you to send it,
-  and everything else you see in the app, is still translated.
+  a French crash arrived on Codeberg as a French issue ([#297], [#298]). The
+  text that is *posted* is now English for everyone; the dialog that asks you
+  to send it, and everything else you see in the app, is still translated.
 
 ## [2.20.1] — 2026-09-07
 
@@ -1681,3 +1681,5 @@ automatically, with zero telemetry and no internet permission.
 [#146]: https://codeberg.org/jlmakiola/calendula/issues/146
 [#267]: https://codeberg.org/jlmakiola/calendula/issues/267
 [#239]: https://codeberg.org/jlmakiola/calendula/issues/239
+[#297]: https://codeberg.org/jlmakiola/calendula/issues/297
+[#298]: https://codeberg.org/jlmakiola/calendula/issues/298

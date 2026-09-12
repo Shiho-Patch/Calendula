@@ -1,0 +1,2 @@
+Fixed
+• Crash reports are now filed in English. On a phone set to another language, the prefilled issue's title and text came out in that language, which nobody on the project could read. What gets posted is English for everyone; the dialog asking you to send it stays in your language.
