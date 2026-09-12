@@ -32,13 +32,15 @@ class CalendulaApp : Application() {
         // respecting, on-device; the user submits the report by hand). The
         // capture/loop-detection/report machinery lives in floret-kit's
         // core-crash; only the app label + issue-tracker URLs are app-specific.
+        // The prefilled issue's own title and body are the kit's, in English:
+        // they are posted to the tracker, so they don't follow the device
+        // language the way the dialog around them does.
         CrashReporter.install(
             this,
             CrashConfig(
                 appLabel = getString(R.string.app_name),
                 newIssueUrl = getString(R.string.report_issue_url),
                 chooseIssueUrl = getString(R.string.report_issue_choose_url),
-                issueTitle = getString(R.string.crash_report_issue_title),
             ),
         )
         reconcileAutoBackup()

@@ -598,12 +598,9 @@
     <string name="crash_dialog_message">%1$s 上次意外关闭。您可以将此报告作为问题发送以帮助修复。报告在您选择共享之前仅保留在设备上，不含任何个人数据或日历内容——仅包含以下技术细节。</string>
     <string name="crash_dialog_report">报告</string>
     <string name="crash_dialog_dismiss">暂不</string>
-    <string name="crash_report_issue_title">崩溃报告</string>
     <string name="crash_report_clip_label">%1$s 崩溃报告</string>
     <string name="crash_report_copied">报告已复制到剪贴板</string>
     <string name="crash_report_open_failed">无法打开问题追踪器。报告已在剪贴板中。</string>
-    <string name="crash_report_body_template">感谢您报告 %1$s 的崩溃。请补充您记得的操作内容，然后提交。\n\n### 发生了什么\n\n\n### 崩溃报告\n%2$s\n</string>
-    <string name="crash_report_body_paste">_（报告太长，无法通过此链接附带——请从剪贴板粘贴。）_</string>
     <string name="special_dates_calendar_birthday">生日</string>
     <string name="special_dates_calendar_anniversary">纪念日</string>
     <string name="special_dates_calendar_custom">特殊日期</string>

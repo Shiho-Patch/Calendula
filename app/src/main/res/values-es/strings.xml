@@ -405,12 +405,9 @@
     <string name="crash_dialog_message">%1$s se cerro de forma inesperada la ultima vez. Puedes ayudar a solucionarlo enviando un reporte del problema. Este permanece en tu dispositivo hasta que decidas enviarlo, y no contiene información personal o contenido de tu calendario — solo los detalles técnicos de mas abajo.</string>
     <string name="crash_dialog_report">Reportar</string>
     <string name="crash_dialog_dismiss">No por ahora</string>
-    <string name="crash_report_issue_title">Reporte de error</string>
     <string name="crash_report_clip_label">Reporte de error de %1$s</string>
     <string name="crash_report_copied">Reporte copiado a tu porta papeles</string>
     <string name="crash_report_open_failed">No se pudo abrir el sistema de seguimiento de errores. El reporte es en tu portapapeles.</string>
-    <string name="crash_report_body_template">Gracias por reportar un error en %1$s. Por favor añade todo lo que recuerdas sobre lo que estabas haciendo y luego publicalo.\n\n### que sucedió\n\n\n### reporte de error\n%2$s\n</string>
-    <string name="crash_report_body_paste">_(el reporte es demasiado largo para este link — pegalo aquí desde su portapeles.)_</string>
     <string name="event_attendee_resource">Recurso</string>
     <string name="settings_section_about">Acerca de</string>
     <string name="recurrence_with_count">%1$s, %2$d veces</string>

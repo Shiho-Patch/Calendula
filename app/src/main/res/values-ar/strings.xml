@@ -361,7 +361,6 @@
     <string name="settings_about_support">دَعم التطوير</string>
     <string name="settings_about_version">الإصدار %1$s</string>
     <string name="settings_about_logo_desc">رمز تطبيق Calendula</string>
-    <string name="crash_report_body_template">شكرًا لإبلاغ عن عطل في %1$s. يُرجى إضافة أي شيء تتذكره حول ما كنت تفعله، ثم إرسال.\n\n### ماذا حدث\n\n\n### تقرير العطل\n%2$s\n</string>
     <string name="settings_section_about">حول</string>
     <string name="settings_report_problem">الإبلاغ عن مشكلة</string>
     <string name="settings_report_problem_hint">أرسل تقرير الأعطال أو افتح متعقب المشكلات</string>
@@ -502,9 +501,7 @@
     <string name="crash_dialog_dismiss">ليس الآن</string>
     <string name="crash_report_copied">تم نسخ التقرير إلى حافظتك</string>
     <string name="crash_report_open_failed">تعذّر فتح متتبع المشكلات. التقرير موجود في حافظتك.</string>
-    <string name="crash_report_issue_title">تقرير العطل</string>
     <string name="crash_report_clip_label">%1$s تقرير العطل</string>
-    <string name="crash_report_body_paste">_(كان التقرير طويلًا جدًا لهذا الرابط — الصقه من حافظتك هنا.)_</string>
     <string name="special_dates_calendar_birthday">أعياد الميلاد</string>
     <string name="special_dates_calendar_custom">التواريخ الخاصة</string>
     <string name="event_edit_recurrence_next_none">هذه القاعدة لا تتكرر أبدًا</string>
