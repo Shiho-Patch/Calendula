@@ -106,7 +106,7 @@
     <string name="event_edit_timezone_search">Vyhledat časové pásmo</string>
     <string name="event_edit_timezone_recent">Nedávné</string>
     <string name="event_edit_timezone_all">Všechna časová pásma</string>
-    <string name="event_edit_timezone_none">Žádné časové pásmo neodpovídá “%1$s”</string>
+    <string name="event_edit_timezone_none">Žádné časové pásmo neodpovídá „%1$s“</string>
     <string name="event_edit_timezone_local_time">%1$s vašeho času</string>
     <string name="event_edit_color">Barva</string>
     <string name="event_edit_color_default">Barva kalendáře</string>
@@ -169,7 +169,7 @@
     <string name="recurrence_every_n_months">Každý %1$d. měsíc</string>
     <string name="recurrence_every_n_years">Každý %1$d. rok</string>
     <string name="recurrence_on_days">%1$s v %2$s</string>
-    <string name="recurrence_with_until">%1$s do%2$s</string>
+    <string name="recurrence_with_until">%1$s do %2$s</string>
     <string name="recurrence_with_count">%1$s, %2$d opakování</string>
     <string name="event_detail_not_found">Tato událost již neexistuje.</string>
     <string name="event_attendee_accepted">Přijato</string>
@@ -296,7 +296,7 @@
     <string name="search_back">Zpět</string>
     <string name="search_clear">Vymazat</string>
     <string name="search_idle_hint">Prohledávejte své události podle názvu, místa konání nebo poznámek.</string>
-    <string name="search_empty">Žádná událost neodpovídá “%1$s”.</string>
+    <string name="search_empty">Žádná událost neodpovídá „%1$s“.</string>
     <plurals name="search_selected_count">
         <item quantity="one">%d označený</item>
         <item quantity="few">%d označené</item>
@@ -409,7 +409,7 @@
     <string name="settings_widget_size_medium">Střední</string>
     <string name="settings_widget_size_large">Velký</string>
     <string name="settings_widget_size_extra_large">Největší</string>
-    <string name="settings_widget_size_summary">Text události%1$d</string>
+    <string name="settings_widget_size_summary">Text události %1$d</string>
     <string name="settings_agenda_show_today">Vždy zobrazovat dnešek</string>
     <string name="settings_agenda_show_today_hint">Ponechat dnešní den na prvním místě agendy a jejího widgetu, třebaže již nezbývá žádná nadcházející událost.</string>
     <string name="state_failure_all_hidden">Všechny vaše kalendáře jsou vypnuté.</string>
@@ -527,7 +527,7 @@
     <string name="settings_special_dates_show_year_hint">Uvést {year} v názvu, je-li znám</string>
     <string name="settings_special_dates_sync_now">Synchronizovat nyní</string>
     <string name="settings_special_dates_never_synced">Zatím nesynchronizováno</string>
-    <string name="settings_special_dates_last_synced">Naposledy synchronizováno%1$s</string>
+    <string name="settings_special_dates_last_synced">Naposledy synchronizováno %1$s</string>
     <string name="settings_special_dates_calendar_hint">Barvu a viditelnost jednotlivých kalendářů nastavte v nastavení kalendářů.</string>
     <string name="settings_calendar_reminders_managed_hint">Nastavte v části Speciální data kontaktu</string>
     <string name="settings_special_dates_paused_title">Pozastaveno</string>
