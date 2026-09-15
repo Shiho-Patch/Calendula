@@ -1,7 +1,7 @@
 ---
 title: Privacy Policy — Calendula
 description: What Calendula does with your data. It collects nothing, sends nothing, and has no internet permission at all.
-updated: 2026-07-28
+updated: 2026-09-15
 ---
 
 <!--
@@ -33,7 +33,7 @@ Calendula collects nothing, sends nothing, and has no user accounts. It has **no
 IT-Dienstleister | Jean-Luc Makiola  
 Mahlerstraße 10  
 14772 Brandenburg an der Havel  
-Email: [business@jeanlucmakiola.de](mailto:business@jeanlucmakiola.de)
+Email: [support@jeanlucmakiola.de](mailto:support@jeanlucmakiola.de)
 
 ## 2. No data collection
 
