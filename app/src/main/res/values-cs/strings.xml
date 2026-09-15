@@ -153,7 +153,7 @@
     <string name="event_access_default">Výchozí</string>
     <string name="event_access_public">Veřejný</string>
     <string name="event_detail_all_day">Celý den</string>
-    <string name="event_detail_calendar">Kalendář</string>
+    <string name="event_detail_calendar">Calendula</string>
     <string name="event_detail_calendar_unknown">Neznámý kalendář</string>
     <string name="event_detail_location">Místo</string>
     <string name="event_detail_description">Popis</string>
