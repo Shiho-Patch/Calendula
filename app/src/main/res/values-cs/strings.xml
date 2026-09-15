@@ -435,7 +435,7 @@
         <item quantity="many">%d dnů</item>
         <item quantity="other">%d dnů</item>
     </plurals>
-    <string name="settings_section_views">Pohledy</string>
+    <string name="settings_section_views">Zobrazení</string>
     <string name="settings_month_header">Měsíční zobrazení</string>
     <string name="settings_month_view_style">Styl měsíčního zobrazení</string>
     <string name="month_style_paged">Stránky</string>
@@ -683,7 +683,7 @@
     <string name="crash_dialog_title">%1$s selhalo</string>
     <string name="crash_dialog_message">%1$s se minule neočekávaně ukončilo. Můžete pomoci problém vyřešit odesláním tohoto hlášení. Hlášení zůstane ve vašem zařízení, dokud se jej nerozhodnete odeslat, a neobsahuje žádné osobní údaje ani obsah kalendáře – pouze níže uvedené technické detaily.</string>
     <string name="crash_dialog_report">Odeslat hlášení o selhání</string>
-    <string name="crash_dialog_dismiss">Teď ne</string>
+    <string name="crash_dialog_dismiss">Později</string>
     <string name="crash_report_clip_label">Hlášení o selhání %1$s</string>
     <string name="crash_report_copied">Hlášení bylo zkopírováno do schránky</string>
     <string name="crash_report_open_failed">Nepodařilo se otevřít systém pro hlášení problémů. Zpráva je zkopírována ve vaší schránce.</string>
