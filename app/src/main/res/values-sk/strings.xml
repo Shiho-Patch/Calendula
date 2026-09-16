@@ -263,4 +263,17 @@
     <string name="onboarding_done_button">Otvoriť môj kalendár</string>
     <string name="reminder_channel_name">Pripomienky udalostí</string>
     <string name="reminder_channel_description">Notifikácie v časoch pripomienok vašich udalostí</string>
+    <string name="agenda_today_action">Dnes</string>
+    <string name="agenda_header_today">Dnes</string>
+    <string name="search_back">Späť</string>
+    <string name="widget_new_event">Nová udalosť</string>
+    <string name="widget_prev_month">Predchádzajúci mesiac</string>
+    <string name="widget_next_month">Nasledujúci mesiac</string>
+    <string name="widget_today">Dnes</string>
+    <string name="filter_title">Kalendár</string>
+    <string name="settings_title">Nastavenia</string>
+    <string name="settings_back">Späť</string>
+    <string name="back">Späť</string>
+    <string name="timeline_scale_custom">Vlastné</string>
+    <string name="agenda_range_day">Dnes</string>
 </resources>
