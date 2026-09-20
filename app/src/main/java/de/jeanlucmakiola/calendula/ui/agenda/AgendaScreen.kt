@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Menu
@@ -32,6 +34,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -106,6 +109,26 @@ fun AgendaScreen(
     }
     val successState = state as? AgendaUiState.Success
 
+    // The agenda window always starts at the anchor, so moving through it is a
+    // list scroll, not an anchor change — "today" has to bring the list back to
+    // the top as well, and stay offered while it is scrolled away (#305).
+    val listState = rememberLazyListState()
+    val scrolledAway by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        }
+    }
+    val jumpToToday = {
+        val wasOnToday = isOnToday
+        viewModel.goToToday()
+        scope.launch {
+            // A new anchor rebuilds the list anyway; only an in-place return is
+            // worth animating.
+            if (wasOnToday) listState.animateScrollToItem(0) else listState.scrollToItem(0)
+        }
+        Unit
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -120,6 +143,9 @@ fun AgendaScreen(
                 },
                 onJumpToDate = { target ->
                     viewModel.goToDate(target)
+                    // Same reason as "today": the new window starts at the top,
+                    // so a list left scrolled would open partway into it.
+                    scope.launch { listState.scrollToItem(0) }
                     scope.launch { drawerState.close() }
                 },
                 onSettings = {
@@ -139,14 +165,14 @@ fun AgendaScreen(
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
                     showTodayButton = todayInToolbar,
-                    onToday = viewModel::goToToday,
+                    onToday = jumpToToday,
                 )
             },
             floatingActionButton = {
                 CalendarFabColumn(
-                    todayVisible = !isOnToday && !todayInToolbar,
+                    todayVisible = (!isOnToday || scrolledAway) && !todayInToolbar,
                     todayText = stringResource(R.string.agenda_today_action),
-                    onToday = viewModel::goToToday,
+                    onToday = jumpToToday,
                     onCreate = { onCreateEvent(anchor, null) },
                 )
             },
@@ -195,7 +221,8 @@ fun AgendaScreen(
                     state = state,
                     pastDisplay = pastDisplay,
                     showToday = showToday,
-                    onRetry = viewModel::goToToday,
+                    listState = listState,
+                    onRetry = jumpToToday,
                     onEventClick = onEventClick,
                     onOpenDay = onOpenDay,
                     modifier = Modifier
@@ -298,6 +325,7 @@ internal fun AgendaContent(
     onEventClick: (EventInstance) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState(),
 ) {
     when (state) {
         AgendaUiState.Loading -> Box(modifier)
@@ -332,6 +360,7 @@ internal fun AgendaContent(
                     days = days,
                     today = state.today,
                     zone = state.zone,
+                    listState = listState,
                     dimPast = pastDisplay == PastEventDisplay.DIM,
                     now = now,
                     onEventClick = onEventClick,
@@ -349,6 +378,7 @@ private fun AgendaList(
     days: List<AgendaDay>,
     today: LocalDate,
     zone: TimeZone,
+    listState: LazyListState,
     dimPast: Boolean,
     now: Instant,
     onEventClick: (EventInstance) -> Unit,
@@ -357,6 +387,7 @@ private fun AgendaList(
 ) {
     LazyColumn(
         modifier = modifier,
+        state = listState,
         // Bottom inset clears the FAB stack so the last row stays tappable.
         contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
     ) {
