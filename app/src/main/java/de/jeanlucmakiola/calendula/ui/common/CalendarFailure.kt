@@ -36,6 +36,7 @@ fun CalendarFailure(reason: FailureReason, onRetry: () -> Unit) {
         FailureReason.PermissionRevoked -> R.string.state_failure_permission
         FailureReason.NoCalendarsConfigured -> R.string.state_failure_no_calendars
         FailureReason.AllCalendarsHidden -> R.string.state_failure_all_hidden
+        FailureReason.NoImportTarget -> R.string.state_failure_no_import_target
         FailureReason.ProviderUnavailable -> R.string.state_failure_provider
         FailureReason.Unknown,
         FailureReason.EventNotFound -> R.string.state_failure_unknown
@@ -43,6 +44,7 @@ fun CalendarFailure(reason: FailureReason, onRetry: () -> Unit) {
     val actionRes = when (reason) {
         FailureReason.NoCalendarsConfigured -> R.string.state_failure_no_calendars_action
         FailureReason.AllCalendarsHidden -> R.string.state_failure_all_hidden_action
+        FailureReason.NoImportTarget -> R.string.state_failure_all_hidden_action
         FailureReason.PermissionRevoked -> R.string.state_failure_permission_action
         else -> R.string.state_retry
     }
@@ -50,7 +52,9 @@ fun CalendarFailure(reason: FailureReason, onRetry: () -> Unit) {
         FailureReason.NoCalendarsConfigured -> {
             { context.startCalendarSetup() }
         }
-        FailureReason.AllCalendarsHidden -> manageCalendars ?: onRetry
+        FailureReason.AllCalendarsHidden,
+        FailureReason.NoImportTarget,
+        -> manageCalendars ?: onRetry
         else -> onRetry
     }
     Column(

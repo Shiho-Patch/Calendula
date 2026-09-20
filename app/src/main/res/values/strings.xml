@@ -16,6 +16,7 @@
     <string name="state_failure_no_calendars_action">Open system calendar settings</string>
     <string name="state_failure_all_hidden">All your calendars are switched off.</string>
     <string name="state_failure_all_hidden_action">Manage calendars</string>
+    <string name="state_failure_no_import_target">None of your calendars can take new events. They are read-only, managed by another app, or not synced to this device.</string>
     <string name="state_failure_provider">Could not read the calendar.</string>
 
     <!-- Long-press a field to copy it (#195) -->
@@ -679,6 +680,7 @@
     <string name="calendars_restore_header">Restore</string>
     <string name="calendars_restore_action">Restore from .ics file</string>
     <string name="calendars_restore_hint">Import events from a backup or another calendar app.</string>
+    <string name="calendars_restore_unavailable">No calendar can take the imported events yet.</string>
     <string name="calendars_auto_backup">Automatic backup</string>
     <string name="calendars_auto_backup_hint">Periodically export your local calendars to a folder as an .ics file.</string>
     <string name="calendars_auto_backup_folder">Backup folder</string>

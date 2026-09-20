@@ -14,6 +14,7 @@ import de.jeanlucmakiola.calendula.data.ics.IcsExporter
 import de.jeanlucmakiola.calendula.data.prefs.BackupStatus
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.domain.ics.IcsWriter
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,6 +56,22 @@ class CalendarsViewModel @Inject constructor(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000L),
                 initialValue = emptyList(),
+            )
+
+    /**
+     * The Backup & restore screen's own view of that list, with the loading and
+     * failure states [calendars] flattens away — it starts empty and catches to
+     * empty, which that screen used to render as a blank page (#304).
+     */
+    val backupState: StateFlow<BackupUiState> =
+        repository.calendars()
+            .map { backupUiState(it) }
+            .catch { emit(BackupUiState.Failure(FailureReason.ProviderUnavailable)) }
+            .flowOn(io)
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000L),
+                initialValue = BackupUiState.Loading,
             )
 
     /** Automatic-backup settings + last-run status, for the Backup section UI. */

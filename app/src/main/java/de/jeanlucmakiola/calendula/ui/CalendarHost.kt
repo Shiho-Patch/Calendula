@@ -550,18 +550,24 @@ fun CalendarHost(
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
             exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
         ) {
-            BackupScreen(
-                onBack = { showBackup = false },
-                // Restore runs the normal .ics import, and both this screen and
-                // the manager that can have opened it are declared above the
-                // import overlays — so both have to step aside.
-                onImport = {
-                    importUri = it
-                    importForceMany = true
-                    showBackup = false
-                    showCalendars = false
-                },
-            )
+            // The manager sits directly under this screen, so its failure states'
+            // "Manage calendars" way out is simply popping back to it (#304).
+            CompositionLocalProvider(
+                LocalManageCalendars provides { showBackup = false },
+            ) {
+                BackupScreen(
+                    onBack = { showBackup = false },
+                    // Restore runs the normal .ics import, and both this screen
+                    // and the manager that can have opened it are declared above
+                    // the import overlays — so both have to step aside.
+                    onImport = {
+                        importUri = it
+                        importForceMany = true
+                        showBackup = false
+                        showCalendars = false
+                    },
+                )
+            }
         }
     }
 }
