@@ -83,8 +83,10 @@ fun calendarSlideTransition(
         initialContentExit =
             slideOutHorizontally(spec) { w -> -dir * w / SLIDE_TRAVEL_DIVISOR } + fadeOut(fadeSpec),
         // AnimatedContent clips to the animating container by default, which
-        // shears the pages against the viewport edge as they pass. There is no
-        // size change here to contain — both pages are the same grid.
+        // shears the pages against the viewport edge as they pass. Left off even
+        // where the two pages differ in height — the split grid stands as many
+        // rows as its month spans (#162) — since a page sliding out over the row
+        // below it reads as travel, and the shear reads as a fault.
         sizeTransform = SizeTransform(clip = false),
     )
 }

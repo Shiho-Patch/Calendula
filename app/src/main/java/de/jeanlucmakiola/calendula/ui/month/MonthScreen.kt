@@ -1141,10 +1141,10 @@ private val MONTH_EXPAND_THRESHOLD = 48.dp
  * lists whatever day is selected — and a downward drag trades the pane away for
  * the full paged grid, an upward one brings it back (#53).
  *
- * The grid slides between months like the paged style, which it can only do
- * because it always reserves [SPLIT_GRID_ROWS] rows. Sized to its own month it
- * stood 4–6 rows tall, so every swipe shunted the pane up or down by a row on
- * top of swapping the grid — the pane now holds still and only the grid moves.
+ * The grid slides between months like the paged style, and stands only as many
+ * rows tall as its own month spans (#162). A swipe between a five-row month and
+ * a six-row one therefore moves the pane by a row as well as swapping the grid;
+ * the row it hands back is worth more to the pane than a still edge is.
  *
  * Expansion is deliberately **not** a stored preference. It is a way to look at
  * the month you are on, not a fourth style; persisted, someone would expand it
@@ -1442,13 +1442,6 @@ private val SPLIT_DOT_SIZE = 5.dp
 // would have no bar to become (#53).
 
 /**
- * Rows the split grid always reserves — the most any month needs. A month that
- * fits in fewer pads the remainder with blank rows rather than shrinking, which
- * is what lets the pane below hold still from month to month.
- */
-private const val SPLIT_GRID_ROWS = 6
-
-/**
  * The expand handle: M3's drag-handle pill (32×4dp), in a row tall enough to be a
  * comfortable tap target on its own.
  */
@@ -1459,6 +1452,11 @@ private val SPLIT_HANDLE_ROW_HEIGHT = 24.dp
 /**
  * The split style's grid (#53): the month compressed to day numbers and event
  * dots, with the selected day listed underneath by [SplitDayPane].
+ *
+ * Only the rows the month actually spans. It used to pad every month out to six
+ * so the pane below held still from page to page, but a row is a sixth of the
+ * grid and a third of what the pane gets to show — too much to leave blank on
+ * the months that don't need it (#162).
  *
  * Tapping selects rather than drilling into the Day view — the pane is the
  * answer to "what's on this day", so opening a whole screen for it would defeat
@@ -1517,12 +1515,6 @@ internal fun SplitMonthGrid(
                     )
                 }
             }
-        }
-        // Hold the grid at a constant height whatever shape the month is, so the
-        // pane beneath it doesn't move as you page and one month can slide over
-        // another without a height change under it.
-        repeat(SPLIT_GRID_ROWS - state.weeks.size) {
-            Spacer(Modifier.fillMaxWidth().height(SPLIT_ROW_HEIGHT))
         }
     }
 }
