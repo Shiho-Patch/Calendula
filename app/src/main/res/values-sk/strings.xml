@@ -263,4 +263,44 @@
     <string name="onboarding_done_button">Otvoriť môj kalendár</string>
     <string name="reminder_channel_name">Pripomienky udalostí</string>
     <string name="reminder_channel_description">Notifikácie v časoch pripomienok vašich udalostí</string>
+    <string name="agenda_today_action">Dnes</string>
+    <string name="agenda_header_today">Dnes</string>
+    <string name="search_back">Späť</string>
+    <string name="widget_new_event">Nová udalosť</string>
+    <string name="widget_prev_month">Predchádzajúci mesiac</string>
+    <string name="widget_next_month">Nasledujúci mesiac</string>
+    <string name="widget_today">Dnes</string>
+    <string name="filter_title">Kalendáre</string>
+    <string name="settings_title">Nastavenia</string>
+    <string name="settings_back">Späť</string>
+    <string name="back">Späť</string>
+    <string name="timeline_scale_custom">Vlastné</string>
+    <string name="agenda_range_day">Dnes</string>
+    <string name="state_failure_all_hidden">Všetky vaše kalendáre sú vypnuté.</string>
+    <string name="state_failure_all_hidden_action">Správa kalendárov</string>
+    <string name="field_copy_action">Kopírovať</string>
+    <string name="field_copied">Skopirovane do schránky</string>
+    <string name="field_copy_failed">Toto sa nepodarilo skopírovať</string>
+    <string name="event_detail_title">Názov</string>
+    <string name="reminder_after">%1$s po</string>
+    <string name="reminder_onboarding_title">Nikdy nezmeškajte udalosť</string>
+    <string name="reminder_onboarding_body">Samotný Android nezobrazuje pripomienky udalostí - to musí zabezpečiť aplikácia kalendáru. Nechajte túto prácu na Calendule.</string>
+    <string name="reminder_benefit_delivery_title">Pripomienky, doručené</string>
+    <string name="reminder_benefit_delivery_body">Pripomienky k vašim udalostiam vám prídu ako notifikácia, vždy a načas.</string>
+    <string name="reminder_benefit_duplicates_title">Používate ďalšiu aplikáciu s kalendárom?</string>
+    <string name="reminder_onboarding_skip_button">Neskôr</string>
+    <plurals name="search_delete_title">
+        <item quantity="one">Odstrániť %d udalosť?</item>
+        <item quantity="few">Odstrániť %d udalosti?</item>
+        <item quantity="many">Odstrániť %d udalostí?</item>
+        <item quantity="other">Odstrániť %d udalostí?</item>
+    </plurals>
+    <plurals name="search_delete_done">
+        <item quantity="one">%d udalosť odstránená</item>
+        <item quantity="few">%d udalosti odstránené</item>
+        <item quantity="many">%d odstránených udalostí</item>
+        <item quantity="other">%d odstránených udalostí</item>
+    </plurals>
+    <string name="agenda_range_this_week">Tento týždeň</string>
+    <string name="agenda_range_custom">Vlastné…</string>
 </resources>
