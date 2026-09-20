@@ -123,6 +123,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -744,7 +745,7 @@ internal fun WeekdayHeader(weekStart: DayOfWeek, showWeekNumbers: Boolean) {
             .padding(horizontal = AppBarSpacing.Inset, vertical = 4.dp),
     ) {
         // Reserve the gutter so the weekday labels stay over their day columns.
-        if (showWeekNumbers) Spacer(Modifier.width(WEEK_NUMBER_GUTTER))
+        if (showWeekNumbers) Spacer(Modifier.width(rememberWeekNumberGutter()))
         days.forEach { dow ->
             val isWeekend = dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY
             val javaDow = java.time.DayOfWeek.of(dow.ordinal + 1)
@@ -762,9 +763,34 @@ internal fun WeekdayHeader(weekStart: DayOfWeek, showWeekNumbers: Boolean) {
 
 private val EVENT_ROW_HEIGHT = 20.dp
 private val DAY_NUMBER_HEIGHT = 22.dp
-/** Width of the optional left calendar-week gutter (#25); narrow, since it only
- *  seats a one- or two-digit week number in a full-height tonal pill. */
-private val WEEK_NUMBER_GUTTER = 40.dp
+/** Padding between the week-number pill's edge and the number inside it. */
+private val WEEK_NUMBER_PADDING = 6.dp
+
+/** The widest week number an ISO year reaches; digits are tabular, so one
+ *  measurement of it prices every week in the grid. */
+private const val WEEK_NUMBER_SAMPLE = "53"
+
+/**
+ * Width of the optional left calendar-week gutter (#25), measured rather than
+ * fixed: it is sized to the number it seats at the style the pill draws it in,
+ * so it follows the font scale instead of reserving slack for it, and spends
+ * nothing more on a column the grid would rather hand to the seven days (#213).
+ */
+@Composable
+private fun rememberWeekNumberGutter(): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val style = weekNumberStyle()
+    return remember(style, density, measurer) {
+        val text = with(density) { measurer.measure(WEEK_NUMBER_SAMPLE, style).size.width.toDp() }
+        text + (WEEK_NUMBER_PADDING + CELL_GAP) * 2
+    }
+}
+
+/** The week number's own style — a step down from the day numbers beside it. */
+@Composable
+private fun weekNumberStyle() =
+    MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
 private val DAY_NUMBER_GAP = 4.dp
 private val CELL_TOP_PADDING = 6.dp
 /** Named separately because the split style's selection outline draws its own
@@ -1486,7 +1512,7 @@ internal fun SplitMonthGrid(
                     WeekNumberGutter(
                         weekStart = week.days.first(),
                         modifier = Modifier
-                            .width(WEEK_NUMBER_GUTTER)
+                            .width(rememberWeekNumberGutter())
                             .fillMaxHeight(),
                     )
                 }
@@ -2007,7 +2033,7 @@ private fun MonthWeekRow(
             WeekNumberGutter(
                 weekStart = week.days.first(),
                 modifier = Modifier
-                    .width(WEEK_NUMBER_GUTTER)
+                    .width(rememberWeekNumberGutter())
                     .fillMaxHeight(),
             )
         }
@@ -2422,8 +2448,7 @@ private fun WeekNumberGutter(weekStart: LocalDate, modifier: Modifier = Modifier
     ) {
         Text(
             text = weekNumber.toString(),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            style = weekNumberStyle(),
             color = MaterialTheme.colorScheme.onSecondaryContainer,
         )
     }

@@ -571,7 +571,7 @@ private fun WeekDayHeader(
 }
 
 /** Calendar-week badge shown in the header gutter, deliberately set apart with a
- *  filled box and bold number. */
+ *  filled box and bold number — at the month grid's size, so the two agree (#213). */
 @Composable
 private fun WeekNumberBadge(weekNumber: Int, modifier: Modifier = Modifier) {
     val label = stringResource(R.string.week_number_label)
@@ -583,9 +583,9 @@ private fun WeekNumberBadge(weekNumber: Int, modifier: Modifier = Modifier) {
     ) {
         Text(
             text = weekNumber.toString(),
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
         )
     }
 }
