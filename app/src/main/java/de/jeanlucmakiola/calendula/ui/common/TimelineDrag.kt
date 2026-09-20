@@ -790,20 +790,15 @@ private fun DragCopy(
     val width = with(density) { sizePx.width.toDp() }
     val height = with(density) { sizePx.height.toDp() }
     val textWidth = width - (BLOCK_OUTER_INSET + BLOCK_TEXT_PADDING) * 2
-    val titleLineHeight = with(density) {
-        MaterialTheme.typography.labelMedium.lineHeight.toDp()
-    }
-    val timeLineHeight = with(density) {
-        MaterialTheme.typography.labelSmall.lineHeight.toDp()
-    }
     // The block's size, spent the block's way — text sits at the top as it does
-    // on the block, so the copy hands back to the grid without shifting (#267).
+    // on the block, so the copy hands back to the grid without shifting (#267),
+    // and it squeezes its inset on the same terms so a short block's title does
+    // not vanish the moment it is lifted (#289).
     // The title is served in full first and the range lives off what is left:
     // the hour gutter down the side still says where the copy sits, so the
     // range is the half that can afford to go.
-    val available = height - BLOCK_TEXT_INSET * 2
-    val titleBudget = (available / titleLineHeight).toInt().coerceAtLeast(0)
-    val allowed = titleLines.coerceAtMost(titleBudget)
+    val metrics = rememberBlockTextMetrics(height)
+    val allowed = titleLines.coerceAtMost(metrics.titleBudget(metrics.available))
     // Re-measured at the copy's own width rather than spent on the source's
     // count: a block sharing its column with another is a lane wide where the
     // copy is a whole column, so the source's second line is one the copy never
@@ -818,10 +813,10 @@ private fun DragCopy(
             max = allowed,
         )
     }
-    val left = available - titleLineHeight * lines
-    val showTime = label != null && left >= timeLineHeight
+    val left = metrics.available - metrics.titleHeight(lines)
+    val showTime = label != null && left >= metrics.timeLine
     val timeMaxLines = if (showTime) {
-        blockTimeLines(label!!, textWidth, left - timeLineHeight)
+        blockTimeLines(label!!, textWidth, left - metrics.timeLine)
     } else {
         1
     }
@@ -857,7 +852,7 @@ private fun DragCopy(
                 clip = false
             }
             .eventSurface(paint, shape, cuts)
-            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = BLOCK_TEXT_INSET),
+            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = metrics.inset),
     ) {
         Column {
             if (lines > 0) {

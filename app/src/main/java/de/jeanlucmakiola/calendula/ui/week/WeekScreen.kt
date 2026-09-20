@@ -91,11 +91,11 @@ import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_OUTER_INSET
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_PADDING
-import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_INSET
 import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.BlockTitle
 import de.jeanlucmakiola.calendula.ui.common.blockTextLines
 import de.jeanlucmakiola.calendula.ui.common.blockTimeLines
+import de.jeanlucmakiola.calendula.ui.common.rememberBlockTextMetrics
 import de.jeanlucmakiola.calendula.ui.common.animatedBlockPlacement
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
@@ -911,13 +911,7 @@ private fun EventBlock(
     val timeLabel = "${minToHm(block.startMin, use24Hour, locale)}–" +
         minToHm(block.endMin, use24Hour, locale)
     val density = LocalDensity.current
-    val titleLineHeight = with(density) {
-        MaterialTheme.typography.labelMedium.lineHeight.toDp()
-    }
-    val timeLineHeight = with(density) {
-        MaterialTheme.typography.labelSmall.lineHeight.toDp()
-    }
-    val available = height - BLOCK_TEXT_INSET * 2
+    val metrics = rememberBlockTextMetrics(height)
     // Only full-width (non-overlapping) blocks that are tall enough show the
     // time. On narrow overlapping columns we drop it so the title can wrap to
     // fill the whole block, mirroring Google Calendar — and a block that cannot
@@ -925,19 +919,19 @@ private fun EventBlock(
     // its own: a duration threshold would keep hiding the time on a half-hour
     // block the user has pinched open to three times the room it needs.
     val showTime = block.laneCount == 1 &&
-        available >= titleLineHeight + timeLineHeight
+        metrics.available >= metrics.titleLine + metrics.timeLine
     val textWidth = width - (BLOCK_OUTER_INSET + BLOCK_TEXT_PADDING) * 2
     // A short block drops the title rather than serving a horizontally sliced
     // one: half a letter reads as a rendering fault, while a bare colour chip
     // reads as what it is — an event too brief to label. Tap still opens it, and
     // the semantics description carries the full title either way.
-    val showTitle = available >= titleLineHeight
+    val showTitle = metrics.fitsTitle
     // The title is served first, out of everything the block has left once the
     // time is down to one line — but only takes the lines it will actually use,
     // and only wraps at all once a line is wide enough to hold more than a
     // syllable. Below that the extra lines just stack fragments of the word.
-    val contentHeight = available - if (showTime) timeLineHeight else 0.dp
-    val titleBudget = (contentHeight / titleLineHeight).toInt().coerceAtLeast(1)
+    val contentHeight = metrics.available - if (showTime) metrics.timeLine else 0.dp
+    val titleBudget = metrics.titleBudget(contentHeight).coerceAtLeast(1)
     val paint = eventPaint(block.event, dark)
     // Every line the height affords, however narrow the lane: two events side by
     // side leave columns well under a word wide, and cutting the title to one
@@ -950,8 +944,8 @@ private fun EventBlock(
         textWidth = textWidth,
         max = titleBudget,
     )
-    val spare = available - titleLineHeight * titleMaxLines -
-        if (showTime) timeLineHeight else 0.dp
+    val spare = metrics.available - metrics.titleHeight(titleMaxLines) -
+        if (showTime) metrics.timeLine else 0.dp
     val timeMaxLines = if (showTime) blockTimeLines(timeLabel, textWidth, spare) else 1
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && block.event.hasEnded(dimCutoff)
@@ -993,7 +987,7 @@ private fun EventBlock(
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.
             .then(dragModifier)
-            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = BLOCK_TEXT_INSET)
+            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = metrics.inset)
             .semantics {
                 contentDescription = "$title, $timeLabel"
                 if (moveAction != null) customActions = listOf(moveAction)

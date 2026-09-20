@@ -32,6 +32,68 @@ val BLOCK_TEXT_PADDING = 4.dp
 /** The same, above and below — what a block's height has to pay before any text. */
 val BLOCK_TEXT_INSET = 2.dp
 
+/**
+ * What a timed block of a given height has to spend on text, and what each line
+ * of it costs.
+ */
+@Immutable
+data class BlockTextMetrics(
+    /** Padding above and below the text — see [rememberBlockTextMetrics]. */
+    val inset: Dp,
+    /** Height left for text once [inset] is paid at both edges. */
+    val available: Dp,
+    /** What the first line of a title draws in. */
+    val titleLine: Dp,
+    /** What every title line after the first adds. */
+    val titleLeading: Dp,
+    /** What the time label's one line draws in. */
+    val timeLine: Dp,
+) {
+    /** Whether the block can draw a title at all. */
+    val fitsTitle: Boolean get() = available >= titleLine
+
+    /** Height a title of [lines] lines occupies. */
+    fun titleHeight(lines: Int): Dp =
+        if (lines <= 0) 0.dp else titleLine + titleLeading * (lines - 1)
+
+    /** Title lines that fit [within], which may be none. */
+    fun titleBudget(within: Dp): Int =
+        if (within < titleLine) 0 else 1 + ((within - titleLine) / titleLeading).toInt()
+}
+
+/**
+ * The vertical padding a block [height] tall can afford around a title line of
+ * [titleLine].
+ *
+ * The inset is what the block gives up first: breathing room is worth having
+ * where there is room to breathe, but on a block down to its last few pixels a
+ * bare colour chip where a label would have fit reads as a rendering fault. It
+ * tapers rather than snapping, so a pinch closes the gap gradually instead of
+ * dropping it in one frame (#289).
+ */
+internal fun blockTextInset(height: Dp, titleLine: Dp): Dp =
+    minOf(BLOCK_TEXT_INSET, (height - titleLine) / 2).coerceAtLeast(0.dp)
+
+/** Text metrics for a timed block [height] tall. */
+@Composable
+fun rememberBlockTextMetrics(height: Dp): BlockTextMetrics {
+    val titleStyle = MaterialTheme.typography.labelMedium
+    val titleLine = rememberTrimmedLineHeight(titleStyle)
+    // Packed, so a second line costs what the first did rather than a whole
+    // Material line box — the gap between two lines of a wrapped title is the
+    // one place a block pays that leading twice (#190).
+    val titleLeading = titleLine
+    val timeLine = rememberTrimmedLineHeight(MaterialTheme.typography.labelSmall.asEventTime())
+    val inset = blockTextInset(height, titleLine)
+    return BlockTextMetrics(
+        inset = inset,
+        available = height - inset * 2,
+        titleLine = titleLine,
+        titleLeading = titleLeading,
+        timeLine = timeLine,
+    )
+}
+
 /** Most lines a time label may wrap over before it is worth more than a title line. */
 const val MAX_TIME_LINES = 2
 
@@ -70,9 +132,9 @@ fun blockTextLines(text: String, style: TextStyle, textWidth: Dp, max: Int): Int
  */
 @Composable
 fun blockTimeLines(label: String, textWidth: Dp, spare: Dp): Int {
-    val timeLineHeight = with(LocalDensity.current) {
-        MaterialTheme.typography.labelSmall.lineHeight.toDp()
-    }
+    val timeLineHeight = rememberTrimmedLineHeight(
+        MaterialTheme.typography.labelSmall.asEventTime(),
+    )
     return if (spare >= timeLineHeight) {
         blockTextLines(
             text = label,
@@ -108,8 +170,10 @@ fun BlockTitle(
     Text(
         text = title,
         modifier = modifier,
-        style = MaterialTheme.typography.labelMedium
-            .let { if (fontWeight == null) it else it.copy(fontWeight = fontWeight) },
+        style = rememberPackedLines(
+            MaterialTheme.typography.labelMedium
+                .let { if (fontWeight == null) it else it.copy(fontWeight = fontWeight) },
+        ),
         maxLines = maxLines,
         overflow = overflow.overflow,
         softWrap = overflow.softWrap,
@@ -141,6 +205,8 @@ fun BlockTimeLabel(
         MaterialTheme.motionScheme.fastEffectsSpec()
     }
     val overflow = eventTitleOverflow(singleLine = maxLines == 1)
+    // Regular weight against the title's medium above it (#219).
+    val style = rememberPackedLines(MaterialTheme.typography.labelSmall.asEventTime())
     Crossfade(
         targetState = label,
         animationSpec = spec,
@@ -149,8 +215,7 @@ fun BlockTimeLabel(
     ) { text ->
         Text(
             text = text,
-            // Regular weight against the title's medium above it (#219).
-            style = MaterialTheme.typography.labelSmall.asEventTime(),
+            style = style,
             maxLines = maxLines,
             overflow = overflow.overflow,
             softWrap = overflow.softWrap,
