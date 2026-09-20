@@ -113,11 +113,26 @@ class MainActivity : AppCompatActivity() {
         systemBarsDark = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
             Configuration.UI_MODE_NIGHT_YES
         applyEdgeToEdge()
-        requestedDetailKey = intent.detailKeyOrNull() ?: intent.viewEventKeyOrNull()
+        // Android hands the intent that started the task back to onCreate every
+        // time the activity is recreated — on a rotation, or on a restart after
+        // the system reclaimed the process. Re-running a launch that opens one
+        // specific event is what made a single reminder or widget tap re-open
+        // that event on every later launch, an error screen once the event had
+        // been deleted (#309); the user left it long ago, and the activity
+        // restores where they actually were along with its saved state.
+        //
+        // Only those channels are held back. An .ics import or a prefilled
+        // create form keeps no saved state of its own, so re-reading the intent
+        // is what carries one through a recreation.
+        val replaying = savedInstanceState != null || intent.isRelaunch()
+        if (!replaying) {
+            requestedDetailKey = intent.detailKeyOrNull() ?: intent.viewEventKeyOrNull()
+            requestedEditKey = intent.editEventKeyOrNull()
+        }
         requestedNav = intent.navRequestOrNull()
+            ?.takeUnless { replaying && it is WidgetNavRequest.OpenEvent }
         requestedImportUri = intent.importUriOrNull()
         requestedInsert = intent.insertRequestOrNull()
-        requestedEditKey = intent.editEventKeyOrNull()
         if (CrashReporter.shouldPrompt(this)) pendingCrashReport = CrashReporter.pendingReport(this)
         setContent {
             // One activity-scoped SettingsViewModel drives both the theme here
@@ -241,6 +256,16 @@ class MainActivity : AppCompatActivity() {
         intent.insertRequestOrNull()?.let { requestedInsert = it }
         intent.editEventKeyOrNull()?.let { requestedEditKey = it }
     }
+
+    /**
+     * Whether this launch is the task being resumed rather than a fresh
+     * delivery — Android sets the flag when an activity is started from the
+     * recents list, where the intent it carries is the one the task was started
+     * with however long ago. `onNewIntent` is the channel a real new request
+     * arrives on while the task lives, so nothing is lost by ignoring these.
+     */
+    private fun Intent.isRelaunch(): Boolean =
+        flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
 
     /**
      * The `.ics` Uri an external app asked us to open (file manager `ACTION_VIEW`)
