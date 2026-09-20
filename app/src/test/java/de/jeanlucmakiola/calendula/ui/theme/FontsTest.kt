@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.theme
 
+import androidx.compose.ui.unit.sp
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
 
@@ -46,6 +47,19 @@ class FontsTest {
         assertThat(typography.titleLarge.fontFamily).isEqualTo(plain)
         assertThat(typography.bodyMedium.fontFamily).isEqualTo(plain)
         assertThat(typography.labelSmall.fontFamily).isEqualTo(plain)
+    }
+
+    @Test
+    fun `picking a font keeps the tightened label tracking`() {
+        // The font picker only swaps the family; the tracking the grids are laid
+        // out against has to survive it (#190).
+        val typography = calendulaTypography(
+            brand = BundledFont.Lora.family,
+            plain = BundledFont.AtkinsonHyperlegible.family,
+        )
+
+        assertThat(typography.labelSmall.letterSpacing).isEqualTo(0.1.sp)
+        assertThat(typography.labelMedium.letterSpacing).isEqualTo(0.1.sp)
     }
 
     @Test
