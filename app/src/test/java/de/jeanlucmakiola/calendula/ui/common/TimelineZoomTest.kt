@@ -1,5 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.common
 
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.google.common.truth.Truth.assertThat
 import org.junit.jupiter.api.Test
@@ -75,17 +76,16 @@ class TimelineZoomTest {
     }
 
     @Test
-    fun `a pinch held against a fractional bound stays put`() {
-        // A bound that is not a whole pixel is a height the pinch can be pushed
-        // against but never land on, so every frame of a held gesture would look
-        // like a scale change and hand the focal anchor a scroll correction.
+    fun `a pinch held against either bound stays put`() {
         val fillPx = 62.083f
         val maxPx = 616.5f
 
         val floor = pinchedHourHeightPx(target = 1f, fillPx, maxPx)
         val ceiling = pinchedHourHeightPx(target = 9_000f, fillPx, maxPx)
 
-        assertThat(floor).isEqualTo(63f)
+        // The ceiling is pulled onto the pixel grid so it stays landable; the
+        // fill floor is landable as it is, being the clamp result itself.
+        assertThat(floor).isEqualTo(fillPx)
         assertThat(ceiling).isEqualTo(616f)
         // Landing there and being pushed further must not move them again.
         assertThat(pinchedHourHeightPx(floor * 0.9f, fillPx, maxPx)).isEqualTo(floor)
@@ -98,6 +98,35 @@ class TimelineZoomTest {
         val viewport = 1490f
         val floor = pinchedHourHeightPx(target = 1f, fillPx = viewport / 24f, maxPx = 616f)
         assertThat(floor * 24).isAtLeast(viewport)
+    }
+
+    @Test
+    fun `pinching all the way out leaves nothing to scroll`() {
+        // #290: rounding the fill floor up to a whole pixel made the day one
+        // pixel per hour taller than the viewport it was supposed to fill, so a
+        // fully zoomed-out timeline still scrolled a hair and bounced off
+        // Android's overscroll stretch -- while FitDay, at the same zoom, sat
+        // still. 1490 is deliberately not divisible by 24.
+        val viewport = 1490f
+        val floor = pinchedHourHeightPx(target = 1f, fillPx = viewport / 24f, maxPx = 616f)
+        assertThat(floor * 24).isWithin(0.01f).of(viewport)
+    }
+
+    @Test
+    fun `the pinch floor is the height FitDay resolves to`() {
+        // The inconsistency the issue is about: the two ways to reach "the whole
+        // day on one screen" have to arrive at the same height.
+        val density = Density(2.5f)
+        val viewport = 596.dp
+        with(density) {
+            val fitDay = TimelineScale.FitDay.hourHeight(viewport).toPx()
+            val pinched = pinchedHourHeightPx(
+                target = 1f,
+                fillPx = fillHourHeight(viewport).toPx(),
+                maxPx = MAX_PINCH_HOUR_HEIGHT.toPx(),
+            )
+            assertThat(pinched).isWithin(0.01f).of(fitDay)
+        }
     }
 
     @Test
