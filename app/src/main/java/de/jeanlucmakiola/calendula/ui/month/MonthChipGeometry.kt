@@ -10,10 +10,16 @@ import androidx.compose.ui.unit.dp
 internal val CELL_GAP = 2.dp
 
 /** Padding between a month chip's edge and its text. */
-internal val MONTH_CHIP_TEXT_PADDING = 4.dp
+internal val MONTH_CHIP_TEXT_PADDING = 3.dp
 
-/** A chip's own inset inside its day cell, on top of the cell's gap. */
-internal val MONTH_CHIP_INSET = CELL_GAP + 1.dp
+/**
+ * A chip's own inset inside its day cell. The cell's gap and no more: a day
+ * column on a phone is around fifty dp, and the chip was spending a quarter of
+ * it on chrome before a single glyph. The cells keep their full separation from
+ * each other — what the grid reads as breathing room — and only the chip inside
+ * one takes the width back (#212).
+ */
+internal val MONTH_CHIP_INSET = CELL_GAP
 
 /** Horizontal space a chip spends on chrome rather than on text, both sides. */
 internal val MONTH_CHIP_CHROME = (MONTH_CHIP_INSET + MONTH_CHIP_TEXT_PADDING) * 2f
