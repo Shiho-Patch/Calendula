@@ -34,6 +34,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -118,15 +119,16 @@ fun AgendaScreen(
             listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
         }
     }
+    // A new window is rendered from its first day, so the list belongs at the
+    // top. Keyed on the anchor the days arrived with, not the one just
+    // requested: scrolling before the new rows compose leaves the list keyed to
+    // a row that reappears further down, and it follows it there.
+    LaunchedEffect(successState?.anchor) { listState.scrollToItem(0) }
     val jumpToToday = {
-        val wasOnToday = isOnToday
+        // Off today, moving the anchor is what resets the list (above); on today
+        // the window doesn't change, so the scroll back is the whole action.
+        if (isOnToday) scope.launch { listState.animateScrollToItem(0) }
         viewModel.goToToday()
-        scope.launch {
-            // A new anchor rebuilds the list anyway; only an in-place return is
-            // worth animating.
-            if (wasOnToday) listState.animateScrollToItem(0) else listState.scrollToItem(0)
-        }
-        Unit
     }
 
     ModalNavigationDrawer(
@@ -143,9 +145,6 @@ fun AgendaScreen(
                 },
                 onJumpToDate = { target ->
                     viewModel.goToDate(target)
-                    // Same reason as "today": the new window starts at the top,
-                    // so a list left scrolled would open partway into it.
-                    scope.launch { listState.scrollToItem(0) }
                     scope.launch { drawerState.close() }
                 },
                 onSettings = {
@@ -170,7 +169,8 @@ fun AgendaScreen(
             },
             floatingActionButton = {
                 CalendarFabColumn(
-                    todayVisible = (!isOnToday || scrolledAway) && !todayInToolbar,
+                    todayVisible = (!isOnToday || (scrolledAway && successState != null)) &&
+                        !todayInToolbar,
                     todayText = stringResource(R.string.agenda_today_action),
                     onToday = jumpToToday,
                     onCreate = { onCreateEvent(anchor, null) },
@@ -222,7 +222,7 @@ fun AgendaScreen(
                     pastDisplay = pastDisplay,
                     showToday = showToday,
                     listState = listState,
-                    onRetry = jumpToToday,
+                    onRetry = viewModel::goToToday,
                     onEventClick = onEventClick,
                     onOpenDay = onOpenDay,
                     modifier = Modifier
@@ -354,6 +354,9 @@ internal fun AgendaContent(
                 enabled = showToday && state.anchor == state.today,
             )
             if (days.isEmpty()) {
+                // Nothing to scroll: drop the position a previous list left, so
+                // the today FAB doesn't linger over an empty screen.
+                LaunchedEffect(Unit) { listState.scrollToItem(0) }
                 AgendaEmpty(modifier)
             } else {
                 AgendaList(
