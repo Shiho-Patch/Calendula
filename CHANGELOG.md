@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.20.4] — 2026-09-20
+
+### Fixed
+- **The app no longer reopens the event you last came in on.** Opening an event
+  from a reminder or a home-screen widget made the app return to that same
+  event on every later launch — and show an error screen once the event had
+  been deleted. Android hands an app the launch it was started with again each
+  time it is rebuilt, and Calendula was acting on it every time instead of
+  once ([#309]).
+- **"Today" works in the agenda again.** Scrolling a few days ahead and tapping
+  today did nothing, because the agenda is browsed by scrolling rather than by
+  moving its date, and the button only moved the date. It now brings the list
+  back to today, and it stays offered while the list is scrolled away — before,
+  it was hidden in exactly the situation it is for ([#305]).
+- **Calendula is filed under "Calendar & Agenda" in the self-hosted repo.**
+  Browsing by category in an F-Droid client set to prefer that repo listed the
+  app under "Time" instead ([#294]).
+
 ## [2.20.3] — 2026-09-12
 
 ### Fixed
@@ -1693,3 +1711,6 @@ automatically, with zero telemetry and no internet permission.
 [#239]: https://codeberg.org/jlmakiola/calendula/issues/239
 [#297]: https://codeberg.org/jlmakiola/calendula/issues/297
 [#298]: https://codeberg.org/jlmakiola/calendula/issues/298
+[#309]: https://codeberg.org/jlmakiola/calendula/issues/309
+[#305]: https://codeberg.org/jlmakiola/calendula/issues/305
+[#294]: https://codeberg.org/jlmakiola/calendula/issues/294
