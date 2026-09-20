@@ -13,7 +13,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Coffee
 import androidx.compose.material.icons.filled.Menu
@@ -32,6 +34,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -106,6 +110,27 @@ fun AgendaScreen(
     }
     val successState = state as? AgendaUiState.Success
 
+    // The agenda window always starts at the anchor, so moving through it is a
+    // list scroll, not an anchor change — "today" has to bring the list back to
+    // the top as well, and stay offered while it is scrolled away (#305).
+    val listState = rememberLazyListState()
+    val scrolledAway by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+        }
+    }
+    // A new window is rendered from its first day, so the list belongs at the
+    // top. Keyed on the anchor the days arrived with, not the one just
+    // requested: scrolling before the new rows compose leaves the list keyed to
+    // a row that reappears further down, and it follows it there.
+    LaunchedEffect(successState?.anchor) { listState.scrollToItem(0) }
+    val jumpToToday = {
+        // Off today, moving the anchor is what resets the list (above); on today
+        // the window doesn't change, so the scroll back is the whole action.
+        if (isOnToday) scope.launch { listState.animateScrollToItem(0) }
+        viewModel.goToToday()
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
@@ -139,14 +164,15 @@ fun AgendaScreen(
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
                     showTodayButton = todayInToolbar,
-                    onToday = viewModel::goToToday,
+                    onToday = jumpToToday,
                 )
             },
             floatingActionButton = {
                 CalendarFabColumn(
-                    todayVisible = !isOnToday && !todayInToolbar,
+                    todayVisible = (!isOnToday || (scrolledAway && successState != null)) &&
+                        !todayInToolbar,
                     todayText = stringResource(R.string.agenda_today_action),
-                    onToday = viewModel::goToToday,
+                    onToday = jumpToToday,
                     onCreate = { onCreateEvent(anchor, null) },
                 )
             },
@@ -195,6 +221,7 @@ fun AgendaScreen(
                     state = state,
                     pastDisplay = pastDisplay,
                     showToday = showToday,
+                    listState = listState,
                     onRetry = viewModel::goToToday,
                     onEventClick = onEventClick,
                     onOpenDay = onOpenDay,
@@ -298,6 +325,7 @@ internal fun AgendaContent(
     onEventClick: (EventInstance) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState(),
 ) {
     when (state) {
         AgendaUiState.Loading -> Box(modifier)
@@ -326,12 +354,16 @@ internal fun AgendaContent(
                 enabled = showToday && state.anchor == state.today,
             )
             if (days.isEmpty()) {
+                // Nothing to scroll: drop the position a previous list left, so
+                // the today FAB doesn't linger over an empty screen.
+                LaunchedEffect(Unit) { listState.scrollToItem(0) }
                 AgendaEmpty(modifier)
             } else {
                 AgendaList(
                     days = days,
                     today = state.today,
                     zone = state.zone,
+                    listState = listState,
                     dimPast = pastDisplay == PastEventDisplay.DIM,
                     now = now,
                     onEventClick = onEventClick,
@@ -349,6 +381,7 @@ private fun AgendaList(
     days: List<AgendaDay>,
     today: LocalDate,
     zone: TimeZone,
+    listState: LazyListState,
     dimPast: Boolean,
     now: Instant,
     onEventClick: (EventInstance) -> Unit,
@@ -357,6 +390,7 @@ private fun AgendaList(
 ) {
     LazyColumn(
         modifier = modifier,
+        state = listState,
         // Bottom inset clears the FAB stack so the last row stays tappable.
         contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
     ) {
