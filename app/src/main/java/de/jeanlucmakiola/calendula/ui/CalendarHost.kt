@@ -197,10 +197,21 @@ fun CalendarHost(
     // is "restore a backup", not "add this one event". An externally opened .ics
     // keeps routing a single event straight into the prefilled create form.
     var importForceMany by remember { mutableStateOf(false) }
+    // Where a restore came from, so closing the import puts it back: the import
+    // overlays are declared under Backup & restore and the manager, so starting
+    // one has to close them — without this, finishing a restore drops you on the
+    // calendar and the next file means walking in through Settings again.
+    var backupAfterImport by rememberSaveable { mutableStateOf(false) }
+    var calendarsAfterImport by rememberSaveable { mutableStateOf(false) }
+    // One import run. The import VM lives in the Activity's store, so this is
+    // what tells it a *re-import of the same file* is new work and not the run
+    // it already finished; a rotation keeps the number and keeps the result.
+    var importSession by rememberSaveable { mutableStateOf(0) }
     LaunchedEffect(requestedImportUri) {
         if (requestedImportUri != null) {
             importUri = requestedImportUri
             importForceMany = false
+            importSession++
             onImportConsumed()
         }
     }
@@ -510,11 +521,28 @@ fun CalendarHost(
         importUri?.let { uri ->
             ImportScreen(
                 uri = uri,
+                session = importSession,
                 forceMany = importForceMany,
-                onClose = { importUri = null },
-                onManageCalendars = { showCalendars = true },
+                onClose = {
+                    importUri = null
+                    // Back to the surface the restore started from, ready for
+                    // the next file.
+                    showCalendars = calendarsAfterImport
+                    showBackup = backupAfterImport
+                    calendarsAfterImport = false
+                    backupAfterImport = false
+                },
+                onManageCalendars = {
+                    // The manager is where this leads, so it must not be
+                    // reopened underneath on close.
+                    calendarsAfterImport = false
+                    backupAfterImport = false
+                    showCalendars = true
+                },
                 onOpenSingle = { form ->
                     importUri = null
+                    calendarsAfterImport = false
+                    backupAfterImport = false
                     importFormSource = ImportSource.File
                     importForm = form
                 },
@@ -569,6 +597,9 @@ fun CalendarHost(
                     onImport = {
                         importUri = it
                         importForceMany = true
+                        importSession++
+                        backupAfterImport = true
+                        calendarsAfterImport = showCalendars
                         showBackup = false
                         showCalendars = false
                     },

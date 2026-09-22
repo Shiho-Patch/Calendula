@@ -73,19 +73,19 @@ import de.jeanlucmakiola.floret.identity.predictiveBack
 @Composable
 fun ImportScreen(
     uri: Uri,
+    session: Int,
     onClose: () -> Unit,
     onOpenSingle: (EventForm) -> Unit,
     forceMany: Boolean = false,
     onManageCalendars: (() -> Unit)? = null,
-    // Key the VM by the file uri. This screen has no nav backstack, so an
-    // unkeyed hiltViewModel() resolves to the Activity's store and is retained
-    // across imports — its one-shot `load` guard would then show the *previous*
-    // file's parsed state on the next import (a second restore, export→restore,
-    // etc.). Keying per uri hands each distinct file a fresh VM (fresh Loading
-    // state), while the same uri (rotation) reuses it and holds the result.
-    viewModel: ImportViewModel = hiltViewModel(key = uri.toString()),
+    viewModel: ImportViewModel = hiltViewModel(),
 ) {
-    LaunchedEffect(uri) { viewModel.load(uri, forceMany) }
+    // hiltViewModel() resolves to the Activity's store and is retained across
+    // imports, so the reload is driven by [session] rather than by a fresh VM:
+    // keying per uri looked right but handed a *re-import of the same file* the
+    // previous run's finished state, importing nothing (#304). A rotation keeps
+    // the session and so keeps the result.
+    LaunchedEffect(session) { viewModel.load(uri, forceMany, session) }
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     // A single event isn't shown here — it opens the create form for review.

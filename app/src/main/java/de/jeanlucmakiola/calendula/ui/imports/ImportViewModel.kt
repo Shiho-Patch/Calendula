@@ -16,6 +16,7 @@ import de.jeanlucmakiola.calendula.domain.ics.ParsedIcsEvent
 import de.jeanlucmakiola.calendula.domain.ics.toEventForm
 import de.jeanlucmakiola.calendula.domain.isEventTarget
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,18 +70,26 @@ class ImportViewModel @Inject constructor(
     private val parser = IcsParser()
     private val _state = MutableStateFlow<ImportUiState>(ImportUiState.Loading)
     val state: StateFlow<ImportUiState> = _state.asStateFlow()
-    private var started = false
+    private var loadedSession: Int? = null
+    private var loadJob: Job? = null
 
     /**
-     * Read + parse [uri] once; subsequent calls (recomposition) are ignored.
+     * Read + parse [uri] once per [session]; recomposition (and a rotation,
+     * which keeps the session) re-calls this and keeps the result. A new import
+     * of the *same* file is a new session, and has to parse and run again —
+     * keying on the uri alone showed the previous run's summary and imported
+     * nothing (#304).
+     *
      * When [forceMany] is set (an in-app restore), a single-event file still goes
      * through the bulk picker + summary rather than the prefilled create form —
      * a restore is "bring back a backup", not "add this one event".
      */
-    fun load(uri: Uri, forceMany: Boolean = false) {
-        if (started) return
-        started = true
-        viewModelScope.launch {
+    fun load(uri: Uri, forceMany: Boolean = false, session: Int = 0) {
+        if (loadedSession == session) return
+        loadedSession = session
+        loadJob?.cancel()
+        _state.value = ImportUiState.Loading
+        loadJob = viewModelScope.launch {
             val parsed = withContext(io) {
                 importer.readText(uri)?.let(parser::parse)
             }
