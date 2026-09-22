@@ -166,14 +166,19 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
             }
             when {
                 component != null -> {
+                    // A component whose END line never arrives ends at the next
+                    // one's BEGIN, not at that one's END: reading to the far END
+                    // would fold two events into one body, where the later
+                    // properties overwrite the earlier and one event is lost.
                     val end = indexOfEnd(lines, i + 1, component)
+                    val body = indexOfNextComponent(lines, i + 1, end)
                     parseComponent(
-                        body = lines.subList(i + 1, end),
+                        body = lines.subList(i + 1, body),
                         fileCalendarName = calendarName,
                         warnings = warnings,
                         isTask = component == "VTODO",
                     )?.let(events::add)
-                    i = end + 1
+                    i = if (body < end) body else end + 1
                 }
                 line.isBegin("VTIMEZONE") -> {
                     // Skipped wholesale; TZIDs resolve against the OS tz database.
@@ -445,6 +450,23 @@ class IcsParser(private val deviceZone: TimeZone = TimeZone.currentSystemDefault
         }
 
         /** Index of the matching `END:<component>` at/after [from], or list end. */
+        /**
+         * Where an unterminated component's body has to stop: the next top-level
+         * `VEVENT` / `VTODO` in `[from, end)`, or [end] when there is none. A
+         * nested `VALARM` is part of the body and is not a boundary.
+         */
+        fun indexOfNextComponent(lines: List<String>, from: Int, end: Int): Int {
+            var i = from
+            while (i < end) {
+                val line = parseContentLine(lines[i])
+                if (line != null && (line.isBegin("VEVENT") || line.isBegin("VTODO"))) {
+                    return i
+                }
+                i++
+            }
+            return end
+        }
+
         fun indexOfEnd(lines: List<String>, from: Int, component: String): Int {
             var i = from
             while (i < lines.size) {

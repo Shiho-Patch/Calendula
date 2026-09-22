@@ -4,9 +4,11 @@ import android.net.Uri
 import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -18,6 +20,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -47,9 +50,10 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.data.prefs.BackupStatus
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.domain.CalendarSource
-import de.jeanlucmakiola.calendula.domain.isEventTarget
 import de.jeanlucmakiola.calendula.ui.common.CalendarColorChip
+import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.LeadingAvatar
+import de.jeanlucmakiola.calendula.ui.common.LocalManageCalendars
 import de.jeanlucmakiola.floret.components.CollapsingScaffold
 import de.jeanlucmakiola.floret.components.DialogAmountField
 import de.jeanlucmakiola.floret.components.DialogUnitDropdown
@@ -80,17 +84,12 @@ fun BackupScreen(
     onImport: (Uri) -> Unit,
     viewModel: CalendarsViewModel = hiltViewModel(),
 ) {
-    val calendars by viewModel.calendars.collectAsStateWithLifecycle()
+    val state by viewModel.backupState.collectAsStateWithLifecycle()
     val backupResult by viewModel.backupResult.collectAsStateWithLifecycle()
     val autoBackup by viewModel.autoBackup.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
-
-    // Export covers local calendars only; managed special-dates mirrors are
-    // rebuilt from contacts. Restore can target anything the import picker offers.
-    val exportable = calendars.filter { it.isLocal && it.canModifyContents && !it.isManaged }
-    val canImport = calendars.any { it.isEventTarget }
 
     // Exports everything eligible (null); the per-calendar selector owns its
     // own launcher.
@@ -132,78 +131,42 @@ fun BackupScreen(
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_backup),
         onBack = onBack,
+        // Loading and failure fill the screen and centre themselves, which they
+        // can only do in an unscrolled column — the scrolling one measures them
+        // against an unbounded height and leaves them hanging under the header.
+        scrollable = state is BackupUiState.Ready,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         predictiveBack = true,
     ) {
-        HintText(stringResource(R.string.calendars_backup_hint))
-
-        if (exportable.isNotEmpty()) {
-            GroupedRow(
-                title = stringResource(R.string.calendars_backup_action),
-                position = Position.Top,
-                leading = { LeadingAvatar(Icons.Default.FileDownload) },
-                onClick = {
-                    // A single exportable calendar skips the selector.
-                    if (exportable.size == 1) {
-                        runCatching { createBackup.launch("calendula-backup-${LocalDate.now()}.ics") }
-                    } else {
-                        showExportPicker = true
-                    }
+        when (val s = state) {
+            BackupUiState.Loading -> BackupLoading()
+            is BackupUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onBack)
+            is BackupUiState.Ready -> BackupContent(
+                exportable = s.exportable,
+                canImport = s.canImport,
+                autoBackup = autoBackup,
+                viewModel = viewModel,
+                onRestore = { runCatching { openBackup.launch(RESTORE_MIME_TYPES) } },
+                onPickFolder = { runCatching { pickFolder.launch(null) } },
+                onExportAll = {
+                    runCatching { createBackup.launch(defaultBackupName()) }
                 },
-            )
-            GroupedRow(
-                title = stringResource(R.string.calendars_restore_action),
-                summary = stringResource(R.string.calendars_restore_hint),
-                position = Position.Middle,
-                leading = { LeadingAvatar(Icons.Default.FileUpload) },
-                onClick = { runCatching { openBackup.launch(RESTORE_MIME_TYPES) } },
-            )
-            GroupedRow(
-                title = stringResource(R.string.calendars_auto_backup),
-                summary = stringResource(R.string.calendars_auto_backup_hint),
-                position = if (autoBackup.enabled) Position.Middle else Position.Bottom,
-                leading = { LeadingAvatar(Icons.Default.Schedule) },
-                trailing = {
-                    Switch(checked = autoBackup.enabled, onCheckedChange = viewModel::setAutoBackupEnabled)
-                },
-                onClick = { viewModel.setAutoBackupEnabled(!autoBackup.enabled) },
-            )
-            if (autoBackup.enabled) {
-                GroupedRow(
-                    title = stringResource(R.string.calendars_auto_backup_folder),
-                    summary = rememberFolderName(autoBackup.folderUri)
-                        ?: stringResource(R.string.calendars_auto_backup_folder_unset),
-                    position = Position.Middle,
-                    onClick = { runCatching { pickFolder.launch(null) } },
-                )
-                GroupedRow(
-                    title = stringResource(R.string.calendars_auto_backup_interval),
-                    summary = backupIntervalLabel(autoBackup.intervalMinutes),
-                    position = Position.Bottom,
-                    onClick = { showInterval = true },
-                )
-                HintText(backupStatusText(autoBackup.status))
-            }
-        } else if (canImport) {
-            // Nothing to back up, but restore is still possible — don't hide
-            // it behind export eligibility.
-            SectionHeader(stringResource(R.string.calendars_restore_header))
-            HintText(stringResource(R.string.calendars_restore_hint))
-            GroupedRow(
-                title = stringResource(R.string.calendars_restore_action),
-                position = Position.Alone,
-                leading = { LeadingAvatar(Icons.Default.FileUpload) },
-                onClick = { runCatching { openBackup.launch(RESTORE_MIME_TYPES) } },
+                onExportPick = { showExportPicker = true },
+                onEditInterval = { showInterval = true },
             )
         }
     }
 
-    if (showExportPicker) {
-        ExportCalendarPicker(
-            calendars = exportable,
-            onExport = viewModel::exportBackup,
-            onDismiss = { showExportPicker = false },
-        )
+    // Gated on Ready rather than resetting the flag when the state leaves it:
+    // flipping it here would be a write during composition.
+    (state as? BackupUiState.Ready)?.let { ready ->
+        if (showExportPicker) {
+            ExportCalendarPicker(
+                calendars = ready.exportable,
+                onExport = viewModel::exportBackup,
+                onDismiss = { showExportPicker = false },
+            )
+        }
     }
     if (showInterval) {
         BackupIntervalDialog(
@@ -211,6 +174,103 @@ fun BackupScreen(
             onConfirm = viewModel::setAutoBackupIntervalMinutes,
             onDismiss = { showInterval = false },
         )
+    }
+}
+
+/** The screen's loading state, centred in the scaffold's content column. */
+@Composable
+private fun BackupLoading() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator()
+    }
+}
+
+/** Default file name for a one-shot export. */
+private fun defaultBackupName(): String = "calendula-backup-${LocalDate.now()}.ics"
+
+/**
+ * The working screen: export (when there are local calendars to export), restore,
+ * and the automatic-backup block. Restore is always on screen — when nothing can
+ * receive the events it says so and routes to the calendar manager rather than
+ * disappearing, which is what #304 reported as an invisible button.
+ */
+@Composable
+private fun BackupContent(
+    exportable: List<CalendarSource>,
+    canImport: Boolean,
+    autoBackup: AutoBackupUiState,
+    viewModel: CalendarsViewModel,
+    onRestore: () -> Unit,
+    onPickFolder: () -> Unit,
+    onExportAll: () -> Unit,
+    onExportPick: () -> Unit,
+    onEditInterval: () -> Unit,
+) {
+    val manageCalendars = LocalManageCalendars.current
+    // Restore never depends on export eligibility, and never disappears: when no
+    // calendar can receive events it explains that and offers the way to fix it.
+    val restoreSummary = if (canImport) {
+        stringResource(R.string.calendars_restore_hint)
+    } else {
+        stringResource(R.string.calendars_restore_unavailable)
+    }
+    val onRestoreClick = if (canImport) onRestore else (manageCalendars ?: onRestore)
+
+    if (exportable.isEmpty()) {
+        SectionHeader(stringResource(R.string.calendars_restore_header))
+        HintText(restoreSummary)
+        GroupedRow(
+            title = stringResource(R.string.calendars_restore_action),
+            position = Position.Alone,
+            leading = { LeadingAvatar(Icons.Default.FileUpload) },
+            onClick = onRestoreClick,
+        )
+        return
+    }
+
+    HintText(stringResource(R.string.calendars_backup_hint))
+    GroupedRow(
+        title = stringResource(R.string.calendars_backup_action),
+        position = Position.Top,
+        leading = { LeadingAvatar(Icons.Default.FileDownload) },
+        // A single exportable calendar skips the selector.
+        onClick = if (exportable.size == 1) onExportAll else onExportPick,
+    )
+    GroupedRow(
+        title = stringResource(R.string.calendars_restore_action),
+        summary = restoreSummary,
+        position = Position.Middle,
+        leading = { LeadingAvatar(Icons.Default.FileUpload) },
+        onClick = onRestoreClick,
+    )
+    GroupedRow(
+        title = stringResource(R.string.calendars_auto_backup),
+        summary = stringResource(R.string.calendars_auto_backup_hint),
+        position = if (autoBackup.enabled) Position.Middle else Position.Bottom,
+        leading = { LeadingAvatar(Icons.Default.Schedule) },
+        trailing = {
+            Switch(checked = autoBackup.enabled, onCheckedChange = viewModel::setAutoBackupEnabled)
+        },
+        onClick = { viewModel.setAutoBackupEnabled(!autoBackup.enabled) },
+    )
+    if (autoBackup.enabled) {
+        GroupedRow(
+            title = stringResource(R.string.calendars_auto_backup_folder),
+            summary = rememberFolderName(autoBackup.folderUri)
+                ?: stringResource(R.string.calendars_auto_backup_folder_unset),
+            position = Position.Middle,
+            onClick = onPickFolder,
+        )
+        GroupedRow(
+            title = stringResource(R.string.calendars_auto_backup_interval),
+            summary = backupIntervalLabel(autoBackup.intervalMinutes),
+            position = Position.Bottom,
+            onClick = onEditInterval,
+        )
+        HintText(backupStatusText(autoBackup.status))
     }
 }
 

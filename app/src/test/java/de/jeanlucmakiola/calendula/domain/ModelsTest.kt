@@ -36,12 +36,13 @@ class ModelsTest {
     }
 
     @Test
-    fun `FailureReason enum has all six variants`() {
+    fun `FailureReason enum has all seven variants`() {
         assertThat(FailureReason.values().toSet()).isEqualTo(
             setOf(
                 FailureReason.PermissionRevoked,
                 FailureReason.NoCalendarsConfigured,
                 FailureReason.AllCalendarsHidden,
+                FailureReason.NoImportTarget,
                 FailureReason.ProviderUnavailable,
                 FailureReason.EventNotFound,
                 FailureReason.Unknown,

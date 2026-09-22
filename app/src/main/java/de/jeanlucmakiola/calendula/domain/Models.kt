@@ -253,6 +253,13 @@ enum class FailureReason {
     PermissionRevoked,
     NoCalendarsConfigured,
     AllCalendarsHidden,
+
+    /**
+     * Calendars exist and are switched on, but none can receive an event: every
+     * one is read-only, app-managed, or not synced to this device. Distinct from
+     * [AllCalendarsHidden], which a visibility switch fixes.
+     */
+    NoImportTarget,
     ProviderUnavailable,
     EventNotFound,
     Unknown,
