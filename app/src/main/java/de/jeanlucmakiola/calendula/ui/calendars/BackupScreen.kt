@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -130,6 +131,10 @@ fun BackupScreen(
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_backup),
         onBack = onBack,
+        // Loading and failure fill the screen and centre themselves, which they
+        // can only do in an unscrolled column — the scrolling one measures them
+        // against an unbounded height and leaves them hanging under the header.
+        scrollable = state is BackupUiState.Ready,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         predictiveBack = true,
     ) {
@@ -172,13 +177,11 @@ fun BackupScreen(
     }
 }
 
-/** The screen's one-line loading state, in the scaffold's content column. */
+/** The screen's loading state, centred in the scaffold's content column. */
 @Composable
 private fun BackupLoading() {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 48.dp),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
         CircularProgressIndicator()

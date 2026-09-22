@@ -302,6 +302,7 @@ fun EventDetailScreen(
             is EventDetailUiState.Failure -> CalendarFailure(
                 reason = s.reason,
                 onRetry = viewModel::retry,
+                modifier = contentModifier,
             )
             is EventDetailUiState.Success -> EventDetailContent(s, copyField, contentModifier)
         }

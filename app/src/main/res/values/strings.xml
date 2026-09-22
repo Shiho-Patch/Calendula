@@ -11,13 +11,20 @@
     <string name="state_retry">Retry</string>
     <string name="state_failure_unknown">Something went wrong.</string>
     <string name="state_failure_permission">Calendar access is required.</string>
+    <string name="state_failure_permission_body">Calendula reads your events straight from the system calendar, so it needs calendar access to show anything.</string>
     <string name="state_failure_permission_action">Grant access</string>
     <string name="state_failure_no_calendars">No calendars configured.</string>
+    <string name="state_failure_no_calendars_body">Add a calendar account to this device and its calendars show up here.</string>
     <string name="state_failure_no_calendars_action">Open system calendar settings</string>
     <string name="state_failure_all_hidden">All your calendars are switched off.</string>
+    <string name="state_failure_all_hidden_body">Switch at least one calendar back on to see its events.</string>
     <string name="state_failure_all_hidden_action">Manage calendars</string>
-    <string name="state_failure_no_import_target">None of your calendars can take new events. They are read-only, managed by another app, or not synced to this device.</string>
+    <string name="state_failure_no_import_target">No calendar can take new events.</string>
+    <string name="state_failure_no_import_target_body">The calendars that are switched on are read-only, managed by another app, or not synced to this device. Switch on a calendar that can take events, or add a local one.</string>
+    <string name="state_failure_event_not_found">This event is no longer there.</string>
+    <string name="state_failure_event_not_found_body">It may have been deleted, or moved to a calendar that is switched off.</string>
     <string name="state_failure_provider">Could not read the calendar.</string>
+    <string name="state_failure_provider_body">The system calendar did not answer. Try again in a moment.</string>
 
     <!-- Long-press a field to copy it (#195) -->
     <string name="field_copy_action">Copy</string>

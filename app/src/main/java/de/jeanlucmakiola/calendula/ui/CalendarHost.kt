@@ -550,10 +550,16 @@ fun CalendarHost(
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
             exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
         ) {
-            // The manager sits directly under this screen, so its failure states'
-            // "Manage calendars" way out is simply popping back to it (#304).
+            // Settings can open this screen without the manager underneath, so
+            // its failure states' "Manage calendars" way out has to open the
+            // manager rather than just pop — popping alone lands on Settings
+            // (#304). Coming from the manager the flag is already set, so this
+            // is the same pop-back there.
             CompositionLocalProvider(
-                LocalManageCalendars provides { showBackup = false },
+                LocalManageCalendars provides {
+                    showCalendars = true
+                    showBackup = false
+                },
             ) {
                 BackupScreen(
                     onBack = { showBackup = false },
