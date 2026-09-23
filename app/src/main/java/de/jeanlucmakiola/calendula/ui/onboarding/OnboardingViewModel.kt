@@ -16,6 +16,8 @@ import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.data.reminders.ReminderScanner
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.hasVisibilitySwitch
+import de.jeanlucmakiola.calendula.domain.orderedForManager
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import kotlinx.coroutines.CoroutineDispatcher
@@ -76,21 +78,35 @@ class OnboardingViewModel @Inject constructor(
         )
 
     /**
+     * The calendar list every derived step reads, collected once: one per step
+     * would put a provider query each on every visibility tick, and let the
+     * steps judge different snapshots of the same moment. Null is "no list to
+     * judge" — before the grant, and on a read that failed.
+     */
+    private val calendars: StateFlow<List<CalendarSource>?> = hasPermission
+        .flatMapLatest { granted ->
+            if (granted != true) {
+                flowOf(null)
+            } else {
+                val list: Flow<List<CalendarSource>?> = repository.calendars()
+                list.catch { emit(null) }.flowOn(io)
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = null,
+        )
+
+    /**
      * Whether the backup step applies: something of yours is worth exporting and
      * nothing you write to is synced anywhere. Null while the calendar list
      * cannot be read: every frame before the grant, and any read that fails —
      * an empty list is also how a null cursor arrives, and guessing false there
      * would drop the step for the whole session.
      */
-    private val backupApplies: Flow<Boolean?> = hasPermission.flatMapLatest { granted ->
-        if (granted != true) {
-            flowOf(null)
-        } else {
-            repository.calendars()
-                .map { calendars -> if (calendars.isEmpty()) null else calendars.backupApplies() }
-                .catch { emit(null) }
-                .flowOn(io)
-        }
+    private val backupApplies: Flow<Boolean?> = calendars.map { list ->
+        if (list.isNullOrEmpty()) null else list.backupApplies()
     }
 
     /** How the step's own create attempt ended, while it is still saying so (#287). */
@@ -107,31 +123,71 @@ class OnboardingViewModel @Inject constructor(
     private val calendarCreatedHere = MutableStateFlow(false)
 
     /**
-     * Whether the calendar step applies: the device has nothing to put events
-     * in. Unlike [backupApplies] an empty list is the condition itself, not a
-     * failed read — the two look identical here and both want the step, so this
-     * only resolves once a non-empty list proves there is a calendar already.
+     * Whether the calendar step applies: the device has nothing to show and so
+     * nothing to put events in. Unlike [backupApplies] an empty list is the
+     * condition itself, not a failed read — the two look identical here and both
+     * want the step, so this only resolves once a calendar the app can actually
+     * show has arrived. Calendars that exist but are all switched off leave it
+     * unresolved too: the step in front (#287) offers to switch them on, and
+     * declining that lands here, on the same offer a device with none gets.
      */
     private val calendarsApplies: Flow<Boolean?> = combine(
-        hasPermission.flatMapLatest { granted ->
-            if (granted != true) {
-                flowOf(null)
-            } else {
-                repository.calendars()
-                    .map { calendars -> if (calendars.isEmpty()) null else false }
-                    .catch { emit(null) }
-                    .flowOn(io)
-            }
-        },
+        calendars.map { list -> if (list?.any { it.isVisibleInSystem } == true) false else null },
         calendarCreatedHere,
     ) { applies, latched -> if (latched) null else applies }
 
-    /** The calendar step's own pair: whether it applies, and whether it is answered. */
+    /**
+     * Set when the step starts a write of its own, and never cleared: from that
+     * moment the step holds its place in the plan until it is answered. Set
+     * *before* the write rather than after it, because a successful one answers
+     * [hiddenApplies] with false — the step would drop out between the provider
+     * taking the change and the latch seeing it.
+     */
+    private val hiddenTouched = MutableStateFlow(false)
+
+    /** A visibility write the provider did not take, while the step says so (#287). */
+    private val _hiddenWriteFailed = MutableStateFlow(false)
+    val hiddenWriteFailed: StateFlow<Boolean> = _hiddenWriteFailed.asStateFlow()
+
+    /**
+     * Whether the device is showing nothing at all right now: calendars exist,
+     * none is visible, and at least one of them has a switch the step can flip
+     * (#287). Null only while there is no list to judge — before the grant, and
+     * on a read that failed — which keeps the step in the plan until the answer
+     * arrives, the same shrink-only contract [backupApplies] keeps.
+     *
+     * An empty list answers false rather than null, unlike [calendarsApplies]:
+     * a phone with no calendars at all is the next step's business, and this one
+     * would be listing calendars it cannot see. [hiddenTouched] holds it at null
+     * from the step's first write onwards.
+     */
+    private val hiddenApplies: Flow<Boolean?> = combine(
+        calendars.map { list -> list?.allHidden() },
+        hiddenTouched,
+    ) { hidden, touched -> if (touched) null else hidden }
+
+    /** Both calendar steps' inputs: what each applies to, and whether it is answered. */
     private val calendarsFlags: Flow<CalendarsFlags> = combine(
         calendarsApplies,
         prefs.onboardingCalendarsDone,
+        hiddenApplies,
+        prefs.onboardingHiddenCalendarsDone,
         ::CalendarsFlags,
     )
+
+    /**
+     * The calendars the hidden-calendars step lists, so the user can judge which
+     * to switch on rather than take the app's word that there are some. Live: a
+     * row follows its own switch, and the ones without one stay listed anyway —
+     * being told a calendar exists is half the point.
+     */
+    val hiddenCalendars: StateFlow<List<CalendarSource>> = calendars
+        .map { it.orEmpty().orderedForManager() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = emptyList(),
+        )
 
     private val flags: Flow<OnboardingFlags> = combine(
         prefs.reminderOnboardingDone,
@@ -167,6 +223,8 @@ class OnboardingViewModel @Inject constructor(
                     viewDone = stored.viewDone,
                     monthStyleDone = stored.monthStyleDone,
                     backupApplies = backup,
+                    hiddenDone = calendars.hiddenDone,
+                    hiddenApplies = calendars.hiddenApplies,
                     calendarsDone = calendars.done,
                     calendarsApplies = calendars.applies,
                     visibilityArmed = closing.visibilityArmed,
@@ -235,6 +293,7 @@ class OnboardingViewModel @Inject constructor(
     fun goBack() {
         viewModelScope.launch {
             when (plan.value?.previous) {
+                OnboardingStep.HiddenCalendars -> prefs.setOnboardingHiddenCalendarsDone(false)
                 OnboardingStep.Calendars -> prefs.setOnboardingCalendarsDone(false)
                 OnboardingStep.Reminders -> prefs.setReminderOnboardingDone(false)
                 OnboardingStep.Backup -> prefs.setOnboardingBackupDone(false)
@@ -343,6 +402,52 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch { prefs.setOnboardingMonthStyleDone() }
     }
 
+    /** Switch one listed calendar on or off, from the hidden-calendars step (#287). */
+    fun setHiddenCalendarVisible(id: Long, visible: Boolean) = visibilityWrite {
+        repository.setCalendarsVisible(listOf(id), visible)
+        calendarList().any { it.id == id && it.isVisibleInSystem == visible }
+    }
+
+    /** Switch every hidden calendar back on — the step's one-tap way out (#287). */
+    fun switchAllCalendarsOn() = visibilityWrite {
+        val hidden = calendarList().filter { it.hasVisibilitySwitch && !it.isVisibleInSystem }
+        // Nothing to write is not a write that landed: a list that came back
+        // empty (a failed read) would otherwise report success and leave the
+        // step sitting there with no rows and no explanation.
+        if (hidden.isEmpty()) return@visibilityWrite false
+        repository.setCalendarsVisible(hidden.map { it.id }, true)
+        calendarList().any { it.isVisibleInSystem }
+    }
+
+    /**
+     * Run one of the step's visibility writes, whose lambda answers whether it
+     * took. Checked rather than assumed: with read-only calendar access the
+     * choice is kept app-side (#75) and nothing the grid shows would change.
+     */
+    private fun visibilityWrite(landed: suspend () -> Boolean) {
+        viewModelScope.launch {
+            hiddenTouched.value = true
+            _hiddenWriteFailed.value = !runCatching { landed() }.getOrDefault(false)
+        }
+    }
+
+    private suspend fun calendarList(): List<CalendarSource> = repository.calendars().first()
+
+    /** Close the hidden-calendars step, switched on or left as they were (#287). */
+    fun finishHiddenCalendars() {
+        viewModelScope.launch {
+            prefs.setOnboardingHiddenCalendarsDone()
+            // The error belongs to the attempt, not to the step: stepping back
+            // into it later must not find a refusal nothing has asked for yet.
+            _hiddenWriteFailed.value = false
+            val list = calendarList()
+            // Switching them all back on answers the one-time notice too (#75) —
+            // it would otherwise announce, at the end of this same flow, that the
+            // device is hiding calendars it no longer hides.
+            if (list.isNotEmpty() && list.all { it.isVisibleInSystem }) retireVisibilityNotice()
+        }
+    }
+
     /** Acknowledge the calendar-visibility notice (#75). */
     fun finishVisibility() {
         viewModelScope.launch {
@@ -398,8 +503,13 @@ sealed interface CalendarCreation {
     data object Failed : CalendarCreation
 }
 
-/** The calendar step's inputs (#287). */
-private data class CalendarsFlags(val applies: Boolean?, val done: Boolean)
+/** Both calendar steps' inputs (#287). */
+private data class CalendarsFlags(
+    val applies: Boolean?,
+    val done: Boolean,
+    val hiddenApplies: Boolean?,
+    val hiddenDone: Boolean,
+)
 
 /** The tail of the flow: the visibility notice and the closing screen. */
 private data class ClosingFlags(
@@ -414,6 +524,15 @@ data class ViewChoice(
     val monthViewStyle: MonthViewStyle,
     val weekStart: WeekStartPref,
 )
+
+/**
+ * True when this device would show nothing and the step could change that: no
+ * calendar is visible, and at least one of them has a switch worth flipping —
+ * a non-syncing calendar holds no events on the device, so switching it on
+ * leaves the grid exactly as empty (#287).
+ */
+private fun List<CalendarSource>.allHidden(): Boolean =
+    any { it.hasVisibilitySwitch } && none { it.isVisibleInSystem }
 
 /**
  * True when this device holds events that live nowhere else: at least one local

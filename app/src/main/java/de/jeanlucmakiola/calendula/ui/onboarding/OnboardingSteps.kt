@@ -29,6 +29,8 @@ fun OnboardingSteps(
     // it when the picker composes would leave that step blank as it slides in.
     val choice by viewModel.viewChoice.collectAsStateWithLifecycle()
     val creation by viewModel.creation.collectAsStateWithLifecycle()
+    val hiddenCalendars by viewModel.hiddenCalendars.collectAsStateWithLifecycle()
+    val hiddenWriteFailed by viewModel.hiddenWriteFailed.collectAsStateWithLifecycle()
 
     // Coerced because the outgoing half of a transition may be a step the live
     // plan has since dropped — the backup step goes once the calendars say it
@@ -67,6 +69,16 @@ fun OnboardingSteps(
             onGranted = onPermissionGranted,
             modifier = modifier,
             progress = progress,
+        )
+        OnboardingStep.HiddenCalendars -> HiddenCalendarsStep(
+            calendars = hiddenCalendars,
+            onSetVisible = viewModel::setHiddenCalendarVisible,
+            onSwitchAllOn = viewModel::switchAllCalendarsOn,
+            onFinished = viewModel::finishHiddenCalendars,
+            writeFailed = hiddenWriteFailed,
+            modifier = modifier,
+            progress = progress,
+            navigationIcon = navigationIcon,
         )
         OnboardingStep.Calendars -> CalendarsStep(
             onCreateLocal = viewModel::createLocalCalendar,

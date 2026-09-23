@@ -18,6 +18,8 @@ class OnboardingPlanTest {
         viewDone: Boolean = false,
         monthStyleDone: Boolean = false,
         backupApplies: Boolean? = null,
+        hiddenDone: Boolean = false,
+        hiddenApplies: Boolean? = false,
         calendarsDone: Boolean = false,
         calendarsApplies: Boolean? = false,
         visibilityArmed: Boolean = false,
@@ -31,6 +33,8 @@ class OnboardingPlanTest {
         viewDone = viewDone,
         monthStyleDone = monthStyleDone,
         backupApplies = backupApplies,
+        hiddenDone = hiddenDone,
+        hiddenApplies = hiddenApplies,
         calendarsDone = calendarsDone,
         calendarsApplies = calendarsApplies,
         visibilityArmed = visibilityArmed,
@@ -303,5 +307,88 @@ class OnboardingPlanTest {
             calendarsApplies = null,
         )
         assertThat(existing.steps).doesNotContain(OnboardingStep.Calendars)
+    }
+
+    // --- every calendar switched off (#287) -------------------------------
+
+    @Test
+    fun `a fresh install whose calendars are all off is shown them first`() {
+        // Nothing visible leaves the calendar step unresolved too, which is what
+        // puts the two in the same flow.
+        val hidden = plan(
+            hasPermission = true,
+            wizardArmed = true,
+            hiddenApplies = true,
+            calendarsApplies = null,
+        )
+        assertThat(hidden.current).isEqualTo(OnboardingStep.HiddenCalendars)
+        // Switching one back on is the lighter remedy, so it comes before the
+        // offer to make a calendar.
+        assertThat(hidden.steps.indexOf(OnboardingStep.HiddenCalendars))
+            .isLessThan(hidden.steps.indexOf(OnboardingStep.Calendars))
+    }
+
+    @Test
+    fun `declining them leaves the offer to make a calendar standing`() {
+        // The whole point of the order: someone who will not switch their
+        // calendars on still gets the offer a device with none at all gets.
+        val declined = plan(
+            hasPermission = true,
+            wizardArmed = true,
+            hiddenApplies = true,
+            hiddenDone = true,
+            calendarsApplies = null,
+        )
+        assertThat(declined.current).isEqualTo(OnboardingStep.Calendars)
+    }
+
+    @Test
+    fun `switching one on drops the offer to make a calendar`() {
+        // Something is showing now, so there is somewhere to put an event; the
+        // step the user is standing on is held in place by the view model.
+        val fixed = plan(
+            hasPermission = true,
+            wizardArmed = true,
+            hiddenApplies = null,
+            calendarsApplies = false,
+        )
+        assertThat(fixed.steps).contains(OnboardingStep.HiddenCalendars)
+        assertThat(fixed.steps).doesNotContain(OnboardingStep.Calendars)
+    }
+
+    @Test
+    fun `a fresh install with something visible never sees the step`() {
+        val visible = plan(hasPermission = true, wizardArmed = true, hiddenApplies = false)
+        assertThat(visible.steps).doesNotContain(OnboardingStep.HiddenCalendars)
+    }
+
+    @Test
+    fun `the step is assumed until the calendar list proves something is visible`() {
+        // The unreadable answer keeps the step, like the ones around it: the flow
+        // shrinks when the list arrives, and the counter never grows.
+        val unknown = plan(hasPermission = true, wizardArmed = true, hiddenApplies = null)
+        val known = plan(hasPermission = true, wizardArmed = true, hiddenApplies = false)
+        assertThat(unknown.steps).contains(OnboardingStep.HiddenCalendars)
+        assertThat(known.total).isLessThan(unknown.total)
+    }
+
+    @Test
+    fun `an existing install that switched its own calendars off is left alone`() {
+        // Hiding every calendar from Settings is a deliberate act with an empty
+        // state of its own (#239); it must not reopen the wizard.
+        val existing = plan(hasPermission = true, remindersDone = true, hiddenApplies = true)
+        assertThat(existing.steps).isEmpty()
+        assertThat(existing.current).isNull()
+    }
+
+    @Test
+    fun `the upgrade notice stays a notice at the end of the flow`() {
+        val armed = plan(
+            hasPermission = true,
+            remindersDone = true,
+            visibilityArmed = true,
+            hiddenApplies = true,
+        )
+        assertThat(armed.steps).containsExactly(OnboardingStep.Visibility)
     }
 }

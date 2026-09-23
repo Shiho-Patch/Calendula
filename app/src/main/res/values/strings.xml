@@ -312,6 +312,11 @@
     <string name="onboarding_calendars_created_more_title">Room for more</string>
     <string name="onboarding_calendars_created_more_body">Settings → Calendars makes as many as you need, and renames or recolours the ones you have.</string>
     <string name="onboarding_calendars_created_continue">Continue</string>
+    <string name="onboarding_hidden_title">Your calendars are switched off</string>
+    <string name="onboarding_hidden_body">Calendula shows the calendars this phone has switched on, and right now that is none of them. Switch on the ones you want to see — your other calendar apps show them again too.</string>
+    <string name="onboarding_hidden_switch_all_button">Switch them all on</string>
+    <string name="onboarding_hidden_skip_button">Not now</string>
+    <string name="onboarding_hidden_failed">Couldn\'t switch that on. Settings → Calendars has the same switches.</string>
     <string name="onboarding_calendars_create_failed">Couldn\'t create the calendar. Your phone\'s calendar storage refused it.</string>
     <string name="onboarding_backup_enable_button">Choose folder and back up</string>
     <string name="onboarding_backup_skip_button">Not now</string>
