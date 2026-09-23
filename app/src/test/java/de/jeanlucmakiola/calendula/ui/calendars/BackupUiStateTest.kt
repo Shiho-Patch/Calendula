@@ -34,6 +34,12 @@ class BackupUiStateTest {
 
     @Test
     fun `no calendars at all reports the empty device`() {
+        // This is #304's device. The screenshots on the issue show Calendula's
+        // own calendar list with no local calendar and an empty "synced
+        // calendars" section — the app saw nothing at all, so both halves of
+        // Backup & restore had nothing to draw and the screen came up blank.
+        // The reporter's "it's synced, I can see it in settings" meant Android's
+        // settings, not this app's.
         assertThat(failure(backupUiState(emptyList())))
             .isEqualTo(FailureReason.NoCalendarsConfigured)
     }
@@ -46,9 +52,11 @@ class BackupUiStateTest {
     }
 
     @Test
-    fun `the reported case - only a calendar that cannot take events`() {
-        // #304: a Google account with calendar sync switched off leaves nothing
-        // exportable and nothing importable, which used to render a blank screen.
+    fun `an account that has stopped syncing is no import target`() {
+        // A calendar the provider no longer keeps events for: nothing to export
+        // and nowhere to import to, which used to render a blank screen. Not
+        // #304's device — that one had no calendars whatsoever — but the same
+        // dead end, and reachable on its own.
         assertThat(failure(backupUiState(listOf(cal(1L, syncs = false)))))
             .isEqualTo(FailureReason.NoImportTarget)
     }
