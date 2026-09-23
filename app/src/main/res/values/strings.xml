@@ -300,7 +300,6 @@
     <string name="onboarding_backup_benefit_daily_body">Calendula exports your local calendars in the background. Change how often in Settings.</string>
     <string name="onboarding_calendars_title">Somewhere to put your events</string>
     <string name="onboarding_calendars_body">This device has no calendar yet. Calendula writes to the calendars already on your phone — it needs at least one.</string>
-    <string name="onboarding_calendars_local_name">My calendar</string>
     <string name="onboarding_calendars_local_button">Create a calendar on this device</string>
     <string name="onboarding_calendars_caldav_button">Sync with a CalDAV server</string>
     <string name="onboarding_calendars_skip_button">Not now</string>

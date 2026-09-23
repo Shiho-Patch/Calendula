@@ -50,7 +50,6 @@ internal fun CalendarsStep(
     navigationIcon: (@Composable () -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    val localName = stringResource(R.string.onboarding_calendars_local_name)
     // The same editor Settings opens, rather than a calendar conjured out of
     // nowhere: "create a calendar" should let you name and colour it, and the
     // step is the first place anyone meets one.
@@ -60,7 +59,9 @@ internal fun CalendarsStep(
         CalendarEditor(
             sessionKey = 0,
             isNew = true,
-            initialName = localName,
+            // Empty, not a suggestion: a name already in the field reads as one
+            // the app has chosen, and the first thing to do is clear it.
+            initialName = "",
             initialColor = CalendarColorPalette.all.first(),
             initialDescription = "",
             onSave = { name, color, description ->
