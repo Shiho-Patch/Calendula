@@ -21,6 +21,7 @@ class OnboardingPlanTest {
         calendarsDone: Boolean = false,
         calendarsApplies: Boolean? = false,
         visibilityArmed: Boolean = false,
+        visibilityHidden: Boolean? = false,
         visibilityDone: Boolean = false,
         doneShown: Boolean = false,
     ) = onboardingPlan(
@@ -34,6 +35,7 @@ class OnboardingPlanTest {
         calendarsDone = calendarsDone,
         calendarsApplies = calendarsApplies,
         visibilityArmed = visibilityArmed,
+        visibilityHidden = visibilityHidden,
         visibilityDone = visibilityDone,
         doneShown = doneShown,
     )
@@ -303,5 +305,88 @@ class OnboardingPlanTest {
             calendarsApplies = null,
         )
         assertThat(existing.steps).doesNotContain(OnboardingStep.Calendars)
+    }
+
+    // --- nothing visible at all (#287) ------------------------------------
+
+    @Test
+    fun `a fresh install whose calendars are all off is offered them back`() {
+        val hidden = plan(
+            hasPermission = true,
+            remindersDone = true,
+            wizardArmed = true,
+            backupDone = true,
+            viewDone = true,
+            monthStyleDone = true,
+            backupApplies = true,
+            visibilityHidden = true,
+        )
+        assertThat(hidden.current).isEqualTo(OnboardingStep.Visibility)
+        assertThat(hidden.steps.last()).isEqualTo(OnboardingStep.Done)
+    }
+
+    @Test
+    fun `a fresh install with something visible never sees the step`() {
+        val visible = plan(hasPermission = true, wizardArmed = true, visibilityHidden = false)
+        assertThat(visible.steps).doesNotContain(OnboardingStep.Visibility)
+    }
+
+    @Test
+    fun `the step is assumed until the calendar list proves something is visible`() {
+        // The unreadable answer keeps the step, like the two before it: the flow
+        // shrinks when the list arrives, and the counter never grows.
+        val unknown = plan(hasPermission = true, wizardArmed = true, visibilityHidden = null)
+        val known = plan(hasPermission = true, wizardArmed = true, visibilityHidden = false)
+        assertThat(unknown.steps).contains(OnboardingStep.Visibility)
+        assertThat(known.total).isLessThan(unknown.total)
+    }
+
+    @Test
+    fun `switching the calendars on does not renumber the flow`() {
+        // The view model latches the answer back to unknown for the session, so
+        // the step it is standing on keeps its place in the count.
+        val before = plan(
+            hasPermission = true,
+            remindersDone = true,
+            wizardArmed = true,
+            backupDone = true,
+            viewDone = true,
+            monthStyleDone = true,
+            backupApplies = true,
+            visibilityHidden = true,
+        )
+        val after = plan(
+            hasPermission = true,
+            remindersDone = true,
+            wizardArmed = true,
+            backupDone = true,
+            viewDone = true,
+            monthStyleDone = true,
+            backupApplies = true,
+            visibilityHidden = null,
+            visibilityDone = true,
+        )
+        assertThat(after.steps).isEqualTo(before.steps)
+        assertThat(after.current).isEqualTo(OnboardingStep.Done)
+    }
+
+    @Test
+    fun `an existing install that switched its own calendars off is left alone`() {
+        // Hiding every calendar from Settings is a deliberate act with an empty
+        // state of its own (#239); it must not reopen the wizard.
+        val existing = plan(hasPermission = true, remindersDone = true, visibilityHidden = true)
+        assertThat(existing.steps).isEmpty()
+        assertThat(existing.current).isNull()
+    }
+
+    @Test
+    fun `the upgrade notice still stands on its own`() {
+        val armed = plan(
+            hasPermission = true,
+            remindersDone = true,
+            visibilityArmed = true,
+            visibilityHidden = false,
+        )
+        assertThat(armed.steps).containsExactly(OnboardingStep.Visibility)
     }
 }

@@ -320,6 +320,17 @@
     <string name="onboarding_view_continue_button">Continue</string>
     <string name="onboarding_back">Back</string>
     <string name="onboarding_visibility_button">Got it</string>
+    <string name="onboarding_visibility_hidden_title">Nothing to show yet</string>
+    <string name="onboarding_visibility_hidden_body">Every calendar on this phone is switched off, so Calendula has nothing to put on the grid. Switching them on here shows them in your other calendar apps too.</string>
+    <string name="onboarding_visibility_hidden_button">Switch them all on</string>
+    <string name="onboarding_visibility_hidden_skip">Leave them off</string>
+    <string name="onboarding_visibility_hidden_failed">Couldn\'t switch them on. Settings → Calendars has the same switches.</string>
+    <string name="onboarding_visibility_hidden_benefit_off_title">Off means silent</string>
+    <string name="onboarding_visibility_hidden_benefit_off_body">A switched-off calendar shows no events and sends no reminders.</string>
+    <string name="onboarding_visibility_hidden_benefit_settings_title">One at a time, later</string>
+    <string name="onboarding_visibility_hidden_benefit_settings_body">Settings → Calendars switches single calendars on and off whenever you like.</string>
+    <string name="onboarding_visibility_switched_title">Your calendars are back</string>
+    <string name="onboarding_visibility_switched_body">Their events show here, and wherever else you keep a calendar. Switch any of them off again under Settings → Calendars.</string>
     <string name="onboarding_done_title">You\'re all set</string>
     <string name="onboarding_done_body">Your calendars are ready. Everything you just chose can be changed later in Settings.</string>
     <string name="onboarding_done_button">Open my calendar</string>

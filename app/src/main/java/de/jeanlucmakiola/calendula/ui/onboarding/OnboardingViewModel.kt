@@ -16,6 +16,7 @@ import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.data.reminders.ReminderScanner
 import de.jeanlucmakiola.calendula.domain.CalendarSource
+import de.jeanlucmakiola.calendula.domain.hasVisibilitySwitch
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import kotlinx.coroutines.CoroutineDispatcher
@@ -133,6 +134,37 @@ class OnboardingViewModel @Inject constructor(
         ::CalendarsFlags,
     )
 
+    /**
+     * How the all-hidden step's own write ended, while it is still saying so
+     * (#287). [VisibilityFix.SwitchedOn] is latched for the session: it is what
+     * the step shows next, and the calendars it just switched on would otherwise
+     * answer [visibilityHidden] with false and drop the step from under it.
+     */
+    private val visibilityFix = MutableStateFlow<VisibilityFix?>(null)
+
+    /**
+     * Whether the device is showing nothing at all right now: calendars exist,
+     * none is visible, and at least one of them has a switch this step can flip
+     * (#287). Null only while there is no list to judge — before the grant, and
+     * on a read that failed — which keeps the step in the plan until the answer
+     * arrives, the same shrink-only contract [backupApplies] keeps.
+     *
+     * An empty list answers false rather than null, unlike [calendarsApplies]:
+     * a phone with no calendars at all is the *other* step's business, and this
+     * one would be claiming that calendars it cannot see are switched off.
+     */
+    private val visibilityHidden: Flow<Boolean?> = combine(
+        hasPermission.flatMapLatest { granted ->
+            if (granted != true) {
+                flowOf(null)
+            } else {
+                val hidden: Flow<Boolean?> = repository.calendars().map { it.allHidden() }
+                hidden.catch { emit(null) }.flowOn(io)
+            }
+        },
+        visibilityFix,
+    ) { hidden, fix -> if (fix == VisibilityFix.SwitchedOn) null else hidden }
+
     private val flags: Flow<OnboardingFlags> = combine(
         prefs.reminderOnboardingDone,
         prefs.onboardingWizardArmed,
@@ -142,9 +174,10 @@ class OnboardingViewModel @Inject constructor(
         ::OnboardingFlags,
     )
 
-    /** The closing steps' own flags, and whether the notice applies at all. */
+    /** The closing steps' own flags, and both reasons the notice step applies. */
     private val closingFlags: Flow<ClosingFlags> = combine(
         calendarPrefs.visibilityNoticePending.map { it == true },
+        visibilityHidden,
         prefs.onboardingVisibilityDone,
         prefs.onboardingDoneShown,
         ::ClosingFlags,
@@ -170,6 +203,7 @@ class OnboardingViewModel @Inject constructor(
                     calendarsDone = calendars.done,
                     calendarsApplies = calendars.applies,
                     visibilityArmed = closing.visibilityArmed,
+                    visibilityHidden = closing.visibilityHidden,
                     visibilityDone = closing.visibilityDone,
                     doneShown = closing.doneShown,
                 )
@@ -179,6 +213,22 @@ class OnboardingViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = null,
         )
+
+    /**
+     * Which of the visibility step's three faces to render (#75, #287): the
+     * one-time migration notice, the all-hidden state and its remedy, or the
+     * outcome of having taken it. The notice wins where both hold — it explains
+     * a behaviour change, and switching calendars back on is not its business.
+     */
+    val visibility: StateFlow<VisibilityUi> = combine(
+        calendarPrefs.visibilityNoticePending.map { it == true },
+        visibilityFix,
+        ::VisibilityUi,
+    ).stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000L),
+        initialValue = VisibilityUi(notice = false, fix = null),
+    )
 
     /** The current view preferences, for the view step's initial selection. */
     val viewChoice: StateFlow<ViewChoice?> = combine(
@@ -343,7 +393,29 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch { prefs.setOnboardingMonthStyleDone() }
     }
 
-    /** Acknowledge the calendar-visibility notice (#75). */
+    /**
+     * Switch every hidden calendar back on — the all-hidden step's one remedy
+     * (#287) — and report what the provider did with it. Checked rather than
+     * assumed: with read-only calendar access the write is kept app-side (#75)
+     * and the grid would stay just as empty.
+     */
+    fun showAllCalendars() {
+        viewModelScope.launch {
+            visibilityFix.value = runCatching {
+                val hidden = repository.calendars().first()
+                    .filter { it.hasVisibilitySwitch && !it.isVisibleInSystem }
+                repository.setCalendarsVisible(hidden.map { it.id }, true)
+                repository.calendars().first().allHidden()
+            }.fold(
+                onSuccess = { stillHidden ->
+                    if (stillHidden) VisibilityFix.Failed else VisibilityFix.SwitchedOn
+                },
+                onFailure = { VisibilityFix.Failed },
+            )
+        }
+    }
+
+    /** Acknowledge the calendar-visibility notice (#75), or leave them off (#287). */
     fun finishVisibility() {
         viewModelScope.launch {
             prefs.setOnboardingVisibilityDone()
@@ -401,12 +473,19 @@ sealed interface CalendarCreation {
 /** The calendar step's inputs (#287). */
 private data class CalendarsFlags(val applies: Boolean?, val done: Boolean)
 
-/** The tail of the flow: the visibility notice and the closing screen. */
+/** The tail of the flow: the visibility step's two reasons, and the closing screen. */
 private data class ClosingFlags(
     val visibilityArmed: Boolean,
+    val visibilityHidden: Boolean?,
     val visibilityDone: Boolean,
     val doneShown: Boolean,
 )
+
+/** How the all-hidden step's own write ended (#287). */
+enum class VisibilityFix { SwitchedOn, Failed }
+
+/** What the visibility step renders (#75, #287). */
+data class VisibilityUi(val notice: Boolean, val fix: VisibilityFix?)
 
 /** What the view step starts from, and renders its previews with. */
 data class ViewChoice(
@@ -414,6 +493,15 @@ data class ViewChoice(
     val monthViewStyle: MonthViewStyle,
     val weekStart: WeekStartPref,
 )
+
+/**
+ * True when this device would show nothing and the step could change that: no
+ * calendar is visible, and at least one of them has a switch worth flipping —
+ * a non-syncing calendar holds no events on the device, so switching it on
+ * leaves the grid exactly as empty (#287).
+ */
+private fun List<CalendarSource>.allHidden(): Boolean =
+    any { it.hasVisibilitySwitch } && none { it.isVisibleInSystem }
 
 /**
  * True when this device holds events that live nowhere else: at least one local

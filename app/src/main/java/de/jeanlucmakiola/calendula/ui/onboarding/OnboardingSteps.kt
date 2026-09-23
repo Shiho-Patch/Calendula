@@ -29,6 +29,7 @@ fun OnboardingSteps(
     // it when the picker composes would leave that step blank as it slides in.
     val choice by viewModel.viewChoice.collectAsStateWithLifecycle()
     val creation by viewModel.creation.collectAsStateWithLifecycle()
+    val visibility by viewModel.visibility.collectAsStateWithLifecycle()
 
     // Coerced because the outgoing half of a transition may be a step the live
     // plan has since dropped — the backup step goes once the calendars say it
@@ -114,7 +115,9 @@ fun OnboardingSteps(
             )
         }
         OnboardingStep.Visibility -> VisibilityStep(
+            state = visibility,
             onFinished = viewModel::finishVisibility,
+            onShowAll = viewModel::showAllCalendars,
             modifier = modifier,
             progress = progress,
             navigationIcon = navigationIcon,

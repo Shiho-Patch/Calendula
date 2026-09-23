@@ -113,6 +113,17 @@ notice (#75) is a step in front of it rather than a dialog over the app — it
 is the only optional step an *already onboarded* install can be given, which
 is why it alone is not gated on the wizard being armed.
 
+That step carries a second, unrelated condition (#287): not the announcement
+an upgrade is owed once, but the state of the device right now — every
+calendar switched off, so a first run would land on a blank grid. The two are
+deliberately separate, since the notice is settled once and for good while the
+state is derived from the live calendar list on every launch. The derived half
+*is* gated on the wizard being armed: an install that switched its own
+calendars off from Settings meant it, and has the in-app empty state (#239)
+instead. Where both hold the notice wins — it explains a behaviour change,
+whereas the all-hidden face offers to switch the calendars back on, which
+un-hides them in every other calendar app too.
+
 ## Recurring writes
 
 The provider's invariants drive the design (learned the hard way, verified

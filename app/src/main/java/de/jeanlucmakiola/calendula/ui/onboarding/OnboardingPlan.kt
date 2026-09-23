@@ -23,7 +23,11 @@ enum class OnboardingStep {
     /** How the Month view lays itself out, chosen from a live preview. */
     MonthStyle,
 
-    /** Only on an install that has calendars the device is hiding (#75). */
+    /**
+     * Either of the two ways the device's own visibility flags need explaining:
+     * the one-time notice that some calendars are switched off (#75), or nothing
+     * showing at all because every one of them is (#287).
+     */
     Visibility,
 
     /** The closing screen: everything is answered and the app is ready. */
@@ -88,6 +92,13 @@ data class OnboardingPlan(
  * calendars (#75) — the only optional step an *existing* install can be given,
  * which is why it is not gated on `fresh`, and on its own it earns no closing
  * screen.
+ *
+ * [visibilityHidden] is the other half of that step (#287): not an announcement
+ * an install is owed once, but the state of the device right now — every
+ * calendar switched off, so a first run would land on a blank grid. It follows
+ * the same null-means-unreadable contract as the steps above, and is gated on
+ * `fresh` because an existing install that switches its own calendars off has
+ * said what it meant and keeps the in-app empty state (#239) instead.
  */
 fun onboardingPlan(
     hasPermission: Boolean,
@@ -100,6 +111,7 @@ fun onboardingPlan(
     calendarsDone: Boolean = false,
     calendarsApplies: Boolean? = null,
     visibilityArmed: Boolean = false,
+    visibilityHidden: Boolean? = false,
     visibilityDone: Boolean = false,
     doneShown: Boolean = false,
 ): OnboardingPlan {
@@ -113,7 +125,9 @@ fun onboardingPlan(
             add(OnboardingStep.View)
             add(OnboardingStep.MonthStyle)
         }
-        if (visibilityArmed) add(OnboardingStep.Visibility)
+        if (visibilityArmed || (fresh && visibilityHidden != false)) {
+            add(OnboardingStep.Visibility)
+        }
         if (fresh) add(OnboardingStep.Done)
     }
     val current = steps.firstOrNull { step ->
