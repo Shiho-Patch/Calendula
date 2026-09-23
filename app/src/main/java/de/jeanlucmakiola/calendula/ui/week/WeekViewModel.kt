@@ -167,7 +167,7 @@ internal fun layoutAllDay(
     // in non-decreasing start order, which the declined-last rule above breaks:
     // a Monday bar seated after a Wednesday one would be refused a lane it is
     // nowhere near, and each wasted lane costs the all-day strip a whole row and
-    // pushes a bar closer to the month grid's MAX_EVENT_ROWS cap. Seven columns
+    // pushes a bar closer to the month grid's lane cap. Seven columns
     // and a handful of bars, so the scan is cheaper than the sort above it.
     val laneCols = ArrayList<MutableList<IntRange>>()
     return raw.map { r ->
