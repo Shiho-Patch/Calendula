@@ -290,6 +290,9 @@
     <!-- Shared event strings -->
     <string name="event_untitled">(No title)</string>
 
+    <!-- Stands in for a calendar the provider gave no name (#329) -->
+    <string name="calendar_unnamed">(No name)</string>
+
     <!-- First-launch wizard (#163) -->
     <string name="onboarding_step_counter">Step %1$d of %2$d</string>
     <string name="onboarding_backup_title">Your events live only here</string>

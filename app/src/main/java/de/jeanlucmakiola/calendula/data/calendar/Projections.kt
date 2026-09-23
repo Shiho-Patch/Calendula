@@ -312,7 +312,3 @@ internal object ReminderProjection {
     const val IDX_MINUTES = 0
     const val IDX_METHOD = 1
 }
-
-internal object Fallbacks {
-    const val UNNAMED_CALENDAR = "(Unbenannter Kalender)"
-}

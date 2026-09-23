@@ -143,7 +143,7 @@ internal fun EventFormScreen(
                     durationCalendars.forEachIndexed { index, calendar ->
                         val override = state.perCalendarEventDuration[calendar.id]
                         GroupedRow(
-                            title = calendar.displayName,
+                            title = calendar.displayName.ifBlank { stringResource(R.string.calendar_unnamed) },
                             summary = override?.let { durationLabel(it) }
                                 ?: stringResource(
                                     R.string.settings_calendar_duration_inherits,

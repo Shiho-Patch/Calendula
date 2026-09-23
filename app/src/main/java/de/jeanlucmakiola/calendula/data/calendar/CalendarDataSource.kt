@@ -376,7 +376,7 @@ class AndroidCalendarDataSource @Inject constructor(
         .build()
 
     override fun createLocalCalendar(displayName: String, color: Int, description: String?): Long {
-        val name = displayName.trim().ifEmpty { Fallbacks.UNNAMED_CALENDAR }
+        val name = displayName.trim()
         val values = ContentValues().apply {
             put(CalendarContract.Calendars.ACCOUNT_NAME, LOCAL_ACCOUNT_NAME)
             put(CalendarContract.Calendars.ACCOUNT_TYPE, CalendarContract.ACCOUNT_TYPE_LOCAL)
@@ -400,7 +400,7 @@ class AndroidCalendarDataSource @Inject constructor(
     }
 
     override fun updateCalendar(id: Long, displayName: String, color: Int, description: String?) {
-        val name = displayName.trim().ifEmpty { Fallbacks.UNNAMED_CALENDAR }
+        val name = displayName.trim()
         val values = ContentValues().apply {
             put(CalendarContract.Calendars.CALENDAR_DISPLAY_NAME, name)
             put(CalendarContract.Calendars.NAME, name)
@@ -464,7 +464,7 @@ class AndroidCalendarDataSource @Inject constructor(
             PackageManager.PERMISSION_GRANTED
 
     override fun createManagedCalendar(displayName: String, color: Int, type: SpecialDateType): Long {
-        val name = displayName.trim().ifEmpty { Fallbacks.UNNAMED_CALENDAR }
+        val name = displayName.trim()
         val values = ContentValues().apply {
             put(CalendarContract.Calendars.ACCOUNT_NAME, LOCAL_ACCOUNT_NAME)
             put(CalendarContract.Calendars.ACCOUNT_TYPE, CalendarContract.ACCOUNT_TYPE_LOCAL)

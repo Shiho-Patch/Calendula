@@ -64,9 +64,9 @@ class CalendarMapperTest {
     }
 
     @Test
-    fun `null displayName falls back to placeholder`() {
+    fun `null displayName is left blank for the UI to fill in`() {
         val src = reader(displayName = null).toCalendarSource()
-        assertThat(src.displayName).isEqualTo(Fallbacks.UNNAMED_CALENDAR)
+        assertThat(src.displayName).isEmpty()
     }
 
     @Test

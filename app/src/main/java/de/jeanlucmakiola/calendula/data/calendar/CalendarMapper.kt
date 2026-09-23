@@ -8,8 +8,9 @@ internal fun ColumnReader.toCalendarSource(): CalendarSource {
     val isLocal = accountType == CalendarContract.ACCOUNT_TYPE_LOCAL
     return CalendarSource(
         id = getLong(CalendarProjection.IDX_ID),
-        displayName = getString(CalendarProjection.IDX_DISPLAY_NAME)
-            ?: Fallbacks.UNNAMED_CALENDAR,
+        // Blank when the provider row has no name: the placeholder is a display
+        // string and belongs to the UI, where it can be localised (#329).
+        displayName = getString(CalendarProjection.IDX_DISPLAY_NAME).orEmpty(),
         accountName = getString(CalendarProjection.IDX_ACCOUNT_NAME).orEmpty(),
         accountType = accountType,
         color = getInt(CalendarProjection.IDX_COLOR),

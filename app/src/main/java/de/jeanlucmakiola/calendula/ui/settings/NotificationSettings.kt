@@ -181,7 +181,7 @@ internal fun NotificationsScreen(
                         // own section — link there instead.
                         if (calendar.id in state.managedCalendarIds) {
                             GroupedRow(
-                                title = calendar.displayName,
+                                title = calendar.displayName.ifBlank { stringResource(R.string.calendar_unnamed) },
                                 summary = stringResource(R.string.settings_calendar_reminders_managed_hint),
                                 position = Position.Alone,
                                 leading = { CalendarColorChip(calendar.color) },
@@ -198,7 +198,7 @@ internal fun NotificationsScreen(
                         }
                         val expanded = calendar.id in expandedCalendars
                         GroupedRow(
-                            title = calendar.displayName,
+                            title = calendar.displayName.ifBlank { stringResource(R.string.calendar_unnamed) },
                             position = if (expanded) Position.Top else Position.Alone,
                             leading = { CalendarColorChip(calendar.color) },
                             trailing = {

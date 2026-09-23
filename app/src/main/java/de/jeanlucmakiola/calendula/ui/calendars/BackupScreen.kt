@@ -312,7 +312,7 @@ private fun ExportCalendarPicker(
         calendars.forEachIndexed { index, calendar ->
             val isSelected = calendar.id in selected
             GroupedRow(
-                title = calendar.displayName,
+                title = calendar.displayName.ifBlank { stringResource(R.string.calendar_unnamed) },
                 summary = calendar.description,
                 position = positionOf(index, calendars.size),
                 leading = { CalendarColorChip(calendar.color) },
