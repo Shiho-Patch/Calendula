@@ -298,6 +298,17 @@
     <string name="onboarding_backup_benefit_folder_body">Backups are plain .ics files — put them somewhere that syncs, or on an SD card.</string>
     <string name="onboarding_backup_benefit_daily_title">Once a day, by itself</string>
     <string name="onboarding_backup_benefit_daily_body">Calendula exports your local calendars in the background. Change how often in Settings.</string>
+    <string name="onboarding_calendars_title">Somewhere to put your events</string>
+    <string name="onboarding_calendars_body">This device has no calendar yet. Calendula writes to the calendars already on your phone — it needs at least one.</string>
+    <string name="onboarding_calendars_local_name">My calendar</string>
+    <string name="onboarding_calendars_local_button">Create a calendar on this device</string>
+    <string name="onboarding_calendars_account_button">Add an account</string>
+    <string name="onboarding_calendars_caldav_button">Using Nextcloud or another CalDAV server?</string>
+    <string name="onboarding_calendars_skip_button">Not now</string>
+    <string name="onboarding_calendars_benefit_local_title">Stays on this phone</string>
+    <string name="onboarding_calendars_benefit_local_body">A device calendar syncs nowhere, so back it up if the events matter.</string>
+    <string name="onboarding_calendars_benefit_sync_title">Or sync from an account</string>
+    <string name="onboarding_calendars_benefit_sync_body">Calendula shows what your accounts already sync. CalDAV servers need DAVx\u2075 to do the syncing.</string>
     <string name="onboarding_backup_enable_button">Choose folder and back up</string>
     <string name="onboarding_backup_skip_button">Not now</string>
     <string name="onboarding_view_title">What should open first?</string>

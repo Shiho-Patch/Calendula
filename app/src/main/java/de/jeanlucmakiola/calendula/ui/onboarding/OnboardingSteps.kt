@@ -67,6 +67,13 @@ fun OnboardingSteps(
             modifier = modifier,
             progress = progress,
         )
+        OnboardingStep.Calendars -> CalendarsStep(
+            onCreateLocal = viewModel::createLocalCalendar,
+            onSkip = viewModel::skipCalendars,
+            modifier = modifier,
+            progress = progress,
+            navigationIcon = navigationIcon,
+        )
         OnboardingStep.Reminders -> ReminderStep(
             onFinished = viewModel::finishReminders,
             modifier = modifier,

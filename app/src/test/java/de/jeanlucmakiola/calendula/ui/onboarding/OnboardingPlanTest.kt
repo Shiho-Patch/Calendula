@@ -18,6 +18,8 @@ class OnboardingPlanTest {
         viewDone: Boolean = false,
         monthStyleDone: Boolean = false,
         backupApplies: Boolean? = null,
+        calendarsDone: Boolean = false,
+        calendarsApplies: Boolean? = false,
         visibilityArmed: Boolean = false,
         visibilityDone: Boolean = false,
         doneShown: Boolean = false,
@@ -29,6 +31,8 @@ class OnboardingPlanTest {
         viewDone = viewDone,
         monthStyleDone = monthStyleDone,
         backupApplies = backupApplies,
+        calendarsDone = calendarsDone,
+        calendarsApplies = calendarsApplies,
         visibilityArmed = visibilityArmed,
         visibilityDone = visibilityDone,
         doneShown = doneShown,
@@ -242,5 +246,62 @@ class OnboardingPlanTest {
             visibilityDone = true,
         )
         assertThat(read.current).isNull()
+    }
+
+    // --- the calendar step (#287) -----------------------------------------
+
+    @Test
+    fun `a device with no calendar is offered one, right after the grant`() {
+        val fresh = plan(hasPermission = true, wizardArmed = true, calendarsApplies = null)
+        assertThat(fresh.steps).contains(OnboardingStep.Calendars)
+        assertThat(fresh.current).isEqualTo(OnboardingStep.Calendars)
+        // Before reminders: there is no point asking about notifications for
+        // events that have nowhere to live.
+        assertThat(fresh.steps.indexOf(OnboardingStep.Calendars))
+            .isLessThan(fresh.steps.indexOf(OnboardingStep.Reminders))
+    }
+
+    @Test
+    fun `a device that already has a calendar never sees the step`() {
+        val fresh = plan(hasPermission = true, wizardArmed = true, calendarsApplies = false)
+        assertThat(fresh.steps).doesNotContain(OnboardingStep.Calendars)
+    }
+
+    @Test
+    fun `the step is assumed to apply until a calendar list proves otherwise`() {
+        // Same contract the backup step keeps: an unknown answer keeps the step,
+        // so the plan can only ever get shorter and the counter never grows.
+        val unknown = plan(hasPermission = true, wizardArmed = true, calendarsApplies = null)
+        val known = plan(hasPermission = true, wizardArmed = true, calendarsApplies = false)
+        assertThat(unknown.steps).contains(OnboardingStep.Calendars)
+        assertThat(known.total).isLessThan(unknown.total)
+    }
+
+    @Test
+    fun `answering the step moves on without renumbering the flow`() {
+        val before = plan(hasPermission = true, wizardArmed = true, calendarsApplies = null)
+        val after = before.let {
+            plan(
+                hasPermission = true,
+                wizardArmed = true,
+                calendarsApplies = null,
+                calendarsDone = true,
+            )
+        }
+        assertThat(after.current).isEqualTo(OnboardingStep.Reminders)
+        assertThat(after.steps).isEqualTo(before.steps)
+        assertThat(after.total).isEqualTo(before.total)
+    }
+
+    @Test
+    fun `an existing install is never given the calendar step`() {
+        // Not gated on `fresh` would re-onboard everyone whose read momentarily
+        // came back empty.
+        val existing = plan(
+            hasPermission = true,
+            remindersDone = true,
+            calendarsApplies = null,
+        )
+        assertThat(existing.steps).doesNotContain(OnboardingStep.Calendars)
     }
 }
