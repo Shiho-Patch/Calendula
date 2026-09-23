@@ -307,6 +307,11 @@
     <string name="onboarding_calendars_benefit_local_body">A device calendar syncs nowhere, so back it up if the events matter.</string>
     <string name="onboarding_calendars_benefit_sync_title">Or sync from an account</string>
     <string name="onboarding_calendars_benefit_sync_body">Calendula shows what your accounts already sync. CalDAV servers need DAVx\u2075 to do the syncing.</string>
+    <string name="onboarding_calendars_created_title">“%1$s” is ready</string>
+    <string name="onboarding_calendars_created_body">It lives on this device and new events go into it unless you pick another calendar.</string>
+    <string name="onboarding_calendars_created_more_title">Room for more</string>
+    <string name="onboarding_calendars_created_more_body">Settings → Calendars makes as many as you need, and renames or recolours the ones you have.</string>
+    <string name="onboarding_calendars_created_continue">Continue</string>
     <string name="onboarding_backup_enable_button">Choose folder and back up</string>
     <string name="onboarding_backup_skip_button">Not now</string>
     <string name="onboarding_view_title">What should open first?</string>

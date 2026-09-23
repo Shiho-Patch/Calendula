@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -93,21 +94,33 @@ class OnboardingViewModel @Inject constructor(
     }
 
     /**
+     * The calendar the step has just made, for as long as it is saying so.
+     * Non-null also holds the step open: the new calendar answers
+     * [calendarsApplies] with false, which would otherwise drop the step out
+     * from under the message that it worked (#287).
+     */
+    private val _createdCalendar = MutableStateFlow<String?>(null)
+    val createdCalendar: StateFlow<String?> = _createdCalendar.asStateFlow()
+
+    /**
      * Whether the calendar step applies: the device has nothing to put events
      * in. Unlike [backupApplies] an empty list is the condition itself, not a
      * failed read — the two look identical here and both want the step, so this
      * only resolves once a non-empty list proves there is a calendar already.
      */
-    private val calendarsApplies: Flow<Boolean?> = hasPermission.flatMapLatest { granted ->
-        if (granted != true) {
-            flowOf(null)
-        } else {
-            repository.calendars()
-                .map { calendars -> if (calendars.isEmpty()) null else false }
-                .catch { emit(null) }
-                .flowOn(io)
-        }
-    }
+    private val calendarsApplies: Flow<Boolean?> = combine(
+        hasPermission.flatMapLatest { granted ->
+            if (granted != true) {
+                flowOf(null)
+            } else {
+                repository.calendars()
+                    .map { calendars -> if (calendars.isEmpty()) null else false }
+                    .catch { emit(null) }
+                    .flowOn(io)
+            }
+        },
+        _createdCalendar,
+    ) { applies, created -> if (created != null) null else applies }
 
     /** The calendar step's own pair: whether it applies, and whether it is answered. */
     private val calendarsFlags: Flow<CalendarsFlags> = combine(
@@ -236,21 +249,31 @@ class OnboardingViewModel @Inject constructor(
     }
 
     /**
-     * Make the device-only calendar the step's editor just described, and close
-     * the step.
+     * Make the device-only calendar the step's editor just described. The step
+     * then stays up on [createdCalendar] to confirm it and say where to make
+     * more. A provider that refused the insert will not succeed on a second
+     * press, so that closes the step rather than confirm a calendar that isn't
+     * there.
      */
     fun createLocalCalendar(displayName: String, color: Int, description: String?) {
         viewModelScope.launch {
-            runCatching {
+            val name = displayName.trim()
+            val created = runCatching {
                 repository.createLocalCalendar(
-                    displayName = displayName,
+                    displayName = name,
                     color = color,
                     description = description,
                 )
-            }
-            // Closed either way: a provider that refused the insert will not
-            // succeed on a second press, and the step is skippable regardless.
+            }.isSuccess
+            if (created) _createdCalendar.value = name else prefs.setOnboardingCalendarsDone()
+        }
+    }
+
+    /** Close the calendar step once its confirmation has been read. */
+    fun finishCalendars() {
+        viewModelScope.launch {
             prefs.setOnboardingCalendarsDone()
+            _createdCalendar.value = null
         }
     }
 

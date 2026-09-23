@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -40,11 +42,16 @@ private const val DAVX5_URL = "https://www.davx5.com/"
  * Two ways out. Calendula writes to the system calendar provider and syncs
  * nothing itself, so anything beyond a device-only calendar means pointing at
  * whatever does the syncing.
+ *
+ * [createdName] switches the step to confirming the calendar it just made,
+ * which is also the one place to say that more of them live in Settings.
  */
 @Composable
 internal fun CalendarsStep(
     onCreateLocal: (name: String, color: Int, description: String?) -> Unit,
     onSkip: () -> Unit,
+    createdName: String?,
+    onFinished: () -> Unit,
     modifier: Modifier = Modifier,
     progress: (@Composable () -> Unit)? = null,
     navigationIcon: (@Composable () -> Unit)? = null,
@@ -54,6 +61,17 @@ internal fun CalendarsStep(
     // nowhere: "create a calendar" should let you name and colour it, and the
     // step is the first place anyone meets one.
     var creating by rememberSaveable { mutableStateOf(false) }
+
+    if (createdName != null) {
+        CalendarCreated(
+            name = createdName,
+            onContinue = onFinished,
+            modifier = modifier,
+            progress = progress,
+            navigationIcon = navigationIcon,
+        )
+        return
+    }
 
     if (creating) {
         CalendarEditor(
@@ -129,6 +147,56 @@ internal fun CalendarsStep(
             icon = Icons.Filled.CloudSync,
             title = stringResource(R.string.onboarding_calendars_benefit_sync_title),
             body = stringResource(R.string.onboarding_calendars_benefit_sync_body),
+        )
+    }
+}
+
+/** What the step shows once the calendar exists: that it does, and where the next one comes from. */
+@Composable
+private fun CalendarCreated(
+    name: String,
+    onContinue: () -> Unit,
+    modifier: Modifier = Modifier,
+    progress: (@Composable () -> Unit)? = null,
+    navigationIcon: (@Composable () -> Unit)? = null,
+) {
+    OnboardingScaffold(
+        modifier = modifier,
+        progress = progress,
+        navigationIcon = navigationIcon,
+        topSpacing = OnboardingSpace.lg,
+        hero = { IconHero(Icons.Filled.CheckCircle) },
+        actions = {
+            Button(
+                onClick = onContinue,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.onboarding_calendars_created_continue),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+        },
+    ) {
+        Text(
+            text = stringResource(R.string.onboarding_calendars_created_title, name),
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = stringResource(R.string.onboarding_calendars_created_body),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+
+        Spacer(Modifier.height(OnboardingSpace.lg))
+
+        BenefitRow(
+            icon = Icons.Filled.Settings,
+            title = stringResource(R.string.onboarding_calendars_created_more_title),
+            body = stringResource(R.string.onboarding_calendars_created_more_body),
         )
     }
 }
