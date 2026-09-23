@@ -93,14 +93,18 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
+    /** How the step's own create attempt ended, while it is still saying so (#287). */
+    private val _creation = MutableStateFlow<CalendarCreation?>(null)
+    val creation: StateFlow<CalendarCreation?> = _creation.asStateFlow()
+
     /**
-     * The calendar the step has just made, for as long as it is saying so.
-     * Non-null also holds the step open: the new calendar answers
-     * [calendarsApplies] with false, which would otherwise drop the step out
-     * from under the message that it worked (#287).
+     * Whether the step made a calendar here. Latched for the session and never
+     * cleared: the new calendar answers [calendarsApplies] with false, which
+     * would drop the step out of the plan the moment it is used — first from
+     * under the message that it worked, and then from the step count, which
+     * would fall by one just as the user pressed Continue.
      */
-    private val _createdCalendar = MutableStateFlow<String?>(null)
-    val createdCalendar: StateFlow<String?> = _createdCalendar.asStateFlow()
+    private val calendarCreatedHere = MutableStateFlow(false)
 
     /**
      * Whether the calendar step applies: the device has nothing to put events
@@ -119,8 +123,8 @@ class OnboardingViewModel @Inject constructor(
                     .flowOn(io)
             }
         },
-        _createdCalendar,
-    ) { applies, created -> if (created != null) null else applies }
+        calendarCreatedHere,
+    ) { applies, latched -> if (latched) null else applies }
 
     /** The calendar step's own pair: whether it applies, and whether it is answered. */
     private val calendarsFlags: Flow<CalendarsFlags> = combine(
@@ -250,22 +254,27 @@ class OnboardingViewModel @Inject constructor(
 
     /**
      * Make the device-only calendar the step's editor just described. The step
-     * then stays up on [createdCalendar] to confirm it and say where to make
-     * more. A provider that refused the insert will not succeed on a second
-     * press, so that closes the step rather than confirm a calendar that isn't
-     * there.
+     * stays up on [creation] either way — to confirm the calendar and say where
+     * to make more, or to say the provider refused it. Answering the step for
+     * them would leave them where the step exists to stop them being: past it,
+     * with nowhere to put an event.
      */
     fun createLocalCalendar(displayName: String, color: Int, description: String?) {
         viewModelScope.launch {
             val name = displayName.trim()
-            val created = runCatching {
+            _creation.value = runCatching {
                 repository.createLocalCalendar(
                     displayName = name,
                     color = color,
                     description = description,
                 )
-            }.isSuccess
-            if (created) _createdCalendar.value = name else prefs.setOnboardingCalendarsDone()
+            }.fold(
+                onSuccess = {
+                    calendarCreatedHere.value = true
+                    CalendarCreation.Created(name)
+                },
+                onFailure = { CalendarCreation.Failed },
+            )
         }
     }
 
@@ -273,8 +282,13 @@ class OnboardingViewModel @Inject constructor(
     fun finishCalendars() {
         viewModelScope.launch {
             prefs.setOnboardingCalendarsDone()
-            _createdCalendar.value = null
+            _creation.value = null
         }
+    }
+
+    /** Drop the failed attempt so the step offers itself again. */
+    fun clearCalendarCreation() {
+        _creation.value = null
     }
 
     /**
@@ -377,6 +391,12 @@ private data class OnboardingFlags(
     val viewDone: Boolean,
     val monthStyleDone: Boolean,
 )
+
+/** How the calendar step's create attempt ended (#287). */
+sealed interface CalendarCreation {
+    data class Created(val name: String) : CalendarCreation
+    data object Failed : CalendarCreation
+}
 
 /** The calendar step's inputs (#287). */
 private data class CalendarsFlags(val applies: Boolean?, val done: Boolean)

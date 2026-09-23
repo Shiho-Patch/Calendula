@@ -15,6 +15,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -43,15 +44,17 @@ private const val DAVX5_URL = "https://www.davx5.com/"
  * nothing itself, so anything beyond a device-only calendar means pointing at
  * whatever does the syncing.
  *
- * [createdName] switches the step to confirming the calendar it just made,
- * which is also the one place to say that more of them live in Settings.
+ * [creation] switches the step to the outcome of its own create: confirming
+ * the calendar — the one place to say that more of them live in Settings — or
+ * reporting that the provider refused it.
  */
 @Composable
 internal fun CalendarsStep(
     onCreateLocal: (name: String, color: Int, description: String?) -> Unit,
     onSkip: () -> Unit,
-    createdName: String?,
+    creation: CalendarCreation?,
     onFinished: () -> Unit,
+    onClearCreation: () -> Unit,
     modifier: Modifier = Modifier,
     progress: (@Composable () -> Unit)? = null,
     navigationIcon: (@Composable () -> Unit)? = null,
@@ -61,10 +64,14 @@ internal fun CalendarsStep(
     // nowhere: "create a calendar" should let you name and colour it, and the
     // step is the first place anyone meets one.
     var creating by rememberSaveable { mutableStateOf(false) }
+    // The insert is a suspend write: the editor stays up until it lands, so the
+    // step can't flash its "create" button back for a second press.
+    var submitted by rememberSaveable(creating) { mutableStateOf(false) }
+    LaunchedEffect(creation) { if (creation is CalendarCreation.Failed) creating = false }
 
-    if (createdName != null) {
+    if (creation is CalendarCreation.Created) {
         CalendarCreated(
-            name = createdName,
+            name = creation.name,
             onContinue = onFinished,
             modifier = modifier,
             progress = progress,
@@ -83,8 +90,10 @@ internal fun CalendarsStep(
             initialColor = CalendarColorPalette.all.first(),
             initialDescription = "",
             onSave = { name, color, description ->
-                creating = false
-                onCreateLocal(name, color, description)
+                if (!submitted) {
+                    submitted = true
+                    onCreateLocal(name, color, description)
+                }
             },
             onDelete = {},
             onClose = { creating = false },
@@ -100,7 +109,10 @@ internal fun CalendarsStep(
         hero = { IconHero(Icons.Filled.CalendarMonth) },
         actions = {
             Button(
-                onClick = { creating = true },
+                onClick = {
+                    onClearCreation()
+                    creating = true
+                },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
             ) {
                 Text(
@@ -134,6 +146,16 @@ internal fun CalendarsStep(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+
+        if (creation is CalendarCreation.Failed) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.onboarding_calendars_create_failed),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center,
+            )
+        }
 
         Spacer(Modifier.height(OnboardingSpace.lg))
 

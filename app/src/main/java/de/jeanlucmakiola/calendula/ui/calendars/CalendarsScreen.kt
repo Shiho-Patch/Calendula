@@ -90,6 +90,7 @@ import de.jeanlucmakiola.calendula.ui.common.groupByAccount
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
 import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.eventFill
+import de.jeanlucmakiola.calendula.ui.common.eventInk
 import de.jeanlucmakiola.calendula.ui.common.LeadingAvatar
 import de.jeanlucmakiola.calendula.ui.common.SourceLogo
 import de.jeanlucmakiola.calendula.ui.common.curatedSourcePackage
@@ -103,13 +104,15 @@ import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.Position
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.heightIn
+import androidx.annotation.StringRes
+import androidx.compose.foundation.border
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import de.jeanlucmakiola.floret.components.FullScreenPicker
@@ -379,8 +382,6 @@ internal fun CalendarEditor(
     var description by rememberSaveable(sessionKey) { mutableStateOf(initialDescription) }
     var confirmDelete by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
-    // A new calendar opens with the keyboard up: naming it is the whole task.
-    LaunchedEffect(isNew) { if (isNew) focusRequester.requestFocus() }
 
     val valid = name.isNotBlank()
     val commit = { if (valid) onSave(name.trim(), color, description.trim().ifEmpty { null }) }
@@ -411,13 +412,17 @@ internal fun CalendarEditor(
             onNameChange = { name = it },
             onImeAction = commit,
         )
+        // Inside the picker: it is a Dialog, so a request made from the caller's
+        // composition can run before this field's node exists.
+        // A new calendar opens with the keyboard up: naming it is the whole task.
+        LaunchedEffect(isNew) { if (isNew) focusRequester.requestFocus() }
 
         Spacer(Modifier.height(20.dp))
         EditorSectionLabel(stringResource(R.string.calendars_color_label))
         CalendarColorGrid(selected = color, onSelect = { color = it })
 
         Spacer(Modifier.height(20.dp))
-        EditorSectionLabel(stringResource(R.string.calendars_description_hint))
+        EditorSectionLabel(stringResource(R.string.calendars_description_label))
         GroupedSurface(position = Position.Alone, modifier = Modifier.padding(horizontal = 16.dp)) {
             Box(Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(16.dp)) {
                 InlineTextField(
@@ -508,8 +513,8 @@ private fun CalendarNameField(
  * The palette as two rows of round swatches; the chosen one carries a check.
  *
  * Drawn through the app's own tone pass rather than raw, so a swatch is the
- * colour the calendar will actually appear in — the user's "soften colours"
- * preference included.
+ * colour the calendar's events will actually appear in — the user's "soften
+ * colours" preference included.
  */
 @Composable
 private fun CalendarColorGrid(selected: Int, onSelect: (Int) -> Unit) {
@@ -517,7 +522,9 @@ private fun CalendarColorGrid(selected: Int, onSelect: (Int) -> Unit) {
     val soften = LocalSoftenColors.current
     GroupedSurface(position = Position.Alone, modifier = Modifier.padding(horizontal = 16.dp)) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+                .selectableGroup(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             CalendarColorPalette.all.chunked(SWATCHES_PER_ROW).forEach { row ->
@@ -527,7 +534,8 @@ private fun CalendarColorGrid(selected: Int, onSelect: (Int) -> Unit) {
                 ) {
                     row.forEach { swatch ->
                         ColorSwatch(
-                            fill = eventAccent(swatch, dark, soften),
+                            fill = eventFill(swatch, dark, soften),
+                            label = stringResource(swatchLabel(swatch)),
                             selected = swatch == selected,
                             onClick = { onSelect(swatch) },
                             modifier = Modifier.weight(1f),
@@ -545,18 +553,25 @@ private fun CalendarColorGrid(selected: Int, onSelect: (Int) -> Unit) {
 @Composable
 private fun ColorSwatch(
     fill: Color,
+    label: String,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val label = stringResource(R.string.calendars_color_label)
     Box(
         modifier = modifier
             .aspectRatio(1f)
             .clip(CircleShape)
             .background(fill)
+            .then(
+                if (selected) {
+                    Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                } else {
+                    Modifier
+                },
+            )
             // selectable, not clickable: the swatch carries its chosen state in
-            // semantics, so the check is decoration rather than the only cue.
+            // semantics too, so the check is not the only cue.
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
@@ -565,11 +580,28 @@ private fun ColorSwatch(
             Icon(
                 Icons.Default.Check,
                 contentDescription = null,
-                tint = if (fill.luminance() > 0.5f) Color.Black else Color.White,
+                tint = eventInk(fill, alpha = 0.7f),
                 modifier = Modifier.size(22.dp),
             )
         }
     }
+}
+
+/** Names the swatch for a screen reader — twelve circles are otherwise one label. */
+@StringRes
+private fun swatchLabel(argb: Int): Int = when (argb) {
+    CalendarColorPalette.Mauve -> R.string.color_name_mauve
+    CalendarColorPalette.Red -> R.string.color_name_red
+    CalendarColorPalette.Orange -> R.string.color_name_orange
+    CalendarColorPalette.Amber -> R.string.color_name_amber
+    CalendarColorPalette.Olive -> R.string.color_name_olive
+    CalendarColorPalette.Green -> R.string.color_name_green
+    CalendarColorPalette.Teal -> R.string.color_name_teal
+    CalendarColorPalette.Cyan -> R.string.color_name_cyan
+    CalendarColorPalette.Blue -> R.string.color_name_blue
+    CalendarColorPalette.Indigo -> R.string.color_name_indigo
+    CalendarColorPalette.Purple -> R.string.color_name_purple
+    else -> R.string.color_name_pink
 }
 
 /** Said in the sheet rather than on a disabled button: the sync owns this one. */
