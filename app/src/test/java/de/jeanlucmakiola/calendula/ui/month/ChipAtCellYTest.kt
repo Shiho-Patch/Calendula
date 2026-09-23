@@ -56,7 +56,13 @@ class ChipAtCellYTest {
     )
 
     private fun MonthWeek.chipAt(col: Int, cellY: Float) =
-        chipAtCellY(col = col, cellY = cellY, bandTopInCell = bandTop, rowHeightPx = laneHeight)
+        chipAtCellY(
+            col = col,
+            cellY = cellY,
+            bandTopInCell = bandTop,
+            rowHeightPx = laneHeight,
+            laneCap = SPLIT_DOT_LANES,
+        )
 
     @Test
     fun `a tap on a lane resolves to the chip seated there`() {
@@ -98,13 +104,13 @@ class ChipAtCellYTest {
 
     @Test
     fun `a tap on the overflow row opens the day rather than a hidden event`() {
-        val events = (1..MAX_EVENT_ROWS + 2).map {
+        val events = (1..SPLIT_DOT_LANES + 2).map {
             timed(LocalDate(2026, 7, 7), hour = it, id = it.toLong())
         }
         val week = rowOfJuly6(events)
 
         // The dots sit one lane below the last one the row draws.
-        val overflowY = bandTop + laneHeight * MAX_EVENT_ROWS + 2f
+        val overflowY = bandTop + laneHeight * SPLIT_DOT_LANES + 2f
         assertThat(week.chipAt(col = 1, cellY = overflowY)).isNull()
     }
 
@@ -113,10 +119,22 @@ class ChipAtCellYTest {
         val week = rowOfJuly6(listOf(timed(LocalDate(2026, 7, 7), hour = 9, id = 2L)))
 
         assertThat(
-            week.chipAtCellY(col = 1, cellY = 45f, bandTopInCell = null, rowHeightPx = laneHeight),
+            week.chipAtCellY(
+                col = 1,
+                cellY = 45f,
+                bandTopInCell = null,
+                rowHeightPx = laneHeight,
+                laneCap = SPLIT_DOT_LANES,
+            ),
         ).isNull()
         assertThat(
-            week.chipAtCellY(col = 1, cellY = 45f, bandTopInCell = bandTop, rowHeightPx = 0f),
+            week.chipAtCellY(
+                col = 1,
+                cellY = 45f,
+                bandTopInCell = bandTop,
+                rowHeightPx = 0f,
+                laneCap = SPLIT_DOT_LANES,
+            ),
         ).isNull()
     }
 }
