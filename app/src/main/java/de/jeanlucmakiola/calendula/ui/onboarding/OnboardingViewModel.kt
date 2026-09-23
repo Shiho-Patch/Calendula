@@ -13,7 +13,6 @@ import de.jeanlucmakiola.calendula.data.calendar.CalendarVisibilityReconciler
 import de.jeanlucmakiola.calendula.data.di.IoDispatcher
 import de.jeanlucmakiola.calendula.data.prefs.CalendarPrefs
 import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
-import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.data.reminders.ReminderScanner
 import de.jeanlucmakiola.calendula.domain.CalendarSource
@@ -237,16 +236,16 @@ class OnboardingViewModel @Inject constructor(
     }
 
     /**
-     * Make the device-only calendar the step offers and close it. Named from
-     * the caller so the string stays with the rest of the step's text.
+     * Make the device-only calendar the step's editor just described, and close
+     * the step.
      */
-    fun createLocalCalendar(displayName: String) {
+    fun createLocalCalendar(displayName: String, color: Int, description: String?) {
         viewModelScope.launch {
             runCatching {
                 repository.createLocalCalendar(
                     displayName = displayName,
-                    color = CalendarColorPalette.all.first(),
-                    description = null,
+                    color = color,
+                    description = description,
                 )
             }
             // Closed either way: a provider that refused the insert will not

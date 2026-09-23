@@ -13,12 +13,18 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.calendar.CalendarColorPalette
+import de.jeanlucmakiola.calendula.ui.calendars.CalendarEditor
 import de.jeanlucmakiola.calendula.ui.settings.openUrl
 import de.jeanlucmakiola.floret.components.BenefitRow
 import de.jeanlucmakiola.floret.components.OnboardingScaffold
@@ -37,7 +43,7 @@ private const val DAVX5_URL = "https://www.davx5.com/"
  */
 @Composable
 internal fun CalendarsStep(
-    onCreateLocal: (String) -> Unit,
+    onCreateLocal: (name: String, color: Int, description: String?) -> Unit,
     onSkip: () -> Unit,
     modifier: Modifier = Modifier,
     progress: (@Composable () -> Unit)? = null,
@@ -45,6 +51,27 @@ internal fun CalendarsStep(
 ) {
     val context = LocalContext.current
     val localName = stringResource(R.string.onboarding_calendars_local_name)
+    // The same editor Settings opens, rather than a calendar conjured out of
+    // nowhere: "create a calendar" should let you name and colour it, and the
+    // step is the first place anyone meets one.
+    var creating by rememberSaveable { mutableStateOf(false) }
+
+    if (creating) {
+        CalendarEditor(
+            sessionKey = 0,
+            isNew = true,
+            initialName = localName,
+            initialColor = CalendarColorPalette.all.first(),
+            initialDescription = "",
+            onSave = { name, color, description ->
+                creating = false
+                onCreateLocal(name, color, description)
+            },
+            onDelete = {},
+            onClose = { creating = false },
+        )
+        return
+    }
 
     OnboardingScaffold(
         modifier = modifier,
@@ -54,7 +81,7 @@ internal fun CalendarsStep(
         hero = { IconHero(Icons.Filled.CalendarMonth) },
         actions = {
             Button(
-                onClick = { onCreateLocal(localName) },
+                onClick = { creating = true },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
             ) {
                 Text(

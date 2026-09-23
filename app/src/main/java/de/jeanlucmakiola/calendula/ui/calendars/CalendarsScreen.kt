@@ -345,7 +345,7 @@ private fun CalendarsList(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CalendarEditor(
+internal fun CalendarEditor(
     sessionKey: Int,
     isNew: Boolean,
     initialName: String,
