@@ -116,7 +116,7 @@ private fun CalendarPickerGroup(
     calendars.forEachIndexed { index, calendar ->
         val isSelected = calendar.id == selectedId
         GroupedRow(
-            title = calendar.displayName,
+            title = calendar.displayName.ifBlank { stringResource(R.string.calendar_unnamed) },
             position = if (index == calendars.lastIndex) Position.Bottom else Position.Middle,
             selected = isSelected,
             leading = { CalendarColorChip(calendar.color) },

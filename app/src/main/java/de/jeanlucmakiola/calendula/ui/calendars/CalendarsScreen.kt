@@ -246,7 +246,7 @@ private fun CalendarsList(
                 local.forEachIndexed { index, calendar ->
                     val disabled = !calendar.isVisibleInSystem
                     GroupedRow(
-                        title = calendar.displayName,
+                        title = calendar.displayName.ifBlank { stringResource(R.string.calendar_unnamed) },
                         summary = calendarRowSummary(calendar),
                         position = if (index == local.lastIndex) Position.Bottom else Position.Middle,
                         container = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -254,7 +254,7 @@ private fun CalendarsList(
                         leading = { CalendarColorChip(calendar.color, dimIf(disabled)) },
                         trailing = {
                             EnableSwitch(
-                                calendarName = calendar.displayName,
+                                calendarName = calendar.displayName.ifBlank { stringResource(R.string.calendar_unnamed) },
                                 enabled = !disabled,
                                 onToggle = { enabled -> onSetVisible(calendar.id, enabled) },
                             )
@@ -331,7 +331,7 @@ private fun CalendarsList(
                     ordered.forEachIndexed { index, calendar ->
                         val disabled = !calendar.isVisibleInSystem || calendar.isNotSynced
                         GroupedRow(
-                            title = calendar.displayName,
+                            title = calendar.displayName.ifBlank { stringResource(R.string.calendar_unnamed) },
                             summary = calendarRowSummary(calendar),
                             position = if (index == ordered.lastIndex) Position.Bottom else Position.Middle,
                             container = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -340,7 +340,7 @@ private fun CalendarsList(
                             trailing = if (calendar.hasVisibilitySwitch) {
                                 {
                                     EnableSwitch(
-                                        calendarName = calendar.displayName,
+                                        calendarName = calendar.displayName.ifBlank { stringResource(R.string.calendar_unnamed) },
                                         enabled = calendar.isVisibleInSystem,
                                         onToggle = { enabled ->
                                             onSetVisible(calendar.id, enabled)

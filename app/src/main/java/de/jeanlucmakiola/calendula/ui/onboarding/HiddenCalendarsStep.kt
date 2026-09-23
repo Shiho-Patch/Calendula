@@ -129,7 +129,7 @@ internal fun HiddenCalendarsStep(
         calendars.forEachIndexed { index, calendar ->
             val off = !calendar.isVisibleInSystem
             GroupedRow(
-                title = calendar.displayName,
+                title = calendar.displayName.ifBlank { stringResource(R.string.calendar_unnamed) },
                 summary = calendar.accountName.takeIf { it.isNotBlank() },
                 position = when {
                     calendars.size == 1 -> Position.Alone
@@ -141,7 +141,7 @@ internal fun HiddenCalendarsStep(
                 trailing = if (calendar.hasVisibilitySwitch) {
                     {
                         CalendarSwitch(
-                            calendarName = calendar.displayName,
+                            calendarName = calendar.displayName.ifBlank { stringResource(R.string.calendar_unnamed) },
                             enabled = !off,
                             onToggle = { on -> onSetVisible(calendar.id, on) },
                         )
