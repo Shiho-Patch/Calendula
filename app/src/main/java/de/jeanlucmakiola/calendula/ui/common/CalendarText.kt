@@ -30,6 +30,22 @@ private const val LINE_SAMPLE = "Ag"
 /** [this] with Material's outer leading trimmed — see [TrimmedLines]. */
 fun TextStyle.trimmedLines(): TextStyle = copy(lineHeightStyle = TrimmedLines)
 
+/**
+ * [style] with its wrapped lines packed onto the face's own extent instead of
+ * Material's line box.
+ *
+ * [trimmedLines] takes the leading off the outer edges of a run of text; this
+ * takes it from between the lines as well, which is the half a wrapped event
+ * title pays for twice over. The line height is *measured* from the font rather
+ * than picked, so it lands exactly on the face's ascent-plus-descent and can
+ * never be short enough to overlap — whatever the font picker has loaded (#190).
+ */
+@Composable
+fun rememberPackedLines(style: TextStyle): TextStyle {
+    val line = rememberTrimmedLineHeight(style)
+    return with(LocalDensity.current) { style.trimmedLines().copy(lineHeight = line.toSp()) }
+}
+
 /** What one trimmed line of [style] actually draws in. */
 @Composable
 fun rememberTrimmedLineHeight(style: TextStyle): Dp {

@@ -761,12 +761,7 @@ internal fun WeekdayHeader(weekStart: DayOfWeek, showWeekNumbers: Boolean) {
     }
 }
 
-/**
- * One lane of a day cell. Sized to a trimmed chip line rather than to Material's
- * line box, so the three lanes a cell can draw cost it nine dp less and a
- * six-row month keeps its third chip instead of demoting it to a dot (#190).
- */
-private val EVENT_ROW_HEIGHT = 17.dp
+private val EVENT_ROW_HEIGHT = 20.dp
 private val DAY_NUMBER_HEIGHT = 22.dp
 /** Width of the optional left calendar-week gutter (#25); narrow, since it only
  *  seats a one- or two-digit week number in a full-height tonal pill. */
