@@ -97,11 +97,23 @@ import de.jeanlucmakiola.floret.components.CollapsingScaffold
 import de.jeanlucmakiola.floret.identity.collapseExit
 import de.jeanlucmakiola.floret.identity.expandEnter
 import de.jeanlucmakiola.floret.identity.predictiveBack
-import de.jeanlucmakiola.calendula.ui.common.ColorSwatchRow
 import de.jeanlucmakiola.floret.components.GroupedListInset
 import de.jeanlucmakiola.floret.components.GroupedRow
 import de.jeanlucmakiola.floret.components.InlineTextField
 import de.jeanlucmakiola.floret.components.Position
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.ImeAction
+import de.jeanlucmakiola.floret.components.FullScreenPicker
+import de.jeanlucmakiola.floret.components.GroupedSurface
 
 /** Sentinel [editorId] meaning "the editor is composing a new calendar". */
 private const val NEW_CALENDAR_ID = Long.MIN_VALUE
@@ -343,7 +355,13 @@ private fun CalendarsList(
 
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+private const val SWATCHES_PER_ROW = 6
+
+/**
+ * Create or edit a local calendar: a name field over the palette of calendar
+ * colours, on the family's full-screen sheet with the commit in its title bar.
+ * The same sheet Agendula edits a task list in, so the two read as one product.
+ */
 @Composable
 internal fun CalendarEditor(
     sessionKey: Int,
@@ -360,121 +378,48 @@ internal fun CalendarEditor(
     var color by rememberSaveable(sessionKey) { mutableStateOf(initialColor) }
     var description by rememberSaveable(sessionKey) { mutableStateOf(initialDescription) }
     var confirmDelete by remember { mutableStateOf(false) }
-    val dark = isSystemInDarkTheme()
-    val soften = LocalSoftenColors.current
+    val focusRequester = remember { FocusRequester() }
+    // A new calendar opens with the keyboard up: naming it is the whole task.
+    LaunchedEffect(isNew) { if (isNew) focusRequester.requestFocus() }
 
-    Scaffold(
-        modifier = Modifier
-            .predictiveBack(onBack = onClose)
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(
-                            if (isNew) R.string.calendars_new_title
-                            else R.string.calendars_edit_title,
-                        ),
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onClose) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = stringResource(R.string.event_edit_close),
-                        )
-                    }
-                },
-                actions = {
-                    if (!isNew) {
-                        // Disabled rather than hidden while the special-dates
-                        // sync owns this calendar; the card below says why.
-                        IconButton(
-                            onClick = { confirmDelete = true },
-                            enabled = !deleteLocked,
-                        ) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = stringResource(R.string.event_detail_delete),
-                                tint = if (deleteLocked) {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                } else {
-                                    MaterialTheme.colorScheme.error
-                                },
-                            )
-                        }
-                    }
-                    // Filled save button, matching the event editor's top bar.
-                    Button(
-                        onClick = {
-                            onSave(name.trim(), color, description.trim().ifEmpty { null })
-                        },
-                        enabled = name.isNotBlank(),
-                        modifier = Modifier.padding(end = 12.dp),
-                    ) {
-                        Text(stringResource(R.string.event_edit_save))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
-            )
+    val valid = name.isNotBlank()
+    val commit = { if (valid) onSave(name.trim(), color, description.trim().ifEmpty { null }) }
+
+    FullScreenPicker(
+        title = stringResource(
+            if (isNew) R.string.calendars_new_title else R.string.calendars_edit_title,
+        ),
+        onDismiss = onClose,
+        predictiveBack = true,
+        actions = {
+            Button(
+                onClick = commit,
+                enabled = valid,
+                modifier = Modifier.padding(end = 12.dp),
+            ) { Text(stringResource(R.string.event_edit_save)) }
         },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            if (deleteLocked) {
-                EditorCard(
-                    icon = Icons.Default.Info,
-                    iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    iconAtTop = true,
-                ) {
-                    Text(
-                        text = stringResource(R.string.calendars_managed_delete_locked),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            EditorCard(icon = Icons.Default.CalendarMonth, iconTint = eventAccent(color, dark, soften)) {
-                InlineTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    placeholder = stringResource(R.string.calendars_name_label),
-                    textStyle = MaterialTheme.typography.titleLarge,
-                    capitalization = KeyboardCapitalization.Sentences,
-                )
-            }
-            EditorCard(
-                icon = Icons.Default.Palette,
-                iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
-                iconAtTop = true,
-            ) {
-                Text(
-                    text = stringResource(R.string.calendars_color_label),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(12.dp))
-                ColorSwatchRow(
-                    colors = CalendarColorPalette.all,
-                    selected = color,
-                    onSelect = { color = it },
-                    dark = dark,
-                )
-            }
-            EditorCard(
-                icon = Icons.AutoMirrored.Filled.Notes,
-                iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
-                iconAtTop = true,
-            ) {
+    ) {
+        if (deleteLocked) {
+            ManagedNote()
+            Spacer(Modifier.height(20.dp))
+        }
+
+        CalendarNameField(
+            name = name,
+            color = color,
+            focusRequester = focusRequester,
+            onNameChange = { name = it },
+            onImeAction = commit,
+        )
+
+        Spacer(Modifier.height(20.dp))
+        EditorSectionLabel(stringResource(R.string.calendars_color_label))
+        CalendarColorGrid(selected = color, onSelect = { color = it })
+
+        Spacer(Modifier.height(20.dp))
+        EditorSectionLabel(stringResource(R.string.calendars_description_hint))
+        GroupedSurface(position = Position.Alone, modifier = Modifier.padding(horizontal = 16.dp)) {
+            Box(Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(16.dp)) {
                 InlineTextField(
                     value = description,
                     onValueChange = { description = it },
@@ -485,20 +430,21 @@ internal fun CalendarEditor(
                 )
             }
         }
+
+        if (!isNew && !deleteLocked) {
+            Spacer(Modifier.height(24.dp))
+            DeleteCalendarRow(onClick = { confirmDelete = true })
+        }
+        Spacer(Modifier.height(24.dp))
     }
 
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             title = { Text(stringResource(R.string.calendars_delete_confirm_title)) },
-            text = {
-                Text(stringResource(R.string.calendars_delete_confirm_message, initialName))
-            },
+            text = { Text(stringResource(R.string.calendars_delete_confirm_message, initialName)) },
             confirmButton = {
-                TextButton(onClick = {
-                    confirmDelete = false
-                    onDelete()
-                }) {
+                TextButton(onClick = { confirmDelete = false; onDelete() }) {
                     Text(
                         stringResource(R.string.event_detail_delete),
                         color = MaterialTheme.colorScheme.error,
@@ -512,6 +458,178 @@ internal fun CalendarEditor(
             },
         )
     }
+}
+
+/** The name, with the chosen colour beside it so the two read as one thing. */
+@Composable
+private fun CalendarNameField(
+    name: String,
+    color: Int,
+    focusRequester: FocusRequester,
+    onNameChange: (String) -> Unit,
+    onImeAction: () -> Unit,
+) {
+    val dark = isSystemInDarkTheme()
+    val soften = LocalSoftenColors.current
+    GroupedSurface(position = Position.Alone, modifier = Modifier.padding(horizontal = 16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp).padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Default.CalendarMonth,
+                    contentDescription = null,
+                    tint = eventAccent(color, dark, soften),
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+            InlineTextField(
+                value = name,
+                onValueChange = onNameChange,
+                placeholder = stringResource(R.string.calendars_name_label),
+                capitalization = KeyboardCapitalization.Sentences,
+                imeAction = ImeAction.Done,
+                onImeAction = onImeAction,
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+            )
+        }
+    }
+}
+
+/**
+ * The palette as two rows of round swatches; the chosen one carries a check.
+ *
+ * Drawn through the app's own tone pass rather than raw, so a swatch is the
+ * colour the calendar will actually appear in — the user's "soften colours"
+ * preference included.
+ */
+@Composable
+private fun CalendarColorGrid(selected: Int, onSelect: (Int) -> Unit) {
+    val dark = isSystemInDarkTheme()
+    val soften = LocalSoftenColors.current
+    GroupedSurface(position = Position.Alone, modifier = Modifier.padding(horizontal = 16.dp)) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            CalendarColorPalette.all.chunked(SWATCHES_PER_ROW).forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    row.forEach { swatch ->
+                        ColorSwatch(
+                            fill = eventAccent(swatch, dark, soften),
+                            selected = swatch == selected,
+                            onClick = { onSelect(swatch) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                    // Keeps a short final row's swatches the size a full row's
+                    // are, rather than stretching them across the width.
+                    repeat(SWATCHES_PER_ROW - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColorSwatch(
+    fill: Color,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val label = stringResource(R.string.calendars_color_label)
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(CircleShape)
+            .background(fill)
+            // selectable, not clickable: the swatch carries its chosen state in
+            // semantics, so the check is decoration rather than the only cue.
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = if (fill.luminance() > 0.5f) Color.Black else Color.White,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+}
+
+/** Said in the sheet rather than on a disabled button: the sync owns this one. */
+@Composable
+private fun ManagedNote() {
+    GroupedSurface(
+        position = Position.Alone,
+        modifier = Modifier.padding(horizontal = 16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(Icons.Default.Info, contentDescription = null)
+            Text(
+                text = stringResource(R.string.calendars_managed_delete_locked),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeleteCalendarRow(onClick: () -> Unit) {
+    GroupedSurface(
+        position = Position.Alone,
+        modifier = Modifier.padding(horizontal = 16.dp),
+        onClick = onClick,
+        color = MaterialTheme.colorScheme.errorContainer,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                text = stringResource(R.string.event_detail_delete),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+        }
+    }
+}
+
+@Composable
+private fun EditorSectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 28.dp, end = 28.dp, bottom = 8.dp),
+    )
 }
 
 /**
@@ -556,36 +674,6 @@ private fun EnableSwitch(
 private fun dimIf(disabled: Boolean): Modifier =
     if (disabled) Modifier.alpha(0.38f) else Modifier
 
-/** Tonal field card matching the event editor's design (icon + content). */
-@Composable
-private fun EditorCard(
-    icon: ImageVector,
-    iconTint: Color,
-    iconAtTop: Boolean = false,
-    content: @Composable () -> Unit,
-) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = if (iconAtTop) Alignment.Top else Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier
-                    .padding(top = if (iconAtTop) 2.dp else 0.dp)
-                    .size(24.dp),
-            )
-            Spacer(Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) { content() }
-        }
-    }
-}
 
 /**
  * One collapsible calendar group rendered as a connected card. The header row is
