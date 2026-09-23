@@ -118,6 +118,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberTimelineDragController
 import de.jeanlucmakiola.calendula.ui.common.startInstant
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
+import de.jeanlucmakiola.calendula.ui.common.trimmedLines
 import de.jeanlucmakiola.calendula.ui.common.NowLine
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
@@ -155,7 +156,8 @@ import kotlin.time.Clock
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
-private val ALL_DAY_ROW_HEIGHT = 24.dp
+/** One lane of the all-day strip, sized to a trimmed bar line (#190). */
+private val ALL_DAY_ROW_HEIGHT = 20.dp
 private val ALL_DAY_VERTICAL_PADDING = 6.dp
 /** Gap between day columns; part of the column pitch a drag maps positions through. */
 private val COLUMN_GAP = 2.dp
@@ -664,7 +666,7 @@ private fun AllDayBar(
         val titleOverflow = eventTitleOverflow()
         Text(
             text = title,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.trimmedLines(),
             maxLines = 1,
             overflow = titleOverflow.overflow,
             softWrap = titleOverflow.softWrap,

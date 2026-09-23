@@ -153,6 +153,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.inlineTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
+import de.jeanlucmakiola.calendula.ui.common.trimmedLines
 import de.jeanlucmakiola.calendula.ui.common.monthBarShape
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
@@ -760,7 +761,12 @@ internal fun WeekdayHeader(weekStart: DayOfWeek, showWeekNumbers: Boolean) {
     }
 }
 
-private val EVENT_ROW_HEIGHT = 20.dp
+/**
+ * One lane of a day cell. Sized to a trimmed chip line rather than to Material's
+ * line box, so the three lanes a cell can draw cost it nine dp less and a
+ * six-row month keeps its third chip instead of demoting it to a dot (#190).
+ */
+private val EVENT_ROW_HEIGHT = 17.dp
 private val DAY_NUMBER_HEIGHT = 22.dp
 /** Width of the optional left calendar-week gutter (#25); narrow, since it only
  *  seats a one- or two-digit week number in a full-height tonal pill. */
@@ -2544,7 +2550,7 @@ private fun MonthBar(
         val titleOverflow = eventTitleOverflow()
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.trimmedLines(),
             maxLines = 1,
             overflow = titleOverflow.overflow,
             softWrap = titleOverflow.softWrap,
