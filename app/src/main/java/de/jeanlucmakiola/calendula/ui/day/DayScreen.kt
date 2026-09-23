@@ -115,6 +115,7 @@ import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSwipe
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
+import de.jeanlucmakiola.calendula.ui.common.trimmedLines
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
@@ -140,7 +141,8 @@ import kotlin.time.Clock
 import java.util.Locale
 import kotlin.math.roundToInt
 
-private val ALL_DAY_ROW_HEIGHT = 24.dp
+/** One lane of the all-day strip, sized to a trimmed bar line (#190). */
+private val ALL_DAY_ROW_HEIGHT = 20.dp
 private val ALL_DAY_VERTICAL_PADDING = 6.dp
 
 /** Total all-day strip height for the day (0 when there are no all-day events). */
@@ -529,7 +531,7 @@ private fun AllDayBar(
         val titleOverflow = eventTitleOverflow()
         Text(
             text = title,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.trimmedLines(),
             maxLines = 1,
             overflow = titleOverflow.overflow,
             softWrap = titleOverflow.softWrap,
