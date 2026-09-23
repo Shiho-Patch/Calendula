@@ -83,9 +83,9 @@ import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_OUTER_INSET
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_PADDING
-import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_INSET
 import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.BlockTitle
+import de.jeanlucmakiola.calendula.ui.common.rememberBlockTextMetrics
 import de.jeanlucmakiola.calendula.ui.common.blockTimeLines
 import de.jeanlucmakiola.calendula.ui.common.animatedBlockPlacement
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
@@ -765,30 +765,24 @@ private fun EventBlock(
     val timeLabel = "${minToHm(block.startMin, use24Hour, locale)}–" +
         minToHm(block.endMin, use24Hour, locale)
     val density = LocalDensity.current
-    val titleLineHeight = with(density) {
-        MaterialTheme.typography.labelMedium.lineHeight.toDp()
-    }
-    val timeLineHeight = with(density) {
-        MaterialTheme.typography.labelSmall.lineHeight.toDp()
-    }
+    val metrics = rememberBlockTextMetrics(height)
     // A block that cannot afford both lines spends its space on the title, and
     // one too short even for that drops the title rather than serving a sliced one.
     // Height alone decides: a duration threshold would keep hiding the time on a
     // half-hour block the user has pinched open to three times the room it needs.
-    val available = height - BLOCK_TEXT_INSET * 2
-    val showTime = available >= titleLineHeight + timeLineHeight
-    val showTitle = available >= titleLineHeight
+    val showTime = metrics.available >= metrics.titleLine + metrics.timeLine
+    val showTitle = metrics.fitsTitle
     val textWidth = width - (BLOCK_OUTER_INSET + BLOCK_TEXT_PADDING) * 2
     // Only lines the block can actually draw: a block too short for the time is
     // too short for a second title line too, and asking for one served a sliced
     // one — as well as handing the drag copy a count it couldn't honour, so the
     // title re-wrapped the moment the block was lifted (#267).
-    val titleBudget = (available / titleLineHeight).toInt().coerceAtLeast(1)
+    val titleBudget = metrics.titleBudget(metrics.available).coerceAtLeast(1)
     val titleMaxLines = if (showTime) 1 else titleBudget.coerceAtMost(2)
     // On a day column — wide enough for "09:30–11:00" several times over — the
     // range never needs the second line, until lanes cut the column down.
-    val spare = available - titleLineHeight * titleMaxLines -
-        if (showTime) timeLineHeight else 0.dp
+    val spare = metrics.available - metrics.titleHeight(titleMaxLines) -
+        if (showTime) metrics.timeLine else 0.dp
     val timeMaxLines = if (showTime) blockTimeLines(timeLabel, textWidth, spare) else 1
     val paint = eventPaint(block.event, dark)
     val zone = remember { TimeZone.currentSystemDefault() }
@@ -829,7 +823,7 @@ private fun EventBlock(
             // After clickable, so it is the inner node and wins the main pass;
             // the tap still works, since a drag consumes the up.
             .then(dragModifier)
-            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = BLOCK_TEXT_INSET)
+            .padding(horizontal = BLOCK_TEXT_PADDING, vertical = metrics.inset)
             .semantics {
                 contentDescription = "$title, $timeLabel"
                 if (moveAction != null) customActions = listOf(moveAction)
