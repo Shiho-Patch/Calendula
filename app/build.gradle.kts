@@ -28,8 +28,8 @@ android {
         // which builds this version and then creates the matching vX.Y.Z tag +
         // release itself (versionCode is pinned to MAJOR*10000 + MINOR*100 +
         // PATCH from versionName, e.g. 2.7.2 -> 20702). See docs/RELEASING.md.
-        versionCode = 22004
-        versionName = "2.20.4"
+        versionCode = 22100
+        versionName = "2.21.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

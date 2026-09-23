@@ -1,0 +1,11 @@
+New
+• Setup now makes sure you have a calendar to write to — create one, add an account, or switch a hidden one back on.
+
+Changed
+• The month grid gives its days more room: smaller week numbers, a measured gutter, tighter chips.
+• A month day shows as many events as it has height for, instead of a flat three.
+• Split view no longer pads a short month out to six rows.
+
+Fixed
+• Short events show their title in week and day view.
+• Untitled events and unnamed calendars read in your language.
