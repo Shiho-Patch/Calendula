@@ -302,8 +302,7 @@
     <string name="onboarding_calendars_body">This device has no calendar yet. Calendula writes to the calendars already on your phone — it needs at least one.</string>
     <string name="onboarding_calendars_local_name">My calendar</string>
     <string name="onboarding_calendars_local_button">Create a calendar on this device</string>
-    <string name="onboarding_calendars_account_button">Add an account</string>
-    <string name="onboarding_calendars_caldav_button">Using Nextcloud or another CalDAV server?</string>
+    <string name="onboarding_calendars_caldav_button">Sync with a CalDAV server</string>
     <string name="onboarding_calendars_skip_button">Not now</string>
     <string name="onboarding_calendars_benefit_local_title">Stays on this phone</string>
     <string name="onboarding_calendars_benefit_local_body">A device calendar syncs nowhere, so back it up if the events matter.</string>

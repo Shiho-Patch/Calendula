@@ -1,9 +1,5 @@
 package de.jeanlucmakiola.calendula.ui.onboarding
 
-import android.content.Context
-import android.content.Intent
-import android.provider.CalendarContract
-import android.provider.Settings
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,9 +31,9 @@ private const val DAVX5_URL = "https://www.davx5.com/"
  * Wizard step shown only when the device has no calendar at all (#287): the app
  * would otherwise finish onboarding onto an empty grid with nothing saying why.
  *
- * Three ways out, in the order most people want them. Calendula writes to the
- * system calendar provider and syncs nothing itself, so two of the three are
- * handing off to something that does.
+ * Two ways out. Calendula writes to the system calendar provider and syncs
+ * nothing itself, so anything beyond a device-only calendar means pointing at
+ * whatever does the syncing.
  */
 @Composable
 internal fun CalendarsStep(
@@ -67,14 +63,8 @@ internal fun CalendarsStep(
                 )
             }
             OutlinedButton(
-                onClick = { context.startCalendarAccountSetup() },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-            ) {
-                Text(stringResource(R.string.onboarding_calendars_account_button))
-            }
-            TextButton(
                 onClick = { openUrl(context, DAVX5_URL) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
             ) {
                 Text(stringResource(R.string.onboarding_calendars_caldav_button))
             }
@@ -113,19 +103,4 @@ internal fun CalendarsStep(
             body = stringResource(R.string.onboarding_calendars_benefit_sync_body),
         )
     }
-}
-
-/**
- * Open the system screen for putting an account's calendars on the device: the
- * account chooser filtered to calendar providers, falling back to sync settings
- * where no chooser resolves. Both are system components, so neither needs a
- * `<queries>` entry. Mirrors the same hand-off in `CalendarFailure`.
- */
-private fun Context.startCalendarAccountSetup() {
-    val intents = listOf(
-        Intent(Settings.ACTION_ADD_ACCOUNT)
-            .putExtra(Settings.EXTRA_AUTHORITIES, arrayOf(CalendarContract.AUTHORITY)),
-        Intent(Settings.ACTION_SYNC_SETTINGS),
-    )
-    intents.firstOrNull { runCatching { startActivity(it) }.isSuccess }
 }
