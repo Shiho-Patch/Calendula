@@ -28,6 +28,7 @@ fun OnboardingSteps(
     // Collected for every step, not just the two that draw a preview: starting
     // it when the picker composes would leave that step blank as it slides in.
     val choice by viewModel.viewChoice.collectAsStateWithLifecycle()
+    val creation by viewModel.creation.collectAsStateWithLifecycle()
 
     // Coerced because the outgoing half of a transition may be a step the live
     // plan has since dropped — the backup step goes once the calendars say it
@@ -66,6 +67,16 @@ fun OnboardingSteps(
             onGranted = onPermissionGranted,
             modifier = modifier,
             progress = progress,
+        )
+        OnboardingStep.Calendars -> CalendarsStep(
+            onCreateLocal = viewModel::createLocalCalendar,
+            onSkip = viewModel::skipCalendars,
+            creation = creation,
+            onFinished = viewModel::finishCalendars,
+            onClearCreation = viewModel::clearCalendarCreation,
+            modifier = modifier,
+            progress = progress,
+            navigationIcon = navigationIcon,
         )
         OnboardingStep.Reminders -> ReminderStep(
             onFinished = viewModel::finishReminders,

@@ -5,6 +5,12 @@ enum class OnboardingStep {
     /** Required: nothing works without the calendar grant. */
     Permission,
 
+    /**
+     * Only when the device has no calendar at all — the app can make a local
+     * one, or send you to whatever would do the syncing (#287).
+     */
+    Calendars,
+
     /** Whether Calendula delivers reminder notifications itself. */
     Reminders,
 
@@ -67,6 +73,12 @@ data class OnboardingPlan(
  * otherwise, so the flow can only ever get shorter — never sprout a step the
  * counter had not accounted for.
  *
+ * [calendarsApplies] carries the same contract for the calendar step, with one
+ * wrinkle: for the backup step an empty list means "could not read", but here
+ * an empty list *is* the condition. The two are indistinguishable at this
+ * layer and both want the step, so it turns false only once a non-empty list
+ * has actually arrived.
+ *
  * The month-style step is *not* conditional on Month being the chosen view:
  * Month is reachable from the drawer whatever opens first, and a step that came
  * and went as the view is picked would move the counter under the user on the
@@ -85,6 +97,8 @@ fun onboardingPlan(
     viewDone: Boolean,
     monthStyleDone: Boolean,
     backupApplies: Boolean?,
+    calendarsDone: Boolean = false,
+    calendarsApplies: Boolean? = null,
     visibilityArmed: Boolean = false,
     visibilityDone: Boolean = false,
     doneShown: Boolean = false,
@@ -92,6 +106,7 @@ fun onboardingPlan(
     val fresh = wizardArmed || (!hasPermission && !remindersDone)
     val steps = buildList {
         if (!hasPermission || fresh) add(OnboardingStep.Permission)
+        if (fresh && calendarsApplies != false) add(OnboardingStep.Calendars)
         if (!remindersDone || fresh) add(OnboardingStep.Reminders)
         if (fresh && backupApplies != false) add(OnboardingStep.Backup)
         if (fresh) {
@@ -104,6 +119,7 @@ fun onboardingPlan(
     val current = steps.firstOrNull { step ->
         when (step) {
             OnboardingStep.Permission -> !hasPermission
+            OnboardingStep.Calendars -> !calendarsDone
             OnboardingStep.Reminders -> !remindersDone
             OnboardingStep.Backup -> !backupDone
             OnboardingStep.View -> !viewDone

@@ -1,22 +1,35 @@
 package de.jeanlucmakiola.calendula.data.calendar
 
 /**
- * Google-Calendar-style palette; ARGB ints for a raw `CALENDAR_COLOR` /
- * `EVENT_COLOR`. The named entries exist for callers that need one specific
- * hue (the managed special-dates calendars), so they can't drift from the
- * swatches offered in the colour picker.
+ * The colours offered when creating or editing a calendar; ARGB ints for a raw
+ * `CALENDAR_COLOR` / `EVENT_COLOR`.
+ *
+ * Hues rather than final fills: every surface that draws a calendar colour runs
+ * it through the app's own tone pass first, so these are chosen to stay
+ * distinguishable after it. Shared with Agendula, whose list palette these are —
+ * the two apps are the same family and a calendar and a task list picked from
+ * different-looking sets read as different products.
+ *
+ * The named entries exist for callers that need one specific hue (the managed
+ * special-dates calendars), so they can't drift from the swatches on offer.
  */
 object CalendarColorPalette {
-    val Red = 0xFFD50000.toInt()
-    val Orange = 0xFFE67C00.toInt()
-    val Amber = 0xFFF6BF26.toInt()
-    val Green = 0xFF33B679.toInt()
-    val DarkGreen = 0xFF0B8043.toInt()
-    val Blue = 0xFF039BE5.toInt()
-    val Indigo = 0xFF3F51B5.toInt()
-    val Purple = 0xFF8E24AA.toInt()
-    val Graphite = 0xFF616161.toInt()
+    val Mauve = 0xFF7A5C6B.toInt()
+    val Red = 0xFFD7484A.toInt()
+    val Orange = 0xFFE8743B.toInt()
+    val Amber = 0xFFE0A32E.toInt()
+    val Olive = 0xFF7CA83E.toInt()
+    val Green = 0xFF35A06A.toInt()
+    val Teal = 0xFF19938C.toInt()
+    val Cyan = 0xFF2A9BC4.toInt()
+    val Blue = 0xFF3C74C8.toInt()
+    val Indigo = 0xFF6A5CC0.toInt()
+    val Purple = 0xFF9455B8.toInt()
+    val Pink = 0xFFC94F8E.toInt()
 
-    /** The full palette, in swatch-row order. */
-    val all: List<Int> = listOf(Red, Orange, Amber, Green, DarkGreen, Blue, Indigo, Purple, Graphite)
+    /** The full palette, in swatch-grid order. */
+    val all: List<Int> = listOf(
+        Mauve, Red, Orange, Amber, Olive, Green,
+        Teal, Cyan, Blue, Indigo, Purple, Pink,
+    )
 }

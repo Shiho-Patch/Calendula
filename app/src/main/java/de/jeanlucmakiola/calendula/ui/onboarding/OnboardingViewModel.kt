@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
@@ -92,6 +93,46 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
+    /** How the step's own create attempt ended, while it is still saying so (#287). */
+    private val _creation = MutableStateFlow<CalendarCreation?>(null)
+    val creation: StateFlow<CalendarCreation?> = _creation.asStateFlow()
+
+    /**
+     * Whether the step made a calendar here. Latched for the session and never
+     * cleared: the new calendar answers [calendarsApplies] with false, which
+     * would drop the step out of the plan the moment it is used — first from
+     * under the message that it worked, and then from the step count, which
+     * would fall by one just as the user pressed Continue.
+     */
+    private val calendarCreatedHere = MutableStateFlow(false)
+
+    /**
+     * Whether the calendar step applies: the device has nothing to put events
+     * in. Unlike [backupApplies] an empty list is the condition itself, not a
+     * failed read — the two look identical here and both want the step, so this
+     * only resolves once a non-empty list proves there is a calendar already.
+     */
+    private val calendarsApplies: Flow<Boolean?> = combine(
+        hasPermission.flatMapLatest { granted ->
+            if (granted != true) {
+                flowOf(null)
+            } else {
+                repository.calendars()
+                    .map { calendars -> if (calendars.isEmpty()) null else false }
+                    .catch { emit(null) }
+                    .flowOn(io)
+            }
+        },
+        calendarCreatedHere,
+    ) { applies, latched -> if (latched) null else applies }
+
+    /** The calendar step's own pair: whether it applies, and whether it is answered. */
+    private val calendarsFlags: Flow<CalendarsFlags> = combine(
+        calendarsApplies,
+        prefs.onboardingCalendarsDone,
+        ::CalendarsFlags,
+    )
+
     private val flags: Flow<OnboardingFlags> = combine(
         prefs.reminderOnboardingDone,
         prefs.onboardingWizardArmed,
@@ -110,7 +151,13 @@ class OnboardingViewModel @Inject constructor(
     )
 
     val plan: StateFlow<OnboardingPlan?> =
-        combine(hasPermission, flags, closingFlags, backupApplies) { granted, stored, closing, backup ->
+        combine(
+            hasPermission,
+            flags,
+            closingFlags,
+            backupApplies,
+            calendarsFlags,
+        ) { granted, stored, closing, backup, calendars ->
             granted?.let {
                 onboardingPlan(
                     hasPermission = it,
@@ -120,6 +167,8 @@ class OnboardingViewModel @Inject constructor(
                     viewDone = stored.viewDone,
                     monthStyleDone = stored.monthStyleDone,
                     backupApplies = backup,
+                    calendarsDone = calendars.done,
+                    calendarsApplies = calendars.applies,
                     visibilityArmed = closing.visibilityArmed,
                     visibilityDone = closing.visibilityDone,
                     doneShown = closing.doneShown,
@@ -186,6 +235,7 @@ class OnboardingViewModel @Inject constructor(
     fun goBack() {
         viewModelScope.launch {
             when (plan.value?.previous) {
+                OnboardingStep.Calendars -> prefs.setOnboardingCalendarsDone(false)
                 OnboardingStep.Reminders -> prefs.setReminderOnboardingDone(false)
                 OnboardingStep.Backup -> prefs.setOnboardingBackupDone(false)
                 OnboardingStep.View -> prefs.setOnboardingViewDone(false)
@@ -200,6 +250,53 @@ class OnboardingViewModel @Inject constructor(
     /** Close the backup step without setting anything up. */
     fun skipBackup() {
         viewModelScope.launch { prefs.setOnboardingBackupDone() }
+    }
+
+    /**
+     * Make the device-only calendar the step's editor just described. The step
+     * stays up on [creation] either way — to confirm the calendar and say where
+     * to make more, or to say the provider refused it. Answering the step for
+     * them would leave them where the step exists to stop them being: past it,
+     * with nowhere to put an event.
+     */
+    fun createLocalCalendar(displayName: String, color: Int, description: String?) {
+        viewModelScope.launch {
+            val name = displayName.trim()
+            _creation.value = runCatching {
+                repository.createLocalCalendar(
+                    displayName = name,
+                    color = color,
+                    description = description,
+                )
+            }.fold(
+                onSuccess = {
+                    calendarCreatedHere.value = true
+                    CalendarCreation.Created(name)
+                },
+                onFailure = { CalendarCreation.Failed },
+            )
+        }
+    }
+
+    /** Close the calendar step once its confirmation has been read. */
+    fun finishCalendars() {
+        viewModelScope.launch {
+            prefs.setOnboardingCalendarsDone()
+            _creation.value = null
+        }
+    }
+
+    /** Drop the failed attempt so the step offers itself again. */
+    fun clearCalendarCreation() {
+        _creation.value = null
+    }
+
+    /**
+     * Close the calendar step without making one. An empty app is a legitimate
+     * choice, and so is going off to set up an account and coming back.
+     */
+    fun skipCalendars() {
+        viewModelScope.launch { prefs.setOnboardingCalendarsDone() }
     }
 
     /**
@@ -294,6 +391,15 @@ private data class OnboardingFlags(
     val viewDone: Boolean,
     val monthStyleDone: Boolean,
 )
+
+/** How the calendar step's create attempt ended (#287). */
+sealed interface CalendarCreation {
+    data class Created(val name: String) : CalendarCreation
+    data object Failed : CalendarCreation
+}
+
+/** The calendar step's inputs (#287). */
+private data class CalendarsFlags(val applies: Boolean?, val done: Boolean)
 
 /** The tail of the flow: the visibility notice and the closing screen. */
 private data class ClosingFlags(
