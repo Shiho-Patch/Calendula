@@ -315,5 +315,4 @@ internal object ReminderProjection {
 
 internal object Fallbacks {
     const val UNNAMED_CALENDAR = "(Unbenannter Kalender)"
-    const val UNTITLED_EVENT = "(Ohne Titel)"
 }

@@ -509,6 +509,9 @@ private fun SearchResultRow(
     onLongClick: (() -> Unit)? = null,
 ) {
     val event = hit.event
+    // Spans are empty for a blank title — the query never matches the
+    // placeholder — so marking the substitute is safe.
+    val title = event.title.ifBlank { stringResource(R.string.event_untitled) }
     val dark = isSystemInDarkTheme()
     val soften = LocalSoftenColors.current
     // On a picked row the headline is already recoloured for the secondary
@@ -521,7 +524,7 @@ private fun SearchResultRow(
         // Faded like a past event anywhere else in the app — search reaches back
         // through the whole history.
         modifier = if (hit.isPast) modifier.alpha(EventDimAlpha) else modifier,
-        title = declinedTitle(marked(event.title, hit.titleSpans, highlight), event.isDeclined),
+        title = declinedTitle(marked(title, hit.titleSpans, highlight), event.isDeclined),
         summary = searchSummary(hit, highlight),
         position = position,
         minHeight = 64.dp,

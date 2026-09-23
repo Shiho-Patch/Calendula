@@ -21,8 +21,9 @@ internal fun ColumnReader.toEventInstance(): EventInstance? {
         return null
     }
 
-    val rawTitle = getString(InstanceProjection.IDX_TITLE)
-    val title = if (rawTitle.isNullOrEmpty()) Fallbacks.UNTITLED_EVENT else rawTitle
+    // Left blank when the event has no title: the placeholder is a display
+    // string, so it belongs to the UI layer where it can be localised (#321).
+    val title = getString(InstanceProjection.IDX_TITLE).orEmpty()
 
     val color = if (isNull(InstanceProjection.IDX_EVENT_COLOR)) {
         getInt(InstanceProjection.IDX_CALENDAR_COLOR)

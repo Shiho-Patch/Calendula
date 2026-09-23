@@ -21,8 +21,7 @@ internal fun ColumnReader.toSearchResult(): EventInstance? {
         else -> dtStart + parseRfc2445DurationMillis(getString(SearchProjection.IDX_DURATION))
     }.coerceAtLeast(dtStart)
 
-    val rawTitle = getString(SearchProjection.IDX_TITLE)
-    val title = if (rawTitle.isNullOrEmpty()) Fallbacks.UNTITLED_EVENT else rawTitle
+    val title = getString(SearchProjection.IDX_TITLE).orEmpty()
     val color = if (isNull(SearchProjection.IDX_EVENT_COLOR)) {
         getInt(SearchProjection.IDX_CALENDAR_COLOR)
     } else {
