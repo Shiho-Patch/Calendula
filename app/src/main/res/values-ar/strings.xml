@@ -745,4 +745,5 @@
     <string name="state_failure_provider_body">لم يستجب تقويم النظام. حاول مجددًا بعد لحظة.</string>
     <string name="calendar_unnamed">(بدون اسم)</string>
     <string name="onboarding_calendars_title">مكان لوضع أحداثك</string>
+    <string name="onboarding_calendars_body">لا يحتوي هذا الجهاز على تقويم بعد. يكتب Calendula للتقويمات التي بالفعل على هاتفك — أنه يحتاج على الأقل واحد.</string>
 </resources>
