@@ -735,4 +735,14 @@
     <string name="licences_title">تراخيص مفتوحة المصدر</string>
     <string name="licences_intro">يتضمن Calendula العمل أدناه. اضغط على أي إدخال للحصول على شفرة المصدر الخاصة به.</string>
     <string name="licences_footer">يتم تضمين كل مشروع هنا دون تعديل، بموجب الترخيص الموضح.</string>
+    <string name="state_failure_permission_body">يقرأ Calendula أحداثك مباشرةً من تقويم النظام، لذلك فأنه يحتاج للوصول إلى التقويم لعرض أي شيء.</string>
+    <string name="state_failure_no_calendars_body">أضِف حساب تقويم إلى هذا الجهاز و تظهر تقويماته هنا.</string>
+    <string name="state_failure_all_hidden_body">قم بإعادة تشغيل تقويم واحد على الأقل لرؤية أحداثه.</string>
+    <string name="state_failure_no_import_target">لا تقويم يمكنه استيعاب أحداث جديدة.</string>
+    <string name="state_failure_no_import_target_body">التقويمات التي تم تشغيلها للقراءة فقط، تتم إدارتها بواسطة تطبيق آخر، أو لا تتم مزامنتها إلى هذا الجهاز. قم بتشغيل تقويم يمكنه استقبال الأحداث، أو أضِف واحدًا محليًا.</string>
+    <string name="state_failure_event_not_found">لم يعد هذا الحدث موجود.</string>
+    <string name="state_failure_event_not_found_body">ربما أنه تم حذفه، أو نقله إلى تقويم تم إيقافه.</string>
+    <string name="state_failure_provider_body">لم يستجب تقويم النظام. حاول مجددًا بعد لحظة.</string>
+    <string name="calendar_unnamed">(بدون اسم)</string>
+    <string name="onboarding_calendars_title">مكان لوضع أحداثك</string>
 </resources>
