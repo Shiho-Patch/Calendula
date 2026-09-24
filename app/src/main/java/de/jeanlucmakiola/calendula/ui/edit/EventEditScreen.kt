@@ -620,7 +620,9 @@ private fun EventEditContent(
             Text(
                 text = stringResource(
                     R.string.event_edit_managed_hint,
-                    selectedCalendar?.displayName.orEmpty(),
+                    selectedCalendar?.displayName
+                        ?.ifBlank { stringResource(R.string.calendar_unnamed) }
+                        .orEmpty(),
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -719,6 +721,7 @@ private fun EventEditContent(
         ) {
             Text(
                 text = selectedCalendar?.displayName
+                    ?.ifBlank { stringResource(R.string.calendar_unnamed) }
                     ?: stringResource(R.string.event_edit_error_no_calendar),
                 style = MaterialTheme.typography.titleMedium,
                 color = if (selectedCalendar == null) {

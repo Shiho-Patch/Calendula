@@ -302,6 +302,7 @@ fun EventDetailScreen(
             is EventDetailUiState.Failure -> CalendarFailure(
                 reason = s.reason,
                 onRetry = viewModel::retry,
+                modifier = contentModifier,
             )
             is EventDetailUiState.Success -> EventDetailContent(s, copyField, contentModifier)
         }
@@ -526,7 +527,8 @@ private fun EventDetailContent(
             iconContentDescription = stringResource(R.string.event_detail_calendar),
         ) {
             Text(
-                text = state.calendarName ?: stringResource(R.string.event_detail_calendar_unknown),
+                text = state.calendarName?.ifBlank { stringResource(R.string.calendar_unnamed) }
+                    ?: stringResource(R.string.event_detail_calendar_unknown),
                 style = MaterialTheme.typography.titleMedium,
             )
         }

@@ -5,6 +5,19 @@ enum class OnboardingStep {
     /** Required: nothing works without the calendar grant. */
     Permission,
 
+    /**
+     * Only when every calendar on the device is switched off, so the app would
+     * open on a blank grid: lists them and offers to switch them back on (#287).
+     */
+    HiddenCalendars,
+
+    /**
+     * Only when the device has nothing to put an event in — no calendar at all,
+     * or none left showing after the step above. The app can make a local one,
+     * or send you to whatever would do the syncing (#287).
+     */
+    Calendars,
+
     /** Whether Calendula delivers reminder notifications itself. */
     Reminders,
 
@@ -67,6 +80,18 @@ data class OnboardingPlan(
  * otherwise, so the flow can only ever get shorter — never sprout a step the
  * counter had not accounted for.
  *
+ * [calendarsApplies] carries the same contract for the calendar step, with one
+ * wrinkle: for the backup step an empty list means "could not read", but here
+ * an empty list *is* the condition. The two are indistinguishable at this
+ * layer and both want the step, so it turns false only once a calendar the app
+ * could actually show has arrived.
+ *
+ * [hiddenApplies] is the step in front of it (#287): the device has calendars
+ * but every one of them is switched off. It comes first because switching one
+ * back on is the lighter remedy — and where it is declined, the calendar step
+ * behind it still offers to make one, the same offer a device with no calendars
+ * at all gets.
+ *
  * The month-style step is *not* conditional on Month being the chosen view:
  * Month is reachable from the drawer whatever opens first, and a step that came
  * and went as the view is picked would move the counter under the user on the
@@ -75,7 +100,9 @@ data class OnboardingPlan(
  * [visibilityArmed] carries the one-time notice that the device is hiding some
  * calendars (#75) — the only optional step an *existing* install can be given,
  * which is why it is not gated on `fresh`, and on its own it earns no closing
- * screen.
+ * screen. It stays a pure announcement: the all-hidden *state* is
+ * [hiddenApplies]'s business, up at the front of the flow where something can
+ * still be done about it.
  */
 fun onboardingPlan(
     hasPermission: Boolean,
@@ -85,6 +112,10 @@ fun onboardingPlan(
     viewDone: Boolean,
     monthStyleDone: Boolean,
     backupApplies: Boolean?,
+    hiddenDone: Boolean = false,
+    hiddenApplies: Boolean? = false,
+    calendarsDone: Boolean = false,
+    calendarsApplies: Boolean? = null,
     visibilityArmed: Boolean = false,
     visibilityDone: Boolean = false,
     doneShown: Boolean = false,
@@ -92,6 +123,8 @@ fun onboardingPlan(
     val fresh = wizardArmed || (!hasPermission && !remindersDone)
     val steps = buildList {
         if (!hasPermission || fresh) add(OnboardingStep.Permission)
+        if (fresh && hiddenApplies != false) add(OnboardingStep.HiddenCalendars)
+        if (fresh && calendarsApplies != false) add(OnboardingStep.Calendars)
         if (!remindersDone || fresh) add(OnboardingStep.Reminders)
         if (fresh && backupApplies != false) add(OnboardingStep.Backup)
         if (fresh) {
@@ -104,6 +137,8 @@ fun onboardingPlan(
     val current = steps.firstOrNull { step ->
         when (step) {
             OnboardingStep.Permission -> !hasPermission
+            OnboardingStep.HiddenCalendars -> !hiddenDone
+            OnboardingStep.Calendars -> !calendarsDone
             OnboardingStep.Reminders -> !remindersDone
             OnboardingStep.Backup -> !backupDone
             OnboardingStep.View -> !viewDone

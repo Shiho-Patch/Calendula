@@ -242,8 +242,8 @@ class EventSearchTest {
     }
 
     @Test
-    fun `an untitled event's placeholder is not something the query can match`() {
-        val untitled = candidate("(Ohne Titel)", description = "Titel folgt noch").copy(title = null)
+    fun `an untitled event's blank title is not something the query can match`() {
+        val untitled = candidate("", description = "Titel folgt noch").copy(title = null)
 
         val results = search(untitled, query = "titel")
 

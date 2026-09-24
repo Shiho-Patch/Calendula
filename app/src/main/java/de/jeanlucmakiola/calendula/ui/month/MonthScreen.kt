@@ -123,6 +123,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -153,6 +154,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.inlineTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.eventAccent
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
+import de.jeanlucmakiola.calendula.ui.common.trimmedLines
 import de.jeanlucmakiola.calendula.ui.common.monthBarShape
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
@@ -744,7 +746,7 @@ internal fun WeekdayHeader(weekStart: DayOfWeek, showWeekNumbers: Boolean) {
             .padding(horizontal = AppBarSpacing.Inset, vertical = 4.dp),
     ) {
         // Reserve the gutter so the weekday labels stay over their day columns.
-        if (showWeekNumbers) Spacer(Modifier.width(WEEK_NUMBER_GUTTER))
+        if (showWeekNumbers) Spacer(Modifier.width(rememberWeekNumberGutter()))
         days.forEach { dow ->
             val isWeekend = dow == DayOfWeek.SATURDAY || dow == DayOfWeek.SUNDAY
             val javaDow = java.time.DayOfWeek.of(dow.ordinal + 1)
@@ -762,9 +764,34 @@ internal fun WeekdayHeader(weekStart: DayOfWeek, showWeekNumbers: Boolean) {
 
 private val EVENT_ROW_HEIGHT = 20.dp
 private val DAY_NUMBER_HEIGHT = 22.dp
-/** Width of the optional left calendar-week gutter (#25); narrow, since it only
- *  seats a one- or two-digit week number in a full-height tonal pill. */
-private val WEEK_NUMBER_GUTTER = 40.dp
+/** Padding between the week-number pill's edge and the number inside it. */
+private val WEEK_NUMBER_PADDING = 6.dp
+
+/** The widest week number an ISO year reaches; digits are tabular, so one
+ *  measurement of it prices every week in the grid. */
+private const val WEEK_NUMBER_SAMPLE = "53"
+
+/**
+ * Width of the optional left calendar-week gutter (#25), measured rather than
+ * fixed: it is sized to the number it seats at the style the pill draws it in,
+ * so it follows the font scale instead of reserving slack for it, and spends
+ * nothing more on a column the grid would rather hand to the seven days (#213).
+ */
+@Composable
+private fun rememberWeekNumberGutter(): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val style = weekNumberStyle()
+    return remember(style, density, measurer) {
+        val text = with(density) { measurer.measure(WEEK_NUMBER_SAMPLE, style).size.width.toDp() }
+        text + (WEEK_NUMBER_PADDING + CELL_GAP) * 2
+    }
+}
+
+/** The week number's own style — a step down from the day numbers beside it. */
+@Composable
+private fun weekNumberStyle() =
+    MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
 private val DAY_NUMBER_GAP = 4.dp
 private val CELL_TOP_PADDING = 6.dp
 /** Named separately because the split style's selection outline draws its own
@@ -774,14 +801,79 @@ private val CELL_SHAPE = RoundedCornerShape(CELL_CORNER)
 
 /** Width of the split style's selected-day outline. */
 private val SPLIT_SELECTION_STROKE = 1.5.dp
-/** Lanes of bars/pills a day cell draws before the rest become overflow dots. */
-internal const val MAX_EVENT_ROWS = 3
+/**
+ * Dots a split-style cell draws. Fixed, unlike the paged grid's measured cap:
+ * the split rows are a fixed height whatever the screen is.
+ *
+ * Dot *i* is lane *i*, so a dot morphs into the bar the expanded grid draws
+ * there (#53) — [MonthWeek.laneEvents] seats the same events in the same order
+ * at any cap, so a larger one only appends. Where the expanded grid seats fewer
+ * lanes than this — a six-row month in a short landscape viewport — the dots
+ * past its cap have no bar to become and simply fade instead of travelling.
+ */
+internal const val SPLIT_DOT_LANES = 3
+
+/** Diameter of a single overflow dot. */
+private val OVERFLOW_DOT_SIZE = 6.dp
+
+/**
+ * Height of the overflow row: the "+N" beside the dots, measured at the style it
+ * is drawn in.
+ *
+ * It was taking a whole event lane, which is more than a dot and a label line
+ * need and one lane fewer for the chips. Measured rather than picked, so it
+ * still holds the label at a large font scale — a fixed height clipped the "+N"
+ * at anything above the default.
+ */
+@Composable
+private fun rememberOverflowRowHeight(): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val style = MaterialTheme.typography.labelSmall
+    return remember(style, density, measurer) {
+        with(density) { measurer.measure(OVERFLOW_SAMPLE, style).size.height.toDp() }
+            .coerceAtLeast(OVERFLOW_DOT_SIZE)
+    }
+}
+
+/** The tallest the counter gets; digits are tabular, so one is as wide as any. */
+private const val OVERFLOW_SAMPLE = "+9"
+
+/**
+ * Lanes of chips this week's cells draw in a row [rowHeight] tall, before the
+ * rest become dots.
+ *
+ * The cap used to be a flat three at every size, so a tall five-row month threw
+ * away lanes it had the room for while a cramped six-row one drew a third chip
+ * its band could not hold and put the dots below the clip, where nothing showed
+ * that the day held more at all.
+ *
+ * Measured instead, with no ceiling: a cell spends whatever height it was given.
+ * The overflow row is only charged for when some day in the week actually
+ * overflows — a week that fits gets that space as another lane rather than
+ * reserving room for a marker it will not draw.
+ */
+internal fun MonthWeek.laneCapFor(rowHeight: Dp, overflowRow: Dp): Int {
+    val band = monthBandHeight(rowHeight)
+    val full = (band / EVENT_ROW_HEIGHT).toInt().coerceAtLeast(1)
+    if (!overflowsAt(full)) return full
+    return ((band - overflowRow) / EVENT_ROW_HEIGHT).toInt().coerceAtLeast(1)
+}
+
+/** What a row [rowHeight] tall leaves for chips once the day number is drawn. */
+internal fun monthBandHeight(rowHeight: Dp): Dp =
+    rowHeight - CELL_TOP_PADDING - DAY_NUMBER_HEIGHT - DAY_NUMBER_GAP
+
+/** Whether any day in this week holds more than [lanes] lanes can seat. */
+private fun MonthWeek.overflowsAt(lanes: Int): Boolean =
+    days.withIndex().any { (col, day) -> overflowEvents(col, day, lanes).isNotEmpty() }
 
 /**
  * Row height in the continuous grid. The paged grid divides the viewport between
  * however many rows the month has; a scrolling stream has no such bound, so it
- * fixes a height that seats the day number plus [MAX_EVENT_ROWS] event rows —
- * close to what a five-row month gets on a typical phone.
+ * fixes one — close to what a five-row month gets on a typical phone. How many
+ * chips that seats is [MonthWeek.laneCapFor]'s answer like anywhere else, so a
+ * week that does not overflow fills the band rather than holding a lane back.
  */
 private val CONTINUOUS_ROW_HEIGHT = 112.dp
 
@@ -792,6 +884,11 @@ private val CONTINUOUS_ROW_HEIGHT = 112.dp
  * them.
  */
 private val CONTINUOUS_MONTH_GAP = 20.dp
+
+/** The paged grid's own vertical padding, and the gap between its week rows —
+ *  named because [monthLaneCap] has to take them off the viewport first. */
+private val GRID_VERTICAL_PADDING = 4.dp
+private val GRID_ROW_GAP = 2.dp
 
 /** Gap between the weekday header and the seamless stream's first week row. */
 private val DENSE_HEADER_GAP = 4.dp
@@ -805,34 +902,43 @@ internal fun MonthGrid(
     /** See [MonthWeekRow]'s `selected`: an anchor for the morph, never a mark. */
     selected: LocalDate? = null,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            // Match the weekday header's inset so day cells sit under their
-            // labels, and so the week-number gutter's centre lines up with the
-            // top bar's hamburger (4dp bar inset + 24dp half icon button).
-            .padding(horizontal = AppBarSpacing.Inset, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        val month = state.month
-        // Once per grid: the value depends on the typography, the density, the
-        // locale and the 24-hour setting, none of which vary by row (#219).
-        val timeChipWidth = rememberMonthTimeChipWidth()
-        state.weeks.forEach { week ->
-            MonthWeekRow(
-                week = week,
-                today = state.today,
-                zone = state.zone,
-                timeChipWidth = timeChipWidth,
-                inMonth = { it.month == month.month && it.year == month.year },
-                showWeekNumbers = showWeekNumbers,
-                onOpenDay = onOpenDay,
-                onEventClick = onEventClick,
-                selected = selected,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-            )
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        // The rows divide whatever the viewport leaves once the Column's own
+        // padding and the gaps between them are paid, so how many chips a cell
+        // can seat is only knowable here.
+        val rows = state.weeks.size.coerceAtLeast(1)
+        val rowHeight =
+            (maxHeight - GRID_VERTICAL_PADDING * 2 - GRID_ROW_GAP * (rows - 1)) / rows
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                // Match the weekday header's inset so day cells sit under their
+                // labels, and so the week-number gutter's centre lines up with the
+                // top bar's hamburger (4dp bar inset + 24dp half icon button).
+                .padding(horizontal = AppBarSpacing.Inset, vertical = GRID_VERTICAL_PADDING),
+            verticalArrangement = Arrangement.spacedBy(GRID_ROW_GAP),
+        ) {
+            val month = state.month
+            // Once per grid: the value depends on the typography, the density, the
+            // locale and the 24-hour setting, none of which vary by row (#219).
+            val timeChipWidth = rememberMonthTimeChipWidth()
+            state.weeks.forEach { week ->
+                MonthWeekRow(
+                    week = week,
+                    today = state.today,
+                    zone = state.zone,
+                    timeChipWidth = timeChipWidth,
+                    rowHeight = rowHeight,
+                    inMonth = { it.month == month.month && it.year == month.year },
+                    showWeekNumbers = showWeekNumbers,
+                    onOpenDay = onOpenDay,
+                    onEventClick = onEventClick,
+                    selected = selected,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                )
+            }
         }
     }
 }
@@ -930,6 +1036,7 @@ private fun ContinuousMonthBlock(
                     today = today,
                     zone = zone,
                     timeChipWidth = timeChipWidth,
+                    rowHeight = CONTINUOUS_ROW_HEIGHT,
                     inMonth = { it.month == month.month && it.year == month.year },
                     // The block owns its month alone: a day from either
                     // neighbour is left out entirely rather than dimmed.
@@ -1024,6 +1131,7 @@ internal fun DenseMonthGrid(
                     today = state.today,
                     zone = state.zone,
                     timeChipWidth = timeChipWidth,
+                    rowHeight = CONTINUOUS_ROW_HEIGHT,
                     // Every day in the stream belongs to a month equally — there
                     // is no "other month" to recede here.
                     inMonth = { true },
@@ -1141,10 +1249,10 @@ private val MONTH_EXPAND_THRESHOLD = 48.dp
  * lists whatever day is selected — and a downward drag trades the pane away for
  * the full paged grid, an upward one brings it back (#53).
  *
- * The grid slides between months like the paged style, which it can only do
- * because it always reserves [SPLIT_GRID_ROWS] rows. Sized to its own month it
- * stood 4–6 rows tall, so every swipe shunted the pane up or down by a row on
- * top of swapping the grid — the pane now holds still and only the grid moves.
+ * The grid slides between months like the paged style, and stands only as many
+ * rows tall as its own month spans (#162). A swipe between a five-row month and
+ * a six-row one therefore moves the pane by a row as well as swapping the grid;
+ * the row it hands back is worth more to the pane than a still edge is.
  *
  * Expansion is deliberately **not** a stored preference. It is a way to look at
  * the month you are on, not a fourth style; persisted, someone would expand it
@@ -1437,16 +1545,9 @@ private fun SplitExpandHandle(
  */
 private val SPLIT_ROW_HEIGHT = 46.dp
 private val SPLIT_DOT_SIZE = 5.dp
-// Dots are capped by MAX_EVENT_ROWS, not a constant of their own: they stand for
+// Dots are capped by SPLIT_DOT_LANES, not a constant of their own: they stand for
 // the paged grid's lanes, so the two caps have to be the same number or a dot
 // would have no bar to become (#53).
-
-/**
- * Rows the split grid always reserves — the most any month needs. A month that
- * fits in fewer pads the remainder with blank rows rather than shrinking, which
- * is what lets the pane below hold still from month to month.
- */
-private const val SPLIT_GRID_ROWS = 6
 
 /**
  * The expand handle: M3's drag-handle pill (32×4dp), in a row tall enough to be a
@@ -1459,6 +1560,11 @@ private val SPLIT_HANDLE_ROW_HEIGHT = 24.dp
 /**
  * The split style's grid (#53): the month compressed to day numbers and event
  * dots, with the selected day listed underneath by [SplitDayPane].
+ *
+ * Only the rows the month actually spans. It used to pad every month out to six
+ * so the pane below held still from page to page, but a row is a sixth of the
+ * grid and a third of what the pane gets to show — too much to leave blank on
+ * the months that don't need it (#162).
  *
  * Tapping selects rather than drilling into the Day view — the pane is the
  * answer to "what's on this day", so opening a whole screen for it would defeat
@@ -1486,7 +1592,7 @@ internal fun SplitMonthGrid(
                     WeekNumberGutter(
                         weekStart = week.days.first(),
                         modifier = Modifier
-                            .width(WEEK_NUMBER_GUTTER)
+                            .width(rememberWeekNumberGutter())
                             .fillMaxHeight(),
                     )
                 }
@@ -1494,11 +1600,11 @@ internal fun SplitMonthGrid(
                     val inMonth = day.month == month.month && day.year == month.year
                     // Seated by lane rather than gathered by colour, so each dot
                     // is the event the expanded grid draws in that same lane.
-                    val seated = week.laneEvents(col, day, MAX_EVENT_ROWS)
+                    val seated = week.laneEvents(col, day, SPLIT_DOT_LANES)
                     SplitDayCell(
                         date = day,
                         events = seated,
-                        hidden = week.overflowEvents(col, day, MAX_EVENT_ROWS),
+                        hidden = week.overflowEvents(col, day, SPLIT_DOT_LANES),
                         isToday = day == state.today,
                         // A page marks only the days its own month owns. Paging
                         // moves the selection before this month's replacement
@@ -1518,17 +1624,11 @@ internal fun SplitMonthGrid(
                 }
             }
         }
-        // Hold the grid at a constant height whatever shape the month is, so the
-        // pane beneath it doesn't move as you page and one month can slide over
-        // another without a height change under it.
-        repeat(SPLIT_GRID_ROWS - state.weeks.size) {
-            Spacer(Modifier.fillMaxWidth().height(SPLIT_ROW_HEIGHT))
-        }
     }
 }
 
 /**
- * One compact day: its number over up to [MAX_EVENT_ROWS] lane-seated event dots.
+ * One compact day: its number over up to [SPLIT_DOT_LANES] lane-seated event dots.
  *
  * Selection and today are deliberately different signals — a tinted, outlined
  * cell versus the filled circle the other views already use for today — so the
@@ -1902,7 +2002,7 @@ private fun rememberSkeletonPulse(): Float {
  * One week of the grid. Bars (all-day / multi-day) are positioned absolutely so
  * a multi-day event is one connected bar across the columns; single-day timed
  * events sit beneath them as filled pills in their own cell. The cap is
- * [MAX_EVENT_ROWS] rows of bars+pills, then a "+N" dot indicator per day.
+ * [SPLIT_DOT_LANES] rows of bars+pills, then a "+N" dot indicator per day.
  * A transparent per-day layer on top turns a tap into "open that day".
  */
 @Composable
@@ -1913,6 +2013,8 @@ private fun MonthWeekRow(
     zone: TimeZone,
     /** The narrowest chip that may carry a start time, measured once per grid (#219). */
     timeChipWidth: Dp,
+    /** The height this row was given, which decides its lanes — see [laneCapFor]. */
+    rowHeight: Dp,
     inMonth: (LocalDate) -> Boolean,
     showWeekNumbers: Boolean,
     onOpenDay: (LocalDate) -> Unit,
@@ -1929,8 +2031,10 @@ private fun MonthWeekRow(
     selected: LocalDate? = null,
 ) {
     val dark = isSystemInDarkTheme()
+    val overflowRow = rememberOverflowRowHeight()
+    val laneCap = week.laneCapFor(rowHeight, overflowRow)
     val laneCount = (week.spans.maxOfOrNull { it.lane } ?: -1) + 1
-    val shownLanes = laneCount.coerceAtMost(MAX_EVENT_ROWS)
+    val shownLanes = laneCount.coerceAtMost(laneCap)
     val morphing = morphInFlight()
     // Every chip's start time for this row at once, and only when the row's own
     // inputs change: formatting is a parsed pattern per call, and the dim cutoff
@@ -1983,9 +2087,9 @@ private fun MonthWeekRow(
                     band = bandCoordinates[0],
                     columnWidthPx = cell.size.width / 7f,
                     laneHeightPx = rowHeightPx,
-                    laneCount = MAX_EVENT_ROWS,
+                    laneCount = laneCap,
                     isRtl = isRtl,
-                    chipAt = { col, lane -> week.chipAt(col, lane, MAX_EVENT_ROWS) },
+                    chipAt = { col, lane -> week.chipAt(col, lane, laneCap) },
                     chipStart = { col, lane -> week.chipStartCol(col, lane) },
                 ),
             )
@@ -2007,7 +2111,7 @@ private fun MonthWeekRow(
             WeekNumberGutter(
                 weekStart = week.days.first(),
                 modifier = Modifier
-                    .width(WEEK_NUMBER_GUTTER)
+                    .width(rememberWeekNumberGutter())
                     .fillMaxHeight(),
             )
         }
@@ -2026,6 +2130,7 @@ private fun MonthWeekRow(
                         controller = dragController,
                         band = bandCoordinates,
                         rowHeightPx = rowHeightPx,
+                        laneCap = laneCap,
                         isRtl = isRtl,
                         chipTimes = chipTimes,
                     ),
@@ -2034,6 +2139,11 @@ private fun MonthWeekRow(
             // What a chip has to spend, against the [timeChipWidth] a start time
             // costs it (#219).
             val colW = maxWidth / 7
+            // Held here rather than read at the offset: the dots are placed
+            // inside a plain lambda, which is no longer in this scope. The box
+            // is the whole row, so the day number's share comes off it — the
+            // dots are positioned inside the band, not inside this.
+            val bandHeight = monthBandHeight(maxHeight)
 
             // Per-day background pills — same surfaceContainer rounded surface the
             // week/day views use, so the three views share one visual language.
@@ -2176,7 +2286,7 @@ private fun MonthWeekRow(
                             .filter { it.lane < shownLanes && col in it.startCol..it.endCol }
                             .map { it.lane }
                             .toSet()
-                        val freeSlots = (0 until MAX_EVENT_ROWS).filter { it !in occupied }
+                        val freeSlots = (0 until laneCap).filter { it !in occupied }
                         val pillsShown = timed.take(freeSlots.size)
                         pillsShown.forEachIndexed { i, ev ->
                             MonthBar(
@@ -2210,8 +2320,20 @@ private fun MonthWeekRow(
                                 events = hiddenEvents,
                                 total = hidden,
                                 dark = dark,
+                                rowHeight = overflowRow,
                                 modifier = Modifier
-                                    .offset(x = colW * col, y = EVENT_ROW_HEIGHT * MAX_EVENT_ROWS)
+                                    // After the chip lanes, but never past the
+                                    // band: on a row too short for the lanes it
+                                    // is holding, dots placed below it are
+                                    // clipped away entirely and the day looks
+                                    // like it has nothing more to show.
+                                    .offset(
+                                        x = colW * col,
+                                        y = minOf(
+                                            EVENT_ROW_HEIGHT * laneCap,
+                                            bandHeight - overflowRow,
+                                        ),
+                                    )
                                     .morphBounds(MonthMorphKey.Overflow(d))
                                     .width(colW)
                                     .padding(horizontal = 3.dp),
@@ -2286,6 +2408,7 @@ private fun MonthWeekRow(
                                             bandCoordinates,
                                         ),
                                         rowHeightPx = rowHeightPx,
+                                        laneCap = laneCap,
                                     )
                                     if (chip != null) onEventClick(chip) else onOpenDay(d)
                                 },
@@ -2327,11 +2450,12 @@ internal fun MonthWeek.chipAtCellY(
     cellY: Float,
     bandTopInCell: Float?,
     rowHeightPx: Float,
+    laneCap: Int,
 ): EventInstance? {
     if (bandTopInCell == null || rowHeightPx <= 0f) return null
     val bandY = cellY - bandTopInCell
     if (bandY < 0f) return null
-    return chipAt(col, (bandY / rowHeightPx).toInt(), MAX_EVENT_ROWS)
+    return chipAt(col, (bandY / rowHeightPx).toInt(), laneCap)
 }
 
 /**
@@ -2346,6 +2470,7 @@ private fun monthChipDragModifier(
     controller: MonthDragController?,
     band: Array<LayoutCoordinates?>,
     rowHeightPx: Float,
+    laneCap: Int,
     isRtl: Boolean,
     /** The row's formatted chip times by instance id, so the copy carries the
      *  one its source chip had rather than deriving another (#219). */
@@ -2364,7 +2489,7 @@ private fun monthChipDragModifier(
         val event = if (bandY < 0f || columnPx <= 0f) {
             null
         } else {
-            week.chipAt(dayIndex, lane, MAX_EVENT_ROWS)
+            week.chipAt(dayIndex, lane, laneCap)
         }
         if (event == null || moveScope?.allows(event) != true) {
             false
@@ -2422,8 +2547,7 @@ private fun WeekNumberGutter(weekStart: LocalDate, modifier: Modifier = Modifier
     ) {
         Text(
             text = weekNumber.toString(),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
+            style = weekNumberStyle(),
             color = MaterialTheme.colorScheme.onSecondaryContainer,
         )
     }
@@ -2544,7 +2668,7 @@ private fun MonthBar(
         val titleOverflow = eventTitleOverflow()
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.trimmedLines(),
             maxLines = 1,
             overflow = titleOverflow.overflow,
             softWrap = titleOverflow.softWrap,
@@ -2565,6 +2689,7 @@ private fun OverflowDots(
     events: List<EventInstance>,
     total: Int,
     dark: Boolean,
+    rowHeight: Dp,
     modifier: Modifier = Modifier,
 ) {
     val soften = LocalSoftenColors.current
@@ -2572,14 +2697,14 @@ private fun OverflowDots(
     val byColor = events.groupBy { it.color }
     val dots = byColor.keys.take(3)
     Row(
-        modifier = modifier.height(EVENT_ROW_HEIGHT),
+        modifier = modifier.height(rowHeight),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         dots.forEach { argb ->
             Box(
                 modifier = Modifier
-                    .size(6.dp)
+                    .size(OVERFLOW_DOT_SIZE)
                     .alpha(if (allEnded(byColor.getValue(argb), dimCutoff)) EventDimAlpha else 1f)
                     .background(eventAccent(argb, dark, soften), CircleShape),
             )

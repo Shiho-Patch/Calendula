@@ -61,15 +61,15 @@ class InstanceMapperTest {
     }
 
     @Test
-    fun `null title falls back to placeholder`() {
+    fun `null title is left blank for the UI to fill in`() {
         val inst = reader(title = null).toEventInstance()
-        assertThat(inst!!.title).isEqualTo(Fallbacks.UNTITLED_EVENT)
+        assertThat(inst!!.title).isEmpty()
     }
 
     @Test
-    fun `empty title falls back to placeholder`() {
+    fun `empty title is left blank for the UI to fill in`() {
         val inst = reader(title = "").toEventInstance()
-        assertThat(inst!!.title).isEqualTo(Fallbacks.UNTITLED_EVENT)
+        assertThat(inst!!.title).isEmpty()
     }
 
     @Test

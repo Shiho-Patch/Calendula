@@ -56,12 +56,14 @@ fun List<CalendarSource>.groupByAccount(): List<CalendarAccountGroup> {
  * account comes from when another account shares the name (#77).
  */
 @Composable
-fun accountGroupTitle(group: CalendarAccountGroup): String =
-    if (!group.ambiguous) {
-        group.label
+fun accountGroupTitle(group: CalendarAccountGroup): String {
+    val label = group.label.ifBlank { stringResource(R.string.calendar_unnamed) }
+    return if (!group.ambiguous) {
+        label
     } else {
-        stringResource(R.string.calendars_account_from_source, group.label, sourceAppName(group.accountType))
+        stringResource(R.string.calendars_account_from_source, label, sourceAppName(group.accountType))
     }
+}
 
 /**
  * The human name of the app backing [accountType], falling back to the raw

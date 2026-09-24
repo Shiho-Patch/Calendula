@@ -19,7 +19,6 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import kotlin.math.abs
-import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
@@ -197,18 +196,26 @@ fun rememberTimelinePinchZoom(
  * names, jumping the whole column as a pinch drifts across each half pixel.
  * Pinning the hour to whole pixels keeps every part of the timeline on one grid.
  *
- * The bounds themselves are pulled onto that grid too, each in the direction
- * that keeps its own promise — up for the fill floor, so no dead space opens
- * under midnight, down for the ceiling. A fractional bound would be a height the
- * pinch can be held against but never actually land on, and the difference feeds
- * the focal anchor a scroll correction on every frame the fingers sit still.
+ * The ceiling is pulled onto that grid too, downwards, so it stays a height the
+ * pinch can actually land on.
+ *
+ * [fillPx] is deliberately *not* rounded (#290). It is the one height the whole
+ * day exactly fills the viewport at, and it is the same value
+ * [TimelineScale.FitDay] resolves to — rounding it up by the fraction of a pixel
+ * that 24 hours don't divide the viewport into leaves the timeline a pixel per
+ * hour taller than its own viewport, so a pinched-all-the-way-out day still
+ * scrolls a hair and bounces off Android's overscroll stretch, while the
+ * identical FitDay preset sits still. Being the clamp result rather than a bound
+ * the gesture is merely held against, it is a height the pinch does land on: the
+ * next frame reads it back unchanged and the focal anchor is handed nothing to
+ * correct.
  */
 internal fun pinchedHourHeightPx(target: Float, fillPx: Float, maxPx: Float): Float =
     // Filling the viewport wins over the ceiling: on a screen tall enough for
     // the two to disagree, dead space is the worse of the two failures.
     target.roundToInt().toFloat()
         .coerceAtMost(floor(maxPx))
-        .coerceAtLeast(ceil(fillPx))
+        .coerceAtLeast(fillPx)
 
 /**
  * The scroll offset that keeps the moment under [centroidY] under it after the

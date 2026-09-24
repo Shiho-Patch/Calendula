@@ -113,6 +113,19 @@ notice (#75) is a step in front of it rather than a dialog over the app — it
 is the only optional step an *already onboarded* install can be given, which
 is why it alone is not gated on the wizard being armed.
 
+"Every calendar is switched off" is a *state*, not that announcement, so it
+is a step of its own at the front of the flow (#287) rather than another face
+of the notice: the notice is settled once and for good, while the state is
+derived from the live calendar list on every launch. It lists the calendars
+with their own switches — switching one on un-hides it in every other calendar
+app too, which is not a choice to make on the app's word — and it sits *in
+front of* the calendar step, so declining it falls through to the offer to
+make a calendar that a device with none at all gets. That is also why
+`calendarsApplies` resolves on "something is visible" rather than "the list is
+non-empty". Being derived, it is gated on the wizard being armed: an install
+that switched its own calendars off from Settings meant it, and has the in-app
+empty state (#239) instead.
+
 ## Recurring writes
 
 The provider's invariants drive the design (learned the hard way, verified

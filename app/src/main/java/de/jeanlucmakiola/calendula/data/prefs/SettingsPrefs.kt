@@ -586,6 +586,24 @@ class SettingsPrefs @Inject constructor(
         }
     }
 
+    /** Whether the wizard's calendar step has been answered (or skipped). */
+    val onboardingCalendarsDone: Flow<Boolean> = store.data.map { prefs ->
+        prefs[ONBOARDING_CALENDARS_KEY] ?: false
+    }
+
+    suspend fun setOnboardingCalendarsDone(done: Boolean = true) {
+        store.edit { it[ONBOARDING_CALENDARS_KEY] = done }
+    }
+
+    /** Whether the wizard's hidden-calendars step has been answered (or skipped). */
+    val onboardingHiddenCalendarsDone: Flow<Boolean> = store.data.map { prefs ->
+        prefs[ONBOARDING_HIDDEN_KEY] ?: false
+    }
+
+    suspend fun setOnboardingHiddenCalendarsDone(done: Boolean = true) {
+        store.edit { it[ONBOARDING_HIDDEN_KEY] = done }
+    }
+
     /** Whether the wizard's backup step has been answered (or skipped). */
     val onboardingBackupDone: Flow<Boolean> = store.data.map { prefs ->
         prefs[ONBOARDING_BACKUP_KEY] ?: false
@@ -977,6 +995,10 @@ class SettingsPrefs @Inject constructor(
         internal val REMINDERS_ENABLED_KEY = booleanPreferencesKey("reminders_enabled")
         internal val REMINDER_ONBOARDING_KEY = booleanPreferencesKey("reminder_onboarding_done")
         internal val ONBOARDING_WIZARD_ARMED_KEY = booleanPreferencesKey("onboarding_wizard_armed")
+        internal val ONBOARDING_CALENDARS_KEY =
+            booleanPreferencesKey("onboarding_calendars_done")
+        internal val ONBOARDING_HIDDEN_KEY =
+            booleanPreferencesKey("onboarding_hidden_calendars_done")
         internal val ONBOARDING_BACKUP_KEY = booleanPreferencesKey("onboarding_backup_done")
         internal val ONBOARDING_VIEW_KEY = booleanPreferencesKey("onboarding_view_done")
         internal val ONBOARDING_MONTH_STYLE_KEY =

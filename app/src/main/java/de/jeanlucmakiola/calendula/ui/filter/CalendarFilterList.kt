@@ -62,15 +62,16 @@ private fun FilterList(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         groups.forEach { group ->
+            val account = group.account.ifBlank { stringResource(R.string.calendar_unnamed) }
             Text(
                 text = if (group.ambiguous) {
                     stringResource(
                         R.string.calendars_account_from_source,
-                        group.account,
+                        account,
                         sourceAppName(group.accountType),
                     )
                 } else {
-                    group.account
+                    account
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -83,7 +84,7 @@ private fun FilterList(
             )
             group.calendars.forEachIndexed { index, cal ->
                 GroupedRow(
-                    title = cal.displayName,
+                    title = cal.displayName.ifBlank { stringResource(R.string.calendar_unnamed) },
                     position = positionOf(index, group.calendars.size),
                     minHeight = 56.dp,
                     leading = { CalendarColorChip(cal.color) },

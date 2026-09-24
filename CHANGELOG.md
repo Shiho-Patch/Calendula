@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.21.0] — 2026-09-23
+
+### Added
+- **Setup makes sure you have a calendar to write to.** A fresh install could
+  finish onboarding and land on an empty grid with nothing saying why — either
+  because the device had no calendar at all, or because every calendar it had
+  was switched off. Setup now covers both: it offers to create a calendar on
+  this device or to add an account that syncs one, and it lists the calendars
+  that exist but are switched off so you can turn them back on ([#287]).
+
+### Changed
+- **The month grid gives its days more room.** Week numbers are set smaller and
+  their gutter is measured from the widest number it has to seat instead of
+  holding a fixed 40dp; event chips spend less of their width on padding; and
+  the labels in both are tracked more tightly, which is worth roughly a
+  character per chip ([#189], [#190], [#212], [#213]).
+- **A month day shows as many events as it has height for.** The limit was a
+  flat three at every size, so a tall week row threw away space it could have
+  filled, while a cramped one drew a third chip its band could not hold and put
+  the "more" marker below the clip, where nothing showed the day held more at
+  all. It is measured per week row now, and a tablet or a landscape phone seats
+  more of them.
+- **Split view no longer pads a short month out to six rows.** A five-row month
+  was handing the day pane a blank row and its gap — a sixth of the grid. The
+  grid now draws only the rows its month spans and the pane grows into the rest
+  ([#162]).
+
+### Fixed
+- **Short events show their title in week and day view.** A block needed 20dp
+  of height before it drew any title at all, which at fit-the-whole-day put the
+  cutoff around the half hour. The padding now tapers as the block shrinks, so
+  a short event keeps its name ([#289]).
+- **A fully zoomed-out timeline sits still.** Rounding its height up left it as
+  much as a pixel per hour taller than the viewport those hours are meant to
+  fill — some 24px of leftover scroll, enough to bounce off Android's
+  overscroll stretch ([#290]).
+- **Backup & restore says what is going on instead of coming up blank.** It
+  built its rows straight from the calendar list, so loading, a provider error,
+  and a device with nothing to export all rendered as an empty page with no
+  buttons on it ([#304]).
+- **An event with no title reads in your language.** It was labelled "(Ohne
+  Titel)" on every screen but the event's own, whatever language the phone was
+  set to: the German text was chosen before the translated one could be
+  ([#321]).
+- **A calendar the system gives no name reads in your language.** The same
+  cause, in the calendar lists and pickers — and because the calendar editor
+  starts from that name, saving such a calendar wrote the German text into it
+  for real ([#329]).
+
 ## [2.20.4] — 2026-09-20
 
 ### Fixed
@@ -1714,3 +1763,14 @@ automatically, with zero telemetry and no internet permission.
 [#309]: https://codeberg.org/jlmakiola/calendula/issues/309
 [#305]: https://codeberg.org/jlmakiola/calendula/issues/305
 [#294]: https://codeberg.org/jlmakiola/calendula/issues/294
+[#287]: https://codeberg.org/jlmakiola/calendula/issues/287
+[#189]: https://codeberg.org/jlmakiola/calendula/issues/189
+[#190]: https://codeberg.org/jlmakiola/calendula/issues/190
+[#212]: https://codeberg.org/jlmakiola/calendula/issues/212
+[#213]: https://codeberg.org/jlmakiola/calendula/issues/213
+[#162]: https://codeberg.org/jlmakiola/calendula/issues/162
+[#289]: https://codeberg.org/jlmakiola/calendula/issues/289
+[#290]: https://codeberg.org/jlmakiola/calendula/issues/290
+[#304]: https://codeberg.org/jlmakiola/calendula/issues/304
+[#321]: https://codeberg.org/jlmakiola/calendula/issues/321
+[#329]: https://codeberg.org/jlmakiola/calendula/issues/329
