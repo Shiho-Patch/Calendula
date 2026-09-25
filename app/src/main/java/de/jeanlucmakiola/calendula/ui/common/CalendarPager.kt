@@ -17,15 +17,17 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.floor
 
 /**
- * One all-day strip height for every page, blended between the two pages a swipe
- * sits between so their timelines stay level mid-swipe. It follows the swipe
- * directly and only springs when a page's own strip changes at rest. [fallback]
- * stands in until the pages have reported theirs, so it doesn't open from zero.
+ * One height for every page of something that varies from page to page — the
+ * timelines' all-day strip, the split grid's rows — blended between the two
+ * pages a swipe sits between, so what sits below it moves with the finger rather
+ * than jumping on settle. It follows the swipe directly and only springs when a
+ * page's own height changes at rest. [fallback] stands in until the pages have
+ * reported theirs, so it doesn't open from zero.
  *
- * @param heights each composed page's own strip height, by page index.
+ * @param heights each composed page's own height, by page index.
  */
 @Composable
-fun pagedStripHeight(pagerState: PagerState, heights: Map<Int, Dp>, fallback: Dp): Dp {
+fun pagedHeight(pagerState: PagerState, heights: Map<Int, Dp>, fallback: Dp): Dp {
     val currentFallback by rememberUpdatedState(fallback)
     val target by remember(pagerState, heights) {
         derivedStateOf {

@@ -12,7 +12,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateMapOf
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSpec
 import de.jeanlucmakiola.calendula.ui.common.jumpToPage
-import de.jeanlucmakiola.calendula.ui.common.pagedStripHeight
+import de.jeanlucmakiola.calendula.ui.common.pagedHeight
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.datetime.DayOfWeek
@@ -418,7 +418,7 @@ private fun WeekPager(
     onDrop: (TimelineDrop) -> Unit,
 ) {
     val stripHeights = remember { mutableStateMapOf<Int, Dp>() }
-    val allDayHeight = pagedStripHeight(pagerState, stripHeights, initialStripHeight)
+    val allDayHeight = pagedHeight(pagerState, stripHeights, initialStripHeight)
     WeekFrame(
         weekStart = weekStartForPage(pagerState.currentPage, firstDay),
         allDayHeight = allDayHeight,
