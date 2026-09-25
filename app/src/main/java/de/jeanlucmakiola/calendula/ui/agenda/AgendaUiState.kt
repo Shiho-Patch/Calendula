@@ -1,6 +1,7 @@
 package de.jeanlucmakiola.calendula.ui.agenda
 
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.eventDisplayComparator
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.domain.spanFirstDay
 import de.jeanlucmakiola.calendula.domain.spanLastDay
@@ -86,11 +87,7 @@ fun groupAgendaDays(
     return byDay.map { (date, dayEvents) ->
         AgendaDay(
             date = date,
-            events = dayEvents.sortedWith(
-                compareByDescending<EventInstance> { it.isAllDay }
-                    .thenBy { it.start }
-                    .thenBy { it.title },
-            ),
+            events = dayEvents.sortedWith(eventDisplayComparator(zone)),
         )
     }
 }
