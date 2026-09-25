@@ -762,4 +762,5 @@
     <string name="onboarding_hidden_body">يعرض Calendula التقويمات التي تم تشغيلها على هذا الهاتف، و حاليًا لا يوجد أيًّا منهم. قم بتشغيل التقويمات التي تريد رؤيتها — تعرضهم تطبيقات التقويم الأخرى خاصّتك مرة أخرى أيضًا.</string>
     <string name="onboarding_hidden_switch_all_button">تشغيلهم جميعًا</string>
     <string name="onboarding_hidden_failed">تعذّر تشغيل ذلك. تحتوي الإعدادات ← التقويمات على نفس مفاتيح التبديل.</string>
+    <string name="onboarding_hidden_skip_button">ليس الآن</string>
 </resources>
