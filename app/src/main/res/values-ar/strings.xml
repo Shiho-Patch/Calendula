@@ -758,4 +758,5 @@
     <string name="onboarding_calendars_created_more_title">مساحة لمزيد</string>
     <string name="onboarding_calendars_created_more_body">الإعدادات ← التقويمات تنشئ العدد كما تحتاجه، و تعيد تسمية التقويمات التي لديك أو تعيد تلوينهم.</string>
     <string name="onboarding_hidden_title">تقويماتك تم إيقافها</string>
+    <string name="onboarding_calendars_created_continue">متابعة</string>
 </resources>
