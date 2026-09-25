@@ -763,4 +763,18 @@
     <string name="onboarding_hidden_switch_all_button">تشغيلهم جميعًا</string>
     <string name="onboarding_hidden_failed">تعذّر تشغيل ذلك. تحتوي الإعدادات ← التقويمات على نفس مفاتيح التبديل.</string>
     <string name="onboarding_hidden_skip_button">ليس الآن</string>
+    <string name="onboarding_calendars_create_failed">تعذّر إنشاء التقويم. رفضت مساحة تخزين تقويم هاتفك ذلك.</string>
+    <string name="color_name_mauve">بنفسجي فاتح</string>
+    <string name="color_name_red">أحمر</string>
+    <string name="color_name_orange">برتقالي</string>
+    <string name="color_name_olive">زيتوني</string>
+    <string name="color_name_green">أخضر</string>
+    <string name="color_name_teal">أزرق مخضر</string>
+    <string name="color_name_cyan">سماوي</string>
+    <string name="color_name_blue">أزرق</string>
+    <string name="color_name_indigo">نيلي</string>
+    <string name="color_name_purple">بنفسجي</string>
+    <string name="color_name_pink">وردي</string>
+    <string name="color_name_amber">أصفر كهرماني</string>
+    <string name="calendars_restore_unavailable">لا تقويم يمكنه استيعاب الأحداث المستوردة بعد.</string>
 </resources>
