@@ -1,7 +1,24 @@
 package de.jeanlucmakiola.calendula.ui.week
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.unit.lerp
+import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSpec
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
+import kotlinx.datetime.DayOfWeek
+import kotlin.math.floor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -48,12 +65,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -69,6 +84,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -122,9 +138,7 @@ import de.jeanlucmakiola.calendula.ui.common.trimmedLines
 import de.jeanlucmakiola.calendula.ui.common.NowLine
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
-import de.jeanlucmakiola.calendula.ui.common.calendarSlideTransition
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
-import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSwipe
 import de.jeanlucmakiola.calendula.ui.common.withTitleWeight
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.floret.locale.currentLocale
@@ -142,7 +156,6 @@ import de.jeanlucmakiola.calendula.ui.common.TIMELINE_CONTENT_END_INSET
 import de.jeanlucmakiola.calendula.ui.common.hourCellBlockInset
 import de.jeanlucmakiola.calendula.ui.common.hourGridCells
 import de.jeanlucmakiola.calendula.ui.common.tappedMinuteOfDay
-import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.floret.time.isoWeekNumber
 import kotlinx.coroutines.flow.first
@@ -152,7 +165,6 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.plus
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Clock
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
@@ -161,6 +173,14 @@ private val ALL_DAY_ROW_HEIGHT = 20.dp
 private val ALL_DAY_VERTICAL_PADDING = 6.dp
 /** Gap between day columns; part of the column pitch a drag maps positions through. */
 private val COLUMN_GAP = 2.dp
+
+/** Breathing room between the header block and the scrolling timeline below. */
+private val TIMELINE_TOP_GAP = 8.dp
+private val HEADER_TOP_PADDING = 4.dp
+private val HEADER_BOTTOM_PADDING = 8.dp
+
+/** The header's date slot, reserved whether or not it holds today's circle. */
+private val DATE_SLOT_SIZE = 28.dp
 
 /** Total all-day strip height for a week (0 when there are no all-day events). */
 internal fun WeekUiState.Success.allDayStripHeight(): Dp {
@@ -186,7 +206,8 @@ fun WeekScreen(
     viewModel: WeekViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val weekStart by viewModel.weekStartDate.collectAsStateWithLifecycle()
+    val firstDay by viewModel.firstDayOfWeek.collectAsStateWithLifecycle()
+    val anchorPage by viewModel.anchorPage.collectAsStateWithLifecycle()
     val dimCompleted by viewModel.dimCompletedEvents.collectAsStateWithLifecycle()
     // The instant before which an event counts as completed, or null when dimming
     // is off. derivedStateOf keeps the per-minute "now" from recomposing the
@@ -199,39 +220,47 @@ fun WeekScreen(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    val isOnCurrentWeek = when (val s = state) {
-        // True when today falls inside the displayed week — independent of which
-        // weekday the user picked as the first day.
-        is WeekUiState.Success ->
-            s.today >= s.weekStart && s.today <= s.weekStart.plus(6, kotlinx.datetime.DateTimeUnit.DAY)
-        else -> true
-    }
-
-    // Drives whether the title carries the year. Falls back to the clock only
-    // while the first load is in flight, when there is no state to read today from.
-    val currentYear = when (val s = state) {
-        is WeekUiState.Success -> s.today.year
-        else -> Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.year
-    }
-
-    // Slide direction for the week transition: +1 = next, -1 = prev, 0 = jump.
-    var slideDir by remember { mutableIntStateOf(0) }
-    val goNext = { slideDir = 1; viewModel.goToNext() }
-    val goPrev = { slideDir = -1; viewModel.goToPrev() }
-    // Slide toward today: viewing the future → today comes in from the left
-    // (back), viewing the past → from the right (forward).
-    val jumpToToday = {
-        slideDir = when (val s = state) {
-            is WeekUiState.Success -> if (s.today < s.weekStart) -1 else 1
-            else -> 0
+    val pagerState = rememberPagerState(initialPage = anchorPage) { WEEK_PAGE_COUNT }
+    val pageSpec = rememberCalendarPageSpec()
+    val reduceMotion = rememberReduceMotion()
+    // The pager leads and the anchor follows once it settles, so the only thing
+    // left moving the anchor on its own is the first day re-framing the week —
+    // including the stored preference arriving after the pager opened on the
+    // Monday default. Snapped, since that is a correction rather than a move.
+    LaunchedEffect(anchorPage) {
+        if (pagerState.currentPage != anchorPage && !pagerState.isScrollInProgress) {
+            pagerState.scrollToPage(anchorPage)
         }
-        viewModel.goToToday()
     }
-    // Drawer jump-to-date: slide from the side the target week lies on.
+    // The page it opened on is skipped: a first-day change landing in between
+    // would read it as a different week.
+    LaunchedEffect(pagerState) {
+        snapshotFlow { pagerState.settledPage }.drop(1).collect(viewModel::onPageSettled)
+    }
+    // The week under the finger, so the title turns over mid-swipe, not after it.
+    val weekStart = weekStartForPage(pagerState.currentPage, firstDay)
+
+    // Off the ticking clock rather than the loaded week, so it turns over at
+    // midnight; derived, so the per-minute tick doesn't recompose the screen.
+    val zone = remember { TimeZone.currentSystemDefault() }
+    val today by remember(zone) { derivedStateOf { nowState.value.toLocalDateTime(zone).date } }
+    // Independent of which weekday the user picked as the first day.
+    val isOnCurrentWeek = state !is WeekUiState.Success ||
+        (today >= weekStart && today <= weekStart.plus(6, kotlinx.datetime.DateTimeUnit.DAY))
+
+    // Straight to the pager: a tap mid-fling must still land, and the anchor
+    // hasn't caught up with the fling yet to tell the difference.
     val jumpToDate: (LocalDate) -> Unit = { target ->
-        slideDir = if (target < weekStart) -1 else 1
-        viewModel.goToDate(target)
+        val page = weekPageFor(target, firstDay)
+        scope.launch {
+            if (reduceMotion) {
+                pagerState.scrollToPage(page)
+            } else {
+                pagerState.animateScrollToPage(page, animationSpec = pageSpec)
+            }
+        }
     }
+    val jumpToToday = { jumpToDate(today) }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
@@ -263,7 +292,7 @@ fun WeekScreen(
             topBar = {
                 WeekTopBar(
                     weekStart = weekStart,
-                    currentYear = currentYear,
+                    currentYear = today.year,
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
                     quickSwitchViews = quickSwitchViews,
@@ -281,8 +310,6 @@ fun WeekScreen(
                     onToday = jumpToToday,
                     onCreate = {
                         // Anchor on today when it's in view, else the week's first day.
-                        val today = Clock.System.now()
-                            .toLocalDateTime(TimeZone.currentSystemDefault()).date
                         onCreateEvent(if (isOnCurrentWeek) today else weekStart, null)
                     },
                 )
@@ -291,10 +318,10 @@ fun WeekScreen(
             CompositionLocalProvider(LocalDimCutoff provides dimCutoff) {
                 WeekContent(
                     state = state,
-                    slideDir = slideDir,
-                    onSwipeNext = goNext,
-                    onSwipePrev = goPrev,
-                    onRetry = jumpToToday,
+                    pagerState = pagerState,
+                    firstDay = firstDay,
+                    week = viewModel::week,
+                    onRetry = viewModel::goToToday,
                     onEventClick = onEventClick,
                     onOpenDay = onOpenDay,
                     onCreateAt = { d, minutes -> onCreateEvent(d, minutes) },
@@ -310,20 +337,18 @@ fun WeekScreen(
 @Composable
 private fun WeekContent(
     state: WeekUiState,
-    slideDir: Int,
-    onSwipeNext: () -> Unit,
-    onSwipePrev: () -> Unit,
+    pagerState: PagerState,
+    firstDay: DayOfWeek,
+    week: (LocalDate) -> StateFlow<WeekUiState>,
     onRetry: () -> Unit,
     onEventClick: (EventInstance) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val slideSpec = rememberCalendarSlideSpec()
     val fadeSpec = rememberCalendarFadeSpec()
-    val reduceMotion = rememberReduceMotion()
 
-    // Hoisted above the per-week AnimatedContent so the vertical scroll position
+    // Shared by every page and the gutter, so the vertical scroll position
     // survives week-to-week swipes (e.g. 18:00 stays centred). We only centre on
     // noon once, on first entry into the week view (i.e. when arriving from the
     // month/day view), not on every swipe.
@@ -335,62 +360,47 @@ private fun WeekContent(
         scrollState.scrollTo(scrollState.maxValue / 2)
     }
 
-    // Single, hoisted all-day strip height — shared by the outgoing and incoming
-    // week during a swipe, so the strip slides along but never jumps in height;
-    // it just springs smoothly from the old to the new size.
-    val targetAllDayHeight = (state as? WeekUiState.Success)?.allDayStripHeight() ?: 0.dp
-    val allDayHeight by animateDpAsState(
-        targetValue = targetAllDayHeight,
-        label = "all-day-strip-height",
-    )
-
-    // Whole-page horizontal swipe. It sits one level above the timeline's
-    // vertical scroll: a horizontal drag only crosses *this* detector's slop,
-    // while a vertical drag is consumed by the inner scroll first — so the two
-    // gestures coexist without fighting.
-    val swipeModifier = rememberCalendarPageSwipe(onSwipeNext, onSwipePrev)
-
-    // Above the AnimatedContent: a page change mid-drag would strand the
-    // floating block inside the outgoing page.
+    // Above the pager: a page change mid-drag would strand the floating block
+    // inside the outgoing page.
     val dragController = rememberTimelineDragController()
     val move = LocalEventMove.current
     val zone = remember { TimeZone.currentSystemDefault() }
+    val onDrop: (TimelineDrop) -> Unit = { drop ->
+        move?.move(
+            MoveRequest(
+                eventId = drop.event.eventId,
+                beginMillis = drop.event.start.toEpochMilliseconds(),
+                endMillis = drop.event.end.toEpochMilliseconds(),
+                target = MoveTarget.Start(drop.startInstant(zone)),
+            ),
+        )
+    }
 
     Box(modifier = modifier) {
+        // Loading and failure concern the provider as a whole, so they stand in
+        // for the pager; a page still loading its own week handles that itself.
         AnimatedContent(
             targetState = state,
-            modifier = Modifier.fillMaxSize().then(swipeModifier),
-            contentKey = { s ->
-                when (s) {
-                    is WeekUiState.Success -> "success-${s.weekStart}"
-                    is WeekUiState.Failure -> "failure-${s.reason}"
-                    WeekUiState.Loading -> "loading"
-                }
-            },
-            transitionSpec = { calendarSlideTransition(slideDir, slideSpec, fadeSpec, reduceMotion) },
-            label = "week-transition",
+            modifier = Modifier.fillMaxSize(),
+            contentKey = { it::class },
+            transitionSpec = { fadeIn(fadeSpec).togetherWith(fadeOut(fadeSpec)) },
+            label = "week-state",
         ) { s ->
             when (s) {
                 WeekUiState.Loading -> WeekLoading()
                 is WeekUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
-                is WeekUiState.Success -> WeekSuccess(
-                    state = s,
+                is WeekUiState.Success -> WeekPager(
+                    pagerState = pagerState,
+                    firstDay = firstDay,
+                    week = week,
+                    today = s.today,
+                    initialStripHeight = s.allDayStripHeight(),
                     scrollState = scrollState,
-                    allDayHeight = allDayHeight,
                     dragController = dragController,
                     onEventClick = onEventClick,
                     onOpenDay = onOpenDay,
                     onCreateAt = onCreateAt,
-                    onDrop = { drop ->
-                        move?.move(
-                            MoveRequest(
-                                eventId = drop.event.eventId,
-                                beginMillis = drop.event.start.toEpochMilliseconds(),
-                                endMillis = drop.event.end.toEpochMilliseconds(),
-                                target = MoveTarget.Start(drop.startInstant(zone)),
-                            ),
-                        )
-                    },
+                    onDrop = onDrop,
                 )
             }
         }
@@ -398,12 +408,194 @@ private fun WeekContent(
     }
 }
 
+/**
+ * The weeks as pages that follow the finger and snap once a swipe passes half a
+ * page or is flung (#131), beside a gutter that stays put.
+ */
+@Composable
+private fun WeekPager(
+    pagerState: PagerState,
+    firstDay: DayOfWeek,
+    week: (LocalDate) -> StateFlow<WeekUiState>,
+    today: LocalDate,
+    initialStripHeight: Dp,
+    scrollState: ScrollState,
+    dragController: TimelineDragController,
+    onEventClick: (EventInstance) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+    onCreateAt: (LocalDate, Int) -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
+) {
+    val stripHeights = remember { mutableStateMapOf<Int, Dp>() }
+    val allDayHeight = pagedStripHeight(pagerState, stripHeights, initialStripHeight)
+    WeekFrame(
+        weekStart = weekStartForPage(pagerState.currentPage, firstDay),
+        allDayHeight = allDayHeight,
+        scrollState = scrollState,
+        dragController = dragController,
+    ) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            // The weeks either side are composed ahead, so a swipe lands on a
+            // loaded week rather than watching it fill in.
+            beyondViewportPageCount = 1,
+            // A held block moves within its week; the page stays put under it.
+            userScrollEnabled = !dragController.isDragging,
+            flingBehavior = PagerDefaults.flingBehavior(
+                state = pagerState,
+                snapAnimationSpec = rememberCalendarPageSpec(),
+            ),
+        ) { page ->
+            val start = weekStartForPage(page, firstDay)
+            val pageState by remember(start) { week(start) }.collectAsStateWithLifecycle()
+            val loaded = pageState as? WeekUiState.Success
+            // Until its week arrives a page shows the week's frame without events.
+            val empty = remember(start, today) { emptyWeek(start, today) }
+            val stripHeight = loaded?.allDayStripHeight()
+            DisposableEffect(page, stripHeight) {
+                if (stripHeight != null) stripHeights[page] = stripHeight
+                onDispose { stripHeights.remove(page) }
+            }
+            WeekPage(
+                state = loaded ?: empty,
+                allDayHeight = allDayHeight,
+                scrollState = scrollState,
+                dragController = dragController,
+                active = page == pagerState.currentPage,
+                onEventClick = onEventClick,
+                onOpenDay = onOpenDay,
+                onCreateAt = onCreateAt,
+                onDrop = onDrop,
+            )
+        }
+    }
+}
+
+/**
+ * One all-day strip height for every page, blended between the two weeks a swipe
+ * sits between so their timelines stay level mid-swipe. It follows the swipe
+ * directly and only springs when a week's own strip changes at rest. [fallback]
+ * stands in until the pages have reported theirs, so it doesn't open from zero.
+ */
+@Composable
+private fun pagedStripHeight(pagerState: PagerState, heights: Map<Int, Dp>, fallback: Dp): Dp {
+    val currentFallback by rememberUpdatedState(fallback)
+    val target by remember(pagerState, heights) {
+        derivedStateOf {
+            val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
+            val from = floor(position).toInt()
+            val a = heights[from]
+            val b = heights[from + 1]
+            lerp(a ?: b ?: currentFallback, b ?: a ?: currentFallback, position - from)
+        }
+    }
+    val height = remember { Animatable(target, Dp.VectorConverter) }
+    LaunchedEffect(height) {
+        snapshotFlow { target to pagerState.isScrollInProgress }.collectLatest { (h, scrolling) ->
+            if (scrolling) height.snapTo(h) else height.animateTo(h)
+        }
+    }
+    return height.value
+}
+
+/** A week with no events yet, for a page whose week is still loading. */
+private fun emptyWeek(start: LocalDate, today: LocalDate): WeekUiState.Success {
+    val days = (0 until 7).map { start.plus(it, kotlinx.datetime.DateTimeUnit.DAY) }
+    return WeekUiState.Success(
+        weekStart = start,
+        today = today,
+        days = days,
+        allDaySpans = emptyList(),
+        timedByDay = emptyMap(),
+    )
+}
+
+/**
+ * What stays put while the weeks swipe: the week-number badge and the hour
+ * gutter, with [pages] filling the rest.
+ */
+@Composable
+private fun WeekFrame(
+    weekStart: LocalDate,
+    allDayHeight: Dp,
+    scrollState: ScrollState,
+    dragController: TimelineDragController,
+    pages: @Composable () -> Unit,
+) {
+    Row(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.width(GUTTER_WIDTH).fillMaxHeight()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface),
+            ) {
+                WeekNumberCell(weekStart)
+                Spacer(Modifier.height(allDayHeight))
+            }
+            Spacer(Modifier.height(TIMELINE_TOP_GAP))
+            // Resolves the hour height off the same viewport height the pages'
+            // timelines have, so labels and columns agree.
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val zoom = LocalTimelineZoom.current
+                val hourHeight = zoom.scale.hourHeight(maxHeight)
+                HourGutter(
+                    scrollState = scrollState,
+                    hourHeight = hourHeight,
+                    dragController = dragController,
+                    modifier = rememberTimelinePinchZoom(scrollState, maxHeight, hourHeight, zoom),
+                )
+            }
+        }
+        Box(modifier = Modifier.weight(1f).fillMaxHeight()) { pages() }
+    }
+}
+
+/** A single week in its frame, without the pager — for the Settings preview. */
 @Composable
 internal fun WeekSuccess(
     state: WeekUiState.Success,
     scrollState: ScrollState,
     allDayHeight: Dp,
     dragController: TimelineDragController,
+    onEventClick: (EventInstance) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+    onCreateAt: (LocalDate, Int) -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
+) {
+    WeekFrame(
+        weekStart = state.weekStart,
+        allDayHeight = allDayHeight,
+        scrollState = scrollState,
+        dragController = dragController,
+    ) {
+        WeekPage(
+            state = state,
+            allDayHeight = allDayHeight,
+            scrollState = scrollState,
+            dragController = dragController,
+            active = true,
+            onEventClick = onEventClick,
+            onOpenDay = onOpenDay,
+            onCreateAt = onCreateAt,
+            onDrop = onDrop,
+        )
+    }
+}
+
+/**
+ * One week's page: header, all-day strip and day columns.
+ *
+ * @param active whether this is the page on screen, the only one that may
+ *   publish the drag geometry.
+ */
+@Composable
+private fun WeekPage(
+    state: WeekUiState.Success,
+    allDayHeight: Dp,
+    scrollState: ScrollState,
+    dragController: TimelineDragController,
+    active: Boolean,
     onEventClick: (EventInstance) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
@@ -424,13 +616,12 @@ internal fun WeekSuccess(
                 AllDayStrip(state = state, height = allDayHeight, onEventClick = onEventClick)
             }
         }
-        // Breathing room between the top section and the scrolling timeline
-        // below.
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(TIMELINE_TOP_GAP))
         Timeline(
             state = state,
             scrollState = scrollState,
             dragController = dragController,
+            active = active,
             onEventClick = onEventClick,
             onCreateAt = onCreateAt,
             onDrop = onDrop,
@@ -505,24 +696,11 @@ private fun WeekDayHeader(
     onOpenDay: (LocalDate) -> Unit,
 ) {
     val locale = currentLocale()
-    val weekStart = days.first()
-    val weekNumber = remember(weekStart) { weekStart.toJavaLocalDate().isoWeekNumber() }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp, bottom = 8.dp, end = TIMELINE_CONTENT_END_INSET),
+            .padding(top = HEADER_TOP_PADDING, bottom = HEADER_BOTTOM_PADDING, end = TIMELINE_CONTENT_END_INSET),
     ) {
-        // Mirror the day-column layout (empty weekday line + spacer) so the
-        // badge lines up vertically with the date numbers. The start inset centres
-        // the badge on the top bar's hamburger (see GUTTER_CONTENT_START_INSET).
-        Column(
-            modifier = Modifier.width(GUTTER_WIDTH).padding(start = GUTTER_CONTENT_START_INSET),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(text = " ", style = MaterialTheme.typography.labelSmall)
-            Spacer(Modifier.height(2.dp))
-            WeekNumberBadge(weekNumber = weekNumber)
-        }
         days.forEach { date ->
             val javaDow = java.time.DayOfWeek.of(date.dayOfWeek.ordinal + 1)
             val isToday = date == today
@@ -533,16 +711,19 @@ private fun WeekDayHeader(
                     .clickable { onOpenDay(date) },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
+                // One line, as the gutter cell beside it assumes (see WeekNumberCell).
                 Text(
                     text = javaDow.getDisplayName(JavaTextStyle.SHORT, locale),
                     style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(2.dp))
-                // Always reserve the 28dp circle slot so the header height is
+                // Always reserve the circle slot so the header height is
                 // identical whether or not the week contains today.
                 Box(
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(DATE_SLOT_SIZE),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (isToday) {
@@ -568,6 +749,33 @@ private fun WeekDayHeader(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * The header's gutter cell, laid out like a day's (empty weekday line, spacer,
+ * date slot) so the badge lines up with the date numbers and the cell is exactly
+ * as tall as the header beside it. The start inset centres the badge on the top
+ * bar's hamburger (see GUTTER_CONTENT_START_INSET).
+ */
+@Composable
+private fun WeekNumberCell(weekStart: LocalDate) {
+    val weekNumber = remember(weekStart) { weekStart.toJavaLocalDate().isoWeekNumber() }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                start = GUTTER_CONTENT_START_INSET,
+                top = HEADER_TOP_PADDING,
+                bottom = HEADER_BOTTOM_PADDING,
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(text = " ", style = MaterialTheme.typography.labelSmall)
+        Spacer(Modifier.height(2.dp))
+        Box(modifier = Modifier.height(DATE_SLOT_SIZE), contentAlignment = Alignment.TopCenter) {
+            WeekNumberBadge(weekNumber = weekNumber)
         }
     }
 }
@@ -612,8 +820,6 @@ private fun AllDayStrip(
                 end = TIMELINE_CONTENT_END_INSET,
             ),
     ) {
-        // Keep the gutter-width offset so the bars line up with the day columns.
-        Spacer(Modifier.width(GUTTER_WIDTH))
         // Span bars are positioned absolutely so a multi-day event is one
         // connected bar across columns rather than a chip per day. clipToBounds
         // keeps bars from spilling out while the height animates.
@@ -682,6 +888,7 @@ private fun Timeline(
     state: WeekUiState.Success,
     scrollState: ScrollState,
     dragController: TimelineDragController,
+    active: Boolean,
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
     onDrop: (TimelineDrop) -> Unit,
@@ -703,70 +910,61 @@ private fun Timeline(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val hourHeight = zoom.scale.hourHeight(maxHeight)
         val totalHeight = hourHeight * 24
-        // The pinch sits on the Row, above both scroll viewports: it has to
-        // outrank the vertical scroll, and it does that by watching the initial
-        // pass, which only reaches it if it is their ancestor.
+        // The pinch sits above the scroll viewport: it has to outrank the
+        // vertical scroll, and it does that by watching the initial pass, which
+        // only reaches it if it is the viewport's ancestor.
         val pinch = rememberTimelinePinchZoom(scrollState, maxHeight, hourHeight, zoom)
-        // Gutter and day columns are two scroll viewports that SHARE one scroll
-        // state, so they stay perfectly aligned. The day-column viewport is a
-        // static, rounded-clipped window — the content scrolls inside it, so the
-        // soft corners are permanent at any scroll position (not just at the
-        // day's start/end).
-        Row(modifier = Modifier.fillMaxSize().then(pinch)) {
-            // Hour gutter (scrolls in sync with the day columns). Same start inset
-            // as the header badge so the labels sit under it and on the hamburger.
-            HourGutter(
-                scrollState = scrollState,
-                hourHeight = hourHeight,
-                dragController = dragController,
-            )
-            // Day columns: rounded, clipped scroll viewport (permanent corners).
-            Box(
+        // Scrolls on the same state as the gutter and the other pages, so they
+        // all stay aligned. A static, rounded-clipped window — the content
+        // scrolls inside it, so the soft corners are permanent at any scroll
+        // position (not just at the day's start/end).
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(pinch)
+                .padding(end = TIMELINE_CONTENT_END_INSET)
+                .clip(RoundedCornerShape(16.dp))
+                .verticalScroll(scrollState)
+                .onGloballyPositioned { if (active) dragController.geometry.viewport = it },
+        ) {
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .padding(end = TIMELINE_CONTENT_END_INSET)
-                    .clip(RoundedCornerShape(16.dp))
-                    .verticalScroll(scrollState)
-                    .onGloballyPositioned { dragController.geometry.viewport = it },
+                    .fillMaxWidth()
+                    .height(totalHeight)
+                    // The scrolling content itself, so its root position
+                    // already folds in the scroll offset. Only the page on
+                    // screen publishes it: the ones either side are laid out too.
+                    .onGloballyPositioned { coords ->
+                        if (!active) return@onGloballyPositioned
+                        val gap = with(density) { COLUMN_GAP.toPx() }
+                        dragController.geometry.let {
+                            it.grid = coords
+                            it.scroll = scrollState
+                            it.hourPx = with(density) { hourHeight.toPx() }
+                            it.blockInsetPx = blockInsetPx
+                            it.columnGapPx = gap
+                            it.columnWidthPx = (coords.size.width + gap) / state.days.size
+                            it.days = state.days
+                            it.isRtl = isRtl
+                        }
+                    },
+                horizontalArrangement = Arrangement.spacedBy(COLUMN_GAP),
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(totalHeight)
-                        // The scrolling content itself, so its root position
-                        // already folds in the scroll offset.
-                        .onGloballyPositioned { coords ->
-                            val gap = with(density) { COLUMN_GAP.toPx() }
-                            dragController.geometry.let {
-                                it.grid = coords
-                                it.scroll = scrollState
-                                it.hourPx = with(density) { hourHeight.toPx() }
-                                it.blockInsetPx = blockInsetPx
-                                it.columnGapPx = gap
-                                it.columnWidthPx = (coords.size.width + gap) / state.days.size
-                                it.days = state.days
-                                it.isRtl = isRtl
-                            }
-                        },
-                    horizontalArrangement = Arrangement.spacedBy(COLUMN_GAP),
-                ) {
-                    state.days.forEach { day ->
-                        DayColumnCard(
-                            blocks = state.timedByDay[day].orEmpty(),
-                            dark = dark,
-                            date = day,
-                            today = state.today,
-                            hourHeight = hourHeight,
-                            dragController = dragController,
-                            onEventClick = onEventClick,
-                            onCreateAt = onCreateAt,
-                            onDrop = onDrop,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                        )
-                    }
+                state.days.forEach { day ->
+                    DayColumnCard(
+                        blocks = state.timedByDay[day].orEmpty(),
+                        dark = dark,
+                        date = day,
+                        today = state.today,
+                        hourHeight = hourHeight,
+                        dragController = dragController,
+                        onEventClick = onEventClick,
+                        onCreateAt = onCreateAt,
+                        onDrop = onDrop,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                    )
                 }
             }
         }

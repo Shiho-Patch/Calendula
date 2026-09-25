@@ -40,6 +40,12 @@ import androidx.compose.ui.unit.IntOffset
 fun rememberCalendarSlideSpec(): FiniteAnimationSpec<IntOffset> =
     MaterialTheme.motionScheme.defaultSpatialSpec()
 
+/** The same spring as [rememberCalendarSlideSpec], for a pager settling onto its page. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun rememberCalendarPageSpec(): FiniteAnimationSpec<Float> =
+    MaterialTheme.motionScheme.defaultSpatialSpec()
+
 /**
  * The effects spec from the active motion scheme, for the opacity half of the
  * transition. Captured in composable scope alongside [rememberCalendarSlideSpec]

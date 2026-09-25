@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -30,6 +31,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.atTime
+import kotlinx.datetime.daysUntil
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
@@ -38,8 +40,12 @@ import java.util.Locale
 import kotlin.time.Clock
 import kotlin.time.Instant
 import javax.inject.Inject
+import kotlin.math.abs
 
 const val MINUTES_PER_DAY: Int = 24 * 60
+
+/** How far from the requested week [WeekViewModel.week] keeps other weeks cached. */
+private const val WEEK_CACHE_DAYS = 28
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -64,7 +70,7 @@ class WeekViewModel @Inject constructor(
         get() = Clock.System.now().toLocalDateTime(zone).date
 
     /** First day of the week, from the Settings preference (AUTO → locale). */
-    private val weekStart: StateFlow<DayOfWeek> = settingsPrefs.weekStart
+    val firstDayOfWeek: StateFlow<DayOfWeek> = settingsPrefs.weekStart
         .map { it.resolveFirstDay(locale) }
         .stateIn(
             scope = viewModelScope,
@@ -73,53 +79,68 @@ class WeekViewModel @Inject constructor(
         )
 
     // Anchor is a representative day inside the visible week; the actual week
-    // start is derived against [weekStart], so changing the first-day preference
-    // re-frames the same week instead of jumping.
+    // start is derived against [firstDayOfWeek], so changing the first-day
+    // preference re-frames the same week instead of jumping.
     private val _anchor = MutableStateFlow(todayDate)
 
-    val weekStartDate: StateFlow<LocalDate> =
-        combine(_anchor, weekStart) { anchor, ws -> anchor.startOfWeek(ws) }
+    /** The pager page the anchor's week sits on. */
+    val anchorPage: StateFlow<Int> =
+        combine(_anchor, firstDayOfWeek) { anchor, ws -> weekPageFor(anchor, ws) }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000L),
-                initialValue = todayDate.startOfWeek(DayOfWeek.MONDAY),
+                initialValue = weekPageFor(todayDate, DayOfWeek.MONDAY),
             )
 
+    /**
+     * The anchor week's state. Once loaded it never falls back to [WeekUiState.Loading]:
+     * moving the anchor keeps the last result until the new week arrives, since
+     * the pages draw their own weeks and this only gates the failure screen.
+     */
     val state: StateFlow<WeekUiState> =
-        combine(_anchor, weekStart) { anchor, ws -> anchor.startOfWeek(ws) }
+        combine(_anchor, firstDayOfWeek) { anchor, ws -> anchor.startOfWeek(ws) }
             .distinctUntilChanged()
-            .flatMapLatest { start ->
-                val range = weekRange(start, zone)
-                combine(
-                    repository.calendars(),
-                    repository.instances(range),
-                ) { calendars, instances ->
-                    buildState(start, calendars, instances)
-                }
-            }
-            .catch { emit(WeekUiState.Failure(FailureReason.ProviderUnavailable)) }
-            .flowOn(io)
+            .flatMapLatest { start -> week(start).filterNot { it is WeekUiState.Loading } }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000L),
                 initialValue = WeekUiState.Loading,
             )
 
-    fun goToPrev() {
-        _anchor.value = _anchor.value.minus(7, DateTimeUnit.DAY)
+    private val weeks = HashMap<LocalDate, StateFlow<WeekUiState>>()
+
+    /**
+     * The week starting at [start], shared between its pager page and [state].
+     * Weeks far from the one asked for are dropped, so paging through a year
+     * doesn't keep a year of queries around. Main thread only.
+     */
+    fun week(start: LocalDate): StateFlow<WeekUiState> {
+        weeks.keys.removeAll { abs(it.daysUntil(start)) > WEEK_CACHE_DAYS }
+        return weeks.getOrPut(start) {
+            combine(
+                repository.calendars(),
+                repository.instances(weekRange(start, zone)),
+            ) { calendars, instances ->
+                buildState(start, calendars, instances)
+            }
+                .catch { emit(WeekUiState.Failure(FailureReason.ProviderUnavailable)) }
+                .flowOn(io)
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000L),
+                    initialValue = WeekUiState.Loading,
+                )
+        }
     }
 
-    fun goToNext() {
-        _anchor.value = _anchor.value.plus(7, DateTimeUnit.DAY)
+    /** The pager came to rest on [page]; follow it unless it is already the anchor's. */
+    fun onPageSettled(page: Int) {
+        val ws = firstDayOfWeek.value
+        if (weekPageFor(_anchor.value, ws) != page) _anchor.value = weekStartForPage(page, ws)
     }
 
     fun goToToday() {
         _anchor.value = todayDate
-    }
-
-    /** Jump to the week containing [date] (drawer jump-to-date). */
-    fun goToDate(date: LocalDate) {
-        _anchor.value = date
     }
 
     private fun buildState(
