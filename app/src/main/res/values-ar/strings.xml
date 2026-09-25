@@ -777,4 +777,5 @@
     <string name="color_name_pink">وردي</string>
     <string name="color_name_amber">أصفر كهرماني</string>
     <string name="calendars_restore_unavailable">لا تقويم يمكنه استيعاب الأحداث المستوردة بعد.</string>
+    <string name="calendars_description_label">الوصف</string>
 </resources>
