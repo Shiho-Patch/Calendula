@@ -1,8 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.week
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -12,13 +10,12 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.ui.unit.lerp
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSpec
+import de.jeanlucmakiola.calendula.ui.common.jumpToPage
+import de.jeanlucmakiola.calendula.ui.common.pagedStripHeight
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 import kotlinx.datetime.DayOfWeek
-import kotlin.math.floor
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -252,13 +249,7 @@ fun WeekScreen(
     // hasn't caught up with the fling yet to tell the difference.
     val jumpToDate: (LocalDate) -> Unit = { target ->
         val page = weekPageFor(target, firstDay)
-        scope.launch {
-            if (reduceMotion) {
-                pagerState.scrollToPage(page)
-            } else {
-                pagerState.animateScrollToPage(page, animationSpec = pageSpec)
-            }
-        }
+        scope.launch { pagerState.jumpToPage(page, reduceMotion, pageSpec) }
     }
     val jumpToToday = { jumpToDate(today) }
 
@@ -470,33 +461,6 @@ private fun WeekPager(
             )
         }
     }
-}
-
-/**
- * One all-day strip height for every page, blended between the two weeks a swipe
- * sits between so their timelines stay level mid-swipe. It follows the swipe
- * directly and only springs when a week's own strip changes at rest. [fallback]
- * stands in until the pages have reported theirs, so it doesn't open from zero.
- */
-@Composable
-private fun pagedStripHeight(pagerState: PagerState, heights: Map<Int, Dp>, fallback: Dp): Dp {
-    val currentFallback by rememberUpdatedState(fallback)
-    val target by remember(pagerState, heights) {
-        derivedStateOf {
-            val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
-            val from = floor(position).toInt()
-            val a = heights[from]
-            val b = heights[from + 1]
-            lerp(a ?: b ?: currentFallback, b ?: a ?: currentFallback, position - from)
-        }
-    }
-    val height = remember { Animatable(target, Dp.VectorConverter) }
-    LaunchedEffect(height) {
-        snapshotFlow { target to pagerState.isScrollInProgress }.collectLatest { (h, scrolling) ->
-            if (scrolling) height.snapTo(h) else height.animateTo(h)
-        }
-    }
-    return height.value
 }
 
 /** A week with no events yet, for a page whose week is still loading. */

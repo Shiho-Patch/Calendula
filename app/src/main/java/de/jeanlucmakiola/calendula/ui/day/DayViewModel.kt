@@ -9,6 +9,7 @@ import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.domain.calendarListFailure
+import de.jeanlucmakiola.calendula.ui.common.PageStateCache
 import de.jeanlucmakiola.calendula.ui.week.layoutAllDay
 import de.jeanlucmakiola.calendula.ui.week.layoutDay
 import kotlinx.coroutines.CoroutineDispatcher
@@ -18,21 +19,25 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.atTime
-import kotlinx.datetime.minus
-import kotlinx.datetime.plus
+import kotlinx.datetime.daysUntil
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Instant
 import javax.inject.Inject
+import kotlin.math.abs
+
+/** How far from the requested day [DayViewModel.day] keeps other days cached. */
+private const val DAY_CACHE_DAYS = 7
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -47,32 +52,53 @@ class DayViewModel @Inject constructor(
         get() = Clock.System.now().toLocalDateTime(zone).date
 
     private val _date = MutableStateFlow(todayDate)
-    val date: StateFlow<LocalDate> = _date
 
+    /** The pager page the anchor day sits on. */
+    val anchorPage: StateFlow<Int> = _date
+        .map { dayPageFor(it) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = dayPageFor(todayDate),
+        )
+
+    /**
+     * The anchor day's state. Once loaded it never falls back to [DayUiState.Loading]:
+     * moving the anchor keeps the last result until the new day arrives, since
+     * the pages draw their own days and this only gates the failure screen.
+     */
     val state: StateFlow<DayUiState> = _date
-        .flatMapLatest { day ->
-            val range = dayRange(day, zone)
-            combine(
-                repository.calendars(),
-                repository.instances(range),
-            ) { calendars, instances ->
-                buildState(day, calendars, instances)
-            }
-        }
+        .flatMapLatest { date -> day(date).filterNot { it is DayUiState.Loading } }
         .catch { emit(DayUiState.Failure(FailureReason.ProviderUnavailable)) }
-        .flowOn(io)
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = DayUiState.Loading,
         )
 
-    fun goToPrev() {
-        _date.value = _date.value.minus(1, DateTimeUnit.DAY)
+    private val days = PageStateCache<LocalDate, DayUiState>(
+        scope = viewModelScope,
+        initial = DayUiState.Loading,
+        // Far enough to cover the pages either side and a swipe back, so paging
+        // through a month doesn't keep a month of queries around.
+        keep = { cached, requested -> abs(cached.daysUntil(requested)) <= DAY_CACHE_DAYS },
+    ) { date ->
+        combine(
+            repository.calendars(),
+            repository.instances(dayRange(date, zone)),
+        ) { calendars, instances ->
+            buildState(date, calendars, instances)
+        }
+            .catch { emit(DayUiState.Failure(FailureReason.ProviderUnavailable)) }
+            .flowOn(io)
     }
 
-    fun goToNext() {
-        _date.value = _date.value.plus(1, DateTimeUnit.DAY)
+    /** The day [date], shared between its pager page and [state]. Main thread only. */
+    fun day(date: LocalDate): StateFlow<DayUiState> = days.get(date)
+
+    /** The pager came to rest on [page]; follow it unless it is already the anchor's. */
+    fun onPageSettled(page: Int) {
+        if (dayPageFor(_date.value) != page) _date.value = dayForPage(page)
     }
 
     fun goToToday() {
