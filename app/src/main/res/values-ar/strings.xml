@@ -759,4 +759,7 @@
     <string name="onboarding_calendars_created_more_body">الإعدادات ← التقويمات تنشئ العدد كما تحتاجه، و تعيد تسمية التقويمات التي لديك أو تعيد تلوينهم.</string>
     <string name="onboarding_hidden_title">تقويماتك تم إيقافها</string>
     <string name="onboarding_calendars_created_continue">متابعة</string>
+    <string name="onboarding_hidden_body">يعرض Calendula التقويمات التي تم تشغيلها على هذا الهاتف، و حاليًا لا يوجد أيًّا منهم. قم بتشغيل التقويمات التي تريد رؤيتها — تعرضهم تطبيقات التقويم الأخرى خاصّتك مرة أخرى أيضًا.</string>
+    <string name="onboarding_hidden_switch_all_button">تشغيلهم جميعًا</string>
+    <string name="onboarding_hidden_failed">تعذّر تشغيل ذلك. تحتوي الإعدادات ← التقويمات على نفس مفاتيح التبديل.</string>
 </resources>
