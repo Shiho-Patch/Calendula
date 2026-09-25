@@ -150,6 +150,7 @@ abstract class PagedTimelineViewModel(
     }
 
     fun goToToday() = jumpTo(todayDate)
+    fun goToDate(date: LocalDate) = jumpTo(date)
 
     private fun buildState(
         span: DaySpan,

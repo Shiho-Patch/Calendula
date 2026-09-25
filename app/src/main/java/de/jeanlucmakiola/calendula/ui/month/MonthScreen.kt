@@ -206,6 +206,7 @@ import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
 
 private val LocalTodayPulse = staticCompositionLocalOf { 0 }
+private val LocalOpenWeek = staticCompositionLocalOf<((LocalDate) -> Unit)?> { null }
 
 /** A brief push from today's full cell into its immediate neighbours. */
 @Composable
@@ -252,6 +253,7 @@ fun MonthScreen(
     selectedView: CalendarView,
     onSelectView: (CalendarView) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
+    onOpenWeek: (LocalDate) -> Unit,
     onEventClick: (EventInstance) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenSearch: () -> Unit,
@@ -515,6 +517,7 @@ fun MonthScreen(
                     LocalDimCutoff provides dimCutoff,
                     LocalMonthDrag provides chipDrag,
                     LocalTodayPulse provides todayPulse,
+                    LocalOpenWeek provides onOpenWeek,
                 ) {
                     if (scrolling) {
                         ContinuousMonthContent(
@@ -933,7 +936,7 @@ private fun rememberWeekNumberGutter(): Dp {
     val style = weekNumberStyle()
     return remember(style, density, measurer) {
         val text = with(density) { measurer.measure(WEEK_NUMBER_SAMPLE, style).size.width.toDp() }
-        text + (WEEK_NUMBER_PADDING + CELL_GAP) * 2
+        (text + (WEEK_NUMBER_PADDING + CELL_GAP) * 2).coerceAtLeast(48.dp)
     }
 }
 
@@ -1675,7 +1678,7 @@ private fun SplitExpandHandle(
  * it's roughly a third of a paged row — which is the point: the space it gives
  * up goes to the day pane below.
  */
-private val SPLIT_ROW_HEIGHT = 46.dp
+private val SPLIT_ROW_HEIGHT = 48.dp
 
 /** Vertical padding and row gap of [SplitMonthGrid], which [splitGridHeight] pays for. */
 private val SPLIT_GRID_VERTICAL_PADDING = 4.dp
@@ -2742,8 +2745,13 @@ private fun monthChipDragModifier(
 private fun WeekNumberGutter(weekStart: LocalDate, modifier: Modifier = Modifier) {
     val weekNumber = remember(weekStart) { weekStart.toJavaLocalDate().isoWeekNumber() }
     val label = stringResource(R.string.week_number_label)
+    val openLabel = stringResource(R.string.month_open_week, weekNumber)
+    val onOpenWeek = LocalOpenWeek.current
     Box(
         modifier = modifier
+            .then(if (onOpenWeek != null) Modifier.clickable(onClickLabel = openLabel) {
+                onOpenWeek(weekStart)
+            } else Modifier)
             .padding(horizontal = CELL_GAP, vertical = 1.dp)
             .background(MaterialTheme.colorScheme.secondaryContainer, CELL_SHAPE)
             .semantics { contentDescription = "$label $weekNumber" },

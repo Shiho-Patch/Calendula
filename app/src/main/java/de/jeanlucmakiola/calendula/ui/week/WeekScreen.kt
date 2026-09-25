@@ -199,23 +199,33 @@ fun WeekScreen(
     quickSwitchViews: List<CalendarView> = IMPLEMENTED_VIEWS,
     drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
     todayInToolbar: Boolean = false,
+    initialDateIso: String? = null,
+    onInitialDateConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: WeekViewModel = hiltViewModel(),
-) = PagedTimelineScreen(
-    viewModel = viewModel,
-    showWeekNumber = true,
-    selectedView = selectedView,
-    onSelectView = onSelectView,
-    onOpenDay = onOpenDay,
-    onEventClick = onEventClick,
-    onOpenSettings = onOpenSettings,
-    onOpenSearch = onOpenSearch,
-    onCreateEvent = onCreateEvent,
-    quickSwitchViews = quickSwitchViews,
-    drawerViewOrder = drawerViewOrder,
-    todayInToolbar = todayInToolbar,
-    modifier = modifier,
-)
+) {
+    LaunchedEffect(initialDateIso) {
+        initialDateIso?.let {
+            viewModel.goToDate(LocalDate.parse(it))
+            onInitialDateConsumed()
+        }
+    }
+    PagedTimelineScreen(
+        viewModel = viewModel,
+        showWeekNumber = true,
+        selectedView = selectedView,
+        onSelectView = onSelectView,
+        onOpenDay = onOpenDay,
+        onEventClick = onEventClick,
+        onOpenSettings = onOpenSettings,
+        onOpenSearch = onOpenSearch,
+        onCreateEvent = onCreateEvent,
+        quickSwitchViews = quickSwitchViews,
+        drawerViewOrder = drawerViewOrder,
+        todayInToolbar = todayInToolbar,
+        modifier = modifier,
+    )
+}
 
 /** The multi-day view (#193): the week view's timeline over the day count from Settings. */
 @Composable

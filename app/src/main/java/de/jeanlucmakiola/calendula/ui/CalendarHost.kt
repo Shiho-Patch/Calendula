@@ -34,6 +34,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
 import de.jeanlucmakiola.calendula.ui.common.LocalManageCalendars
 import de.jeanlucmakiola.calendula.ui.common.RescheduleViewModel
 import de.jeanlucmakiola.calendula.ui.common.drillToDay
+import de.jeanlucmakiola.calendula.ui.common.drillToWeek
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.selectView
 import de.jeanlucmakiola.calendula.ui.common.viewBaseStack
@@ -111,6 +112,11 @@ fun CalendarHost(
     val onOpenDay: (LocalDate) -> Unit = { date ->
         pendingDayIso = date.toString()
         viewStack = viewStack.drillToDay()
+    }
+    var pendingWeekIso by rememberSaveable { mutableStateOf<String?>(null) }
+    val onOpenWeek: (LocalDate) -> Unit = { date ->
+        pendingWeekIso = date.toString()
+        viewStack = viewStack.drillToWeek()
     }
 
     // The event-detail screen (S4) is a full-screen destination hoisted here so
@@ -380,6 +386,8 @@ fun CalendarHost(
                     quickSwitchViews = quickSwitchViews,
                     drawerViewOrder = drawerViewOrder,
                     todayInToolbar = todayInToolbar,
+                    initialDateIso = pendingWeekIso,
+                    onInitialDateConsumed = { pendingWeekIso = null },
                 )
                 CalendarView.MultiDay -> MultiDayScreen(
                     selectedView = currentView,
@@ -409,6 +417,7 @@ fun CalendarHost(
                     selectedView = currentView,
                     onSelectView = onSelectView,
                     onOpenDay = onOpenDay,
+                    onOpenWeek = onOpenWeek,
                     onEventClick = onEventClick,
                     onOpenSettings = onOpenSettings,
                     onOpenSearch = onOpenSearch,
