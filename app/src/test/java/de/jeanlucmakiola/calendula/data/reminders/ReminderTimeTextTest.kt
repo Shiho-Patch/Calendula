@@ -38,6 +38,7 @@ class ReminderTimeTextTest {
         is24Hour = is24Hour,
         today = today ?: java.time.Instant.ofEpochMilli(beginMillis).atZone(zone).toLocalDate(),
         firstDayOfWeek = firstDayOfWeek,
+        todayLabel = "Today",
         tomorrowLabel = "Tomorrow",
         yesterdayLabel = "Yesterday",
     )
@@ -130,38 +131,74 @@ class ReminderTimeTextTest {
     }
 
     @Test
-    fun `all-day single day shows one date, read in UTC`() {
+    fun `all-day single day today reads as today, read in UTC`() {
         val text = text(
             beginMillis = utcMidnight(LocalDate.of(2026, 6, 11)),
             endMillis = utcMidnight(LocalDate.of(2026, 6, 12)),
             isAllDay = true,
             // Zone must not matter for all-day events: UTC midnight is
             // 02:00 in Berlin — naive local reading would shift the day.
+            zone = ZoneId.of("America/Los_Angeles"),
             today = LocalDate.of(2026, 6, 11),
         )
-        assertThat(text).isEqualTo("11.06.2026")
+        assertThat(text).isEqualTo("Today")
     }
 
     @Test
-    fun `all-day event tomorrow still shows the exact date, no relative prefix`() {
+    fun `all-day event tomorrow reads as tomorrow`() {
         val text = text(
             beginMillis = utcMidnight(LocalDate.of(2026, 6, 12)),
             endMillis = utcMidnight(LocalDate.of(2026, 6, 13)),
             isAllDay = true,
             today = LocalDate.of(2026, 6, 11),
         )
-        assertThat(text).isEqualTo("12.06.2026")
+        assertThat(text).isEqualTo("Tomorrow")
     }
 
     @Test
-    fun `all-day multi-day shows the last covered day, not the exclusive end`() {
+    fun `all-day event later this week reads as the short weekday`() {
+        // 2026-06-11 is a Thursday; Saturday the 13th shares its week.
         val text = text(
-            beginMillis = utcMidnight(LocalDate.of(2026, 6, 11)),
-            endMillis = utcMidnight(LocalDate.of(2026, 6, 13)),
+            beginMillis = utcMidnight(LocalDate.of(2026, 6, 13)),
+            endMillis = utcMidnight(LocalDate.of(2026, 6, 14)),
+            isAllDay = true,
+            locale = Locale.US,
+            today = LocalDate.of(2026, 6, 11),
+        )
+        assertThat(text).isEqualTo("Sat")
+    }
+
+    @Test
+    fun `all-day event next week falls back to the exact date`() {
+        val text = text(
+            beginMillis = utcMidnight(LocalDate.of(2026, 6, 16)),
+            endMillis = utcMidnight(LocalDate.of(2026, 6, 17)),
             isAllDay = true,
             today = LocalDate.of(2026, 6, 11),
         )
-        assertThat(text).isEqualTo("11.06.2026 – 12.06.2026")
+        assertThat(text).isEqualTo("16.06.2026")
+    }
+
+    @Test
+    fun `all-day multi-day reads relative start and the last covered day`() {
+        val text = text(
+            beginMillis = utcMidnight(LocalDate.of(2026, 6, 12)),
+            endMillis = utcMidnight(LocalDate.of(2026, 6, 14)),
+            isAllDay = true,
+            today = LocalDate.of(2026, 6, 11),
+        )
+        assertThat(text).isEqualTo("Tomorrow – 13.06.2026")
+    }
+
+    @Test
+    fun `all-day multi-day further out keeps both dates`() {
+        val text = text(
+            beginMillis = utcMidnight(LocalDate.of(2026, 7, 1)),
+            endMillis = utcMidnight(LocalDate.of(2026, 7, 3)),
+            isAllDay = true,
+            today = LocalDate.of(2026, 6, 11),
+        )
+        assertThat(text).isEqualTo("01.07.2026 – 02.07.2026")
     }
 
     @Test
@@ -173,6 +210,6 @@ class ReminderTimeTextTest {
             isAllDay = true,
             today = LocalDate.of(2026, 6, 11),
         )
-        assertThat(text).isEqualTo("11.06.2026")
+        assertThat(text).isEqualTo("Today")
     }
 }

@@ -353,6 +353,7 @@
     <string name="reminder_action_snooze">Snooze</string>
     <string name="reminder_action_dismiss">Dismiss</string>
     <!-- Day context prefix in a reminder for an event on another day (v2.15.0) -->
+    <string name="reminder_day_today">Today</string>
     <string name="reminder_day_tomorrow">Tomorrow</string>
     <string name="reminder_day_yesterday">Yesterday</string>
 
