@@ -746,4 +746,12 @@
     <string name="calendar_unnamed">(بدون اسم)</string>
     <string name="onboarding_calendars_title">مكان لوضع أحداثك</string>
     <string name="onboarding_calendars_body">لا يحتوي هذا الجهاز على تقويم بعد. يكتب Calendula للتقويمات التي بالفعل على هاتفك — أنه يحتاج على الأقل واحد.</string>
+    <string name="onboarding_calendars_local_button">إنشاء تقويم على هذا الجهاز</string>
+    <string name="onboarding_calendars_caldav_button">المزامنة مع خادم CalDAV</string>
+    <string name="onboarding_calendars_benefit_local_title">تبقى على هذا الهاتف</string>
+    <string name="onboarding_calendars_benefit_local_body">لا تتم مزامنة تقويم الجهاز في أي مكان، لذا قم بنسخه احتياطيًّا إذا الأحداث مهمة.</string>
+    <string name="onboarding_calendars_benefit_sync_title">أو قم بالمزامنة من حساب</string>
+    <string name="onboarding_calendars_benefit_sync_body">يعرض Calendula ما المُزامَن بالفعل في حساباتك. تحتاج خوادم CalDAV إلى DAVx⁵ لإجراء المزامنة.</string>
+    <string name="onboarding_calendars_created_title">”%1$s“ جاهز</string>
+    <string name="onboarding_calendars_created_body">أنه يوجد على هذا الجهاز و تذهب إليه الأحداث الجديدة ما لم تختر تقويمًا آخر.</string>
 </resources>
