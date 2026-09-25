@@ -754,4 +754,5 @@
     <string name="onboarding_calendars_benefit_sync_body">يعرض Calendula ما المُزامَن بالفعل في حساباتك. تحتاج خوادم CalDAV إلى DAVx⁵ لإجراء المزامنة.</string>
     <string name="onboarding_calendars_created_title">”%1$s“ جاهز</string>
     <string name="onboarding_calendars_created_body">أنه يوجد على هذا الجهاز و تذهب إليه الأحداث الجديدة ما لم تختر تقويمًا آخر.</string>
+    <string name="onboarding_calendars_skip_button">ليس الآن</string>
 </resources>
