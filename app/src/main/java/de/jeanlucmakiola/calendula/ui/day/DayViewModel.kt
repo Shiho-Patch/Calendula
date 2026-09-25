@@ -9,6 +9,7 @@ import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.domain.calendarListFailure
+import de.jeanlucmakiola.calendula.ui.common.PageStateCache
 import de.jeanlucmakiola.calendula.ui.week.layoutAllDay
 import de.jeanlucmakiola.calendula.ui.week.layoutDay
 import kotlinx.coroutines.CoroutineDispatcher
@@ -68,37 +69,32 @@ class DayViewModel @Inject constructor(
      */
     val state: StateFlow<DayUiState> = _date
         .flatMapLatest { date -> day(date).filterNot { it is DayUiState.Loading } }
+        .catch { emit(DayUiState.Failure(FailureReason.ProviderUnavailable)) }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = DayUiState.Loading,
         )
 
-    private val days = HashMap<LocalDate, StateFlow<DayUiState>>()
-
-    /**
-     * The day [date], shared between its pager page and [state]. Days far from
-     * the one asked for are dropped, so paging through a month doesn't keep a
-     * month of queries around. Main thread only.
-     */
-    fun day(date: LocalDate): StateFlow<DayUiState> {
-        days.keys.removeAll { abs(it.daysUntil(date)) > DAY_CACHE_DAYS }
-        return days.getOrPut(date) {
-            combine(
-                repository.calendars(),
-                repository.instances(dayRange(date, zone)),
-            ) { calendars, instances ->
-                buildState(date, calendars, instances)
-            }
-                .catch { emit(DayUiState.Failure(FailureReason.ProviderUnavailable)) }
-                .flowOn(io)
-                .stateIn(
-                    scope = viewModelScope,
-                    started = SharingStarted.WhileSubscribed(5_000L),
-                    initialValue = DayUiState.Loading,
-                )
+    private val days = PageStateCache<LocalDate, DayUiState>(
+        scope = viewModelScope,
+        initial = DayUiState.Loading,
+        // Far enough to cover the pages either side and a swipe back, so paging
+        // through a month doesn't keep a month of queries around.
+        keep = { cached, requested -> abs(cached.daysUntil(requested)) <= DAY_CACHE_DAYS },
+    ) { date ->
+        combine(
+            repository.calendars(),
+            repository.instances(dayRange(date, zone)),
+        ) { calendars, instances ->
+            buildState(date, calendars, instances)
         }
+            .catch { emit(DayUiState.Failure(FailureReason.ProviderUnavailable)) }
+            .flowOn(io)
     }
+
+    /** The day [date], shared between its pager page and [state]. Main thread only. */
+    fun day(date: LocalDate): StateFlow<DayUiState> = days.get(date)
 
     /** The pager came to rest on [page]; follow it unless it is already the anchor's. */
     fun onPageSettled(page: Int) {

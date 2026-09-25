@@ -12,6 +12,7 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.domain.calendarListFailure
 import de.jeanlucmakiola.calendula.domain.isDeclined
+import de.jeanlucmakiola.calendula.ui.common.PageStateCache
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,37 +102,32 @@ class WeekViewModel @Inject constructor(
         combine(_anchor, firstDayOfWeek) { anchor, ws -> anchor.startOfWeek(ws) }
             .distinctUntilChanged()
             .flatMapLatest { start -> week(start).filterNot { it is WeekUiState.Loading } }
+            .catch { emit(WeekUiState.Failure(FailureReason.ProviderUnavailable)) }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000L),
                 initialValue = WeekUiState.Loading,
             )
 
-    private val weeks = HashMap<LocalDate, StateFlow<WeekUiState>>()
-
-    /**
-     * The week starting at [start], shared between its pager page and [state].
-     * Weeks far from the one asked for are dropped, so paging through a year
-     * doesn't keep a year of queries around. Main thread only.
-     */
-    fun week(start: LocalDate): StateFlow<WeekUiState> {
-        weeks.keys.removeAll { abs(it.daysUntil(start)) > WEEK_CACHE_DAYS }
-        return weeks.getOrPut(start) {
-            combine(
-                repository.calendars(),
-                repository.instances(weekRange(start, zone)),
-            ) { calendars, instances ->
-                buildState(start, calendars, instances)
-            }
-                .catch { emit(WeekUiState.Failure(FailureReason.ProviderUnavailable)) }
-                .flowOn(io)
-                .stateIn(
-                    scope = viewModelScope,
-                    started = SharingStarted.WhileSubscribed(5_000L),
-                    initialValue = WeekUiState.Loading,
-                )
+    private val weeks = PageStateCache<LocalDate, WeekUiState>(
+        scope = viewModelScope,
+        initial = WeekUiState.Loading,
+        // Far enough to cover the pages either side and a swipe back, so paging
+        // through a year doesn't keep a year of queries around.
+        keep = { cached, requested -> abs(cached.daysUntil(requested)) <= WEEK_CACHE_DAYS },
+    ) { start ->
+        combine(
+            repository.calendars(),
+            repository.instances(weekRange(start, zone)),
+        ) { calendars, instances ->
+            buildState(start, calendars, instances)
         }
+            .catch { emit(WeekUiState.Failure(FailureReason.ProviderUnavailable)) }
+            .flowOn(io)
     }
+
+    /** The week starting at [start], shared between its pager page and [state]. Main thread only. */
+    fun week(start: LocalDate): StateFlow<WeekUiState> = weeks.get(start)
 
     /** The pager came to rest on [page]; follow it unless it is already the anchor's. */
     fun onPageSettled(page: Int) {
