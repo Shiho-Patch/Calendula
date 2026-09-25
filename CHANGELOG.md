@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Split view opens with the month's agenda.** It starts at today in the current month; tapping a day filters the list, and the filter chip restores the full month. Swiping the list moves by day when filtered and by month otherwise ([#142]).
+
 ## [2.21.0] — 2026-09-23
 
 ### Added
