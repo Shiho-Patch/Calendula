@@ -755,4 +755,7 @@
     <string name="onboarding_calendars_created_title">”%1$s“ جاهز</string>
     <string name="onboarding_calendars_created_body">أنه يوجد على هذا الجهاز و تذهب إليه الأحداث الجديدة ما لم تختر تقويمًا آخر.</string>
     <string name="onboarding_calendars_skip_button">ليس الآن</string>
+    <string name="onboarding_calendars_created_more_title">مساحة لمزيد</string>
+    <string name="onboarding_calendars_created_more_body">الإعدادات ← التقويمات تنشئ العدد كما تحتاجه، و تعيد تسمية التقويمات التي لديك أو تعيد تلوينهم.</string>
+    <string name="onboarding_hidden_title">تقويماتك تم إيقافها</string>
 </resources>
