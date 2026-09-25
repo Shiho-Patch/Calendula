@@ -91,7 +91,7 @@ fun CalendarDrawer(
             DrawerSectionHeader(stringResource(R.string.view_section))
             viewOrder.forEachIndexed { index, view ->
                 GroupedRow(
-                    title = stringResource(view.labelRes),
+                    title = view.label(),
                     position = positionOf(index, viewOrder.size),
                     selected = view == currentView,
                     minHeight = 56.dp,

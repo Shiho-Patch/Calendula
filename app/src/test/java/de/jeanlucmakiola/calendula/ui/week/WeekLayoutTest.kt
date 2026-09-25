@@ -49,8 +49,8 @@ class WeekLayoutTest {
     }
 
     @Test
-    fun `weekRange spans seven days`() {
-        val range = weekRange(mon, zone)
+    fun `spanRange spans seven days`() {
+        val range = spanRange(mon, 7, zone)
         assertThat(range.start).isEqualTo(at(mon, 0, 0))
         // endInclusive is the last second of day 7 (Sunday 2026-06-14)
         assertThat(range.endInclusive).isEqualTo(LocalDate(2026, 6, 14).atTime(23, 59, 59).toInstant(zone))
