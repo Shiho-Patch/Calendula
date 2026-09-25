@@ -355,6 +355,11 @@
     <!-- View switcher (M1) -->
     <string name="view_month">Month</string>
     <string name="view_week">Week</string>
+    <!-- The multi-day view, named after how many days it shows (#193) -->
+    <plurals name="view_multi_day">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
     <string name="view_day">Day</string>
     <string name="view_agenda">Agenda</string>
     <string name="view_section">View</string>
@@ -470,6 +475,8 @@
          each hour") describes a feature that no longer exists and needs redoing. -->
     <string name="settings_hour_lines">Hour grid</string>
     <string name="settings_hour_lines_summary">Seat each hour in its own cell in week and day view</string>
+    <string name="settings_multi_day_count">Multi-day view</string>
+    <string name="settings_multi_day_count_hint">How many days the multi-day view shows side by side. Today opens in the first column.</string>
     <string name="settings_timeline_scale">Hour height</string>
     <string name="settings_timeline_scale_hint">How much vertical space one hour takes in week and day view. Both views share this setting. You can also pinch the timeline with two fingers to set any height in between.</string>
     <string name="timeline_scale_fit_day">Fit whole day</string>

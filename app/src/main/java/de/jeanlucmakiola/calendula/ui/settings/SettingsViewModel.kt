@@ -148,11 +148,12 @@ class SettingsViewModel @Inject constructor(
                     combine(
                         prefs.todayButtonInToolbar,
                         prefs.dragToReschedule,
-                        ::Pair,
+                        prefs.multiDayCount,
+                        ::Triple,
                     ),
-                ) { hourLines, weekNumbers, showToday, soften, (todayInToolbar, dragToMove) ->
+                ) { hourLines, weekNumbers, showToday, soften, (todayInToolbar, dragToMove, multiDay) ->
                     DisplayToggles(
-                        hourLines, weekNumbers, showToday, soften, todayInToolbar, dragToMove,
+                        hourLines, weekNumbers, showToday, soften, todayInToolbar, dragToMove, multiDay,
                     )
                 },
             ) { view, screenRange, widgetRange, timeFormat, toggles ->
@@ -164,6 +165,7 @@ class SettingsViewModel @Inject constructor(
                     softenColors = toggles.softenColors,
                     todayButtonInToolbar = toggles.todayButtonInToolbar,
                     dragToReschedule = toggles.dragToReschedule,
+                    multiDayCount = toggles.multiDayCount,
                 )
             },
             combine(
@@ -197,6 +199,7 @@ class SettingsViewModel @Inject constructor(
                 softenColors = views.softenColors,
                 todayButtonInToolbar = views.todayButtonInToolbar,
                 dragToReschedule = views.dragToReschedule,
+                multiDayCount = views.multiDayCount,
                 agendaShowRangeBar = misc.showRangeBar,
                 autofocusEventTitle = misc.autofocusEventTitle,
                 pastEventDisplay = misc.pastEventDisplay,
@@ -298,6 +301,7 @@ class SettingsViewModel @Inject constructor(
         val softenColors: Boolean,
         val todayButtonInToolbar: Boolean,
         val dragToReschedule: Boolean,
+        val multiDayCount: Int,
     )
 
     private data class DisplayToggles(
@@ -307,6 +311,7 @@ class SettingsViewModel @Inject constructor(
         val softenColors: Boolean,
         val todayButtonInToolbar: Boolean,
         val dragToReschedule: Boolean,
+        val multiDayCount: Int,
     )
 
     private data class MiscSettings(
@@ -530,6 +535,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setTimeFormat(pref: TimeFormatPref) {
         viewModelScope.launch { prefs.setTimeFormat(pref) }
+    }
+
+    fun setMultiDayCount(count: Int) {
+        viewModelScope.launch { prefs.setMultiDayCount(count) }
     }
 
     fun setShowHourGrid(enabled: Boolean) {

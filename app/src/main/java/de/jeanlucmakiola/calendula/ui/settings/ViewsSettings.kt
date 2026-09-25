@@ -21,10 +21,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.data.prefs.PastEventDisplay
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.TimeFormatPref
 import de.jeanlucmakiola.calendula.data.prefs.WeekStartPref
 import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
@@ -37,6 +39,7 @@ import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.calendula.ui.common.descriptionRes
 import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
 import de.jeanlucmakiola.calendula.ui.common.icon
+import de.jeanlucmakiola.calendula.ui.common.label
 import de.jeanlucmakiola.calendula.ui.common.labelRes
 import de.jeanlucmakiola.calendula.ui.month.labelRes
 import de.jeanlucmakiola.floret.components.CollapsingScaffold
@@ -70,6 +73,7 @@ internal fun ViewsScreen(
     var showPastEvents by remember { mutableStateOf(false) }
     var showAgendaScreenRange by remember { mutableStateOf(false) }
     var showTimelineScale by remember { mutableStateOf(false) }
+    var showMultiDayCount by remember { mutableStateOf(false) }
 
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_views),
@@ -82,7 +86,7 @@ internal fun ViewsScreen(
         SectionHeader(stringResource(R.string.settings_views_all_header))
         GroupedRow(
             title = stringResource(R.string.settings_default_view),
-            summary = stringResource(state.defaultView.labelRes),
+            summary = state.defaultView.label(),
             position = Position.Top,
             onClick = { showDefaultView = true },
         )
@@ -159,9 +163,15 @@ internal fun ViewsScreen(
         Spacer(Modifier.height(8.dp))
         SectionHeader(stringResource(R.string.settings_week_day_header))
         GroupedRow(
+            title = stringResource(R.string.settings_multi_day_count),
+            summary = multiDayLabel(state.multiDayCount),
+            position = Position.Top,
+            onClick = { showMultiDayCount = true },
+        )
+        GroupedRow(
             title = stringResource(R.string.settings_timeline_scale),
             summary = stringResource(state.timelineScale.labelRes),
-            position = Position.Top,
+            position = Position.Middle,
             onClick = { showTimelineScale = true },
         )
         GroupedRow(
@@ -275,7 +285,7 @@ internal fun ViewsScreen(
             predictiveBack = true,
             options = IMPLEMENTED_VIEWS,
             selected = state.defaultView,
-            label = { stringResource(it.labelRes) },
+            label = { it.label() },
             leading = {
                 Icon(
                     imageVector = it.icon,
@@ -337,6 +347,18 @@ internal fun ViewsScreen(
             onDismiss = { showPastEvents = false },
         )
     }
+    if (showMultiDayCount) {
+        OptionPicker(
+            title = stringResource(R.string.settings_multi_day_count),
+            header = { PickerDescription(stringResource(R.string.settings_multi_day_count_hint)) },
+            predictiveBack = true,
+            options = SettingsPrefs.MULTI_DAY_COUNTS.toList(),
+            selected = state.multiDayCount,
+            label = { multiDayLabel(it) },
+            onSelect = viewModel::setMultiDayCount,
+            onDismiss = { showMultiDayCount = false },
+        )
+    }
     if (showTimelineScale) {
         OptionPicker(
             title = stringResource(R.string.settings_timeline_scale),
@@ -384,7 +406,7 @@ private fun ViewRow(
     trailing: @Composable (() -> Unit)? = null,
 ) {
     GroupedRow(
-        title = stringResource(view.labelRes),
+        title = view.label(),
         position = position,
         dimmed = dimmed,
         minHeight = ReorderableRowHeight,
@@ -449,3 +471,7 @@ internal fun pastEventDisplayLabelRes(mode: PastEventDisplay): Int = when (mode)
     PastEventDisplay.DIM -> R.string.settings_past_events_dim
     PastEventDisplay.HIDE -> R.string.settings_past_events_hide
 }
+
+@Composable
+private fun multiDayLabel(count: Int): String =
+    pluralStringResource(R.plurals.view_multi_day, count, count)

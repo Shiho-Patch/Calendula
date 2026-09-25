@@ -35,6 +35,6 @@ fun ViewSwitcherPill(
         shape = MaterialTheme.shapes.large,
         modifier = modifier.padding(end = trailingInset),
     ) {
-        Text(stringResource(current.labelRes))
+        Text(current.label())
     }
 }

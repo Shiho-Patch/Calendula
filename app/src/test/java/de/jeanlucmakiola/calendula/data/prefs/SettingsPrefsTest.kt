@@ -235,7 +235,8 @@ class SettingsPrefsTest {
         prefs.setQuickSwitchConfig(config)
         val loaded = prefs.quickSwitchConfig.first()
         assertThat(loaded.order).containsExactly(
-            CalendarView.Agenda, CalendarView.Month, CalendarView.Week, CalendarView.Day,
+            CalendarView.Agenda, CalendarView.Month, CalendarView.Week,
+            CalendarView.MultiDay, CalendarView.Day,
         ).inOrder()
         assertThat(loaded.enabled).containsExactly(CalendarView.Agenda, CalendarView.Month)
         assertThat(loaded.cycle).containsExactly(CalendarView.Agenda, CalendarView.Month).inOrder()
@@ -252,13 +253,14 @@ class SettingsPrefsTest {
             m
         }
         val config = prefs.quickSwitchConfig.first()
-        // Stored order first (Day, Week), then the omitted views in default order.
+        // Stored order first, with the new view after Week.
         assertThat(config.order).containsExactly(
-            CalendarView.Day, CalendarView.Week, CalendarView.Month, CalendarView.Agenda,
+            CalendarView.Day, CalendarView.Week, CalendarView.MultiDay,
+            CalendarView.Month, CalendarView.Agenda,
         ).inOrder()
-        // Day was explicitly disabled; the appended Month & Agenda default enabled.
+        // Day was explicitly disabled; the missing views default enabled.
         assertThat(config.enabled).containsExactly(
-            CalendarView.Week, CalendarView.Month, CalendarView.Agenda,
+            CalendarView.Week, CalendarView.MultiDay, CalendarView.Month, CalendarView.Agenda,
         )
     }
 
@@ -272,9 +274,12 @@ class SettingsPrefsTest {
         val newOrder = listOf(CalendarView.Agenda, CalendarView.Month, CalendarView.Week, CalendarView.Day)
         prefs.updateQuickSwitch { it.copy(order = newOrder) }
         val config = prefs.quickSwitchConfig.first()
-        assertThat(config.order).containsExactlyElementsIn(newOrder).inOrder()
-        assertThat(config.enabled).containsExactly(
+        assertThat(config.order).containsExactly(
             CalendarView.Agenda, CalendarView.Month, CalendarView.Week,
+            CalendarView.MultiDay, CalendarView.Day,
+        ).inOrder()
+        assertThat(config.enabled).containsExactly(
+            CalendarView.Agenda, CalendarView.Month, CalendarView.Week, CalendarView.MultiDay,
         )
     }
 
@@ -286,7 +291,8 @@ class SettingsPrefsTest {
             listOf(CalendarView.Agenda, CalendarView.Day, CalendarView.Week, CalendarView.Month),
         )
         assertThat(prefs.drawerViewOrder.first()).containsExactly(
-            CalendarView.Agenda, CalendarView.Day, CalendarView.Week, CalendarView.Month,
+            CalendarView.Agenda, CalendarView.Day, CalendarView.Week,
+            CalendarView.MultiDay, CalendarView.Month,
         ).inOrder()
     }
 
@@ -300,7 +306,8 @@ class SettingsPrefsTest {
             m
         }
         assertThat(prefs.drawerViewOrder.first()).containsExactly(
-            CalendarView.Agenda, CalendarView.Week, CalendarView.Month, CalendarView.Day,
+            CalendarView.Agenda, CalendarView.Week, CalendarView.MultiDay,
+            CalendarView.Month, CalendarView.Day,
         ).inOrder()
     }
 
