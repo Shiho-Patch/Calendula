@@ -1,10 +1,10 @@
 <resources>
     <string name="app_name">Calendula</string>
     <string name="app_tagline">A modern calendar.</string>
-    <!-- Alternative launcher label offered by the "App name" setting (issue #44).
-         translatable="false": this string becomes a launcher component's label, so
-         it must never be changed by an unreviewed community translation. -->
-    <string name="app_name_calendar_alias" translatable="false">Calendar</string>
+    <!-- Alternative launcher label offered by the "App name" setting (issue #44),
+         shown under the app icon. Translate it as the plain, generic word your
+         language uses for a calendar app (e.g. "Kalender"), nothing else (#251). -->
+    <string name="app_name_calendar_alias">Calendar</string>
 
     <!-- Loading / Failure / Success generic strings (used across screens) -->
     <string name="state_loading">Loading…</string>
