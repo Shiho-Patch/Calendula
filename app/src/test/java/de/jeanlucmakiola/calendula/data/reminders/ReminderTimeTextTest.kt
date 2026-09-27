@@ -137,7 +137,7 @@ class ReminderTimeTextTest {
             endMillis = utcMidnight(LocalDate.of(2026, 6, 12)),
             isAllDay = true,
             // Zone must not matter for all-day events: UTC midnight is
-            // 02:00 in Berlin — naive local reading would shift the day.
+            // the previous evening in Los Angeles — naive local reading would shift the day.
             zone = ZoneId.of("America/Los_Angeles"),
             today = LocalDate.of(2026, 6, 11),
         )
