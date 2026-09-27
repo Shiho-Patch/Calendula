@@ -156,4 +156,38 @@ class EventToneTest {
         assertThat(eventTone(0xFFFFF6C0.toInt(), dark = false, harmonise = false).onContainer)
             .isEqualTo(0xFF000000.toInt())
     }
+
+    @Test
+    fun `the edge bar steps clear of its block's container on every hue`() {
+        for (dark in listOf(false, true)) {
+            for (harmonise in listOf(false, true)) {
+                (hues + 0xFFFFF6C0.toInt() + 0xFF000000.toInt() + 0xFFFFFFFF.toInt()).forEach { raw ->
+                    val container = oklchOf(eventTone(raw, dark, harmonise).container)
+                    val bar = oklchOf(edgeHintTone(raw, dark, harmonise))
+                    assertThat(kotlin.math.abs(bar.lightness - container.lightness))
+                        .isAtLeast(EDGE_HINT_STEP - 0.02f)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `the edge bar goes darker on a light scheme and lighter on a dark one`() {
+        hues.forEach { raw ->
+            val light = eventTone(raw, dark = false, harmonise = true).container
+            val dark = eventTone(raw, dark = true, harmonise = true).container
+            assertThat(oklchOf(edgeHintTone(raw, dark = false, harmonise = true)).lightness)
+                .isLessThan(oklchOf(light).lightness)
+            assertThat(oklchOf(edgeHintTone(raw, dark = true, harmonise = true)).lightness)
+                .isGreaterThan(oklchOf(dark).lightness)
+        }
+    }
+
+    @Test
+    fun `a pale block on a dark scheme gets a deeper bar rather than a white one`() {
+        val pale = 0xFFFFF6C0.toInt()
+        val container = oklchOf(eventTone(pale, dark = true, harmonise = true).container)
+        assertThat(oklchOf(edgeHintTone(pale, dark = true, harmonise = true)).lightness)
+            .isLessThan(container.lightness)
+    }
 }

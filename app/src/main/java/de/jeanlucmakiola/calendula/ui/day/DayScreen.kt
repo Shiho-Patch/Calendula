@@ -106,6 +106,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
 import de.jeanlucmakiola.calendula.ui.common.MoveRequest
 import de.jeanlucmakiola.calendula.ui.common.MoveTarget
 import de.jeanlucmakiola.calendula.ui.common.NowLine
+import de.jeanlucmakiola.calendula.ui.common.OutOfViewEdgeBars
 import de.jeanlucmakiola.calendula.ui.common.TimelineDragController
 import de.jeanlucmakiola.calendula.ui.common.TimelineDragOverlay
 import de.jeanlucmakiola.calendula.ui.common.TimelineDrop
@@ -707,6 +708,7 @@ private fun Timeline(
                 date = state.date,
                 today = state.today,
                 hourHeight = hourHeight,
+                scrollState = scrollState,
                 dragController = dragController,
                 onEventClick = onEventClick,
                 onCreateAt = onCreateAt,
@@ -742,6 +744,7 @@ private fun DayColumnCard(
     date: LocalDate,
     today: LocalDate,
     hourHeight: Dp,
+    scrollState: ScrollState,
     dragController: TimelineDragController,
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
@@ -849,6 +852,12 @@ private fun DayColumnCard(
             if (date == today) {
                 NowLine(date = date, hourHeight = hourHeight)
             }
+            OutOfViewEdgeBars(
+                blocks = blocks,
+                scrollState = scrollState,
+                hourPx = hourPx,
+                dark = dark,
+            )
         }
     }
 }

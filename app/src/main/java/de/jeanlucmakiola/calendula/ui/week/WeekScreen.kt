@@ -132,6 +132,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
 import de.jeanlucmakiola.calendula.ui.common.trimmedLines
 import de.jeanlucmakiola.calendula.ui.common.NowLine
+import de.jeanlucmakiola.calendula.ui.common.OutOfViewEdgeBars
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
@@ -997,6 +998,7 @@ private fun Timeline(
                         date = day,
                         today = state.today,
                         hourHeight = hourHeight,
+                        scrollState = scrollState,
                         dragController = dragController,
                         onEventClick = onEventClick,
                         onCreateAt = onCreateAt,
@@ -1018,6 +1020,7 @@ private fun DayColumnCard(
     date: LocalDate,
     today: LocalDate,
     hourHeight: Dp,
+    scrollState: ScrollState,
     dragController: TimelineDragController,
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
@@ -1125,6 +1128,12 @@ private fun DayColumnCard(
             if (date == today) {
                 NowLine(date = date, hourHeight = hourHeight)
             }
+            OutOfViewEdgeBars(
+                blocks = blocks,
+                scrollState = scrollState,
+                hourPx = hourPx,
+                dark = dark,
+            )
         }
     }
 }
