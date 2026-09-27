@@ -1,5 +1,10 @@
 package de.jeanlucmakiola.calendula.ui.agenda
 
+import de.jeanlucmakiola.calendula.ui.common.LocalViewFocus
+import de.jeanlucmakiola.calendula.ui.common.EnterOnFocus
+import kotlinx.coroutines.flow.drop
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.rememberUpdatedState
 import de.jeanlucmakiola.calendula.ui.common.ViewMorphKey
 import de.jeanlucmakiola.calendula.ui.common.morphEvent
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -96,8 +101,15 @@ fun AgendaScreen(
     modifier: Modifier = Modifier,
     viewModel: AgendaViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    // Opens on the focused date and hands back the day scrolled to the top.
+    val focus = LocalViewFocus.current
+    EnterOnFocus(viewModel) { if (it != viewModel.anchor.value) viewModel.goToDate(it) }
+    val loadedState by viewModel.state.collectAsStateWithLifecycle()
     val anchor by viewModel.anchor.collectAsStateWithLifecycle()
+    // Rows from before the anchor moved belong to another window: they would
+    // show the wrong days, and the view switch would match the wrong events.
+    val state = loadedState.takeUnless { it is AgendaUiState.Success && it.anchor != anchor }
+        ?: AgendaUiState.Loading
     val pastDisplay by viewModel.pastEventDisplay.collectAsStateWithLifecycle()
     val showToday by viewModel.showToday.collectAsStateWithLifecycle()
     val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
@@ -126,11 +138,12 @@ fun AgendaScreen(
     // requested: scrolling before the new rows compose leaves the list keyed to
     // a row that reappears further down, and it follows it there.
     LaunchedEffect(successState?.anchor) { listState.scrollToItem(0) }
-    val jumpToToday = {
+    val jumpToToday: () -> Unit = {
         // Off today, moving the anchor is what resets the list (above); on today
         // the window doesn't change, so the scroll back is the whole action.
         if (isOnToday) scope.launch { listState.animateScrollToItem(0) }
         viewModel.goToToday()
+        (state as? AgendaUiState.Success)?.today?.let { focus?.date = it }
     }
 
     ModalNavigationDrawer(
@@ -146,6 +159,7 @@ fun AgendaScreen(
                     scope.launch { drawerState.close() }
                 },
                 onJumpToDate = { target ->
+                    focus?.date = target
                     viewModel.goToDate(target)
                     scope.launch { drawerState.close() }
                 },
@@ -227,6 +241,7 @@ fun AgendaScreen(
                     onRetry = viewModel::goToToday,
                     onEventClick = onEventClick,
                     onOpenDay = onOpenDay,
+                    onTopDay = { focus?.date = it },
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth(),
@@ -328,6 +343,7 @@ internal fun AgendaContent(
     onOpenDay: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
+    onTopDay: ((LocalDate) -> Unit)? = null,
 ) {
     when (state) {
         AgendaUiState.Loading -> Box(modifier)
@@ -370,6 +386,7 @@ internal fun AgendaContent(
                     now = now,
                     onEventClick = onEventClick,
                     onOpenDay = onOpenDay,
+                    onTopDay = onTopDay,
                     modifier = modifier,
                 )
             }
@@ -388,8 +405,20 @@ private fun AgendaList(
     now: Instant,
     onEventClick: (EventInstance) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
+    onTopDay: ((LocalDate) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    if (onTopDay != null) {
+        val itemDates by rememberUpdatedState(agendaItemDates(days))
+        val currentOnTopDay by rememberUpdatedState(onTopDay)
+        // The day the list opened on is where the view already is; only a
+        // scroll moves it on.
+        LaunchedEffect(listState) {
+            snapshotFlow { listState.firstVisibleItemIndex }
+                .drop(1)
+                .collect { index -> itemDates.getOrNull(index)?.let(currentOnTopDay) }
+        }
+    }
     LazyColumn(
         modifier = modifier,
         state = listState,
@@ -431,6 +460,13 @@ private fun AgendaList(
         }
     }
 }
+
+/** The day of each item [AgendaList] lays out for [days], in its order. */
+internal fun agendaItemDates(days: List<AgendaDay>): List<LocalDate> =
+    days.flatMap { day ->
+        // Header, the placeholder or the events, then the gap.
+        List(2 + day.events.size.coerceAtLeast(1)) { day.date }
+    }
 
 @Composable
 private fun AgendaEmpty(modifier: Modifier = Modifier) {

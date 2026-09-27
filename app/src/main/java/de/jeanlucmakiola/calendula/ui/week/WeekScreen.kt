@@ -135,6 +135,8 @@ import de.jeanlucmakiola.calendula.ui.common.trimmedLines
 import de.jeanlucmakiola.calendula.ui.common.NowLine
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
+import de.jeanlucmakiola.calendula.ui.common.EnterOnFocus
+import de.jeanlucmakiola.calendula.ui.common.LocalViewFocus
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.calendula.ui.common.TimelineGrounds
 import de.jeanlucmakiola.calendula.ui.common.ViewMorphKey
@@ -278,7 +280,6 @@ fun DayScreen(
     drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
     todayInToolbar: Boolean = false,
     modifier: Modifier = Modifier,
-    initialDateIso: String? = null,
     viewModel: DayViewModel = hiltViewModel(),
 ) = PagedTimelineScreen(
     viewModel = viewModel,
@@ -295,7 +296,6 @@ fun DayScreen(
     drawerViewOrder = drawerViewOrder,
     todayInToolbar = todayInToolbar,
     modifier = modifier,
-    initialDate = initialDateIso?.let(LocalDate::parse),
 )
 
 /** What sets the timeline views apart; everything else they share. */
@@ -336,11 +336,14 @@ private fun PagedTimelineScreen(
     drawerViewOrder: List<CalendarView>,
     todayInToolbar: Boolean,
     modifier: Modifier,
-    initialDate: LocalDate? = null,
 ) {
-    LaunchedEffect(initialDate) { initialDate?.let(viewModel::jumpTo) }
+    // Opens on the focused date, then carries it along as the pages move.
+    val focus = LocalViewFocus.current
+    EnterOnFocus(viewModel) { viewModel.jumpTo(it) }
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val position by viewModel.position.collectAsStateWithLifecycle()
+    val anchor by viewModel.anchor.collectAsStateWithLifecycle()
+    val rule by viewModel.rule.collectAsStateWithLifecycle()
+    val position = remember(anchor, rule) { positionOf(anchor, rule) }
     val grid = position.grid
     val anchorPage = position.page
     val dimCompleted by viewModel.dimCompletedEvents.collectAsStateWithLifecycle()
@@ -374,7 +377,10 @@ private fun PagedTimelineScreen(
     // The page it opened on is skipped: a grid change landing in between would
     // read it as a different page.
     LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.drop(1).collect(viewModel::onPageSettled)
+        snapshotFlow { pagerState.settledPage }.drop(1).collect { page ->
+            viewModel.onPageSettled(page)
+            focus?.let { it.date = grid.focusOnPage(it.date, page) }
+        }
     }
     // The page under the finger, so the title turns over mid-swipe, not after it.
     val weekStart = grid.startForPage(pagerState.currentPage)
@@ -390,6 +396,7 @@ private fun PagedTimelineScreen(
     // hasn't caught up with the fling yet to tell the difference. A date that
     // would open mid-page on this grid re-frames the pages around it instead.
     val jumpToDate: (LocalDate) -> Unit = { target ->
+        focus?.date = target
         val page = grid.pageFor(target)
         if (grid is DaysGrid && grid.startForPage(page) != target) {
             viewModel.jumpTo(target)

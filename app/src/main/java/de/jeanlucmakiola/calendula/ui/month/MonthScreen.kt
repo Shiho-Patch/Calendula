@@ -11,6 +11,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.rememberUpdatedState
 import de.jeanlucmakiola.calendula.ui.common.LocalViewMorph
+import de.jeanlucmakiola.calendula.ui.common.EnterOnFocus
+import de.jeanlucmakiola.calendula.ui.common.LocalViewFocus
 import de.jeanlucmakiola.calendula.ui.common.ViewMorphKey
 import de.jeanlucmakiola.calendula.ui.common.morphDay
 import de.jeanlucmakiola.calendula.ui.common.morphEvent
@@ -215,6 +217,9 @@ fun MonthScreen(
     modifier: Modifier = Modifier,
     viewModel: MonthViewModel = hiltViewModel(),
 ) {
+    // Opens on the focused date's month, and hands its selection back as it moves.
+    val focus = LocalViewFocus.current
+    EnterOnFocus(viewModel) { viewModel.goToDate(it) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val continuousState by viewModel.continuousState.collectAsStateWithLifecycle()
     val month by viewModel.month.collectAsStateWithLifecycle()
@@ -239,7 +244,7 @@ fun MonthScreen(
     // The paged and split styles' months. Made afresh whenever a paged style
     // comes on screen, opening on the month the scrolling style was showing: a
     // pager that was never laid out can't be scrolled to follow it meanwhile.
-    val anchorPage by viewModel.anchorPage.collectAsStateWithLifecycle()
+    val anchorPage = monthIndexOf(month)
     val pagerState = key(scrolling) {
         rememberPagerState(initialPage = anchorPage) { continuousMonthCount() }
     }
@@ -255,6 +260,11 @@ fun MonthScreen(
     }
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }.drop(1).collect(viewModel::onPageSettled)
+    }
+    // The selection follows every move — paging, scrolling, today, a jump — so
+    // it is what the other views open on. Not the one this view opened with.
+    LaunchedEffect(viewModel) {
+        snapshotFlow { selectedDate }.drop(1).collect { focus?.date = it }
     }
     val dense = viewStyle == MonthViewStyle.Dense
 

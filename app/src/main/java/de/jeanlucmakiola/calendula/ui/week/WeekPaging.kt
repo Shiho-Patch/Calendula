@@ -93,3 +93,15 @@ data object DayGrid : PageGrid {
     override fun pageFor(date: LocalDate): Int =
         (DAY_EPOCH_PAGE + DAY_EPOCH.daysUntil(date)).coerceIn(0, DAY_PAGE_COUNT - 1)
 }
+
+/**
+ * Where the focused date goes when the pager settles on [page] (#184): kept if
+ * the page still shows it, otherwise moved by the pages travelled, so it keeps
+ * its place in the page — the same weekday a week on.
+ */
+internal fun PageGrid.focusOnPage(focus: LocalDate, page: Int): LocalDate {
+    val start = startForPage(page)
+    val end = start.plus(dayCount - 1, DateTimeUnit.DAY)
+    if (focus in start..end) return focus
+    return focus.plus((page - pageFor(focus)) * dayCount, DateTimeUnit.DAY).coerceIn(start, end)
+}

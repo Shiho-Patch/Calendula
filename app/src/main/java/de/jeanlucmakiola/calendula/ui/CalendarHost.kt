@@ -40,6 +40,9 @@ import de.jeanlucmakiola.calendula.ui.common.EventMoveScope
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
 import de.jeanlucmakiola.calendula.ui.common.LocalManageCalendars
 import de.jeanlucmakiola.calendula.ui.common.LocalTimelineScroll
+import de.jeanlucmakiola.calendula.ui.common.LocalViewFocus
+import de.jeanlucmakiola.calendula.ui.common.ViewFocus
+import de.jeanlucmakiola.calendula.ui.common.ViewFocusSaver
 import de.jeanlucmakiola.calendula.ui.common.LocalViewMorph
 import de.jeanlucmakiola.calendula.ui.common.RescheduleViewModel
 import de.jeanlucmakiola.calendula.ui.common.TimelineScrollMemory
@@ -120,10 +123,11 @@ fun CalendarHost(
     val view = viewStack.last()
     val onSelectView: (CalendarView) -> Unit = { viewStack = viewStack.selectView(it) }
 
-    // Tapping a day in the month grid opens the day view anchored to that date.
-    var pendingDayIso by rememberSaveable { mutableStateOf<String?>(null) }
+    // The date every view opens on and carries along (#184); tapping a day
+    // anywhere focuses it and opens the day view there.
+    val focus = rememberSaveable(saver = ViewFocusSaver) { ViewFocus(localToday()) }
     val onOpenDay: (LocalDate) -> Unit = { date ->
-        pendingDayIso = date.toString()
+        focus.date = date
         viewStack = viewStack.drillToDay()
     }
 
@@ -280,7 +284,7 @@ fun CalendarHost(
                 // that would cover it, so the open doesn't land under Settings/form.
                 dismissCoveringOverlays()
                 createDateIso = null
-                pendingDayIso = req.dateIso
+                focus.date = LocalDate.parse(req.dateIso)
                 // No widget source (an external date tap) roots over the default
                 // home view, so backing out of the day returns home then exits.
                 viewStack = viewBaseStack(defaultView, req.source ?: defaultView).drillToDay()
@@ -304,7 +308,7 @@ fun CalendarHost(
                 // default home — so backing out returns to the default, then exits.
                 dismissCoveringOverlays()
                 createDateIso = null
-                pendingDayIso = null
+                focus.date = localToday()
                 viewStack = viewBaseStack(defaultView, req.view ?: defaultView)
                 onWidgetNavConsumed()
             }
@@ -386,6 +390,7 @@ fun CalendarHost(
         CompositionLocalProvider(
             LocalEventMove provides moveScope,
             LocalTimelineScroll provides timelineScroll,
+            LocalViewFocus provides focus,
             // The failure state's way out when every calendar is switched off
             // (#239); nothing else in the calendar surfaces navigates here.
             LocalManageCalendars provides { showCalendars = true },
@@ -438,7 +443,6 @@ fun CalendarHost(
                     onOpenSettings = onOpenSettings,
                     onOpenSearch = onOpenSearch,
                     onCreateEvent = onCreateEvent,
-                    initialDateIso = pendingDayIso,
                     quickSwitchViews = quickSwitchViews,
                     drawerViewOrder = drawerViewOrder,
                     todayInToolbar = todayInToolbar,
@@ -674,3 +678,6 @@ private val viewStackSaver = listSaver<List<CalendarView>, Int>(
     save = { stack -> stack.map(CalendarView::ordinal) },
     restore = { ordinals -> ordinals.map { CalendarView.entries[it] } },
 )
+
+private fun localToday(): LocalDate =
+    Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date

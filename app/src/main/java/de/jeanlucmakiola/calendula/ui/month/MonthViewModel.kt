@@ -94,15 +94,6 @@ class MonthViewModel @Inject constructor(
     private val _month = MutableStateFlow(YearMonth(todayDate.year, todayDate.month))
     val month: StateFlow<YearMonth> = _month
 
-    /** The pager page the anchor month sits on, for the paged and split styles. */
-    val anchorPage: StateFlow<Int> = _month
-        .map { monthIndexOf(it) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = monthIndexOf(_month.value),
-        )
-
     /**
      * The anchor month's state. Once loaded it never falls back to
      * [MonthUiState.Loading]: moving the anchor keeps the last result until the
