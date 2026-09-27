@@ -97,6 +97,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import de.jeanlucmakiola.calendula.ui.common.morphChrome
+import de.jeanlucmakiola.calendula.ui.common.ViewMorphChrome
+import de.jeanlucmakiola.calendula.ui.common.ChromeSlot
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
@@ -237,6 +240,9 @@ fun MonthScreen(
     }
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
+    // The bar and FAB hold still through a view switch, but not over an open drawer.
+    val chromeMorph = drawerState.currentValue == DrawerValue.Closed &&
+        drawerState.targetValue == DrawerValue.Closed
     val scope = rememberCoroutineScope()
 
     val scrolling = viewStyle.isScrolling
@@ -420,38 +426,42 @@ fun MonthScreen(
         Scaffold(
             modifier = modifier,
             topBar = {
-                MonthTopBar(
-                    title = topBarTitle,
-                    shortTitle = topBarShortTitle,
-                    titleDate = LocalDate(titleMonth.year, titleMonth.month, 1),
-                    selectedView = selectedView,
-                    onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
-                    quickSwitchViews = quickSwitchViews,
-                    onOpenDrawer = { scope.launch { drawerState.open() } },
-                    onOpenSearch = onOpenSearch,
-                    onJumpToDate = jumpToDate,
-                    showTodayButton = todayInToolbar,
-                    onToday = jumpToToday,
-                )
+                ViewMorphChrome(chromeMorph) {
+                    MonthTopBar(
+                        title = topBarTitle,
+                        shortTitle = topBarShortTitle,
+                        titleDate = LocalDate(titleMonth.year, titleMonth.month, 1),
+                        selectedView = selectedView,
+                        onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
+                        quickSwitchViews = quickSwitchViews,
+                        onOpenDrawer = { scope.launch { drawerState.open() } },
+                        onOpenSearch = onOpenSearch,
+                        onJumpToDate = jumpToDate,
+                        showTodayButton = todayInToolbar,
+                        onToday = jumpToToday,
+                    )
+                }
             },
             floatingActionButton = {
-                CalendarFabColumn(
-                    todayVisible = !isOnCurrentMonth && !todayInToolbar,
-                    todayText = stringResource(R.string.month_today_action),
-                    onToday = jumpToToday,
-                    onCreate = {
-                        // Split has a selected day; the other styles anchor on
-                        // today when its month is shown, else the 1st.
-                        onCreateEvent(
-                            when {
-                                viewStyle == MonthViewStyle.Split -> selectedDate
-                                isOnCurrentMonth -> today
-                                else -> LocalDate(titleMonth.year, titleMonth.month, 1)
-                            },
-                            null,
-                        )
-                    },
-                )
+                ViewMorphChrome(chromeMorph) {
+                    CalendarFabColumn(
+                        todayVisible = !isOnCurrentMonth && !todayInToolbar,
+                        todayText = stringResource(R.string.month_today_action),
+                        onToday = jumpToToday,
+                        onCreate = {
+                            // Split has a selected day; the other styles anchor on
+                            // today when its month is shown, else the 1st.
+                            onCreateEvent(
+                                when {
+                                    viewStyle == MonthViewStyle.Split -> selectedDate
+                                    isOnCurrentMonth -> today
+                                    else -> LocalDate(titleMonth.year, titleMonth.month, 1)
+                                },
+                                null,
+                            )
+                        },
+                    )
+                }
             },
         ) { innerPadding ->
             // Hoisted above every style's grid: a dragged chip is drawn in an
@@ -810,7 +820,7 @@ private fun MonthTopBar(
             )
         },
         navigationIcon = {
-            IconButton(onClick = onOpenDrawer) {
+            IconButton(onClick = onOpenDrawer, modifier = Modifier.morphChrome(ChromeSlot.Menu)) {
                 Icon(
                     imageVector = Icons.Default.Menu,
                     contentDescription = stringResource(R.string.month_open_menu),
@@ -819,7 +829,7 @@ private fun MonthTopBar(
         },
         actions = {
             TodayAction(show = showTodayButton, onToday = onToday)
-            IconButton(onClick = onOpenSearch) {
+            IconButton(onClick = onOpenSearch, modifier = Modifier.morphChrome(ChromeSlot.Search)) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = stringResource(R.string.search_action),

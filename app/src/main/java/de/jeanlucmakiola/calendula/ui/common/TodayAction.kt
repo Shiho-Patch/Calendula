@@ -59,7 +59,9 @@ fun TodayAction(show: Boolean, onToday: () -> Unit) {
     val description = stringResource(R.string.today_jump_action)
     IconButton(
         onClick = onToday,
-        modifier = Modifier.semantics { contentDescription = description },
+        modifier = Modifier
+            .morphChrome(ChromeSlot.Today)
+            .semantics { contentDescription = description },
     ) {
         val textSize = with(LocalDensity.current) { GlyphTextHeight.toSp() }
         Box(

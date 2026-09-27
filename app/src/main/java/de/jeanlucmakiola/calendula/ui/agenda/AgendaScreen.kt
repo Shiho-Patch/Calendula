@@ -50,6 +50,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import de.jeanlucmakiola.calendula.ui.common.morphChrome
+import de.jeanlucmakiola.calendula.ui.common.ViewMorphChrome
+import de.jeanlucmakiola.calendula.ui.common.ChromeSlot
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -115,6 +118,9 @@ fun AgendaScreen(
     val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
+    // The bar and FAB hold still through a view switch, but not over an open drawer.
+    val chromeMorph = drawerState.currentValue == DrawerValue.Closed &&
+        drawerState.targetValue == DrawerValue.Closed
     val scope = rememberCoroutineScope()
     var showRangePicker by remember { mutableStateOf(false) }
 
@@ -173,24 +179,28 @@ fun AgendaScreen(
         Scaffold(
             modifier = modifier,
             topBar = {
-                AgendaTopBar(
-                    selectedView = selectedView,
-                    onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
-                    quickSwitchViews = quickSwitchViews,
-                    onOpenDrawer = { scope.launch { drawerState.open() } },
-                    onOpenSearch = onOpenSearch,
-                    showTodayButton = todayInToolbar,
-                    onToday = jumpToToday,
-                )
+                ViewMorphChrome(chromeMorph) {
+                    AgendaTopBar(
+                        selectedView = selectedView,
+                        onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
+                        quickSwitchViews = quickSwitchViews,
+                        onOpenDrawer = { scope.launch { drawerState.open() } },
+                        onOpenSearch = onOpenSearch,
+                        showTodayButton = todayInToolbar,
+                        onToday = jumpToToday,
+                    )
+                }
             },
             floatingActionButton = {
-                CalendarFabColumn(
-                    todayVisible = (!isOnToday || (scrolledAway && successState != null)) &&
-                        !todayInToolbar,
-                    todayText = stringResource(R.string.agenda_today_action),
-                    onToday = jumpToToday,
-                    onCreate = { onCreateEvent(anchor, null) },
-                )
+                ViewMorphChrome(chromeMorph) {
+                    CalendarFabColumn(
+                        todayVisible = (!isOnToday || (scrolledAway && successState != null)) &&
+                            !todayInToolbar,
+                        todayText = stringResource(R.string.agenda_today_action),
+                        onToday = jumpToToday,
+                        onCreate = { onCreateEvent(anchor, null) },
+                    )
+                }
             },
         ) { innerPadding ->
             Column(
@@ -510,11 +520,13 @@ private fun AgendaTopBar(
                 style = MaterialTheme.typography.titleLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = AppBarSpacing.TitleInset),
+                modifier = Modifier
+                    .morphChrome(ChromeSlot.Title)
+                    .padding(start = AppBarSpacing.TitleInset),
             )
         },
         navigationIcon = {
-            IconButton(onClick = onOpenDrawer) {
+            IconButton(onClick = onOpenDrawer, modifier = Modifier.morphChrome(ChromeSlot.Menu)) {
                 Icon(
                     imageVector = Icons.Default.Menu,
                     contentDescription = stringResource(R.string.month_open_menu),
@@ -523,7 +535,7 @@ private fun AgendaTopBar(
         },
         actions = {
             TodayAction(show = showTodayButton, onToday = onToday)
-            IconButton(onClick = onOpenSearch) {
+            IconButton(onClick = onOpenSearch, modifier = Modifier.morphChrome(ChromeSlot.Search)) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = stringResource(R.string.search_action),

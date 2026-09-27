@@ -56,6 +56,7 @@ fun CalendarTitleButton(
 
     Row(
         modifier = modifier
+            .morphChrome(ChromeSlot.Title)
             .heightIn(min = 48.dp)
             .clip(MaterialTheme.shapes.large)
             .clickable(

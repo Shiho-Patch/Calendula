@@ -20,6 +20,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Path
@@ -199,6 +201,60 @@ fun TimelineGrounds(
         }
     }
 }
+
+/**
+ * The pieces of the top bar and the FAB every view has (#184). Those drawn the
+ * same in each view hold still through a switch instead of fading out and back
+ * in; the title and the view pill, which differ, cross-fade in place.
+ */
+enum class ChromeSlot(val identical: Boolean) {
+    Menu(identical = true),
+    Search(identical = true),
+    Today(identical = true),
+    Create(identical = true),
+    Title(identical = false),
+    Pill(identical = false),
+}
+
+/**
+ * Provides the view morph to a screen's top bar or FAB only while [enabled]:
+ * with its drawer open or opening, what travels would be drawn over the drawer.
+ */
+@Composable
+fun ViewMorphChrome(enabled: Boolean, content: @Composable () -> Unit) = ViewMorphPage(enabled, content)
+
+/** Tags a piece of the top bar or the FAB; see [ChromeSlot]. */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun Modifier.morphChrome(slot: ChromeSlot): Modifier {
+    val morph = LocalViewMorph.current ?: return this
+    return with(morph.shared) {
+        val state = rememberSharedContentState(slot)
+        if (slot.identical) {
+            this@morphChrome.sharedElement(
+                sharedContentState = state,
+                animatedVisibilityScope = morph.visibility,
+                boundsTransform = morph.boundsTransform,
+                zIndexInOverlay = CHROME_Z_INDEX,
+            )
+        } else {
+            this@morphChrome.sharedBounds(
+                sharedContentState = state,
+                animatedVisibilityScope = morph.visibility,
+                enter = fadeIn(morph.fadeSpec),
+                exit = fadeOut(morph.fadeSpec),
+                boundsTransform = morph.boundsTransform,
+                // Each side keeps its own size: a title squeezed to the other's
+                // width would ellipsise and unfold on the way.
+                resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.None, Alignment.CenterStart),
+                zIndexInOverlay = CHROME_Z_INDEX,
+            )
+        }
+    }
+}
+
+/** Above the events and dates, which pass under the top bar on their way. */
+private const val CHROME_Z_INDEX = 2f
 
 /** The view switch's travel: the M3 Expressive default spatial spring, as the pagers settle. */
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalMaterial3ExpressiveApi::class)

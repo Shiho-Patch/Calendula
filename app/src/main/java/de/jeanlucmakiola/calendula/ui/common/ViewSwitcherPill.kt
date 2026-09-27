@@ -40,7 +40,9 @@ fun ViewSwitcherPill(
     FilledTonalButton(
         onClick = onCycle,
         shape = MaterialTheme.shapes.large,
-        modifier = modifier.padding(end = trailingInset),
+        modifier = modifier
+            .padding(end = trailingInset)
+            .morphChrome(ChromeSlot.Pill),
     ) {
         // The label cross-fades and the pill eases to its width, so cycling
         // views turns it over rather than snapping it (#184).

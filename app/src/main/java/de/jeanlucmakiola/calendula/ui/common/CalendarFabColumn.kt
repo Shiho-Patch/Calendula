@@ -15,6 +15,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -48,7 +49,7 @@ fun CalendarFabColumn(
                 text = { Text(todayText) },
             )
         }
-        FloatingActionButton(onClick = onCreate) {
+        FloatingActionButton(onClick = onCreate, modifier = Modifier.morphChrome(ChromeSlot.Create)) {
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = stringResource(R.string.event_edit_new_title),

@@ -68,6 +68,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import de.jeanlucmakiola.calendula.ui.common.morphChrome
+import de.jeanlucmakiola.calendula.ui.common.ViewMorphChrome
+import de.jeanlucmakiola.calendula.ui.common.ChromeSlot
 import de.jeanlucmakiola.calendula.ui.common.LocalViewMorph
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.first
@@ -351,6 +354,9 @@ private fun PagedTimelineScreen(
     }
 
     val drawerState = rememberDrawerState(DrawerValue.Closed)
+    // The bar and FAB hold still through a view switch, but not over an open drawer.
+    val chromeMorph = drawerState.currentValue == DrawerValue.Closed &&
+        drawerState.targetValue == DrawerValue.Closed
     val scope = rememberCoroutineScope()
 
     // A new grid numbers the pages differently, so it gets a pager of its own,
@@ -472,31 +478,35 @@ private fun PagedTimelineScreen(
         Scaffold(
             modifier = modifier,
             topBar = {
-                WeekTopBar(
-                    kind = titleKind,
-                    weekStart = weekStart,
-                    weekEnd = weekEnd,
-                    currentYear = today.year,
-                    selectedView = view,
-                    onCycleView = { onSelectView(view.next(quickSwitchViews)) },
-                    quickSwitchViews = quickSwitchViews,
-                    onOpenDrawer = { scope.launch { drawerState.open() } },
-                    onOpenSearch = onOpenSearch,
-                    onJumpToDate = jumpToDate,
-                    showTodayButton = todayInToolbar,
-                    onToday = jumpToToday,
-                )
+                ViewMorphChrome(chromeMorph) {
+                    WeekTopBar(
+                        kind = titleKind,
+                        weekStart = weekStart,
+                        weekEnd = weekEnd,
+                        currentYear = today.year,
+                        selectedView = view,
+                        onCycleView = { onSelectView(view.next(quickSwitchViews)) },
+                        quickSwitchViews = quickSwitchViews,
+                        onOpenDrawer = { scope.launch { drawerState.open() } },
+                        onOpenSearch = onOpenSearch,
+                        onJumpToDate = jumpToDate,
+                        showTodayButton = todayInToolbar,
+                        onToday = jumpToToday,
+                    )
+                }
             },
             floatingActionButton = {
-                CalendarFabColumn(
-                    todayVisible = !isOnCurrentWeek && !todayInToolbar,
-                    todayText = stringResource(titleKind.todayText),
-                    onToday = jumpToToday,
-                    onCreate = {
-                        // Anchor on today when it's in view, else the page's first day.
-                        onCreateEvent(if (isOnCurrentWeek) today else weekStart, null)
-                    },
-                )
+                ViewMorphChrome(chromeMorph) {
+                    CalendarFabColumn(
+                        todayVisible = !isOnCurrentWeek && !todayInToolbar,
+                        todayText = stringResource(titleKind.todayText),
+                        onToday = jumpToToday,
+                        onCreate = {
+                            // Anchor on today when it's in view, else the page's first day.
+                            onCreateEvent(if (isOnCurrentWeek) today else weekStart, null)
+                        },
+                    )
+                }
             },
         ) { innerPadding ->
             CompositionLocalProvider(LocalDimCutoff provides dimCutoff) {
@@ -955,7 +965,7 @@ private fun WeekTopBar(
             )
         },
         navigationIcon = {
-            IconButton(onClick = onOpenDrawer) {
+            IconButton(onClick = onOpenDrawer, modifier = Modifier.morphChrome(ChromeSlot.Menu)) {
                 Icon(
                     imageVector = Icons.Default.Menu,
                     contentDescription = stringResource(R.string.month_open_menu),
@@ -964,7 +974,7 @@ private fun WeekTopBar(
         },
         actions = {
             TodayAction(show = showTodayButton, onToday = onToday)
-            IconButton(onClick = onOpenSearch) {
+            IconButton(onClick = onOpenSearch, modifier = Modifier.morphChrome(ChromeSlot.Search)) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = stringResource(R.string.search_action),
