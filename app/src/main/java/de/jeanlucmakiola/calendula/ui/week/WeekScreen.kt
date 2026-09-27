@@ -68,6 +68,11 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import de.jeanlucmakiola.calendula.ui.common.laneSlot
+import de.jeanlucmakiola.calendula.ui.common.LaneColumn
+import kotlin.math.roundToInt
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
@@ -670,7 +675,8 @@ private fun WeekFrame(
                 )
             }
         }
-        Box(modifier = Modifier.weight(1f).fillMaxHeight()) { pages() }
+        // Clipped, as the pager was: a view switch slides columns in past its edges.
+        Box(modifier = Modifier.weight(1f).fillMaxHeight().clipToBounds()) { pages() }
     }
 }
 
@@ -729,24 +735,67 @@ private fun WeekPage(
     onCreateAt: (LocalDate, Int) -> Unit,
     onDrop: (TimelineDrop) -> Unit,
 ) {
+    val geometry = remember(state.weekStart, state.days.size) {
+        ColumnGeometry.of(DaySpan(state.weekStart, state.days.size))
+    }
+    val bars = remember(state) { staticBars(state) }
+    TimelinePageContent(
+        geometry = geometry,
+        today = state.today,
+        timedFor = { state.timedByDay[it].orEmpty() },
+        bars = bars,
+        headerBias = headerBias,
+        allDayHeight = allDayHeight,
+        scrollState = scrollState,
+        dragController = dragController,
+        active = active,
+        onEventClick = onEventClick,
+        onOpenDay = onOpenDay,
+        onCreateAt = onCreateAt,
+        onDrop = onDrop,
+    )
+}
+
+/**
+ * A page's header, all-day strip and day columns, laid out over [geometry]: a
+ * single page's, or both pages' of a view switch mid-way (#184).
+ */
+@Composable
+private fun TimelinePageContent(
+    geometry: ColumnGeometry,
+    today: LocalDate,
+    timedFor: (LocalDate) -> List<TimedBlock>,
+    bars: List<PlacedBar>,
+    headerBias: Float,
+    allDayHeight: Dp,
+    scrollState: ScrollState,
+    dragController: TimelineDragController,
+    active: Boolean,
+    onEventClick: (EventInstance) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+    onCreateAt: (LocalDate, Int) -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
+) {
     Column(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface),
         ) {
-            WeekDayHeader(days = state.days, today = state.today, bias = headerBias, onOpenDay = onOpenDay)
+            WeekDayHeader(geometry = geometry, today = today, bias = headerBias, onOpenDay = onOpenDay)
             // This strip is painted on `surface`, so an outlined chip has to
             // fill with that and not with the columns' container (#230).
             CompositionLocalProvider(
                 LocalChipGround provides MaterialTheme.colorScheme.surface,
             ) {
-                AllDayStrip(state = state, height = allDayHeight, onEventClick = onEventClick)
+                AllDayStrip(geometry = geometry, bars = bars, height = allDayHeight, onEventClick = onEventClick)
             }
         }
         Spacer(Modifier.height(TIMELINE_TOP_GAP))
         Timeline(
-            state = state,
+            geometry = geometry,
+            today = today,
+            timedFor = timedFor,
             allDayHeight = allDayHeight,
             scrollState = scrollState,
             dragController = dragController,
@@ -822,65 +871,64 @@ private fun WeekTopBar(
 
 @Composable
 private fun WeekDayHeader(
-    days: List<LocalDate>,
+    geometry: ColumnGeometry,
     today: LocalDate,
     bias: Float,
     onOpenDay: (LocalDate) -> Unit,
 ) {
     val locale = currentLocale()
-    Row(
+    TimelineColumns(
+        geometry = geometry,
+        gap = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = HEADER_TOP_PADDING, bottom = HEADER_BOTTOM_PADDING, end = TIMELINE_CONTENT_END_INSET),
-    ) {
-        days.forEach { date ->
-            val javaDow = java.time.DayOfWeek.of(date.dayOfWeek.ordinal + 1)
-            val isToday = date == today
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { onOpenDay(date) }
-                    .padding(start = HEADER_START_INSET * -bias),
-                horizontalAlignment = BiasAlignment.Horizontal(bias),
+    ) { date ->
+        val javaDow = java.time.DayOfWeek.of(date.dayOfWeek.ordinal + 1)
+        val isToday = date == today
+        Column(
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { onOpenDay(date) }
+                .padding(start = HEADER_START_INSET * -bias),
+            horizontalAlignment = BiasAlignment.Horizontal(bias),
+        ) {
+            // One line, as the gutter cell beside it assumes (see WeekNumberCell).
+            Text(
+                text = javaDow.getDisplayName(JavaTextStyle.SHORT, locale),
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(2.dp))
+            // Always reserve the circle slot so the header height is
+            // identical whether or not the week contains today.
+            Box(
+                modifier = Modifier.size(DATE_SLOT_SIZE),
+                contentAlignment = Alignment.Center,
             ) {
-                // One line, as the gutter cell beside it assumes (see WeekNumberCell).
-                Text(
-                    text = javaDow.getDisplayName(JavaTextStyle.SHORT, locale),
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(2.dp))
-                // Always reserve the circle slot so the header height is
-                // identical whether or not the week contains today.
-                Box(
-                    modifier = Modifier.size(DATE_SLOT_SIZE),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isToday) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.morphDay(date).fillMaxSize(),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = date.day.toString(),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            }
+                if (isToday) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.morphDay(date).fillMaxSize(),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = date.day.toString(),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
                         }
-                    } else {
-                        Text(
-                            text = date.day.toString(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.morphDay(date),
-                        )
                     }
+                } else {
+                    Text(
+                        text = date.day.toString(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.morphDay(date),
+                    )
                 }
             }
         }
@@ -936,7 +984,8 @@ private fun WeekNumberBadge(weekNumber: Int, modifier: Modifier = Modifier) {
 
 @Composable
 private fun AllDayStrip(
-    state: WeekUiState.Success,
+    geometry: ColumnGeometry,
+    bars: List<PlacedBar>,
     height: Dp,
     onEventClick: (EventInstance) -> Unit,
 ) {
@@ -957,29 +1006,39 @@ private fun AllDayStrip(
         // Span bars are positioned absolutely so a multi-day event is one
         // connected bar across columns rather than a chip per day. clipToBounds
         // keeps bars from spilling out while the height animates.
-        BoxWithConstraints(
+        Layout(
+            content = {
+                bars.forEach { bar ->
+                    key(bar.event.eventId, bar.event.start) {
+                        AllDayBar(
+                            event = bar.event,
+                            dark = dark,
+                            onClick = { onEventClick(bar.event) },
+                            modifier = Modifier
+                                .morphEvent(ViewMorphKey.event(bar.event, bar.keyDate))
+                                .padding(horizontal = 1.dp, vertical = 1.dp),
+                        )
+                    }
+                }
+            },
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
                 .clipToBounds(),
-        ) {
-            val colWidth = maxWidth / state.days.size
-            state.allDaySpans.forEach { span ->
-                val spanCols = span.endCol - span.startCol + 1
-                AllDayBar(
-                    event = span.event,
-                    dark = dark,
-                    onClick = { onEventClick(span.event) },
-                    modifier = Modifier
-                        .offset(
-                            x = colWidth * span.startCol,
-                            y = ALL_DAY_ROW_HEIGHT * span.lane,
-                        )
-                        .morphEvent(ViewMorphKey.event(span.event, state.days[span.startCol]))
-                        .width(colWidth * spanCols)
-                        .height(ALL_DAY_ROW_HEIGHT)
-                        .padding(horizontal = 1.dp, vertical = 1.dp),
-                )
+        ) { measurables, constraints ->
+            val width = constraints.maxWidth.toFloat()
+            val rowPx = ALL_DAY_ROW_HEIGHT.toPx()
+            val progress = geometry.progress()
+            val placed = measurables.mapIndexed { i, measurable ->
+                val bar = bars[i]
+                val extent = geometry.extent(bar.fromRange, bar.toRange, width, 0f)
+                val left = extent.left.roundToInt()
+                val barWidth = (extent.right.roundToInt() - left).coerceAtLeast(0)
+                val y = (lerp(bar.fromLane.toFloat(), bar.toLane.toFloat(), progress) * rowPx).roundToInt()
+                Triple(measurable.measure(Constraints.fixed(barWidth, rowPx.roundToInt())), left, y)
+            }
+            layout(constraints.maxWidth, constraints.maxHeight) {
+                placed.forEach { (placeable, x, y) -> placeable.placeRelative(x, y) }
             }
         }
     }
@@ -1020,7 +1079,9 @@ private fun AllDayBar(
 
 @Composable
 private fun Timeline(
-    state: WeekUiState.Success,
+    geometry: ColumnGeometry,
+    today: LocalDate,
+    timedFor: (LocalDate) -> List<TimedBlock>,
     allDayHeight: Dp,
     scrollState: ScrollState,
     dragController: TimelineDragController,
@@ -1052,8 +1113,14 @@ private fun Timeline(
         // vertical scroll, and it does that by watching the initial pass, which
         // only reaches it if it is the viewport's ancestor.
         val pinch = rememberTimelinePinchZoom(scrollState, fitHeight, hourHeight, zoom)
+        // What a block's text is fitted to: the column it will end up in once a
+        // view switch is past half way, so it reflows once rather than per frame.
+        val textColumns by remember(geometry) {
+            derivedStateOf { if (geometry.progress() >= 0.5f) geometry.to.count else geometry.from.count }
+        }
+        val columnWidth = (maxWidth - TIMELINE_CONTENT_END_INSET + COLUMN_GAP) / textColumns - COLUMN_GAP
         TimelineGrounds(
-            days = state.days,
+            days = geometry.dates,
             scrollState = scrollState,
             hourHeight = hourHeight,
             columnGap = COLUMN_GAP,
@@ -1075,7 +1142,9 @@ private fun Timeline(
                 .verticalScroll(scrollState)
                 .onGloballyPositioned { if (active) dragController.geometry.viewport = it },
         ) {
-            Row(
+            TimelineColumns(
+                geometry = geometry,
+                gap = COLUMN_GAP,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(totalHeight)
@@ -1091,29 +1160,25 @@ private fun Timeline(
                             it.hourPx = with(density) { hourHeight.toPx() }
                             it.blockInsetPx = blockInsetPx
                             it.columnGapPx = gap
-                            it.columnWidthPx = (coords.size.width + gap) / state.days.size
-                            it.days = state.days
+                            it.columnWidthPx = (coords.size.width + gap) / geometry.to.count
+                            it.days = geometry.dates
                             it.isRtl = isRtl
                         }
                     },
-                horizontalArrangement = Arrangement.spacedBy(COLUMN_GAP),
-            ) {
-                state.days.forEach { day ->
-                    DayColumnCard(
-                        blocks = state.timedByDay[day].orEmpty(),
-                        dark = dark,
-                        date = day,
-                        today = state.today,
-                        hourHeight = hourHeight,
-                        dragController = dragController,
-                        onEventClick = onEventClick,
-                        onCreateAt = onCreateAt,
-                        onDrop = onDrop,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                    )
-                }
+            ) { day ->
+                DayColumnCard(
+                    blocks = timedFor(day),
+                    dark = dark,
+                    date = day,
+                    today = today,
+                    hourHeight = hourHeight,
+                    columnWidth = columnWidth,
+                    dragController = dragController,
+                    onEventClick = onEventClick,
+                    onCreateAt = onCreateAt,
+                    onDrop = onDrop,
+                    modifier = Modifier.fillMaxHeight(),
+                )
             }
         }
     }
@@ -1126,6 +1191,7 @@ private fun DayColumnCard(
     date: LocalDate,
     today: LocalDate,
     hourHeight: Dp,
+    columnWidth: Dp,
     dragController: TimelineDragController,
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
@@ -1162,7 +1228,7 @@ private fun DayColumnCard(
         ),
         modifier = modifier,
     ) {
-        BoxWithConstraints(
+        LaneColumn(
             modifier = Modifier
                 .fillMaxSize()
                 // The hour cells sit over the column background but under the
@@ -1179,7 +1245,6 @@ private fun DayColumnCard(
                     }
                 },
         ) {
-            val colWidth = maxWidth
             val minEventHeight = hourHeight * MIN_EVENT_FRACTION
             // Keyed by event, so a block that changes time or lane is the *same*
             // composable afterwards and tweens there. The ordinal disambiguates
@@ -1188,14 +1253,13 @@ private fun DayColumnCard(
             blocks.forEach { block ->
                 val ordinal = ordinals.merge(block.event.eventId, 1, Int::plus)!! - 1
                 key(block.event.eventId, ordinal) {
-                    val laneWidth = colWidth / block.laneCount
                     val top = hourHeight * (block.startMin / 60f)
                     val rawHeight = hourHeight * ((block.endMin - block.startMin) / 60f)
                     val height = if (rawHeight < minEventHeight) minEventHeight else rawHeight
                     val place = animatedBlockPlacement(
-                        x = laneWidth * block.lane,
+                        xFraction = block.lane.toFloat() / block.laneCount,
+                        widthFraction = 1f / block.laneCount,
                         y = top,
-                        width = laneWidth,
                         height = height,
                     )
                     // Where this block is cut at midnight, which decides both
@@ -1214,7 +1278,7 @@ private fun DayColumnCard(
                         block = block,
                         dark = dark,
                         height = blockHeight,
-                        width = place.width,
+                        width = columnWidth / block.laneCount,
                         date = date,
                         cuts = cuts,
                         topInset = topInset,
@@ -1222,9 +1286,9 @@ private fun DayColumnCard(
                         onClick = { onEventClick(block.event) },
                         onDrop = onDrop,
                         modifier = Modifier
-                            .offset(x = place.x, y = place.y + topInset)
+                            .laneSlot(place)
+                            .offset(y = place.y + topInset)
                             .morphEvent(ViewMorphKey.event(block.event, date))
-                            .width(place.width)
                             .height(blockHeight)
                             .padding(horizontal = BLOCK_OUTER_INSET),
                     )
