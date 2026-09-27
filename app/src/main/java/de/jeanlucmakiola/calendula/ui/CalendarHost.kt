@@ -470,6 +470,7 @@ fun CalendarHost(
             SearchScreen(
                 onBack = { showSearch = false },
                 onEventClick = onEventClick,
+                visible = showSearch,
             )
         }
 
@@ -498,6 +499,7 @@ fun CalendarHost(
                         importForm = form
                         detailKey = null
                     },
+                    visible = detailKey != null,
                 )
             }
         }
@@ -515,6 +517,7 @@ fun CalendarHost(
                     onClose = { createDateIso = null },
                     onSaved = { createDateIso = null },
                     onManageCalendars = { showCalendars = true },
+                    visible = createDateIso != null,
                 )
             }
         }
@@ -535,6 +538,7 @@ fun CalendarHost(
                         detailKey = null
                     },
                     onManageCalendars = { showCalendars = true },
+                    visible = editKey != null,
                 )
             }
         }
@@ -549,6 +553,7 @@ fun CalendarHost(
                 onBack = { showSettings = false },
                 onManageCalendars = { showCalendars = true },
                 onOpenBackup = { showBackup = true },
+                visible = showSettings,
             )
         }
 
@@ -605,6 +610,7 @@ fun CalendarHost(
             CalendarsScreen(
                 onBack = { showCalendars = false },
                 onOpenBackup = { showBackup = true },
+                visible = showCalendars,
             )
         }
 
@@ -639,6 +645,7 @@ fun CalendarHost(
                         showBackup = false
                         showCalendars = false
                     },
+                    visible = showBackup,
                 )
             }
         }

@@ -126,6 +126,7 @@ fun SearchScreen(
     onBack: () -> Unit,
     onEventClick: (EventInstance) -> Unit,
     modifier: Modifier = Modifier,
+    visible: Boolean = true,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
@@ -184,7 +185,7 @@ fun SearchScreen(
     BackHandler(enabled = inSelection) { viewModel.clearSelection() }
 
     Scaffold(
-        modifier = modifier.predictiveBack(onBack = onBack, enabled = !inSelection),
+        modifier = modifier.predictiveBack(onBack = onBack, enabled = !inSelection, visible = visible),
         containerColor = MaterialTheme.colorScheme.surface,
         topBar = {
             SearchTopBar(

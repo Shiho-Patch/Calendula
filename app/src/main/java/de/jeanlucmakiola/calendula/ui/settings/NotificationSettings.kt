@@ -63,6 +63,7 @@ internal fun NotificationsScreen(
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
     onOpenSpecialDates: () -> Unit,
+    visible: Boolean = true,
 ) {
     val context = LocalContext.current
     val launcher = rememberLauncherForActivityResult(
@@ -92,6 +93,7 @@ internal fun NotificationsScreen(
         title = stringResource(R.string.settings_section_notifications),
         onBack = onBack,
         predictiveBack = true,
+        visible = visible,
     ) {
         GroupedRow(
             title = stringResource(R.string.settings_reminders),

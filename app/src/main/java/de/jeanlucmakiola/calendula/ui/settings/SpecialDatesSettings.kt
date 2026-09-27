@@ -46,6 +46,7 @@ import de.jeanlucmakiola.floret.reminders.ReminderOverride
 internal fun SpecialDatesScreen(
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
+    visible: Boolean = true,
 ) {
     val state by viewModel.specialDatesState.collectAsStateWithLifecycle()
     val settings by viewModel.state.collectAsStateWithLifecycle()
@@ -76,6 +77,7 @@ internal fun SpecialDatesScreen(
         title = stringResource(R.string.settings_section_special_dates),
         onBack = onBack,
         predictiveBack = true,
+        visible = visible,
     ) {
         // Paused banner: the permission was revoked after enabling.
         if (state.enabled && state.stalledPermission) {

@@ -203,6 +203,7 @@ fun EventEditScreen(
     initialForm: EventForm? = null,
     initialFormSource: ImportSource = ImportSource.File,
     onManageCalendars: (() -> Unit)? = null,
+    visible: Boolean = true,
     viewModel: EventEditViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(initialDateIso, editKey, initialForm) {
@@ -285,7 +286,7 @@ fun EventEditScreen(
     }
 
     Scaffold(
-        modifier = Modifier.predictiveBack(onBack = close),
+        modifier = Modifier.predictiveBack(onBack = close, visible = visible),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
