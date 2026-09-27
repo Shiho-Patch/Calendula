@@ -37,5 +37,5 @@ val LocalViewFocus = staticCompositionLocalOf<ViewFocus?> { null }
 @Composable
 fun <T : Any> EnterOnFocus(key: T, enter: (LocalDate) -> Unit) {
     val focus = LocalViewFocus.current
-    remember(key) { focus?.let { enter(it.date) } }
+    remember(key) { focus?.date?.also(enter) }
 }

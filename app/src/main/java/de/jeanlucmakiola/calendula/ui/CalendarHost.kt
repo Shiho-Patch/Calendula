@@ -71,8 +71,9 @@ import kotlin.time.Clock
 
 /**
  * Holds the top-level view back stack (spec M1) and swaps between the calendar
- * screens. Each screen owns its own ViewModel and date anchor; the view-switcher
- * pill in their top bars writes back here via [onSelectView].
+ * screens. Each screen owns its own ViewModel; they all open on the one focused
+ * date held here ([ViewFocus]), and the view-switcher pill in their top bars
+ * writes back here via [onSelectView].
  *
  * The stack's bottom is the user's [CalendarHostViewModel.defaultView] home view.
  * A lateral switch (pill / drawer) builds a visit history so back retraces it
@@ -382,7 +383,7 @@ fun CalendarHost(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Switching between the peer views (month/week/day/agenda) is lateral
+        // Switching between the month, timeline and agenda screens is lateral
         // navigation, so it fades through rather than sliding — paging *within* a
         // view keeps the directional slide. What both views show morphs across
         // (#184): see [ViewMorphKey]. Reduced motion keeps the plain fade.

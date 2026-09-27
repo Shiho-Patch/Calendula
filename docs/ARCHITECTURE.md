@@ -27,7 +27,7 @@ the package list (recurring writes, save conflicts, reminder delivery).
 ```mermaid
 flowchart TD
     subgraph UI ["ui/ — Compose screens + ViewModels"]
-        Screens["Month / Week / Day\nDetail / Edit / Settings\nOnboarding wizard"]
+        Screens["Month / Timeline / Agenda\nDetail / Edit / Settings\nOnboarding wizard"]
     end
     subgraph Data ["data/"]
         Repo["CalendarRepository\n(interface + impl, Flow-based, io-dispatched)"]
@@ -79,15 +79,41 @@ flowchart TD
 
 There is no navigation library. `MainActivity` hosts `RootScreen`, which
 gates on the first-launch wizard (`ui/onboarding/`), then shows
-`CalendarHost`. `CalendarHost` holds the active view (month/week/day)
-plus overlay state for detail, edit, and settings — full-screen overlays
+`CalendarHost`. `CalendarHost` holds the active view (month, day/multi-day/week,
+agenda) plus overlay state for detail, edit, and settings — full-screen overlays
 driven by `AnimatedVisibility` with a *held-key* pattern: the last shown
 key stays alive through the slide-out so content never flashes empty.
-The views themselves switch inside a `SharedTransitionLayout`: an event shown
-in both morphs from its old bounds to its new ones, keyed per occurrence *and*
-per day it is drawn from (`ViewMorphKey`), and only a pager's settled page
-carries the tags. Overlays leave through floret-kit's `predictiveBackExit`, so
-a committed back gesture finishes from its scaled preview.
+Overlays leave through floret-kit's `predictiveBackExit`, so a committed back
+gesture finishes from its scaled preview.
+
+### Switching views (#184)
+
+- **One focused date.** `CalendarHost` owns a `ViewFocus` (`LocalViewFocus`)
+  that every view opens on and carries along. A view *reads* it once, on
+  entry, synchronously (`EnterOnFocus` before it reads its own position, so
+  its first frame is already on that date), and *writes* it only when the user
+  moves — a pager settling (`focusOnPage` keeps the date's place in the page),
+  a jump, Today, a tapped day, the agenda's top row. Writing on entry would
+  drift the date on every round trip.
+- **Three screens, not five.** The host's `AnimatedContent` is keyed on
+  `ViewScreen` (month, timeline, agenda), not on the view: day, multi-day and
+  week are one `TimelineScreen` with a `TimelineKind` each and a view model
+  each. Keying the three on one `contentKey` instead would still replay the
+  enter transition on every switch among them.
+- **Timeline ↔ timeline resizes in place.** `ColumnGeometry` places every
+  column (header cell, all-day bar, day column) in the layout pass; a switch
+  swaps the pager for a frame over both pages' days, each column lerped
+  between its slot on the one page and the other — a day the page doesn't
+  show carries on at its pitch, off screen, which is what slides it in or
+  out. Blocks sit in their column as shares of its width (`LaneColumn`), so
+  nothing recomposes per frame. The frame starts and ends exactly as the two
+  pages lay out, so the pagers either side hand over without a jump.
+- **Across screens, what both show morphs.** Inside a `SharedTransitionLayout`,
+  an event shown in both views travels from its old bounds to its new ones,
+  keyed per occurrence *and* per day it is drawn from (`ViewMorphKey`); only a
+  pager's settled page carries the tags. The top bar's shared pieces and the
+  create FAB are tagged too (`morphChrome`), so they hold still while the
+  rest cross-fades — except over an open drawer.
 A tapped reminder notification routes through `MainActivity` (`singleTop` +
 `onNewIntent`) as an external detail key that `CalendarHost` consumes
 exactly like an event tap.
