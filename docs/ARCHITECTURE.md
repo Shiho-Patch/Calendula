@@ -111,9 +111,10 @@ gesture finishes from its scaled preview.
 - **Across screens, what both show morphs.** Inside a `SharedTransitionLayout`,
   an event shown in both views travels from its old bounds to its new ones,
   keyed per occurrence *and* per day it is drawn from (`ViewMorphKey`); only a
-  pager's settled page carries the tags. The top bar's shared pieces and the
-  create FAB are tagged too (`morphChrome`), so they hold still while the
-  rest cross-fades — except over an open drawer.
+  pager's settled page carries the tags. The drawer, top bar and FAB are not
+  per screen: CalendarHost draws them once, above the switch, from what the
+  screen on show publishes (`PublishChrome` in `CalendarChrome.kt`), so a
+  switch only changes what they say.
 A tapped reminder notification routes through `MainActivity` (`singleTop` +
 `onNewIntent`) as an external detail key that `CalendarHost` consumes
 exactly like an event tap.

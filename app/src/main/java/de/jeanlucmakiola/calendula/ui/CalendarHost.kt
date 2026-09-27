@@ -9,16 +9,22 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import de.jeanlucmakiola.calendula.ui.common.screen
 import de.jeanlucmakiola.calendula.ui.common.ViewScreen
@@ -34,6 +40,18 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaScreen
 import de.jeanlucmakiola.calendula.ui.calendars.BackupScreen
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarsScreen
 import de.jeanlucmakiola.calendula.ui.common.BelowTopBarClip
+import de.jeanlucmakiola.calendula.ui.common.StayingPut
+import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
+import de.jeanlucmakiola.calendula.ui.common.CalendarFab
+import de.jeanlucmakiola.calendula.ui.common.CalendarTopBar
+import de.jeanlucmakiola.calendula.ui.common.ChromeHost
+import de.jeanlucmakiola.calendula.ui.common.ChromeSlot
+import de.jeanlucmakiola.calendula.ui.common.LocalChromeSlot
+import de.jeanlucmakiola.calendula.ui.common.next
+import de.jeanlucmakiola.calendula.ui.week.DayViewModel
+import de.jeanlucmakiola.calendula.ui.week.MultiDayViewModel
+import de.jeanlucmakiola.calendula.ui.week.TimelineViewModels
+import de.jeanlucmakiola.calendula.ui.week.WeekViewModel
 import de.jeanlucmakiola.floret.identity.fadeThrough
 import de.jeanlucmakiola.floret.identity.predictiveBackExit
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
@@ -64,6 +82,8 @@ import de.jeanlucmakiola.calendula.ui.month.MonthScreen
 import de.jeanlucmakiola.calendula.ui.search.SearchScreen
 import de.jeanlucmakiola.calendula.ui.settings.SettingsScreen
 import de.jeanlucmakiola.calendula.ui.week.TimelineScreen
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -130,14 +150,33 @@ fun CalendarHost(
     }
     val timelineView = if (view.screen == ViewScreen.Timeline) view else heldTimeline
     SideEffect { heldTimeline = timelineView }
-    val onSelectView: (CalendarView) -> Unit = { viewStack = viewStack.selectView(it) }
 
     // The date every view opens on and carries along (#184); tapping a day
     // anywhere focuses it and opens the day view there.
     val focus = rememberSaveable(saver = ViewFocusSaver) { ViewFocus(localToday()) }
+
+    // Into the timeline from another screen, its page is loaded first, briefly,
+    // so its events are there to morph into rather than arriving mid-way.
+    val timelineModels = TimelineViewModels(
+        hiltViewModel<WeekViewModel>(),
+        hiltViewModel<MultiDayViewModel>(),
+        hiltViewModel<DayViewModel>(),
+    )
+    val switchScope = rememberCoroutineScope()
+    val switchTo: (CalendarView, (List<CalendarView>) -> List<CalendarView>) -> Unit = { target, move ->
+        if (target.screen == ViewScreen.Timeline && viewStack.last().screen != ViewScreen.Timeline) {
+            switchScope.launch {
+                withTimeoutOrNull(VIEW_DATA_WAIT_MS) { timelineModels[target].prepare(focus.date) }
+                viewStack = move(viewStack)
+            }
+        } else {
+            viewStack = move(viewStack)
+        }
+    }
+    val onSelectView: (CalendarView) -> Unit = { target -> switchTo(target) { it.selectView(target) } }
     val onOpenDay: (LocalDate) -> Unit = { date ->
         focus.date = date
-        viewStack = viewStack.drillToDay()
+        switchTo(CalendarView.Day) { it.drillToDay() }
     }
 
     // The event-detail screen (S4) is a full-screen destination hoisted here so
@@ -392,6 +431,9 @@ fun CalendarHost(
         val morphBounds = rememberViewMorphBoundsTransform()
         val morphFade = rememberCalendarFadeSpec()
         val morphClip = remember { BelowTopBarClip() }
+        val stayingPut = remember { StayingPut() }
+        val chromeHost = remember { ChromeHost() }
+        val drawerState = rememberDrawerState(DrawerValue.Closed)
         val density = LocalDensity.current
         val topBarBottom = TopAppBarDefaults.windowInsets.getTop(density) +
             with(density) { TopAppBarDefaults.TopAppBarExpandedHeight.toPx() }
@@ -404,10 +446,60 @@ fun CalendarHost(
             // (#239); nothing else in the calendar surfaces navigates here.
             LocalManageCalendars provides { showCalendars = true },
         ) {
+        // One drawer, top bar and FAB for every screen (#184): a switch changes
+        // what they say, from what the screen on show publishes, rather than
+        // swapping them for another screen's.
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            // Open only via the menu button where edge-swipe would fight paging;
+            // the agenda has no paging to fight.
+            gesturesEnabled = drawerState.isOpen || view.screen == ViewScreen.Agenda,
+            drawerContent = {
+                CalendarDrawer(
+                    currentView = view,
+                    currentDate = chromeHost.chrome?.drawerDate ?: focus.date,
+                    drawerState = drawerState,
+                    viewOrder = drawerViewOrder,
+                    onSelectView = { target ->
+                        // Once the drawer is out of the way, so the switch is seen whole.
+                        switchScope.launch {
+                            try {
+                                drawerState.close()
+                            } finally {
+                                onSelectView(target)
+                            }
+                        }
+                    },
+                    onJumpToDate = { target ->
+                        chromeHost.actions?.onJumpToDate?.invoke(target)
+                        switchScope.launch { drawerState.close() }
+                    },
+                    onSettings = {
+                        onOpenSettings()
+                        switchScope.launch { drawerState.close() }
+                    },
+                )
+            },
+        ) {
+        Scaffold(
+            topBar = {
+                CalendarTopBar(
+                    host = chromeHost,
+                    selectedView = view,
+                    quickSwitchViews = quickSwitchViews,
+                    onCycleView = { onSelectView(view.next(quickSwitchViews)) },
+                    onOpenDrawer = { switchScope.launch { drawerState.open() } },
+                    onOpenSearch = onOpenSearch,
+                    showTodayButton = todayInToolbar,
+                )
+            },
+            floatingActionButton = { CalendarFab(chromeHost, todayInToolbar) },
+        ) { innerPadding ->
         SharedTransitionLayout(
             Modifier
+                .padding(innerPadding)
                 .fillMaxSize()
-                .onGloballyPositioned { morphClip.top = topBarBottom - it.positionInWindow().y },
+.onGloballyPositioned { morphClip.top = topBarBottom - it.positionInWindow().y },
         ) {
         // Keyed on the screen, not the view: the day, multi-day and week views
         // are one timeline that resizes between them itself (#184), so switching
@@ -419,49 +511,35 @@ fun CalendarHost(
         ) { screen ->
             val sharedScope = this@SharedTransitionLayout
             val visibilityScope = this@AnimatedContent
-            val viewMorph = remember(reduceMotion, sharedScope, visibilityScope, morphBounds, morphFade, morphClip) {
-                if (reduceMotion) null else ViewMorphScope(sharedScope, visibilityScope, morphBounds, morphFade, morphClip)
+            val viewMorph = remember(reduceMotion, sharedScope, visibilityScope, morphBounds, morphFade, morphClip, stayingPut) {
+                if (reduceMotion) null else ViewMorphScope(sharedScope, visibilityScope, morphBounds, morphFade, morphClip, stayingPut)
             }
-            CompositionLocalProvider(LocalViewMorph provides viewMorph) {
+            CompositionLocalProvider(
+                LocalViewMorph provides viewMorph,
+                LocalChromeSlot provides ChromeSlot(chromeHost, current = screen == view.screen),
+            ) {
             when (screen) {
                 ViewScreen.Timeline -> TimelineScreen(
                     view = timelineView,
-                    onSelectView = onSelectView,
                     onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
-                    onOpenSettings = onOpenSettings,
-                    onOpenSearch = onOpenSearch,
                     onCreateEvent = onCreateEvent,
-                    quickSwitchViews = quickSwitchViews,
-                    drawerViewOrder = drawerViewOrder,
-                    todayInToolbar = todayInToolbar,
                 )
                 ViewScreen.Month -> MonthScreen(
-                    selectedView = CalendarView.Month,
-                    onSelectView = onSelectView,
                     onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
-                    onOpenSettings = onOpenSettings,
-                    onOpenSearch = onOpenSearch,
                     onCreateEvent = onCreateEvent,
-                    quickSwitchViews = quickSwitchViews,
-                    drawerViewOrder = drawerViewOrder,
-                    todayInToolbar = todayInToolbar,
                 )
                 ViewScreen.Agenda -> AgendaScreen(
-                    selectedView = CalendarView.Agenda,
-                    onSelectView = onSelectView,
                     onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
-                    onOpenSettings = onOpenSettings,
-                    onOpenSearch = onOpenSearch,
                     onCreateEvent = onCreateEvent,
                     quickSwitchViews = quickSwitchViews,
-                    drawerViewOrder = drawerViewOrder,
-                    todayInToolbar = todayInToolbar,
                 )
             }
             }
+        }
+        }
         }
         }
         }
@@ -670,3 +748,6 @@ private val viewStackSaver = listSaver<List<CalendarView>, Int>(
 
 private fun localToday(): LocalDate =
     Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+
+/** How long a switch into the timeline waits for its page before going anyway. */
+private const val VIEW_DATA_WAIT_MS = 200L

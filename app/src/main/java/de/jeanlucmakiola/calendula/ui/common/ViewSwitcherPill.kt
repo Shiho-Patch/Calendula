@@ -12,7 +12,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 
 /**
@@ -41,8 +40,7 @@ fun ViewSwitcherPill(
         onClick = onCycle,
         shape = MaterialTheme.shapes.large,
         modifier = modifier
-            .padding(end = trailingInset)
-            .morphChrome(ChromeSlot.Pill),
+            .padding(end = trailingInset),
     ) {
         // The label cross-fades and the pill eases to its width, so cycling
         // views turns it over rather than snapping it (#184).
@@ -52,7 +50,6 @@ fun ViewSwitcherPill(
                 (fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec)).using(SizeTransform(clip = false))
             },
             contentAlignment = Alignment.Center,
-            label = "view-pill",
         ) { label ->
             Text(label)
         }

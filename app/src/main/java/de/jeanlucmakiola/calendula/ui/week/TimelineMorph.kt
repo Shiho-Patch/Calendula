@@ -20,8 +20,13 @@ internal class TimelineMorph(
 ) {
     val progress = Animatable(0f)
 
+    /** Whether the columns change size a lot, from a single day to a week or back, and take longer for it. */
+    val isLong: Boolean get() = maxOf(from.count, to.count) > LONG_SWITCH_RATIO * minOf(from.count, to.count)
+
     /** Where each day's events come from: the page it was on, else the page it goes to. */
     fun sourceOf(date: LocalDate): Side = if (date in from.start..from.end) Side.From else Side.To
 
     enum class Side { From, To }
 }
+
+private const val LONG_SWITCH_RATIO = 3

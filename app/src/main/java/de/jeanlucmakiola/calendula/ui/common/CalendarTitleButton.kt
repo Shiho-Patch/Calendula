@@ -1,6 +1,9 @@
 package de.jeanlucmakiola.calendula.ui.common
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -15,12 +18,12 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,7 +41,8 @@ import kotlinx.datetime.LocalDate
  * drawer uses and reporting the chosen day through [onJumpToDate].
  *
  * [currentDate] seeds the picker with whatever the bar is currently naming (the
- * visible day, week start or month anchor).
+ * visible day, week start or month anchor); null makes the title a plain label,
+ * as the agenda's is, and the caret folds away.
  *
  * [shortTitle] replaces [title] when the full one does not fit the width the app
  * bar hands the title slot (#165). Either way the line clamps to one and
@@ -47,7 +51,7 @@ import kotlinx.datetime.LocalDate
 @Composable
 fun CalendarTitleButton(
     title: String,
-    currentDate: LocalDate,
+    currentDate: LocalDate?,
     onJumpToDate: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     shortTitle: String = title,
@@ -56,10 +60,10 @@ fun CalendarTitleButton(
 
     Row(
         modifier = modifier
-            .morphChrome(ChromeSlot.Title)
             .heightIn(min = 48.dp)
             .clip(MaterialTheme.shapes.large)
             .clickable(
+                enabled = currentDate != null,
                 onClickLabel = stringResource(R.string.drawer_jump_to_date),
                 role = Role.Button,
             ) { showDatePicker = true }
@@ -86,7 +90,6 @@ fun CalendarTitleButton(
                     (fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec)).using(SizeTransform(clip = false))
                 },
                 contentAlignment = Alignment.CenterStart,
-                label = "calendar-title",
             ) { text ->
                 Text(
                     text = text,
@@ -96,14 +99,20 @@ fun CalendarTitleButton(
                 )
             }
         }
-        Icon(
-            imageVector = Icons.Default.ArrowDropDown,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        AnimatedVisibility(
+            visible = currentDate != null,
+            enter = fadeIn(rememberCalendarFadeSpec()) + expandHorizontally(),
+            exit = fadeOut(rememberCalendarFadeSpec()) + shrinkHorizontally(),
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowDropDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 
-    if (showDatePicker) {
+    if (showDatePicker && currentDate != null) {
         CalendarDatePickerDialog(
             initial = currentDate,
             onConfirm = {

@@ -8,15 +8,19 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.rememberUpdatedState
+import de.jeanlucmakiola.calendula.ui.common.PublishChrome
+import de.jeanlucmakiola.calendula.ui.common.ScreenActions
+import de.jeanlucmakiola.calendula.ui.common.ScreenBody
+import de.jeanlucmakiola.calendula.ui.common.ScreenChrome
 import de.jeanlucmakiola.calendula.ui.common.LocalViewMorph
 import de.jeanlucmakiola.calendula.ui.common.EnterOnFocus
 import de.jeanlucmakiola.calendula.ui.common.LocalViewFocus
 import de.jeanlucmakiola.calendula.ui.common.ViewMorphKey
 import de.jeanlucmakiola.calendula.ui.common.morphDay
 import de.jeanlucmakiola.calendula.ui.common.morphEvent
-import de.jeanlucmakiola.calendula.ui.common.morphGround
 import de.jeanlucmakiola.calendula.ui.common.morphPageActive
 import de.jeanlucmakiola.calendula.ui.common.jumpToPage
 import de.jeanlucmakiola.calendula.ui.common.pagedHeight
@@ -38,7 +42,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -66,21 +69,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -94,12 +86,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import de.jeanlucmakiola.calendula.ui.common.morphChrome
-import de.jeanlucmakiola.calendula.ui.common.ViewMorphChrome
-import de.jeanlucmakiola.calendula.ui.common.ChromeSlot
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
@@ -128,7 +116,6 @@ import de.jeanlucmakiola.calendula.ui.common.DragSnapHaptics
 import de.jeanlucmakiola.calendula.ui.common.SETTLE_FADE_MILLIS
 import de.jeanlucmakiola.calendula.ui.common.SETTLE_GRACE_MILLIS
 import de.jeanlucmakiola.calendula.ui.common.EventMoveScope
-import de.jeanlucmakiola.calendula.domain.spanFirstDay
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.semantics.customActions
@@ -160,14 +147,8 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaDayHeader
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaEmptyDayRow
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaEventRow
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
-import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.AppBarSpacing
-import de.jeanlucmakiola.calendula.ui.common.CalendarTitleButton
-import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
-import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
-import de.jeanlucmakiola.calendula.ui.common.CalendarView
-import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
@@ -178,7 +159,6 @@ import de.jeanlucmakiola.calendula.ui.common.EventChipShape
 import de.jeanlucmakiola.calendula.ui.common.trimmedLines
 import de.jeanlucmakiola.calendula.ui.common.monthBarShape
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
-import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.floret.identity.animateItemMotion
@@ -207,16 +187,9 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MonthScreen(
-    selectedView: CalendarView,
-    onSelectView: (CalendarView) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     onEventClick: (EventInstance) -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenSearch: () -> Unit,
     onCreateEvent: (LocalDate, Int?) -> Unit,
-    quickSwitchViews: List<CalendarView> = IMPLEMENTED_VIEWS,
-    drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
-    todayInToolbar: Boolean = false,
     modifier: Modifier = Modifier,
     viewModel: MonthViewModel = hiltViewModel(),
 ) {
@@ -239,10 +212,6 @@ fun MonthScreen(
         derivedStateOf { if (dimCompleted) nowState.value else null }
     }
 
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
-    // The bar and FAB hold still through a view switch, but not over an open drawer.
-    val chromeMorph = drawerState.currentValue == DrawerValue.Closed &&
-        drawerState.targetValue == DrawerValue.Closed
     val scope = rememberCoroutineScope()
 
     val scrolling = viewStyle.isScrolling
@@ -398,135 +367,96 @@ fun MonthScreen(
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        // Open only via the menu button — edge-swipe would fight the month swipe.
-        gesturesEnabled = drawerState.isOpen,
-        drawerContent = {
-            CalendarDrawer(
-                currentView = selectedView,
-                currentDate = LocalDate(titleMonth.year, titleMonth.month, 1),
-                drawerState = drawerState,
-                viewOrder = drawerViewOrder,
-                onSelectView = { view ->
-                    onSelectView(view)
-                    scope.launch { drawerState.close() }
-                },
-                onJumpToDate = { target ->
-                    jumpToDate(target)
-                    scope.launch { drawerState.close() }
-                },
-                onSettings = {
-                    onOpenSettings()
-                    scope.launch { drawerState.close() }
-                },
-            )
-        },
-    ) {
-        Scaffold(
-            modifier = modifier,
-            topBar = {
-                ViewMorphChrome(chromeMorph) {
-                    MonthTopBar(
-                        title = topBarTitle,
-                        shortTitle = topBarShortTitle,
-                        titleDate = LocalDate(titleMonth.year, titleMonth.month, 1),
-                        selectedView = selectedView,
-                        onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
-                        quickSwitchViews = quickSwitchViews,
-                        onOpenDrawer = { scope.launch { drawerState.open() } },
-                        onOpenSearch = onOpenSearch,
-                        onJumpToDate = jumpToDate,
-                        showTodayButton = todayInToolbar,
-                        onToday = jumpToToday,
-                    )
-                }
+    PublishChrome(
+        ScreenChrome(
+            title = topBarTitle,
+            shortTitle = topBarShortTitle,
+            titleDate = LocalDate(titleMonth.year, titleMonth.month, 1),
+            drawerDate = LocalDate(titleMonth.year, titleMonth.month, 1),
+            awayFromToday = !isOnCurrentMonth,
+            todayText = stringResource(R.string.month_today_action),
+        ),
+        ScreenActions(
+            onToday = jumpToToday,
+            onJumpToDate = jumpToDate,
+            onCreate = {
+                // Split has a selected day; the other styles anchor on today when
+                // its month is shown, else the 1st.
+                onCreateEvent(
+                    when {
+                        viewStyle == MonthViewStyle.Split -> selectedDate
+                        isOnCurrentMonth -> today
+                        else -> LocalDate(titleMonth.year, titleMonth.month, 1)
+                    },
+                    null,
+                )
             },
-            floatingActionButton = {
-                ViewMorphChrome(chromeMorph) {
-                    CalendarFabColumn(
-                        todayVisible = !isOnCurrentMonth && !todayInToolbar,
-                        todayText = stringResource(R.string.month_today_action),
-                        onToday = jumpToToday,
-                        onCreate = {
-                            // Split has a selected day; the other styles anchor on
-                            // today when its month is shown, else the 1st.
-                            onCreateEvent(
-                                when {
-                                    viewStyle == MonthViewStyle.Split -> selectedDate
-                                    isOnCurrentMonth -> today
-                                    else -> LocalDate(titleMonth.year, titleMonth.month, 1)
-                                },
-                                null,
-                            )
-                        },
-                    )
-                }
-            },
-        ) { innerPadding ->
-            // Hoisted above every style's grid: a dragged chip is drawn in an
-            // overlay, clear of the week row's and the list viewport's clips.
-            val chipDrag = rememberMonthDragController()
-            // Undo moves the event back, so the chip travels back too. The
-            // signal comes from the write, not from the chip that offers it.
-            OnUndoStarted { chipDrag.beginUndo() }
-            Box(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize(),
+        ),
+    )
+
+    ScreenBody(modifier = modifier) { innerPadding ->
+        // Hoisted above every style's grid: a dragged chip is drawn in an
+        // overlay, clear of the week row's and the list viewport's clips.
+        val chipDrag = rememberMonthDragController()
+        // Undo moves the event back, so the chip travels back too. The
+        // signal comes from the write, not from the chip that offers it.
+        OnUndoStarted { chipDrag.beginUndo() }
+        Box(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize(),
+        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            WeekdayHeader(weekStart = weekStart, showWeekNumbers = showWeekNumbers)
+            CompositionLocalProvider(
+                LocalDimCutoff provides dimCutoff,
+                LocalMonthDrag provides chipDrag,
             ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                WeekdayHeader(weekStart = weekStart, showWeekNumbers = showWeekNumbers)
-                CompositionLocalProvider(
-                    LocalDimCutoff provides dimCutoff,
-                    LocalMonthDrag provides chipDrag,
-                ) {
-                    if (scrolling) {
-                        ContinuousMonthContent(
-                            state = continuousState,
-                            listState = listState,
-                            dense = dense,
-                            showWeekNumbers = showWeekNumbers,
-                            onRetry = jumpToToday,
-                            onOpenDay = onOpenDay,
-                            onEventClick = onEventClick,
-                        )
-                    } else if (viewStyle == MonthViewStyle.Split) {
-                        SplitMonthContent(
-                            state = state,
-                            selected = selectedDate,
-                            pagerState = pagerState,
-                            weekStart = weekStart,
-                            monthState = viewModel::month,
-                            showWeekNumbers = showWeekNumbers,
-                            onRetry = jumpToToday,
-                            // A tapped leading/trailing day follows to its own
-                            // month, pager and all — straight away, or a swipe
-                            // still settling would land and take the tap back.
-                            onSelectDay = { date ->
-                                viewModel.selectDate(date)
-                                jumpToMonth(YearMonth(date.year, date.month))
-                            },
-                            onOpenDay = onOpenDay,
-                            onEventClick = onEventClick,
-                            onCreateEvent = { onCreateEvent(it, null) },
-                        )
-                    } else {
-                        MonthContent(
-                            state = state,
-                            pagerState = pagerState,
-                            weekStart = weekStart,
-                            monthState = viewModel::month,
-                            showWeekNumbers = showWeekNumbers,
-                            onRetry = jumpToToday,
-                            onOpenDay = onOpenDay,
-                            onEventClick = onEventClick,
-                        )
-                    }
+                if (scrolling) {
+                    ContinuousMonthContent(
+                        state = continuousState,
+                        listState = listState,
+                        dense = dense,
+                        showWeekNumbers = showWeekNumbers,
+                        onRetry = jumpToToday,
+                        onOpenDay = onOpenDay,
+                        onEventClick = onEventClick,
+                    )
+                } else if (viewStyle == MonthViewStyle.Split) {
+                    SplitMonthContent(
+                        state = state,
+                        selected = selectedDate,
+                        pagerState = pagerState,
+                        weekStart = weekStart,
+                        monthState = viewModel::month,
+                        showWeekNumbers = showWeekNumbers,
+                        onRetry = jumpToToday,
+                        // A tapped leading/trailing day follows to its own
+                        // month, pager and all — straight away, or a swipe
+                        // still settling would land and take the tap back.
+                        onSelectDay = { date ->
+                            viewModel.selectDate(date)
+                            jumpToMonth(YearMonth(date.year, date.month))
+                        },
+                        onOpenDay = onOpenDay,
+                        onEventClick = onEventClick,
+                        onCreateEvent = { onCreateEvent(it, null) },
+                    )
+                } else {
+                    MonthContent(
+                        state = state,
+                        pagerState = pagerState,
+                        weekStart = weekStart,
+                        monthState = viewModel::month,
+                        showWeekNumbers = showWeekNumbers,
+                        onRetry = jumpToToday,
+                        onOpenDay = onOpenDay,
+                        onEventClick = onEventClick,
+                    )
                 }
             }
-            MonthDragOverlay(chipDrag)
-            }
+        }
+        MonthDragOverlay(chipDrag)
         }
     }
 }
@@ -793,62 +723,6 @@ private fun ContinuousMonthContent(
             )
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MonthTopBar(
-    title: String,
-    shortTitle: String,
-    titleDate: LocalDate,
-    selectedView: CalendarView,
-    onCycleView: () -> Unit,
-    quickSwitchViews: List<CalendarView>,
-    onOpenDrawer: () -> Unit,
-    onOpenSearch: () -> Unit,
-    onJumpToDate: (LocalDate) -> Unit,
-    showTodayButton: Boolean,
-    onToday: () -> Unit,
-) {
-    TopAppBar(
-        title = {
-            CalendarTitleButton(
-                title = title,
-                currentDate = titleDate,
-                onJumpToDate = onJumpToDate,
-                shortTitle = shortTitle,
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onOpenDrawer, modifier = Modifier.morphChrome(ChromeSlot.Menu)) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = stringResource(R.string.month_open_menu),
-                )
-            }
-        },
-        actions = {
-            TodayAction(show = showTodayButton, onToday = onToday)
-            IconButton(onClick = onOpenSearch, modifier = Modifier.morphChrome(ChromeSlot.Search)) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = stringResource(R.string.search_action),
-                )
-            }
-            ViewSwitcherPill(
-                current = selectedView,
-                cycle = quickSwitchViews,
-                onCycle = onCycleView,
-            )
-        },
-        // Deliberately flat: M3 lifts the bar to mark content scrolling under
-        // it, but here the bar meets the header on the same surface and the
-        // tint is what makes that seam look like a separate block (#186).
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surface,
-        ),
-    )
 }
 
 @Composable
@@ -2206,7 +2080,6 @@ private fun MonthWeekRow(
                             .fillMaxHeight()
                             .padding(horizontal = CELL_GAP, vertical = 1.dp)
                             .morphElement(MonthMorphKey.Cell(d))
-                            .morphGround(d)
                             .background(
                                 color = when {
                                     inMonth(d) -> MaterialTheme.colorScheme.surfaceContainer
