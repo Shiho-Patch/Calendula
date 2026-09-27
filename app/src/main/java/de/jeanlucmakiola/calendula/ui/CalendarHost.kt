@@ -56,6 +56,8 @@ import de.jeanlucmakiola.calendula.ui.search.SearchScreen
 import de.jeanlucmakiola.calendula.ui.settings.SettingsScreen
 import de.jeanlucmakiola.calendula.ui.week.MultiDayScreen
 import de.jeanlucmakiola.calendula.ui.week.WeekScreen
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -378,7 +380,7 @@ fun CalendarHost(
                 events.collect { viewTransition.seekTo(it.progress, targetState = previous) }
                 viewStack = viewStack.dropLast(1)
             } catch (e: CancellationException) {
-                viewTransition.animateTo(viewTransition.currentState)
+                withContext(NonCancellable) { viewTransition.animateTo(viewTransition.currentState) }
                 throw e
             }
         }
