@@ -12,10 +12,12 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import de.jeanlucmakiola.calendula.ui.common.jumpToPage
+import de.jeanlucmakiola.calendula.ui.common.TimelineGrounds
 import de.jeanlucmakiola.calendula.ui.common.ViewMorphKey
 import de.jeanlucmakiola.calendula.ui.common.ViewMorphPage
 import de.jeanlucmakiola.calendula.ui.common.morphEvent
 import de.jeanlucmakiola.calendula.ui.common.morphPageActive
+import de.jeanlucmakiola.calendula.ui.common.rememberTimelineScrollState
 import de.jeanlucmakiola.calendula.ui.common.pagedHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSpec
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
@@ -146,7 +148,7 @@ import de.jeanlucmakiola.calendula.ui.common.hourCellBlockInset
 import de.jeanlucmakiola.calendula.ui.common.hourGridCells
 import de.jeanlucmakiola.calendula.ui.common.tappedMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.week.TimedBlock
-import kotlinx.coroutines.flow.first
+import de.jeanlucmakiola.calendula.ui.week.weekDayHeaderHeight
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -307,15 +309,10 @@ private fun DayContent(
     val fadeSpec = rememberCalendarFadeSpec()
 
     // Shared by every page and the gutter, so the vertical scroll position
-    // survives day-to-day swipes. We only centre on noon once, on first entry
-    // into the day view (i.e. when arriving from the month/week view).
-    val scrollState = rememberScrollState()
-    LaunchedEffect(Unit) {
-        snapshotFlow { scrollState.maxValue }.first { it > 0 }
-        // Half the scroll range *is* noon: the content spans a full 24 hours, so
-        // centring the range centres midday at whatever hour height is in force.
-        scrollState.scrollTo(scrollState.maxValue / 2)
-    }
+    // survives day-to-day swipes, and carried over from the timeline view
+    // before this one.
+    val stripHeight = (state as? DayUiState.Success)?.allDayStripHeight() ?: 0.dp
+    val scrollState = rememberTimelineScrollState(stripHeight + TIMELINE_TOP_GAP)
 
     // Above the pager: a page change mid-drag would strand the floating block
     // inside the outgoing page.
@@ -444,14 +441,15 @@ private fun DayFrame(
             // timelines have, so labels and column agree.
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val zoom = LocalTimelineZoom.current
-                val hourHeight = zoom.scale.hourHeight(maxHeight)
+                val fitHeight = maxHeight + allDayHeight - weekDayHeaderHeight()
+                val hourHeight = zoom.scale.hourHeight(fitHeight)
                 // Start inset so the labels centre on the top bar hamburger,
                 // matching the week view.
                 HourGutter(
                     scrollState = scrollState,
                     hourHeight = hourHeight,
                     dragController = dragController,
-                    modifier = rememberTimelinePinchZoom(scrollState, maxHeight, hourHeight, zoom),
+                    modifier = rememberTimelinePinchZoom(scrollState, fitHeight, hourHeight, zoom),
                 )
             }
         }
@@ -521,6 +519,7 @@ private fun DayPage(
         Spacer(Modifier.height(TIMELINE_TOP_GAP))
         Timeline(
             state = state,
+            allDayHeight = allDayHeight,
             scrollState = scrollState,
             dragController = dragController,
             active = active,
@@ -672,6 +671,7 @@ private fun AllDayBar(
 @Composable
 private fun Timeline(
     state: DayUiState.Success,
+    allDayHeight: Dp,
     scrollState: ScrollState,
     dragController: TimelineDragController,
     active: Boolean,
@@ -692,14 +692,27 @@ private fun Timeline(
 
     // BoxWithConstraints rather than Box: the fit-the-whole-day scale needs the
     // timeline's own viewport height, which is only known here — below the top
-    // bar, date header and all-day strip.
+    // bar and all-day strip. It fits the week view's timeline instead, so an
+    // hour is as tall here as there (#184).
+    val weekHeader = weekDayHeaderHeight()
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val hourHeight = zoom.scale.hourHeight(maxHeight)
+        val fitHeight = maxHeight + allDayHeight - weekHeader
+        val hourHeight = zoom.scale.hourHeight(fitHeight)
         val totalHeight = hourHeight * 24
         // The pinch sits above the scroll viewport: it has to outrank the
         // vertical scroll, and it does that by watching the initial pass, which
         // only reaches it if it is the viewport's ancestor.
-        val pinch = rememberTimelinePinchZoom(scrollState, maxHeight, hourHeight, zoom)
+        val pinch = rememberTimelinePinchZoom(scrollState, fitHeight, hourHeight, zoom)
+        TimelineGrounds(
+            days = listOf(state.date),
+            scrollState = scrollState,
+            hourHeight = hourHeight,
+            columnGap = 0.dp,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(end = TIMELINE_CONTENT_END_INSET)
+                .clip(RoundedCornerShape(16.dp)),
+        )
         // Scrolls on the same state as the gutter and the other pages, so they
         // all stay aligned. A static, rounded-clipped window — the content
         // scrolls inside it, so the soft corners are permanent at any scroll
@@ -975,10 +988,11 @@ private fun EventBlock(
 private fun DayLoading() {
     val scale = LocalTimelineZoom.current.scale
     val scrollState = rememberScrollState()
+    val weekHeader = weekDayHeaderHeight()
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         // Same scale resolution as the loaded timeline, so the skeleton's column
         // doesn't resize the moment the real day arrives.
-        val hourHeight = scale.hourHeight(maxHeight)
+        val hourHeight = scale.hourHeight(maxHeight - weekHeader - TIMELINE_TOP_GAP)
         val totalHeight = hourHeight * 24
         // The skeleton wears the loaded column's own ground, so the arrival of
         // the real day doesn't flash a solid block into a gapped grid.

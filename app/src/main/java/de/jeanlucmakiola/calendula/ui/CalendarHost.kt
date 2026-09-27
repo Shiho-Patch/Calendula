@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -19,6 +20,9 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.domain.EventForm
@@ -26,6 +30,7 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaScreen
 import de.jeanlucmakiola.calendula.ui.calendars.BackupScreen
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarsScreen
+import de.jeanlucmakiola.calendula.ui.common.BelowTopBarClip
 import de.jeanlucmakiola.floret.identity.fadeThrough
 import de.jeanlucmakiola.floret.identity.predictiveBackExit
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
@@ -34,8 +39,10 @@ import de.jeanlucmakiola.calendula.ui.common.EventMoveHost
 import de.jeanlucmakiola.calendula.ui.common.EventMoveScope
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
 import de.jeanlucmakiola.calendula.ui.common.LocalManageCalendars
+import de.jeanlucmakiola.calendula.ui.common.LocalTimelineScroll
 import de.jeanlucmakiola.calendula.ui.common.LocalViewMorph
 import de.jeanlucmakiola.calendula.ui.common.RescheduleViewModel
+import de.jeanlucmakiola.calendula.ui.common.TimelineScrollMemory
 import de.jeanlucmakiola.calendula.ui.common.ViewMorphScope
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.calendula.ui.common.rememberViewMorphBoundsTransform
@@ -371,13 +378,23 @@ fun CalendarHost(
         val reduceMotion = rememberReduceMotion()
         val morphBounds = rememberViewMorphBoundsTransform()
         val morphFade = rememberCalendarFadeSpec()
+        val morphClip = remember { BelowTopBarClip() }
+        val density = LocalDensity.current
+        val topBarBottom = TopAppBarDefaults.windowInsets.getTop(density) +
+            with(density) { TopAppBarDefaults.TopAppBarExpandedHeight.toPx() }
+        val timelineScroll = remember { TimelineScrollMemory() }
         CompositionLocalProvider(
             LocalEventMove provides moveScope,
+            LocalTimelineScroll provides timelineScroll,
             // The failure state's way out when every calendar is switched off
             // (#239); nothing else in the calendar surfaces navigates here.
             LocalManageCalendars provides { showCalendars = true },
         ) {
-        SharedTransitionLayout(Modifier.fillMaxSize()) {
+        SharedTransitionLayout(
+            Modifier
+                .fillMaxSize()
+                .onGloballyPositioned { morphClip.top = topBarBottom - it.positionInWindow().y },
+        ) {
         AnimatedContent(
             targetState = view,
             transitionSpec = { viewSwitch },
@@ -385,8 +402,8 @@ fun CalendarHost(
         ) { currentView ->
             val sharedScope = this@SharedTransitionLayout
             val visibilityScope = this@AnimatedContent
-            val viewMorph = remember(reduceMotion, sharedScope, visibilityScope, morphBounds, morphFade) {
-                if (reduceMotion) null else ViewMorphScope(sharedScope, visibilityScope, morphBounds, morphFade)
+            val viewMorph = remember(reduceMotion, sharedScope, visibilityScope, morphBounds, morphFade, morphClip) {
+                if (reduceMotion) null else ViewMorphScope(sharedScope, visibilityScope, morphBounds, morphFade, morphClip)
             }
             CompositionLocalProvider(LocalViewMorph provides viewMorph) {
             when (currentView) {

@@ -14,6 +14,7 @@ import de.jeanlucmakiola.calendula.ui.common.LocalViewMorph
 import de.jeanlucmakiola.calendula.ui.common.ViewMorphKey
 import de.jeanlucmakiola.calendula.ui.common.morphDay
 import de.jeanlucmakiola.calendula.ui.common.morphEvent
+import de.jeanlucmakiola.calendula.ui.common.morphGround
 import de.jeanlucmakiola.calendula.ui.common.morphPageActive
 import de.jeanlucmakiola.calendula.ui.common.jumpToPage
 import de.jeanlucmakiola.calendula.ui.common.pagedHeight
@@ -2185,6 +2186,7 @@ private fun MonthWeekRow(
                             .fillMaxHeight()
                             .padding(horizontal = CELL_GAP, vertical = 1.dp)
                             .morphElement(MonthMorphKey.Cell(d))
+                            .morphGround(d)
                             .background(
                                 color = when {
                                     inMonth(d) -> MaterialTheme.colorScheme.surfaceContainer

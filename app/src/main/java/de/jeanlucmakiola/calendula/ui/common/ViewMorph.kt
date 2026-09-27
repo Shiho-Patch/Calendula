@@ -7,6 +7,12 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -14,7 +20,13 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import kotlinx.datetime.LocalDate
 
@@ -27,11 +39,16 @@ import kotlinx.datetime.LocalDate
  * multi-day event is drawn once per day, per week row or per timeline column,
  * and only one element per key may take part. The segment that starts on the
  * same day in both views is the one that travels; the rest fade where they are.
+ *
+ * A day's ground — its month cell, its timeline column — travels too, so the
+ * events never arrive ahead of what they sit on.
  */
 sealed interface ViewMorphKey {
     data class Event(val eventId: Long, val beginMillis: Long, val day: LocalDate) : ViewMorphKey
 
     data class Day(val date: LocalDate) : ViewMorphKey
+
+    data class Ground(val date: LocalDate) : ViewMorphKey
 
     companion object {
         /** [event]'s occurrence as drawn from [day]. */
@@ -47,7 +64,29 @@ class ViewMorphScope(
     val visibility: AnimatedVisibilityScope,
     val boundsTransform: BoundsTransform,
     val fadeSpec: FiniteAnimationSpec<Float>,
+    val clip: SharedTransitionScope.OverlayClip,
 )
+
+/**
+ * Keeps what travels below the top bar, which every view has at the same height:
+ * the overlay draws above the whole screen, so an event scrolled under the bar
+ * would otherwise cross it. [top] is the bar's bottom edge in the shared layout.
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+class BelowTopBarClip : SharedTransitionScope.OverlayClip {
+    var top = 0f
+
+    override fun getClipPath(
+        sharedContentState: SharedTransitionScope.SharedContentState,
+        bounds: Rect,
+        layoutDirection: LayoutDirection,
+        density: Density,
+    ): Path = Path().apply { addRect(Rect(-FAR, top, FAR, FAR)) }
+
+    private companion object {
+        const val FAR = 1e6f
+    }
+}
 
 val LocalViewMorph = compositionLocalOf<ViewMorphScope?> { null }
 
@@ -84,6 +123,7 @@ fun Modifier.morphEvent(key: ViewMorphKey.Event): Modifier {
             enter = fadeIn(morph.fadeSpec),
             exit = fadeOut(morph.fadeSpec),
             boundsTransform = morph.boundsTransform,
+            clipInOverlayDuringTransition = morph.clip,
             resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
             zIndexInOverlay = 1f,
         )
@@ -102,7 +142,61 @@ fun Modifier.morphDay(date: LocalDate): Modifier {
             enter = fadeIn(morph.fadeSpec),
             exit = fadeOut(morph.fadeSpec),
             boundsTransform = morph.boundsTransform,
+            clipInOverlayDuringTransition = morph.clip,
+            // Over the grounds, which a month cell's number sits inside.
+            zIndexInOverlay = 1f,
         )
+    }
+}
+
+/** Tags a day's ground, under the events and numbers that travel with it. */
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+fun Modifier.morphGround(date: LocalDate): Modifier {
+    val morph = LocalViewMorph.current ?: return this
+    return with(morph.shared) {
+        this@morphGround.sharedBounds(
+            sharedContentState = rememberSharedContentState(ViewMorphKey.Ground(date)),
+            animatedVisibilityScope = morph.visibility,
+            enter = fadeIn(morph.fadeSpec),
+            exit = fadeOut(morph.fadeSpec),
+            boundsTransform = morph.boundsTransform,
+            clipInOverlayDuringTransition = morph.clip,
+            resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+        )
+    }
+}
+
+/**
+ * The on-screen window of each day's timeline column, painted like the column
+ * behind the scrolling one: a whole 24-hour column can't travel, its window can.
+ * Nothing is drawn while there is no morph to take part in.
+ */
+@Composable
+fun TimelineGrounds(
+    days: List<LocalDate>,
+    scrollState: ScrollState,
+    hourHeight: Dp,
+    columnGap: Dp,
+    modifier: Modifier = Modifier,
+) {
+    if (LocalViewMorph.current == null) return
+    val showHourGrid = LocalShowHourGrid.current
+    val hourPx = with(LocalDensity.current) { hourHeight.toPx() }
+    val cell = MaterialTheme.colorScheme.surfaceContainer
+    val ground = if (showHourGrid) MaterialTheme.colorScheme.surface else cell
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(columnGap)) {
+        days.forEach { day ->
+            Box(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .morphGround(day)
+                    .clipToBounds()
+                    .background(ground)
+                    .hourGridCells(showHourGrid, hourPx, cell) { scrollState.value.toFloat() },
+            )
+        }
     }
 }
 
