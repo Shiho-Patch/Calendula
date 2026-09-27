@@ -176,9 +176,14 @@ internal fun ViewsScreen(
         )
         GroupedRow(
             title = stringResource(R.string.settings_timeline_scale),
-            summary = stringResource(state.timelineScale.labelRes),
+            summary = if (hours.enabled) {
+                stringResource(R.string.settings_timeline_scale_by_visible_hours)
+            } else {
+                stringResource(state.timelineScale.labelRes)
+            },
             position = Position.Middle,
-            onClick = { showTimelineScale = true },
+            dimmed = hours.enabled,
+            onClick = if (hours.enabled) null else ({ showTimelineScale = true }),
         )
         GroupedRow(
             title = stringResource(R.string.settings_visible_hours),
