@@ -383,13 +383,12 @@ fun CalendarHost(
             transitionSpec = { viewSwitch },
             label = "view-switch",
         ) { currentView ->
-            CompositionLocalProvider(
-                LocalViewMorph provides if (reduceMotion) {
-                    null
-                } else {
-                    ViewMorphScope(this@SharedTransitionLayout, this@AnimatedContent, morphBounds, morphFade)
-                },
-            ) {
+            val sharedScope = this@SharedTransitionLayout
+            val visibilityScope = this@AnimatedContent
+            val viewMorph = remember(reduceMotion, sharedScope, visibilityScope, morphBounds, morphFade) {
+                if (reduceMotion) null else ViewMorphScope(sharedScope, visibilityScope, morphBounds, morphFade)
+            }
+            CompositionLocalProvider(LocalViewMorph provides viewMorph) {
             when (currentView) {
                 CalendarView.Week -> WeekScreen(
                     selectedView = currentView,
