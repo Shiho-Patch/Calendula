@@ -1,10 +1,13 @@
 package de.jeanlucmakiola.calendula.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.SeekableTransitionState
+import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.layout.Box
@@ -56,6 +59,7 @@ import de.jeanlucmakiola.calendula.ui.week.WeekScreen
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 
 /**
@@ -358,8 +362,26 @@ fun CalendarHost(
     val anyOverlayVisible = showSearch || detailKey != null || createDateIso != null ||
         editKey != null || showSettings || showCalendars || showBackup ||
         importUri != null || importForm != null
-    BackHandler(enabled = !anyOverlayVisible && viewStack.size > 1) {
-        viewStack = viewStack.dropLast(1)
+    // The view switch runs on a seekable transition, so a back gesture can scrub
+    // it (#185): the previous view morphs in under the finger, releasing finishes
+    // the pop and cancelling springs back. Reduced motion keeps a plain back.
+    val viewTransition = remember { SeekableTransitionState(view) }
+    LaunchedEffect(view) { viewTransition.animateTo(view) }
+    val reduceMotion = rememberReduceMotion()
+    val viewBackEnabled = !anyOverlayVisible && viewStack.size > 1
+    if (reduceMotion) {
+        BackHandler(enabled = viewBackEnabled) { viewStack = viewStack.dropLast(1) }
+    } else {
+        PredictiveBackHandler(enabled = viewBackEnabled) { events ->
+            val previous = viewStack[viewStack.size - 2]
+            try {
+                events.collect { viewTransition.seekTo(it.progress, targetState = previous) }
+                viewStack = viewStack.dropLast(1)
+            } catch (e: CancellationException) {
+                viewTransition.animateTo(viewTransition.currentState)
+                throw e
+            }
+        }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -368,7 +390,6 @@ fun CalendarHost(
         // view keeps the directional slide. What both views show morphs across
         // (#184): see [ViewMorphKey]. Reduced motion keeps the plain fade.
         val viewSwitch = fadeThrough()
-        val reduceMotion = rememberReduceMotion()
         val morphBounds = rememberViewMorphBoundsTransform()
         val morphFade = rememberCalendarFadeSpec()
         CompositionLocalProvider(
@@ -378,10 +399,8 @@ fun CalendarHost(
             LocalManageCalendars provides { showCalendars = true },
         ) {
         SharedTransitionLayout(Modifier.fillMaxSize()) {
-        AnimatedContent(
-            targetState = view,
+        rememberTransition(viewTransition, label = "view-switch").AnimatedContent(
             transitionSpec = { viewSwitch },
-            label = "view-switch",
         ) { currentView ->
             val sharedScope = this@SharedTransitionLayout
             val visibilityScope = this@AnimatedContent
