@@ -66,6 +66,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
@@ -184,6 +185,9 @@ private val HEADER_BOTTOM_PADDING = 8.dp
 /** The header's date slot, reserved whether or not it holds today's circle. */
 private val DATE_SLOT_SIZE = 28.dp
 
+/** A start-aligned header cell's inset, lining its date up with the event titles below. */
+private val HEADER_START_INSET = BLOCK_OUTER_INSET + BLOCK_TEXT_PADDING
+
 /** The weekday header's height, which the day view takes off to fit the week's hours (#184). */
 @Composable
 internal fun weekDayHeaderHeight(): Dp {
@@ -216,7 +220,7 @@ fun WeekScreen(
     viewModel: WeekViewModel = hiltViewModel(),
 ) = PagedTimelineScreen(
     viewModel = viewModel,
-    showWeekNumber = true,
+    kind = TimelineKind.Week,
     selectedView = selectedView,
     onSelectView = onSelectView,
     onOpenDay = onOpenDay,
@@ -247,8 +251,7 @@ fun MultiDayScreen(
     viewModel: MultiDayViewModel = hiltViewModel(),
 ) = PagedTimelineScreen(
     viewModel = viewModel,
-    // A run of days often straddles two weeks, so no single number fits it.
-    showWeekNumber = false,
+    kind = TimelineKind.MultiDay,
     selectedView = selectedView,
     onSelectView = onSelectView,
     onOpenDay = onOpenDay,
@@ -262,11 +265,66 @@ fun MultiDayScreen(
     modifier = modifier,
 )
 
+/** The day view: the week view's timeline one day at a time. */
+@Composable
+fun DayScreen(
+    selectedView: CalendarView,
+    onSelectView: (CalendarView) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenSearch: () -> Unit,
+    onCreateEvent: (LocalDate, Int?) -> Unit,
+    quickSwitchViews: List<CalendarView> = IMPLEMENTED_VIEWS,
+    drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
+    todayInToolbar: Boolean = false,
+    modifier: Modifier = Modifier,
+    initialDateIso: String? = null,
+    viewModel: DayViewModel = hiltViewModel(),
+) = PagedTimelineScreen(
+    viewModel = viewModel,
+    kind = TimelineKind.Day,
+    selectedView = selectedView,
+    onSelectView = onSelectView,
+    // Tapping the one column's header would only reopen this day.
+    onOpenDay = {},
+    onEventClick = onEventClick,
+    onOpenSettings = onOpenSettings,
+    onOpenSearch = onOpenSearch,
+    onCreateEvent = onCreateEvent,
+    quickSwitchViews = quickSwitchViews,
+    drawerViewOrder = drawerViewOrder,
+    todayInToolbar = todayInToolbar,
+    modifier = modifier,
+    initialDate = initialDateIso?.let(LocalDate::parse),
+)
+
+/** What sets the timeline views apart; everything else they share. */
+internal enum class TimelineKind(
+    val showWeekNumber: Boolean,
+    val todayText: Int,
+    /** Where a header cell sits in its column: centred, or at the start like the event titles. */
+    val headerBias: Float,
+) {
+    Week(showWeekNumber = true, todayText = R.string.week_today_action, headerBias = 0f),
+
+    // A run of days often straddles two weeks, so no single number fits it.
+    MultiDay(showWeekNumber = false, todayText = R.string.week_today_action, headerBias = 0f),
+    Day(showWeekNumber = false, todayText = R.string.day_today_action, headerBias = -1f),
+    ;
+
+    fun title(start: LocalDate, end: LocalDate, locale: Locale, currentYear: Int, abbreviated: Boolean): String =
+        if (this == Day) {
+            formatDayTitle(start, locale, currentYear, abbreviated)
+        } else {
+            formatWeekTitle(start, end, locale, currentYear, abbreviated)
+        }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PagedTimelineScreen(
     viewModel: PagedTimelineViewModel,
-    showWeekNumber: Boolean,
+    kind: TimelineKind,
     selectedView: CalendarView,
     onSelectView: (CalendarView) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
@@ -278,7 +336,9 @@ private fun PagedTimelineScreen(
     drawerViewOrder: List<CalendarView>,
     todayInToolbar: Boolean,
     modifier: Modifier,
+    initialDate: LocalDate? = null,
 ) {
+    LaunchedEffect(initialDate) { initialDate?.let(viewModel::jumpTo) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val position by viewModel.position.collectAsStateWithLifecycle()
     val grid = position.grid
@@ -368,6 +428,7 @@ private fun PagedTimelineScreen(
             modifier = modifier,
             topBar = {
                 WeekTopBar(
+                    kind = kind,
                     weekStart = weekStart,
                     weekEnd = weekEnd,
                     currentYear = today.year,
@@ -384,7 +445,7 @@ private fun PagedTimelineScreen(
             floatingActionButton = {
                 CalendarFabColumn(
                     todayVisible = !isOnCurrentWeek && !todayInToolbar,
-                    todayText = stringResource(R.string.week_today_action),
+                    todayText = stringResource(kind.todayText),
                     onToday = jumpToToday,
                     onCreate = {
                         // Anchor on today when it's in view, else the week's first day.
@@ -398,7 +459,7 @@ private fun PagedTimelineScreen(
                     state = state,
                     pagerState = pagerState,
                     grid = grid,
-                    showWeekNumber = showWeekNumber,
+                    kind = kind,
                     span = viewModel::span,
                     onRetry = viewModel::goToToday,
                     onEventClick = onEventClick,
@@ -418,7 +479,7 @@ private fun WeekContent(
     state: WeekUiState,
     pagerState: PagerState,
     grid: PageGrid,
-    showWeekNumber: Boolean,
+    kind: TimelineKind,
     span: (DaySpan) -> StateFlow<WeekUiState>,
     onRetry: () -> Unit,
     onEventClick: (EventInstance) -> Unit,
@@ -466,7 +527,7 @@ private fun WeekContent(
                 is WeekUiState.Success -> WeekPager(
                     pagerState = pagerState,
                     grid = grid,
-                    showWeekNumber = showWeekNumber,
+                    kind = kind,
                     span = span,
                     today = s.today,
                     initialStripHeight = s.allDayStripHeight(),
@@ -491,7 +552,7 @@ private fun WeekContent(
 private fun WeekPager(
     pagerState: PagerState,
     grid: PageGrid,
-    showWeekNumber: Boolean,
+    kind: TimelineKind,
     span: (DaySpan) -> StateFlow<WeekUiState>,
     today: LocalDate,
     initialStripHeight: Dp,
@@ -506,7 +567,7 @@ private fun WeekPager(
     val allDayHeight = pagedHeight(pagerState, stripHeights, initialStripHeight)
     WeekFrame(
         weekStart = grid.startForPage(pagerState.currentPage),
-        showWeekNumber = showWeekNumber,
+        showWeekNumber = kind.showWeekNumber,
         allDayHeight = allDayHeight,
         scrollState = scrollState,
         dragController = dragController,
@@ -537,6 +598,7 @@ private fun WeekPager(
             ViewMorphPage(active = morphPageActive(page, pagerState.settledPage)) {
                 WeekPage(
                     state = loaded ?: empty,
+                    headerBias = kind.headerBias,
                     allDayHeight = allDayHeight,
                     scrollState = scrollState,
                     dragController = dragController,
@@ -610,6 +672,7 @@ private fun WeekFrame(
 internal fun WeekSuccess(
     state: WeekUiState.Success,
     showWeekNumber: Boolean = true,
+    headerBias: Float = 0f,
     scrollState: ScrollState,
     allDayHeight: Dp,
     dragController: TimelineDragController,
@@ -627,6 +690,7 @@ internal fun WeekSuccess(
     ) {
         WeekPage(
             state = state,
+            headerBias = headerBias,
             allDayHeight = allDayHeight,
             scrollState = scrollState,
             dragController = dragController,
@@ -648,6 +712,7 @@ internal fun WeekSuccess(
 @Composable
 private fun WeekPage(
     state: WeekUiState.Success,
+    headerBias: Float,
     allDayHeight: Dp,
     scrollState: ScrollState,
     dragController: TimelineDragController,
@@ -663,7 +728,7 @@ private fun WeekPage(
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface),
         ) {
-            WeekDayHeader(days = state.days, today = state.today, onOpenDay = onOpenDay)
+            WeekDayHeader(days = state.days, today = state.today, bias = headerBias, onOpenDay = onOpenDay)
             // This strip is painted on `surface`, so an outlined chip has to
             // fill with that and not with the columns' container (#230).
             CompositionLocalProvider(
@@ -689,6 +754,7 @@ private fun WeekPage(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WeekTopBar(
+    kind: TimelineKind,
     weekStart: LocalDate,
     weekEnd: LocalDate,
     currentYear: Int,
@@ -702,9 +768,9 @@ private fun WeekTopBar(
     onToday: () -> Unit,
 ) {
     val locale = currentLocale()
-    val (title, shortTitle) = remember(weekStart, weekEnd, locale, currentYear) {
-        formatWeekTitle(weekStart, weekEnd, locale, currentYear) to
-            formatWeekTitle(weekStart, weekEnd, locale, currentYear, abbreviated = true)
+    val (title, shortTitle) = remember(kind, weekStart, weekEnd, locale, currentYear) {
+        kind.title(weekStart, weekEnd, locale, currentYear, abbreviated = false) to
+            kind.title(weekStart, weekEnd, locale, currentYear, abbreviated = true)
     }
     TopAppBar(
         title = {
@@ -751,6 +817,7 @@ private fun WeekTopBar(
 private fun WeekDayHeader(
     days: List<LocalDate>,
     today: LocalDate,
+    bias: Float,
     onOpenDay: (LocalDate) -> Unit,
 ) {
     val locale = currentLocale()
@@ -766,8 +833,9 @@ private fun WeekDayHeader(
                 modifier = Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { onOpenDay(date) },
-                horizontalAlignment = Alignment.CenterHorizontally,
+                    .clickable { onOpenDay(date) }
+                    .padding(start = HEADER_START_INSET * -bias),
+                horizontalAlignment = BiasAlignment.Horizontal(bias),
             ) {
                 // One line, as the gutter cell beside it assumes (see WeekNumberCell).
                 Text(
@@ -1384,3 +1452,17 @@ private fun formatWeekTitle(
         forceYear = weekEnd.year != weekStart.year,
     )
 }
+
+/** The day's title: its weekday and date, abbreviated to the date alone when short of room. */
+private fun formatDayTitle(
+    date: LocalDate,
+    locale: Locale,
+    currentYear: Int,
+    abbreviated: Boolean = false,
+): String =
+    formatCalendarTitle(
+        date = java.time.LocalDate.of(date.year, date.month.ordinal + 1, date.day),
+        locale = locale,
+        currentYear = currentYear,
+        skeleton = if (abbreviated) "dMMM" else "EEEdMMM",
+    )

@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -206,6 +207,20 @@ class MultiDayViewModel @Inject constructor(
         { anchor: LocalDate -> DaysGrid.startingAt(anchor, count) }
     },
     initialRule = { DaysGrid.startingAt(it, SettingsPrefs.DEFAULT_MULTI_DAY_COUNT) },
+)
+
+/** The day view: the timeline one day at a time. */
+@HiltViewModel
+class DayViewModel @Inject constructor(
+    repository: CalendarRepository,
+    settingsPrefs: SettingsPrefs,
+    @IoDispatcher io: CoroutineDispatcher,
+) : PagedTimelineViewModel(
+    repository = repository,
+    settingsPrefs = settingsPrefs,
+    io = io,
+    gridRule = flowOf { _: LocalDate -> DayGrid },
+    initialRule = { DayGrid },
 )
 
 /**
