@@ -1,10 +1,6 @@
 package de.jeanlucmakiola.calendula.ui.common
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -14,8 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
@@ -29,7 +23,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -40,7 +34,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import de.jeanlucmakiola.calendula.R
-import de.jeanlucmakiola.calendula.domain.color.edgeHintTone
 import de.jeanlucmakiola.calendula.ui.week.TimedBlock
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import kotlinx.coroutines.CoroutineScope
@@ -63,8 +56,8 @@ private val EDGE_TAP_REACH = 16.dp
 private val EDGE_BAR_VERTICAL_INSET = 4.dp
 private val EDGE_BAR_HORIZONTAL_INSET = 6.dp
 
-/** A block showing no more than this at the edge still counts as out of view. */
-private val EDGE_SLACK = 12.dp
+/** Distance outside the viewport over which a bar fades before its event appears. */
+private val EDGE_FADE_LEAD = 24.dp
 
 /** The nearest timed blocks wholly above and below a column's viewport. */
 @Immutable
@@ -83,21 +76,19 @@ internal fun renderedEndMin(block: TimedBlock): Float =
 
 /**
  * The blocks of one column lying out of a viewport spanning [topMin]..[bottomMin]
- * (minutes of the day), nearest first. A block that shows at most [slackMin] at
- * the edge counts as out of view, but only if some of it is actually hidden, so
- * a column scrolled to its very top or bottom never points past it.
+ * (minutes of the day), nearest first. A block leaves this set as soon as any
+ * part of its rendered height enters the viewport.
  */
 fun outOfViewEvents(
     blocks: List<TimedBlock>,
     topMin: Float,
     bottomMin: Float,
-    slackMin: Float,
 ): OutOfViewEvents {
     val above = blocks
-        .filter { it.startMin < topMin && renderedEndMin(it) <= topMin + slackMin }
+        .filter { renderedEndMin(it) <= topMin }
         .maxWithOrNull(compareBy<TimedBlock>({ renderedEndMin(it) }, { it.startMin }))
     val below = blocks
-        .filter { renderedEndMin(it) > bottomMin && it.startMin >= bottomMin - slackMin }
+        .filter { it.startMin >= bottomMin }
         .minWithOrNull(compareBy<TimedBlock>({ it.startMin }, { -renderedEndMin(it) }))
     return OutOfViewEvents(above, below)
 }
@@ -141,6 +132,13 @@ fun tappedEdge(
     else -> null
 }
 
+/** Fade while the event is still outside; never draw its bar at the boundary. */
+internal fun edgeBarAlpha(gapPx: Float, fadeLeadPx: Float): Float = when {
+    gapPx <= 0f -> 0f
+    fadeLeadPx <= 0f -> 1f
+    else -> (gapPx / fadeLeadPx).coerceIn(0f, 1f)
+}
+
 /**
  * The out-of-view state of one day column (#188): which events hide past its
  * edges, and the scroll that reveals them.
@@ -155,7 +153,7 @@ class OutOfViewEdges internal constructor(
 ) {
     internal var blocks by mutableStateOf(emptyList<TimedBlock>())
     internal var hourPx by mutableFloatStateOf(0f)
-    internal var slackPx by mutableFloatStateOf(0f)
+    internal var fadeLeadPx by mutableFloatStateOf(0f)
     internal var marginPx by mutableFloatStateOf(0f)
     internal var reachPx by mutableFloatStateOf(0f)
     internal var reduceMotion = false
@@ -171,7 +169,6 @@ class OutOfViewEdges internal constructor(
                 blocks = blocks,
                 topMin = top / hourPx * 60f,
                 bottomMin = (top + viewport) / hourPx * 60f,
-                slackMin = slackPx / hourPx * 60f,
             )
         }
     }
@@ -226,7 +223,7 @@ fun rememberOutOfViewEdges(
     SideEffect {
         edges.blocks = blocks
         edges.hourPx = hourPx
-        edges.slackPx = with(density) { EDGE_SLACK.toPx() }
+        edges.fadeLeadPx = with(density) { EDGE_FADE_LEAD.toPx() }
         edges.marginPx = with(density) { EDGE_TOUCH_HEIGHT.roundToPx().toFloat() }
         edges.reachPx = with(density) { EDGE_TAP_REACH.toPx() }
         edges.reduceMotion = reduceMotion
@@ -241,7 +238,9 @@ fun rememberOutOfViewEdges(
  *
  * Lives inside the column's scrolling content and follows the viewport by
  * offsetting against [scrollState] at placement rather than recomposing every
- * frame. Taps reach it through [OutOfViewEdges.tap]; screen readers get a button.
+ * frame. Opacity follows the gap to the hidden event and reaches zero before
+ * the event enters view. Taps reach it through [OutOfViewEdges.tap]; screen
+ * readers get a button.
  */
 @Composable
 fun BoxScope.OutOfViewEdgeBars(
@@ -256,6 +255,9 @@ fun BoxScope.OutOfViewEdgeBars(
         edge = ViewportEdge.Top,
         dark = dark,
         onReveal = edges::reveal,
+        scrollState = scrollState,
+        hourPx = edges.hourPx,
+        fadeLeadPx = edges.fadeLeadPx,
         modifier = Modifier
             .align(Alignment.TopStart)
             .offset { IntOffset(0, scrollState.value) },
@@ -265,66 +267,62 @@ fun BoxScope.OutOfViewEdgeBars(
         edge = ViewportEdge.Bottom,
         dark = dark,
         onReveal = edges::reveal,
+        scrollState = scrollState,
+        hourPx = edges.hourPx,
+        fadeLeadPx = edges.fadeLeadPx,
         modifier = Modifier
             .align(Alignment.TopStart)
             .offset { IntOffset(0, scrollState.value + scrollState.viewportSize - touchPx) },
     )
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun EdgeBar(
     block: TimedBlock?,
     edge: ViewportEdge,
     dark: Boolean,
     onReveal: (ViewportEdge) -> Unit,
+    scrollState: ScrollState,
+    hourPx: Float,
+    fadeLeadPx: Float,
     modifier: Modifier = Modifier,
 ) {
-    // Held so the bar keeps its colour while it fades out.
-    val held = remember { mutableStateOf<TimedBlock?>(null) }
-    SideEffect { if (block != null) held.value = block }
-    val shown = block ?: held.value
-    val soften = LocalSoftenColors.current
-    val target = shown?.let { Color(edgeHintTone(it.event.color, dark, soften)) } ?: Color.Transparent
-    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-    val color by animateColorAsState(
-        targetValue = target,
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-        label = "edge-bar-color",
-    )
+    block ?: return
+    val color = eventFill(block.event.color, dark, LocalSoftenColors.current)
     val label = stringResource(
         if (edge == ViewportEdge.Top) R.string.timeline_earlier_events else R.string.timeline_later_events,
     )
-    AnimatedVisibility(
-        visible = block != null,
-        enter = fadeIn(effects),
-        exit = fadeOut(effects),
-        modifier = modifier,
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(EDGE_TOUCH_HEIGHT)
+            .graphicsLayer {
+                val gapPx = when (edge) {
+                    ViewportEdge.Top -> scrollState.value - renderedEndMin(block) / 60f * hourPx
+                    ViewportEdge.Bottom -> block.startMin / 60f * hourPx -
+                        (scrollState.value + scrollState.viewportSize)
+                }
+                alpha = edgeBarAlpha(gapPx, fadeLeadPx)
+            }
+            .semantics {
+                role = Role.Button
+                contentDescription = label
+                onClick {
+                    onReveal(edge)
+                    true
+                }
+            },
+        contentAlignment = if (edge == ViewportEdge.Top) Alignment.TopCenter else Alignment.BottomCenter,
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(EDGE_TOUCH_HEIGHT)
-                .semantics {
-                    role = Role.Button
-                    contentDescription = label
-                    onClick {
-                        onReveal(edge)
-                        true
-                    }
-                },
-            contentAlignment = if (edge == ViewportEdge.Top) Alignment.TopCenter else Alignment.BottomCenter,
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        horizontal = EDGE_BAR_HORIZONTAL_INSET,
-                        vertical = EDGE_BAR_VERTICAL_INSET,
-                    )
-                    .height(EDGE_BAR_THICKNESS)
-                    .background(color, CircleShape),
-            )
-        }
+                .padding(
+                    horizontal = EDGE_BAR_HORIZONTAL_INSET,
+                    vertical = EDGE_BAR_VERTICAL_INSET,
+                )
+                .height(EDGE_BAR_THICKNESS)
+                .background(color, CircleShape),
+        )
     }
 }

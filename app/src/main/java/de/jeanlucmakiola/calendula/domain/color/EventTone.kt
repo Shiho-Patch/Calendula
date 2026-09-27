@@ -122,31 +122,3 @@ const val GREY_CHROMA = 0.02f
 /** Chroma band for harmonised colours: distinct, but never electric. */
 const val MIN_CHROMA = 0.07f
 const val MAX_CHROMA = 0.16f
-
-/**
- * Colour for the timeline's out-of-view edge bar (#188): the [eventTone]
- * container's hue and chroma, stepped [EDGE_HINT_STEP] away from its lightness
- * so the bar still reads apart from a block of the same calendar sitting right
- * at the edge. It steps towards the surface's opposite — darker on a light
- * scheme, lighter on a dark one — and only turns back when that runs out of
- * room.
- */
-fun edgeHintTone(rawArgb: Int, dark: Boolean, harmonise: Boolean): Int {
-    val container = oklchOf(eventTone(rawArgb, dark, harmonise).container)
-    val towardsContrast = if (dark) EDGE_HINT_STEP else -EDGE_HINT_STEP
-    val stepped = container.lightness + towardsContrast
-    val back = container.lightness - towardsContrast
-    val lightness = when {
-        stepped in EDGE_HINT_MIN_LIGHTNESS..EDGE_HINT_MAX_LIGHTNESS -> stepped
-        back in 0f..1f -> back
-        else -> stepped.coerceIn(0f, 1f)
-    }
-    return container.copy(lightness = lightness).toArgb()
-}
-
-/** How far the edge bar's lightness sits from its event's container. */
-const val EDGE_HINT_STEP = 0.16f
-
-/** Lightness band the edge bar stays inside, clear of pure black and white. */
-const val EDGE_HINT_MIN_LIGHTNESS = 0.22f
-const val EDGE_HINT_MAX_LIGHTNESS = 0.94f

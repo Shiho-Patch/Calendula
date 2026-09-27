@@ -34,8 +34,8 @@ class OutOfViewEdgesTest {
     private val late = block(5, 21 * 60, 22 * 60)
 
     // Viewport 10:00–17:00.
-    private fun outOf(vararg blocks: TimedBlock, slackMin: Float = 0f) =
-        outOfViewEvents(blocks.toList(), topMin = 600f, bottomMin = 1020f, slackMin = slackMin)
+    private fun outOf(vararg blocks: TimedBlock) =
+        outOfViewEvents(blocks.toList(), topMin = 600f, bottomMin = 1020f)
 
     @Test
     fun `the nearest hidden event on each side is picked`() {
@@ -56,19 +56,29 @@ class OutOfViewEdgesTest {
     }
 
     @Test
-    fun `a sliver within the slack still counts as out of view`() {
+    fun `an event disappears from the edge as soon as a sliver enters view`() {
         val sliver = block(6, 9 * 60, 10 * 60 + 5)
         assertThat(outOf(sliver).above).isNull()
-        assertThat(outOf(sliver, slackMin = 10f).above).isEqualTo(sliver)
         val tip = block(7, 17 * 60 - 5, 18 * 60)
         assertThat(outOf(tip).below).isNull()
-        assertThat(outOf(tip, slackMin = 10f).below).isEqualTo(tip)
+        val justAbove = block(8, 9 * 60, 10 * 60)
+        val justBelow = block(9, 17 * 60, 18 * 60)
+        assertThat(outOf(justAbove).above).isEqualTo(justAbove)
+        assertThat(outOf(justBelow).below).isEqualTo(justBelow)
+    }
+
+    @Test
+    fun `the bar fades before its event reaches the viewport`() {
+        assertThat(edgeBarAlpha(gapPx = 24f, fadeLeadPx = 24f)).isEqualTo(1f)
+        assertThat(edgeBarAlpha(gapPx = 12f, fadeLeadPx = 24f)).isEqualTo(0.5f)
+        assertThat(edgeBarAlpha(gapPx = 0f, fadeLeadPx = 24f)).isEqualTo(0f)
+        assertThat(edgeBarAlpha(gapPx = -1f, fadeLeadPx = 24f)).isEqualTo(0f)
     }
 
     @Test
     fun `a column scrolled to its top points at nothing above it`() {
         val first = block(6, 0, 30)
-        val events = outOfViewEvents(listOf(first), topMin = 0f, bottomMin = 420f, slackMin = 30f)
+        val events = outOfViewEvents(listOf(first), topMin = 0f, bottomMin = 420f)
         assertThat(events.above).isNull()
     }
 
