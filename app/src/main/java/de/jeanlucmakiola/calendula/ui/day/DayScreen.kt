@@ -107,6 +107,7 @@ import de.jeanlucmakiola.calendula.ui.common.MoveRequest
 import de.jeanlucmakiola.calendula.ui.common.MoveTarget
 import de.jeanlucmakiola.calendula.ui.common.NowLine
 import de.jeanlucmakiola.calendula.ui.common.OutOfViewEdgeBars
+import de.jeanlucmakiola.calendula.ui.common.rememberOutOfViewEdges
 import de.jeanlucmakiola.calendula.ui.common.TimelineDragController
 import de.jeanlucmakiola.calendula.ui.common.TimelineDragOverlay
 import de.jeanlucmakiola.calendula.ui.common.TimelineDrop
@@ -764,6 +765,8 @@ private fun DayColumnCard(
     // them, or taps land on the scale the column had before the zoom (#148).
     val currentHourPx = rememberUpdatedState(hourPx)
     val currentOnCreateAt = rememberUpdatedState(onCreateAt)
+    val edges = rememberOutOfViewEdges(blocks, scrollState, hourPx)
+    val currentEdges = rememberUpdatedState(edges)
     Card(
         // Plain rectangular column — the soft corners come from the outer
         // rounded scroll viewport, so inner rounding would look odd at the edges.
@@ -791,6 +794,7 @@ private fun DayColumnCard(
                 // only fires on the column background. Snaps to the tapped hour.
                 .pointerInput(date) {
                     detectTapGestures { offset ->
+                        if (currentEdges.value.tap(offset.y)) return@detectTapGestures
                         currentOnCreateAt.value(
                             date,
                             tappedMinuteOfDay(offset.y, currentHourPx.value),
@@ -853,9 +857,8 @@ private fun DayColumnCard(
                 NowLine(date = date, hourHeight = hourHeight)
             }
             OutOfViewEdgeBars(
-                blocks = blocks,
+                edges = edges,
                 scrollState = scrollState,
-                hourPx = hourPx,
                 dark = dark,
             )
         }

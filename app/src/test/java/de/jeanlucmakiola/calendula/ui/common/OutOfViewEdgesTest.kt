@@ -110,4 +110,28 @@ class OutOfViewEdgesTest {
             revealScrollTarget(last, ViewportEdge.Bottom, hourPx = 100f, viewportPx = 700, marginPx = 20f, maxScroll = 1700),
         ).isEqualTo(1700)
     }
+
+    // Viewport 1000..1700 px with both bars showing, 40 px of reach.
+    private fun tapped(y: Float, events: OutOfViewEvents = OutOfViewEvents(breakfast, dinner)) =
+        tappedEdge(events, y, viewportTop = 1000f, viewportPx = 700, reachPx = 40f)
+
+    @Test
+    fun `a tap near an edge with a bar hits that bar`() {
+        assertThat(tapped(1010f)).isEqualTo(ViewportEdge.Top)
+        assertThat(tapped(1040f)).isEqualTo(ViewportEdge.Top)
+        assertThat(tapped(1690f)).isEqualTo(ViewportEdge.Bottom)
+    }
+
+    @Test
+    fun `a tap past the bar's reach is left to the column`() {
+        assertThat(tapped(1041f)).isNull()
+        assertThat(tapped(1350f)).isNull()
+        assertThat(tapped(1659f)).isNull()
+    }
+
+    @Test
+    fun `a tap near an edge without a bar is left to the column`() {
+        assertThat(tapped(1010f, OutOfViewEvents(null, dinner))).isNull()
+        assertThat(tapped(1690f, OutOfViewEvents(breakfast, null))).isNull()
+    }
 }

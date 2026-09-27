@@ -2,12 +2,11 @@ package de.jeanlucmakiola.calendula.ui.common
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,12 +18,15 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,6 +34,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -39,14 +43,18 @@ import de.jeanlucmakiola.calendula.R
 import de.jeanlucmakiola.calendula.domain.color.edgeHintTone
 import de.jeanlucmakiola.calendula.ui.week.TimedBlock
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /** Thickness of the out-of-view edge bar. */
 private val EDGE_BAR_THICKNESS = 3.dp
 
-/** Tappable band the bar sits in, taller than the bar itself. */
+/** Band the bar sits in, and the room a revealed event keeps from the edge. */
 private val EDGE_TOUCH_HEIGHT = 24.dp
+
+/** How far from the viewport's edge a tap on empty column still hits the bar. */
+private val EDGE_TAP_REACH = 16.dp
 
 /**
  * How far the bar sits in from the viewport's edges — enough to clear the
@@ -118,65 +126,136 @@ fun revealScrollTarget(
 }
 
 /**
- * Thin bars at the top and bottom of a day column's visible viewport, tinted in
- * the colour of the nearest timed event hidden past that edge (#188). Tapping
- * one scrolls the event into view.
- *
- * Lives inside the column's scrolling content, so taps on it still let the
- * timeline scroll and pinch, and follows the viewport by offsetting against
- * [scrollState] at placement rather than recomposing every frame.
+ * The edge whose bar a tap at [y] (content px) lands on, if that bar is showing
+ * and the tap is within [reachPx] of the viewport's edge.
  */
-@Composable
-fun BoxScope.OutOfViewEdgeBars(
-    blocks: List<TimedBlock>,
-    scrollState: ScrollState,
-    hourPx: Float,
-    dark: Boolean,
+fun tappedEdge(
+    events: OutOfViewEvents,
+    y: Float,
+    viewportTop: Float,
+    viewportPx: Int,
+    reachPx: Float,
+): ViewportEdge? = when {
+    events.above != null && y - viewportTop <= reachPx -> ViewportEdge.Top
+    events.below != null && viewportTop + viewportPx - y <= reachPx -> ViewportEdge.Bottom
+    else -> null
+}
+
+/**
+ * The out-of-view state of one day column (#188): which events hide past its
+ * edges, and the scroll that reveals them.
+ *
+ * The bars take no touches themselves, so event blocks under them keep their
+ * taps and drags; the column's own tap handler offers taps to [tap] first.
+ */
+@Stable
+class OutOfViewEdges internal constructor(
+    private val scrollState: ScrollState,
+    private val scope: CoroutineScope,
 ) {
-    val density = LocalDensity.current
-    val slackPx = with(density) { EDGE_SLACK.toPx() }
-    val touchPx = with(density) { EDGE_TOUCH_HEIGHT.roundToPx() }
-    val events by remember(blocks, hourPx, slackPx, scrollState) {
-        derivedStateOf {
-            val viewport = scrollState.viewportSize
-            if (viewport <= 0 || hourPx <= 0f) {
-                OutOfViewEvents.None
-            } else {
-                val top = scrollState.value.toFloat()
-                outOfViewEvents(
-                    blocks = blocks,
-                    topMin = top / hourPx * 60f,
-                    bottomMin = (top + viewport) / hourPx * 60f,
-                    slackMin = slackPx / hourPx * 60f,
-                )
-            }
+    internal var blocks by mutableStateOf(emptyList<TimedBlock>())
+    internal var hourPx by mutableFloatStateOf(0f)
+    internal var slackPx by mutableFloatStateOf(0f)
+    internal var marginPx by mutableFloatStateOf(0f)
+    internal var reachPx by mutableFloatStateOf(0f)
+    internal var reduceMotion = false
+    internal var revealSpec: FiniteAnimationSpec<Float>? = null
+
+    val events: OutOfViewEvents by derivedStateOf {
+        val viewport = scrollState.viewportSize
+        if (viewport <= 0 || hourPx <= 0f) {
+            OutOfViewEvents.None
+        } else {
+            val top = scrollState.value.toFloat()
+            outOfViewEvents(
+                blocks = blocks,
+                topMin = top / hourPx * 60f,
+                bottomMin = (top + viewport) / hourPx * 60f,
+                slackMin = slackPx / hourPx * 60f,
+            )
         }
     }
-    val scope = rememberCoroutineScope()
-    val reduceMotion = rememberReduceMotion()
-    val revealSpec = rememberCalendarPageSpec()
-    val reveal: (TimedBlock, ViewportEdge) -> Unit = { block, edge ->
+
+    /** Scrolls the event hidden past [edge] into view, if there is one. */
+    fun reveal(edge: ViewportEdge) {
+        val block = if (edge == ViewportEdge.Top) events.above else events.below
+        block ?: return
         val target = revealScrollTarget(
             block = block,
             edge = edge,
             hourPx = hourPx,
             viewportPx = scrollState.viewportSize,
-            marginPx = touchPx.toFloat(),
+            marginPx = marginPx,
             maxScroll = scrollState.maxValue,
         )
+        val spec = revealSpec
         scope.launch {
-            if (reduceMotion) {
+            if (reduceMotion || spec == null) {
                 scrollState.scrollTo(target)
             } else {
-                scrollState.animateScrollTo(target, revealSpec)
+                scrollState.animateScrollTo(target, spec)
             }
         }
     }
+
+    /** Reveals the hidden event if a tap at [y] (content px) lands on a bar. */
+    fun tap(y: Float): Boolean {
+        val edge = tappedEdge(
+            events = events,
+            y = y,
+            viewportTop = scrollState.value.toFloat(),
+            viewportPx = scrollState.viewportSize,
+            reachPx = reachPx,
+        ) ?: return false
+        reveal(edge)
+        return true
+    }
+}
+
+@Composable
+fun rememberOutOfViewEdges(
+    blocks: List<TimedBlock>,
+    scrollState: ScrollState,
+    hourPx: Float,
+): OutOfViewEdges {
+    val scope = rememberCoroutineScope()
+    val edges = remember(scrollState, scope) { OutOfViewEdges(scrollState, scope) }
+    val density = LocalDensity.current
+    val reduceMotion = rememberReduceMotion()
+    val revealSpec = rememberCalendarPageSpec()
+    SideEffect {
+        edges.blocks = blocks
+        edges.hourPx = hourPx
+        edges.slackPx = with(density) { EDGE_SLACK.toPx() }
+        edges.marginPx = with(density) { EDGE_TOUCH_HEIGHT.roundToPx().toFloat() }
+        edges.reachPx = with(density) { EDGE_TAP_REACH.toPx() }
+        edges.reduceMotion = reduceMotion
+        edges.revealSpec = revealSpec
+    }
+    return edges
+}
+
+/**
+ * Thin bars at the top and bottom of a day column's visible viewport, tinted in
+ * the colour of the nearest timed event hidden past that edge (#188).
+ *
+ * Lives inside the column's scrolling content and follows the viewport by
+ * offsetting against [scrollState] at placement rather than recomposing every
+ * frame. Taps reach it through [OutOfViewEdges.tap]; screen readers get a button.
+ */
+@Composable
+fun BoxScope.OutOfViewEdgeBars(
+    edges: OutOfViewEdges,
+    scrollState: ScrollState,
+    dark: Boolean,
+) {
+    val touchPx = with(LocalDensity.current) { EDGE_TOUCH_HEIGHT.roundToPx() }
+    val events = edges.events
     EdgeBar(
         block = events.above,
         edge = ViewportEdge.Top,
         dark = dark,
-        onReveal = reveal,
+        onReveal = edges::reveal,
         modifier = Modifier
             .align(Alignment.TopStart)
             .offset { IntOffset(0, scrollState.value) },
@@ -185,7 +264,7 @@ fun BoxScope.OutOfViewEdgeBars(
         block = events.below,
         edge = ViewportEdge.Bottom,
         dark = dark,
-        onReveal = reveal,
+        onReveal = edges::reveal,
         modifier = Modifier
             .align(Alignment.TopStart)
             .offset { IntOffset(0, scrollState.value + scrollState.viewportSize - touchPx) },
@@ -198,10 +277,10 @@ private fun EdgeBar(
     block: TimedBlock?,
     edge: ViewportEdge,
     dark: Boolean,
-    onReveal: (TimedBlock, ViewportEdge) -> Unit,
+    onReveal: (ViewportEdge) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // Held so the bar keeps its colour, and its tap, while it fades out.
+    // Held so the bar keeps its colour while it fades out.
     val held = remember { mutableStateOf<TimedBlock?>(null) }
     SideEffect { if (block != null) held.value = block }
     val shown = block ?: held.value
@@ -226,14 +305,14 @@ private fun EdgeBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(EDGE_TOUCH_HEIGHT)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    // The scroll it sets off is the feedback; a ripple across the
-                    // column's edge would be the noise the bar is meant to avoid.
-                    indication = null,
-                    role = Role.Button,
-                ) { shown?.let { onReveal(it, edge) } }
-                .semantics { contentDescription = label },
+                .semantics {
+                    role = Role.Button
+                    contentDescription = label
+                    onClick {
+                        onReveal(edge)
+                        true
+                    }
+                },
             contentAlignment = if (edge == ViewportEdge.Top) Alignment.TopCenter else Alignment.BottomCenter,
         ) {
             Box(
