@@ -1,5 +1,10 @@
 package de.jeanlucmakiola.calendula.ui.common
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -71,12 +76,24 @@ fun CalendarTitleButton(
                     availableWidth = constraints.maxWidth,
                 )
             }
-            Text(
-                text = shown,
-                style = style,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            // Cross-fades, so switching views or paging turns the title over
+            // rather than snapping it (#184).
+            val fadeSpec = rememberCalendarFadeSpec()
+            AnimatedContent(
+                targetState = shown,
+                transitionSpec = {
+                    (fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec)).using(SizeTransform(clip = false))
+                },
+                contentAlignment = Alignment.CenterStart,
+                label = "calendar-title",
+            ) { text ->
+                Text(
+                    text = text,
+                    style = style,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
         Icon(
             imageVector = Icons.Default.ArrowDropDown,

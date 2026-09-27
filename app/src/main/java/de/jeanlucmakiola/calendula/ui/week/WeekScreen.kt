@@ -68,6 +68,13 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import de.jeanlucmakiola.calendula.ui.common.LocalViewMorph
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.SideEffect
 import de.jeanlucmakiola.calendula.ui.common.laneSlot
 import de.jeanlucmakiola.calendula.ui.common.LaneColumn
 import kotlin.math.roundToInt
@@ -211,9 +218,13 @@ internal fun WeekUiState.Success.allDayStripHeight(): Dp {
     return ALL_DAY_ROW_HEIGHT * lanes + ALL_DAY_VERTICAL_PADDING * 2
 }
 
+/**
+ * The day, multi-day (#193) and week views: one timeline whose columns resize
+ * in place when switching between them (#184), rather than three screens.
+ */
 @Composable
-fun WeekScreen(
-    selectedView: CalendarView,
+fun TimelineScreen(
+    view: CalendarView,
     onSelectView: (CalendarView) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     onEventClick: (EventInstance) -> Unit,
@@ -224,84 +235,41 @@ fun WeekScreen(
     drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
     todayInToolbar: Boolean = false,
     modifier: Modifier = Modifier,
-    viewModel: WeekViewModel = hiltViewModel(),
-) = PagedTimelineScreen(
-    viewModel = viewModel,
-    kind = TimelineKind.Week,
-    selectedView = selectedView,
-    onSelectView = onSelectView,
-    onOpenDay = onOpenDay,
-    onEventClick = onEventClick,
-    onOpenSettings = onOpenSettings,
-    onOpenSearch = onOpenSearch,
-    onCreateEvent = onCreateEvent,
-    quickSwitchViews = quickSwitchViews,
-    drawerViewOrder = drawerViewOrder,
-    todayInToolbar = todayInToolbar,
-    modifier = modifier,
-)
+    weekViewModel: WeekViewModel = hiltViewModel(),
+    multiDayViewModel: MultiDayViewModel = hiltViewModel(),
+    dayViewModel: DayViewModel = hiltViewModel(),
+) {
+    val viewModels = remember(weekViewModel, multiDayViewModel, dayViewModel) {
+        TimelineViewModels(weekViewModel, multiDayViewModel, dayViewModel)
+    }
+    PagedTimelineScreen(
+        view = view,
+        viewModels = viewModels,
+        onSelectView = onSelectView,
+        onOpenDay = onOpenDay,
+        onEventClick = onEventClick,
+        onOpenSettings = onOpenSettings,
+        onOpenSearch = onOpenSearch,
+        onCreateEvent = onCreateEvent,
+        quickSwitchViews = quickSwitchViews,
+        drawerViewOrder = drawerViewOrder,
+        todayInToolbar = todayInToolbar,
+        modifier = modifier,
+    )
+}
 
-/** The multi-day view (#193): the week view's timeline over the day count from Settings. */
-@Composable
-fun MultiDayScreen(
-    selectedView: CalendarView,
-    onSelectView: (CalendarView) -> Unit,
-    onOpenDay: (LocalDate) -> Unit,
-    onEventClick: (EventInstance) -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenSearch: () -> Unit,
-    onCreateEvent: (LocalDate, Int?) -> Unit,
-    quickSwitchViews: List<CalendarView> = IMPLEMENTED_VIEWS,
-    drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
-    todayInToolbar: Boolean = false,
-    modifier: Modifier = Modifier,
-    viewModel: MultiDayViewModel = hiltViewModel(),
-) = PagedTimelineScreen(
-    viewModel = viewModel,
-    kind = TimelineKind.MultiDay,
-    selectedView = selectedView,
-    onSelectView = onSelectView,
-    onOpenDay = onOpenDay,
-    onEventClick = onEventClick,
-    onOpenSettings = onOpenSettings,
-    onOpenSearch = onOpenSearch,
-    onCreateEvent = onCreateEvent,
-    quickSwitchViews = quickSwitchViews,
-    drawerViewOrder = drawerViewOrder,
-    todayInToolbar = todayInToolbar,
-    modifier = modifier,
-)
-
-/** The day view: the week view's timeline one day at a time. */
-@Composable
-fun DayScreen(
-    selectedView: CalendarView,
-    onSelectView: (CalendarView) -> Unit,
-    onEventClick: (EventInstance) -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenSearch: () -> Unit,
-    onCreateEvent: (LocalDate, Int?) -> Unit,
-    quickSwitchViews: List<CalendarView> = IMPLEMENTED_VIEWS,
-    drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
-    todayInToolbar: Boolean = false,
-    modifier: Modifier = Modifier,
-    viewModel: DayViewModel = hiltViewModel(),
-) = PagedTimelineScreen(
-    viewModel = viewModel,
-    kind = TimelineKind.Day,
-    selectedView = selectedView,
-    onSelectView = onSelectView,
-    // Tapping the one column's header would only reopen this day.
-    onOpenDay = {},
-    onEventClick = onEventClick,
-    onOpenSettings = onOpenSettings,
-    onOpenSearch = onOpenSearch,
-    onCreateEvent = onCreateEvent,
-    quickSwitchViews = quickSwitchViews,
-    drawerViewOrder = drawerViewOrder,
-    todayInToolbar = todayInToolbar,
-    modifier = modifier,
-)
+/** Each timeline view's own pages and anchor, held side by side so a switch can show both. */
+internal class TimelineViewModels(
+    private val week: WeekViewModel,
+    private val multiDay: MultiDayViewModel,
+    private val day: DayViewModel,
+) {
+    operator fun get(view: CalendarView): PagedTimelineViewModel = when (view) {
+        CalendarView.MultiDay -> multiDay
+        CalendarView.Day -> day
+        else -> week
+    }
+}
 
 /** What sets the timeline views apart; everything else they share. */
 internal enum class TimelineKind(
@@ -325,12 +293,21 @@ internal enum class TimelineKind(
         }
 }
 
+internal val CalendarView.timelineKind: TimelineKind
+    get() = when (this) {
+        CalendarView.MultiDay -> TimelineKind.MultiDay
+        CalendarView.Day -> TimelineKind.Day
+        else -> TimelineKind.Week
+    }
+
+/** How long a switch waits for the view it goes to before resizing into it without its events. */
+private const val MORPH_DATA_WAIT_MS = 150L
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PagedTimelineScreen(
-    viewModel: PagedTimelineViewModel,
-    kind: TimelineKind,
-    selectedView: CalendarView,
+    view: CalendarView,
+    viewModels: TimelineViewModels,
     onSelectView: (CalendarView) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     onEventClick: (EventInstance) -> Unit,
@@ -342,10 +319,23 @@ private fun PagedTimelineScreen(
     todayInToolbar: Boolean,
     modifier: Modifier,
 ) {
+    // The view on screen, which trails [view] while the columns resize into it.
+    var shown by remember { mutableStateOf(view) }
+    var morph by remember { mutableStateOf<TimelineMorph?>(null) }
+    // The strip height a switch ended on, for the pager it hands over to.
+    var handoffStrip by remember { mutableStateOf<Dp?>(null) }
+    val viewModel = viewModels[shown]
+    val kind = shown.timelineKind
+
     // Opens on the focused date, then carries it along as the pages move.
     val focus = LocalViewFocus.current
     EnterOnFocus(viewModel) { viewModel.jumpTo(it) }
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val loadedState by viewModel.state.collectAsStateWithLifecycle()
+    // A view not shown before has nothing loaded yet; the one before it stands
+    // in, as its pages load their own days anyway, rather than a skeleton.
+    var lastState by remember { mutableStateOf<WeekUiState>(WeekUiState.Loading) }
+    val state = if (loadedState is WeekUiState.Loading) lastState else loadedState
+    SideEffect { if (loadedState !is WeekUiState.Loading) lastState = loadedState }
     val anchor by viewModel.anchor.collectAsStateWithLifecycle()
     val rule by viewModel.rule.collectAsStateWithLifecycle()
     val position = remember(anchor, rule) { positionOf(anchor, rule) }
@@ -364,9 +354,9 @@ private fun PagedTimelineScreen(
     val scope = rememberCoroutineScope()
 
     // A new grid numbers the pages differently, so it gets a pager of its own,
-    // opened straight on the anchor's page: the first day of the week changing,
-    // or a multi-day jump moving another date into the first column.
-    val pagerState = key(grid) {
+    // opened straight on the anchor's page: another view, the first day of the
+    // week changing, or a multi-day jump moving another date into the first column.
+    val pagerState = key(viewModel, grid) {
         rememberPagerState(initialPage = anchorPage) { grid.pageCount }
     }
     val pageSpec = rememberCalendarPageSpec()
@@ -387,9 +377,52 @@ private fun PagedTimelineScreen(
             focus?.let { it.date = grid.focusOnPage(it.date, page) }
         }
     }
-    // The page under the finger, so the title turns over mid-swipe, not after it.
-    val weekStart = grid.startForPage(pagerState.currentPage)
-    val weekEnd = weekStart.plus(grid.dayCount - 1, kotlinx.datetime.DateTimeUnit.DAY)
+
+    // Switching to another timeline view resizes the columns into it (#184):
+    // from the page on screen to the target view's page around the focused
+    // date, then hands over to that view's pager at the page the resize ended on.
+    val currentShown by rememberUpdatedState(shown)
+    val currentPager by rememberUpdatedState(pagerState)
+    val currentGrid by rememberUpdatedState(grid)
+    val currentState by rememberUpdatedState(state)
+    LaunchedEffect(view) {
+        // A switch interrupted by another lands first, and this one starts from there.
+        snapshotFlow { morph }.first { it == null }
+        withFrameNanos { }
+        if (view == currentShown) return@LaunchedEffect
+        val from = currentShown
+        val fromGrid = currentGrid
+        val fromSpan = DaySpan(fromGrid.startForPage(currentPager.currentPage), fromGrid.dayCount)
+        val target = (focus?.date ?: fromSpan.start).coerceIn(fromSpan.start, fromSpan.end)
+        focus?.date = target
+        val toModel = viewModels[view]
+        toModel.jumpTo(target)
+        val to = positionOf(target, toModel.rule.value)
+        val toSpan = DaySpan(to.grid.startForPage(to.page), to.grid.dayCount)
+        val fromLoaded = viewModels[from].span(fromSpan)
+        val toLoaded = toModel.span(toSpan)
+        if (reduceMotion || currentState !is WeekUiState.Success) {
+            shown = view
+            return@LaunchedEffect
+        }
+        val switch = TimelineMorph(from.timelineKind, view.timelineKind, fromSpan, toSpan, fromLoaded, toLoaded)
+        try {
+            withTimeoutOrNull(MORPH_DATA_WAIT_MS) { toLoaded.first { it !is WeekUiState.Loading } }
+            morph = switch
+            switch.progress.animateTo(1f, pageSpec)
+        } finally {
+            handoffStrip = (toLoaded.value as? WeekUiState.Success)?.allDayStripHeight()
+            shown = view
+            morph = null
+        }
+    }
+
+    // The page under the finger, so the title turns over mid-swipe, not after
+    // it; mid-switch, the page being switched to.
+    val weekStart = morph?.to?.start ?: grid.startForPage(pagerState.currentPage)
+    val titleKind = morph?.toKind ?: kind
+    val dayCount = morph?.to?.count ?: grid.dayCount
+    val weekEnd = weekStart.plus(dayCount - 1, kotlinx.datetime.DateTimeUnit.DAY)
 
     // Off the ticking clock rather than the loaded page, so it turns over at
     // midnight; derived, so the per-minute tick doesn't recompose the screen.
@@ -417,12 +450,12 @@ private fun PagedTimelineScreen(
         gesturesEnabled = drawerState.isOpen,
         drawerContent = {
             CalendarDrawer(
-                currentView = selectedView,
+                currentView = view,
                 currentDate = weekStart,
                 drawerState = drawerState,
                 viewOrder = drawerViewOrder,
-                onSelectView = { view ->
-                    onSelectView(view)
+                onSelectView = { target ->
+                    onSelectView(target)
                     scope.launch { drawerState.close() }
                 },
                 onJumpToDate = { target ->
@@ -440,12 +473,12 @@ private fun PagedTimelineScreen(
             modifier = modifier,
             topBar = {
                 WeekTopBar(
-                    kind = kind,
+                    kind = titleKind,
                     weekStart = weekStart,
                     weekEnd = weekEnd,
                     currentYear = today.year,
-                    selectedView = selectedView,
-                    onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
+                    selectedView = view,
+                    onCycleView = { onSelectView(view.next(quickSwitchViews)) },
                     quickSwitchViews = quickSwitchViews,
                     onOpenDrawer = { scope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
@@ -457,10 +490,10 @@ private fun PagedTimelineScreen(
             floatingActionButton = {
                 CalendarFabColumn(
                     todayVisible = !isOnCurrentWeek && !todayInToolbar,
-                    todayText = stringResource(kind.todayText),
+                    todayText = stringResource(titleKind.todayText),
                     onToday = jumpToToday,
                     onCreate = {
-                        // Anchor on today when it's in view, else the week's first day.
+                        // Anchor on today when it's in view, else the page's first day.
                         onCreateEvent(if (isOnCurrentWeek) today else weekStart, null)
                     },
                 )
@@ -472,6 +505,8 @@ private fun PagedTimelineScreen(
                     pagerState = pagerState,
                     grid = grid,
                     kind = kind,
+                    morph = morph,
+                    handoffStrip = handoffStrip,
                     span = viewModel::span,
                     onRetry = viewModel::goToToday,
                     onEventClick = onEventClick,
@@ -492,6 +527,8 @@ private fun WeekContent(
     pagerState: PagerState,
     grid: PageGrid,
     kind: TimelineKind,
+    morph: TimelineMorph?,
+    handoffStrip: Dp?,
     span: (DaySpan) -> StateFlow<WeekUiState>,
     onRetry: () -> Unit,
     onEventClick: (EventInstance) -> Unit,
@@ -536,13 +573,24 @@ private fun WeekContent(
             when (s) {
                 WeekUiState.Loading -> WeekLoading(dayCount = grid.dayCount)
                 is WeekUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
-                is WeekUiState.Success -> WeekPager(
+                is WeekUiState.Success -> if (morph != null) {
+                    TimelineMorphFrame(
+                        morph = morph,
+                        today = s.today,
+                        scrollState = scrollState,
+                        dragController = dragController,
+                        onEventClick = onEventClick,
+                        onOpenDay = onOpenDay,
+                        onCreateAt = onCreateAt,
+                        onDrop = onDrop,
+                    )
+                } else WeekPager(
                     pagerState = pagerState,
                     grid = grid,
                     kind = kind,
                     span = span,
                     today = s.today,
-                    initialStripHeight = s.allDayStripHeight(),
+                    initialStripHeight = handoffStrip ?: s.allDayStripHeight(),
                     scrollState = scrollState,
                     dragController = dragController,
                     onEventClick = onEventClick,
@@ -638,6 +686,70 @@ private fun emptySpan(span: DaySpan, today: LocalDate): WeekUiState.Success {
 }
 
 /**
+ * The timeline mid-switch between two views (#184): every day of both pages,
+ * each column between its place on the one and on the other, with no pager
+ * under them. It starts and ends exactly as the two pages lay out, so the
+ * pagers either side hand over without a jump.
+ */
+@Composable
+private fun TimelineMorphFrame(
+    morph: TimelineMorph,
+    today: LocalDate,
+    scrollState: ScrollState,
+    dragController: TimelineDragController,
+    onEventClick: (EventInstance) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+    onCreateAt: (LocalDate, Int) -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
+) {
+    val fromState by morph.fromState.collectAsStateWithLifecycle()
+    val toState by morph.toState.collectAsStateWithLifecycle()
+    val from = fromState as? WeekUiState.Success
+    val to = toState as? WeekUiState.Success
+    val geometry = remember(morph) { ColumnGeometry(morph.from, morph.to) { morph.progress.value } }
+    val bars = remember(from, to) { morphBars(from, to) }
+    val timedFor: (LocalDate) -> List<TimedBlock> = remember(morph, from, to) {
+        { date ->
+            val side = if (morph.sourceOf(date) == TimelineMorph.Side.From) from else to
+            side?.timedByDay?.get(date).orEmpty()
+        }
+    }
+    val progress = morph.progress.value
+    val fromStrip = from?.allDayStripHeight() ?: 0.dp
+    val toStrip = to?.allDayStripHeight() ?: fromStrip
+    val allDayHeight = androidx.compose.ui.unit.lerp(fromStrip, toStrip, progress.coerceIn(0f, 1f))
+    val weekNumbers = listOf(morph.fromKind, morph.toKind).map { if (it.showWeekNumber) 1f else 0f }
+    val weekNumberAlpha = lerp(weekNumbers[0], weekNumbers[1], progress).coerceIn(0f, 1f)
+    // The events travel inside the columns here, not between views.
+    CompositionLocalProvider(LocalViewMorph provides null) {
+        WeekFrame(
+            weekStart = if (morph.toKind.showWeekNumber) morph.to.start else morph.from.start,
+            showWeekNumber = weekNumberAlpha > 0f,
+            allDayHeight = allDayHeight,
+            weekNumberAlpha = weekNumberAlpha,
+            scrollState = scrollState,
+            dragController = dragController,
+        ) {
+            TimelinePageContent(
+                geometry = geometry,
+                today = today,
+                timedFor = timedFor,
+                bars = bars,
+                headerBias = lerp(morph.fromKind.headerBias, morph.toKind.headerBias, progress.coerceIn(0f, 1f)),
+                allDayHeight = allDayHeight,
+                scrollState = scrollState,
+                dragController = dragController,
+                active = false,
+                onEventClick = onEventClick,
+                onOpenDay = onOpenDay,
+                onCreateAt = onCreateAt,
+                onDrop = onDrop,
+            )
+        }
+    }
+}
+
+/**
  * What stays put while the weeks swipe: the week-number badge and the hour
  * gutter, with [pages] filling the rest.
  */
@@ -646,6 +758,7 @@ private fun WeekFrame(
     weekStart: LocalDate,
     showWeekNumber: Boolean,
     allDayHeight: Dp,
+    weekNumberAlpha: Float = 1f,
     scrollState: ScrollState,
     dragController: TimelineDragController,
     pages: @Composable () -> Unit,
@@ -657,7 +770,11 @@ private fun WeekFrame(
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface),
             ) {
-                WeekNumberCell(weekStart, showBadge = showWeekNumber)
+                WeekNumberCell(
+                    weekStart = weekStart,
+                    showBadge = showWeekNumber,
+                    modifier = if (weekNumberAlpha < 1f) Modifier.alpha(weekNumberAlpha) else Modifier,
+                )
                 Spacer(Modifier.height(allDayHeight))
             }
             Spacer(Modifier.height(TIMELINE_TOP_GAP))
@@ -942,10 +1059,10 @@ private fun WeekDayHeader(
  * bar's hamburger (see GUTTER_CONTENT_START_INSET).
  */
 @Composable
-private fun WeekNumberCell(weekStart: LocalDate, showBadge: Boolean) {
+private fun WeekNumberCell(weekStart: LocalDate, showBadge: Boolean, modifier: Modifier = Modifier) {
     val weekNumber = remember(weekStart) { weekStart.toJavaLocalDate().isoWeekNumber() }
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(
                 start = GUTTER_CONTENT_START_INSET,

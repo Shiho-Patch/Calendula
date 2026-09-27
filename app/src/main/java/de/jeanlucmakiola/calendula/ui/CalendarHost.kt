@@ -20,6 +20,9 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import de.jeanlucmakiola.calendula.ui.common.screen
+import de.jeanlucmakiola.calendula.ui.common.ViewScreen
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
@@ -53,7 +56,6 @@ import de.jeanlucmakiola.calendula.ui.common.drillToDay
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.selectView
 import de.jeanlucmakiola.calendula.ui.common.viewBaseStack
-import de.jeanlucmakiola.calendula.ui.week.DayScreen
 import de.jeanlucmakiola.calendula.ui.detail.EventDetailScreen
 import de.jeanlucmakiola.calendula.ui.edit.EventEditScreen
 import de.jeanlucmakiola.calendula.ui.edit.ImportSource
@@ -61,8 +63,7 @@ import de.jeanlucmakiola.calendula.ui.imports.ImportScreen
 import de.jeanlucmakiola.calendula.ui.month.MonthScreen
 import de.jeanlucmakiola.calendula.ui.search.SearchScreen
 import de.jeanlucmakiola.calendula.ui.settings.SettingsScreen
-import de.jeanlucmakiola.calendula.ui.week.MultiDayScreen
-import de.jeanlucmakiola.calendula.ui.week.WeekScreen
+import de.jeanlucmakiola.calendula.ui.week.TimelineScreen
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -121,6 +122,13 @@ fun CalendarHost(
         mutableStateOf(listOf(defaultView))
     }
     val view = viewStack.last()
+    // The timeline view last shown, so the timeline leaving for another screen
+    // keeps drawing the view it was on while it goes.
+    var heldTimeline by rememberSaveable {
+        mutableStateOf(if (view.screen == ViewScreen.Timeline) view else CalendarView.Week)
+    }
+    val timelineView = if (view.screen == ViewScreen.Timeline) view else heldTimeline
+    SideEffect { heldTimeline = timelineView }
     val onSelectView: (CalendarView) -> Unit = { viewStack = viewStack.selectView(it) }
 
     // The date every view opens on and carries along (#184); tapping a day
@@ -400,20 +408,23 @@ fun CalendarHost(
                 .fillMaxSize()
                 .onGloballyPositioned { morphClip.top = topBarBottom - it.positionInWindow().y },
         ) {
+        // Keyed on the screen, not the view: the day, multi-day and week views
+        // are one timeline that resizes between them itself (#184), so switching
+        // among them must not replay this transition.
         AnimatedContent(
-            targetState = view,
+            targetState = view.screen,
             transitionSpec = { viewSwitch },
             label = "view-switch",
-        ) { currentView ->
+        ) { screen ->
             val sharedScope = this@SharedTransitionLayout
             val visibilityScope = this@AnimatedContent
             val viewMorph = remember(reduceMotion, sharedScope, visibilityScope, morphBounds, morphFade, morphClip) {
                 if (reduceMotion) null else ViewMorphScope(sharedScope, visibilityScope, morphBounds, morphFade, morphClip)
             }
             CompositionLocalProvider(LocalViewMorph provides viewMorph) {
-            when (currentView) {
-                CalendarView.Week -> WeekScreen(
-                    selectedView = currentView,
+            when (screen) {
+                ViewScreen.Timeline -> TimelineScreen(
+                    view = timelineView,
                     onSelectView = onSelectView,
                     onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
@@ -424,8 +435,8 @@ fun CalendarHost(
                     drawerViewOrder = drawerViewOrder,
                     todayInToolbar = todayInToolbar,
                 )
-                CalendarView.MultiDay -> MultiDayScreen(
-                    selectedView = currentView,
+                ViewScreen.Month -> MonthScreen(
+                    selectedView = CalendarView.Month,
                     onSelectView = onSelectView,
                     onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
@@ -436,31 +447,8 @@ fun CalendarHost(
                     drawerViewOrder = drawerViewOrder,
                     todayInToolbar = todayInToolbar,
                 )
-                CalendarView.Day -> DayScreen(
-                    selectedView = currentView,
-                    onSelectView = onSelectView,
-                    onEventClick = onEventClick,
-                    onOpenSettings = onOpenSettings,
-                    onOpenSearch = onOpenSearch,
-                    onCreateEvent = onCreateEvent,
-                    quickSwitchViews = quickSwitchViews,
-                    drawerViewOrder = drawerViewOrder,
-                    todayInToolbar = todayInToolbar,
-                )
-                CalendarView.Month -> MonthScreen(
-                    selectedView = currentView,
-                    onSelectView = onSelectView,
-                    onOpenDay = onOpenDay,
-                    onEventClick = onEventClick,
-                    onOpenSettings = onOpenSettings,
-                    onOpenSearch = onOpenSearch,
-                    onCreateEvent = onCreateEvent,
-                    quickSwitchViews = quickSwitchViews,
-                    drawerViewOrder = drawerViewOrder,
-                    todayInToolbar = todayInToolbar,
-                )
-                CalendarView.Agenda -> AgendaScreen(
-                    selectedView = currentView,
+                ViewScreen.Agenda -> AgendaScreen(
+                    selectedView = CalendarView.Agenda,
                     onSelectView = onSelectView,
                     onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
