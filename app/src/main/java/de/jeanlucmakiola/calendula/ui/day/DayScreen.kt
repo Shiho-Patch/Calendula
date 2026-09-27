@@ -12,6 +12,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import de.jeanlucmakiola.calendula.ui.common.jumpToPage
+import de.jeanlucmakiola.calendula.ui.common.ViewMorphKey
+import de.jeanlucmakiola.calendula.ui.common.ViewMorphPage
+import de.jeanlucmakiola.calendula.ui.common.morphEvent
+import de.jeanlucmakiola.calendula.ui.common.morphPageActive
 import de.jeanlucmakiola.calendula.ui.common.pagedHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSpec
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
@@ -403,16 +407,18 @@ private fun DayPager(
                 if (stripHeight != null) stripHeights[page] = stripHeight
                 onDispose { stripHeights.remove(page) }
             }
-            DayPage(
-                state = loaded ?: empty,
-                allDayHeight = allDayHeight,
-                scrollState = scrollState,
-                dragController = dragController,
-                active = page == pagerState.currentPage,
-                onEventClick = onEventClick,
-                onCreateAt = onCreateAt,
-                onDrop = onDrop,
-            )
+            ViewMorphPage(active = morphPageActive(page, pagerState.settledPage)) {
+                DayPage(
+                    state = loaded ?: empty,
+                    allDayHeight = allDayHeight,
+                    scrollState = scrollState,
+                    dragController = dragController,
+                    active = page == pagerState.currentPage,
+                    onEventClick = onEventClick,
+                    onCreateAt = onCreateAt,
+                    onDrop = onDrop,
+                )
+            }
         }
     }
 }
@@ -622,6 +628,7 @@ private fun AllDayStrip(
                     onClick = { onEventClick(span.event) },
                     modifier = Modifier
                         .offset(y = ALL_DAY_ROW_HEIGHT * span.lane)
+                        .morphEvent(ViewMorphKey.event(span.event, state.date))
                         .width(barWidth)
                         .height(ALL_DAY_ROW_HEIGHT)
                         .padding(horizontal = 1.dp, vertical = 1.dp),
@@ -844,6 +851,7 @@ private fun DayColumnCard(
                         onDrop = onDrop,
                         modifier = Modifier
                             .offset(x = place.x, y = place.y + topInset)
+                            .morphEvent(ViewMorphKey.event(block.event, date))
                             .width(place.width)
                             .height(blockHeight)
                             .padding(horizontal = BLOCK_OUTER_INSET),

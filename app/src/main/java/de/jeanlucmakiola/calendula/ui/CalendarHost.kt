@@ -3,10 +3,10 @@ package de.jeanlucmakiola.calendula.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -27,12 +27,18 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaScreen
 import de.jeanlucmakiola.calendula.ui.calendars.BackupScreen
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarsScreen
 import de.jeanlucmakiola.floret.identity.fadeThrough
+import de.jeanlucmakiola.floret.identity.predictiveBackExit
+import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.EventMoveHost
 import de.jeanlucmakiola.calendula.ui.common.EventMoveScope
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
 import de.jeanlucmakiola.calendula.ui.common.LocalManageCalendars
+import de.jeanlucmakiola.calendula.ui.common.LocalViewMorph
 import de.jeanlucmakiola.calendula.ui.common.RescheduleViewModel
+import de.jeanlucmakiola.calendula.ui.common.ViewMorphScope
+import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
+import de.jeanlucmakiola.calendula.ui.common.rememberViewMorphBoundsTransform
 import de.jeanlucmakiola.calendula.ui.common.drillToDay
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.selectView
@@ -72,6 +78,7 @@ import kotlin.time.Clock
  * as [WidgetNavRequest.OpenEvent], which also roots the back stack in the
  * widget's view.)
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun CalendarHost(
     modifier: Modifier = Modifier,
@@ -341,6 +348,9 @@ fun CalendarHost(
     }
 
     val slideSpec = rememberCalendarSlideSpec()
+    // Overlays leave from the predictive-back preview (#184): shrinking on from
+    // where the gesture let go instead of snapping back and sliding off.
+    val overlayExit = predictiveBackExit()
 
     // Base-level back: pop the view stack while no overlay covers it (each overlay
     // owns its own BackHandler and takes precedence). Disabled at the home view,
@@ -355,19 +365,31 @@ fun CalendarHost(
     Box(modifier = modifier.fillMaxSize()) {
         // Switching between the peer views (month/week/day/agenda) is lateral
         // navigation, so it fades through rather than sliding — paging *within* a
-        // view keeps the directional slide. AnimatedContent keyed on the view type.
+        // view keeps the directional slide. What both views show morphs across
+        // (#184): see [ViewMorphKey]. Reduced motion keeps the plain fade.
         val viewSwitch = fadeThrough()
+        val reduceMotion = rememberReduceMotion()
+        val morphBounds = rememberViewMorphBoundsTransform()
+        val morphFade = rememberCalendarFadeSpec()
         CompositionLocalProvider(
             LocalEventMove provides moveScope,
             // The failure state's way out when every calendar is switched off
             // (#239); nothing else in the calendar surfaces navigates here.
             LocalManageCalendars provides { showCalendars = true },
         ) {
+        SharedTransitionLayout(Modifier.fillMaxSize()) {
         AnimatedContent(
             targetState = view,
             transitionSpec = { viewSwitch },
             label = "view-switch",
         ) { currentView ->
+            CompositionLocalProvider(
+                LocalViewMorph provides if (reduceMotion) {
+                    null
+                } else {
+                    ViewMorphScope(this@SharedTransitionLayout, this@AnimatedContent, morphBounds, morphFade)
+                },
+            ) {
             when (currentView) {
                 CalendarView.Week -> WeekScreen(
                     selectedView = currentView,
@@ -430,6 +452,8 @@ fun CalendarHost(
                     todayInToolbar = todayInToolbar,
                 )
             }
+            }
+        }
         }
         }
 
@@ -442,7 +466,7 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = showSearch,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             SearchScreen(
                 onBack = { showSearch = false },
@@ -455,7 +479,7 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = detailKey != null,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             activeKey?.let { key ->
                 EventDetailScreen(
@@ -483,7 +507,7 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = createDateIso != null,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             (createDateIso ?: heldCreateIso)?.let { iso ->
                 EventEditScreen(
@@ -500,7 +524,7 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = editKey != null,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             (editKey ?: heldEditKey)?.let { key ->
                 EventEditScreen(
@@ -520,7 +544,7 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = showSettings,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             SettingsScreen(
                 onBack = { showSettings = false },
@@ -577,7 +601,7 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = showCalendars,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             CalendarsScreen(
                 onBack = { showCalendars = false },
@@ -589,7 +613,7 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = showBackup,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             // Settings can open this screen without the manager underneath, so
             // its failure states' "Manage calendars" way out has to open the

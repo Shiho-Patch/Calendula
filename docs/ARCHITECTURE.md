@@ -83,6 +83,11 @@ gates on the first-launch wizard (`ui/onboarding/`), then shows
 plus overlay state for detail, edit, and settings — full-screen overlays
 driven by `AnimatedVisibility` with a *held-key* pattern: the last shown
 key stays alive through the slide-out so content never flashes empty.
+The views themselves switch inside a `SharedTransitionLayout`: an event shown
+in both morphs from its old bounds to its new ones, keyed per occurrence *and*
+per day it is drawn from (`ViewMorphKey`), and only a pager's settled page
+carries the tags. Overlays leave through floret-kit's `predictiveBackExit`, so
+a committed back gesture finishes from its scaled preview.
 A tapped reminder notification routes through `MainActivity` (`singleTop` +
 `onNewIntent`) as an external detail key that `CalendarHost` consumes
 exactly like an event tap.

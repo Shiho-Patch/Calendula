@@ -135,6 +135,11 @@ import de.jeanlucmakiola.calendula.ui.common.NowLine
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
+import de.jeanlucmakiola.calendula.ui.common.ViewMorphKey
+import de.jeanlucmakiola.calendula.ui.common.ViewMorphPage
+import de.jeanlucmakiola.calendula.ui.common.morphDay
+import de.jeanlucmakiola.calendula.ui.common.morphEvent
+import de.jeanlucmakiola.calendula.ui.common.morphPageActive
 import de.jeanlucmakiola.calendula.ui.common.withTitleWeight
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.floret.locale.currentLocale
@@ -525,17 +530,19 @@ private fun WeekPager(
                 if (stripHeight != null) stripHeights[page] = stripHeight
                 onDispose { stripHeights.remove(page) }
             }
-            WeekPage(
-                state = loaded ?: empty,
-                allDayHeight = allDayHeight,
-                scrollState = scrollState,
-                dragController = dragController,
-                active = page == pagerState.currentPage,
-                onEventClick = onEventClick,
-                onOpenDay = onOpenDay,
-                onCreateAt = onCreateAt,
-                onDrop = onDrop,
-            )
+            ViewMorphPage(active = morphPageActive(page, pagerState.settledPage)) {
+                WeekPage(
+                    state = loaded ?: empty,
+                    allDayHeight = allDayHeight,
+                    scrollState = scrollState,
+                    dragController = dragController,
+                    active = page == pagerState.currentPage,
+                    onEventClick = onEventClick,
+                    onOpenDay = onOpenDay,
+                    onCreateAt = onCreateAt,
+                    onDrop = onDrop,
+                )
+            }
         }
     }
 }
@@ -776,7 +783,7 @@ private fun WeekDayHeader(
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.morphDay(date).fillMaxSize(),
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Text(
@@ -790,6 +797,7 @@ private fun WeekDayHeader(
                         Text(
                             text = date.day.toString(),
                             style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.morphDay(date),
                         )
                     }
                 }
@@ -886,6 +894,7 @@ private fun AllDayStrip(
                             x = colWidth * span.startCol,
                             y = ALL_DAY_ROW_HEIGHT * span.lane,
                         )
+                        .morphEvent(ViewMorphKey.event(span.event, state.days[span.startCol]))
                         .width(colWidth * spanCols)
                         .height(ALL_DAY_ROW_HEIGHT)
                         .padding(horizontal = 1.dp, vertical = 1.dp),
@@ -1120,6 +1129,7 @@ private fun DayColumnCard(
                         onDrop = onDrop,
                         modifier = Modifier
                             .offset(x = place.x, y = place.y + topInset)
+                            .morphEvent(ViewMorphKey.event(block.event, date))
                             .width(place.width)
                             .height(blockHeight)
                             .padding(horizontal = BLOCK_OUTER_INSET),

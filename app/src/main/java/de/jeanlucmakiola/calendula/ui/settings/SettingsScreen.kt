@@ -2,9 +2,7 @@ package de.jeanlucmakiola.calendula.ui.settings
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -66,6 +64,7 @@ import de.jeanlucmakiola.floret.crash.CrashReportDialog
 import de.jeanlucmakiola.floret.crash.CrashReporter
 import de.jeanlucmakiola.floret.crash.openIssueTracker
 import de.jeanlucmakiola.floret.crash.submitCrashReport
+import de.jeanlucmakiola.floret.identity.predictiveBackExit
 import de.jeanlucmakiola.floret.locale.AppLanguage
 
 /** The settings sub-screens reached from the hub's category rows. */
@@ -90,6 +89,8 @@ fun SettingsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var section by rememberSaveable { mutableStateOf<SettingsSection?>(null) }
     val slideSpec = rememberCalendarSlideSpec()
+    // Leaves from the predictive-back preview rather than sliding off at full size.
+    val overlayExit = predictiveBackExit()
 
     Box(
         modifier = modifier
@@ -106,28 +107,28 @@ fun SettingsScreen(
         AnimatedVisibility(
             visible = section == SettingsSection.Appearance,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             AppearanceScreen(state = state, viewModel = viewModel, onBack = { section = null })
         }
         AnimatedVisibility(
             visible = section == SettingsSection.Views,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             ViewsScreen(state = state, viewModel = viewModel, onBack = { section = null })
         }
         AnimatedVisibility(
             visible = section == SettingsSection.EventForm,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             EventFormScreen(state = state, viewModel = viewModel, onBack = { section = null })
         }
         AnimatedVisibility(
             visible = section == SettingsSection.Notifications,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             NotificationsScreen(
                 state = state,
@@ -139,21 +140,21 @@ fun SettingsScreen(
         AnimatedVisibility(
             visible = section == SettingsSection.SpecialDates,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             SpecialDatesScreen(viewModel = viewModel, onBack = { section = null })
         }
         AnimatedVisibility(
             visible = section == SettingsSection.Widgets,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             WidgetsScreen(state = state, viewModel = viewModel, onBack = { section = null })
         }
         AnimatedVisibility(
             visible = section == SettingsSection.Licences,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             LicencesScreen(onBack = { section = null })
         }

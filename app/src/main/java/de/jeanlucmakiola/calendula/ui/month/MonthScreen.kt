@@ -10,6 +10,11 @@ import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.rememberUpdatedState
+import de.jeanlucmakiola.calendula.ui.common.LocalViewMorph
+import de.jeanlucmakiola.calendula.ui.common.ViewMorphKey
+import de.jeanlucmakiola.calendula.ui.common.morphDay
+import de.jeanlucmakiola.calendula.ui.common.morphEvent
+import de.jeanlucmakiola.calendula.ui.common.morphPageActive
 import de.jeanlucmakiola.calendula.ui.common.jumpToPage
 import de.jeanlucmakiola.calendula.ui.common.pagedHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSpec
@@ -669,7 +674,7 @@ private fun MonthPager(
 ) {
     if (static) {
         Box(modifier) {
-            MonthPage(pagerState.currentPage, true, weekStart, monthState, loading, page)
+            MonthPage(pagerState.currentPage, true, true, weekStart, monthState, loading, page)
         }
         return
     }
@@ -688,7 +693,15 @@ private fun MonthPager(
             snapAnimationSpec = rememberCalendarPageSpec(),
         ),
     ) { index ->
-        MonthPage(index, index == pagerState.currentPage, weekStart, monthState, loading, page)
+        MonthPage(
+            index = index,
+            active = index == pagerState.currentPage,
+            morphActive = morphPageActive(index, pagerState.settledPage),
+            weekStart = weekStart,
+            monthState = monthState,
+            loading = loading,
+            page = page,
+        )
     }
 }
 
@@ -696,6 +709,7 @@ private fun MonthPager(
 private fun MonthPage(
     index: Int,
     active: Boolean,
+    morphActive: Boolean,
     weekStart: DayOfWeek,
     monthState: (YearMonth, DayOfWeek) -> StateFlow<MonthUiState>,
     loading: @Composable () -> Unit,
@@ -705,9 +719,11 @@ private fun MonthPage(
     val state by remember(ym, weekStart) { monthState(ym, weekStart) }.collectAsStateWithLifecycle()
     val chipDrag = LocalMonthDrag.current
     val morph = LocalMonthMorph.current
+    val viewMorph = LocalViewMorph.current
     CompositionLocalProvider(
         LocalMonthDrag provides chipDrag.takeIf { active },
         LocalMonthMorph provides morph.takeIf { active },
+        LocalViewMorph provides viewMorph.takeIf { morphActive },
     ) {
         when (val s = state) {
             is MonthUiState.Success -> page(index, s)
@@ -1334,6 +1350,10 @@ private fun SplitMonthContent(
                 // its month still for the length of the cross-fade.
                 val leaving = transition.targetState == EnterExitState.PostExit
                 CompositionLocalProvider(
+                    // The split style morphs within itself and so sits the view
+                    // switch's morph out (#184): one element can't travel in two
+                    // shared transitions at once.
+                    LocalViewMorph provides null,
                     // Null under reduced motion: nothing is tagged, nothing
                     // travels, and the cross-fade above is the whole transition.
                     LocalMonthMorph provides if (reduceMotion) {
@@ -2254,6 +2274,17 @@ private fun MonthWeekRow(
                                         instanceId = span.event.instanceId,
                                     ),
                                 )
+                                // A blanked day is drawn again in its own
+                                // month's block, which owns the tag.
+                                .then(
+                                    week.days[span.startCol].let { start ->
+                                        if (blankOutside && !inMonth(start)) {
+                                            Modifier
+                                        } else {
+                                            Modifier.morphEvent(ViewMorphKey.event(span.event, start))
+                                        }
+                                    },
+                                )
                                 .width(colW * cols)
                                 .height(EVENT_ROW_HEIGHT)
                                 .padding(horizontal = MONTH_CHIP_INSET, vertical = 1.dp),
@@ -2311,6 +2342,13 @@ private fun MonthWeekRow(
                                         y = EVENT_ROW_HEIGHT * freeSlots[i],
                                     )
                                     .morphBounds(MonthMorphKey.Event(d, ev.instanceId))
+                                    .then(
+                                        if (blankOutside && !inMonth(d)) {
+                                            Modifier
+                                        } else {
+                                            Modifier.morphEvent(ViewMorphKey.event(ev, d))
+                                        },
+                                    )
                                     .width(colW)
                                     .height(EVENT_ROW_HEIGHT)
                                     .padding(horizontal = MONTH_CHIP_INSET, vertical = 1.dp),
@@ -2576,6 +2614,7 @@ private fun DayNumberCell(
         if (isToday) {
             Box(
                 modifier = Modifier
+                    .morphDay(date)
                     .size(DAY_NUMBER_HEIGHT)
                     .background(MaterialTheme.colorScheme.primary, CircleShape),
                 contentAlignment = Alignment.Center,
@@ -2596,6 +2635,7 @@ private fun DayNumberCell(
                 maxLines = 1,
                 overflow = TextOverflow.Visible,
                 softWrap = false,
+                modifier = Modifier.morphDay(date),
             )
         } else {
             Text(
@@ -2603,6 +2643,7 @@ private fun DayNumberCell(
                 style = MaterialTheme.typography.labelMedium,
                 color = if (inMonth) MaterialTheme.colorScheme.onSurface
                 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.morphDay(date),
             )
         }
     }

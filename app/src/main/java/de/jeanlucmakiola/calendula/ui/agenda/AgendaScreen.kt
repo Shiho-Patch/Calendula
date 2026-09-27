@@ -1,5 +1,7 @@
 package de.jeanlucmakiola.calendula.ui.agenda
 
+import de.jeanlucmakiola.calendula.ui.common.ViewMorphKey
+import de.jeanlucmakiola.calendula.ui.common.morphEvent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -420,7 +422,7 @@ private fun AgendaList(
                         zone = zone,
                         position = positionOf(index, day.events.size),
                         dimmed = dimPast && event.hasEnded(now),
-                        modifier = animateItemMotion(),
+                        modifier = animateItemMotion().morphEvent(ViewMorphKey.event(event, day.date)),
                         onClick = { onEventClick(event) },
                     )
                 }
