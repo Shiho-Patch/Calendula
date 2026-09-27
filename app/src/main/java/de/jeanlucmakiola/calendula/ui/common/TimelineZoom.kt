@@ -90,6 +90,14 @@ class TimelineZoom(
         return hours.startHour
     }
 
+    /**
+     * Holds the height [open] fitted, so a viewport that changes afterwards (the
+     * all-day strip following a swipe) doesn't rescale the hours under the scroll.
+     */
+    fun holdFit(hourHeight: Dp) {
+        if (!isPinching && scale is TimelineScale.FitHours) scale = TimelineScale.Custom(hourHeight)
+    }
+
     fun beginPinch() {
         isPinching = true
     }
@@ -294,12 +302,14 @@ fun OpenTimelineScroll(scrollState: ScrollState, zoom: TimelineZoom) {
             // so centring the range centres midday at whatever hour height is in force.
             scrollState.scrollTo(scrollState.maxValue / 2)
         } else {
-            val target = snapshotFlow {
+            val (target, hourHeight) = snapshotFlow {
                 val viewport = scrollState.viewportSize
-                val hourPx = with(density) { zoom.scale.hourHeight(viewport.toDp()).toPx() }
-                startHourScroll(scrollState.maxValue, viewport, startHour, hourPx)
+                val hourHeight = zoom.scale.hourHeight(with(density) { viewport.toDp() })
+                val hourPx = with(density) { hourHeight.toPx() }
+                startHourScroll(scrollState.maxValue, viewport, startHour, hourPx)?.let { it to hourHeight }
             }.filterNotNull().first()
             scrollState.scrollTo(target)
+            zoom.holdFit(hourHeight)
         }
     }
 }
