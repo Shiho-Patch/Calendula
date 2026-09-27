@@ -489,6 +489,13 @@
     <string name="timeline_scale_comfortable_summary">Roomier blocks, more scrolling</string>
     <string name="timeline_scale_custom">Custom</string>
     <string name="timeline_scale_custom_summary">The height you pinched the timeline to</string>
+    <string name="settings_visible_hours">Visible hours</string>
+    <string name="settings_visible_hours_summary">Fit a range of hours to the screen when week, multi-day or day view opens</string>
+    <string name="settings_visible_hours_on_summary">%1$s – %2$s fills the screen when a view opens</string>
+    <string name="settings_visible_hours_start">From</string>
+    <string name="settings_visible_hours_end">Until</string>
+    <string name="settings_visible_hours_start_hint">The hour at the top of the screen when week, multi-day or day view opens. Earlier hours are still a scroll away.</string>
+    <string name="settings_visible_hours_end_hint">The hour at the bottom of the screen when a view opens. Later hours are still a scroll away, and pinching zooms until the view is opened again.</string>
     <string name="settings_dim_completed">Dim completed events</string>
     <string name="settings_dim_completed_summary">Fade events that have already ended in month and week view</string>
     <string name="settings_drag_to_reschedule">Drag to reschedule</string>
