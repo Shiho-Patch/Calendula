@@ -24,7 +24,7 @@ jobs:
     # directly drops the docker-in-docker requirement entirely.
     # Full tag pinned; Renovate's github-actions manager keeps it bumped.
     container:
-      image: ghcr.io/renovatebot/renovate:43.232.0
+      image: ghcr.io/renovatebot/renovate:44.115.13
     steps:
       - name: Run Renovate
         run: renovate
