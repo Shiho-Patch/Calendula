@@ -7,4 +7,4 @@ source "https://rubygems.org"
 # Pinned exactly; Renovate's bundler manager keeps it bumped. No Gemfile.lock is
 # committed on purpose: this resolves an uploader's transitive deps, not the
 # app's, and none of it affects the reproducible release build.
-gem "fastlane", "2.237.0"
+gem "fastlane", "2.239.0"
