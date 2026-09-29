@@ -706,7 +706,7 @@
     <string name="onboarding_calendars_body">Toto zařízení zatím nemá žádný kalendář. Calendula zapisuje do kalendářů, které již máte v telefonu – potřebuje alespoň jeden.</string>
     <string name="onboarding_calendars_local_button">Vytvořte kalendář na tomto zařízení</string>
     <string name="onboarding_calendars_caldav_button">Synchronizace se serverem CalDAV</string>
-    <string name="onboarding_calendars_skip_button">Teď ne</string>
+    <string name="onboarding_calendars_skip_button">Později</string>
     <string name="onboarding_calendars_benefit_local_title">Zůstává na tomto telefonu</string>
     <string name="onboarding_calendars_benefit_local_body">Kalendář zařízení se nikde nesynchronizuje; obsahuje-li důležite události, nezapomeňte je zálohovat.</string>
     <string name="onboarding_calendars_benefit_sync_title">Nebo synchronizovat z účtu</string>
