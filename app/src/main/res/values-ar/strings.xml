@@ -47,7 +47,7 @@
     <string name="event_share_chooser_title">مشاركة الحدث</string>
     <string name="day_today_action">اليوم</string>
     <string name="week_today_action">هذا الأسبوع</string>
-    <string name="week_number_label">أسبوع</string>
+    <string name="week_number_label">أسبو.</string>
     <string name="event_detail_back">الرجوع</string>
     <string name="month_a11y_today_prefix">اليوم</string>
     <string name="event_share_failed">تعذّر مشاركة هذا الحدث.</string>
@@ -201,7 +201,7 @@
     <string name="search_hint">البحث عن الأحداث</string>
     <string name="search_clear">مسح</string>
     <string name="agenda_no_more_today">لا مزيد من الأحداث اليوم</string>
-    <string name="search_empty">لا أحداث مطابقة ”%1$s“.</string>
+    <string name="search_empty">لا أحداث مطابقة لـ ”%1$s“.</string>
     <string name="search_idle_hint">ابحث عن أحداثك بالعنوان، الموقع أو الملاحظات.</string>
     <string name="search_back">الرجوع</string>
     <string name="search_action">البحث</string>
@@ -755,7 +755,7 @@
     <string name="onboarding_calendars_created_title">”%1$s“ جاهز</string>
     <string name="onboarding_calendars_created_body">أنه يوجد على هذا الجهاز و تذهب إليه الأحداث الجديدة ما لم تختر تقويمًا آخر.</string>
     <string name="onboarding_calendars_skip_button">ليس الآن</string>
-    <string name="onboarding_calendars_created_more_title">مساحة لمزيد</string>
+    <string name="onboarding_calendars_created_more_title">مساحة للمزيد</string>
     <string name="onboarding_calendars_created_more_body">الإعدادات ← التقويمات تنشئ العدد كما تحتاجه، و تعيد تسمية التقويمات التي لديك أو تعيد تلوينهم.</string>
     <string name="onboarding_hidden_title">تقويماتك تم إيقافها</string>
     <string name="onboarding_calendars_created_continue">متابعة</string>
