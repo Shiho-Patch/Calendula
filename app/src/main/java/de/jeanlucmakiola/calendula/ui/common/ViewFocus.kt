@@ -21,6 +21,14 @@ import kotlinx.datetime.LocalDate
 @Stable
 class ViewFocus(initial: LocalDate) {
     var date by mutableStateOf(initial)
+    /** Explicit navigation, including a request for the view already on screen. */
+    var navigationVersion by mutableStateOf(0)
+        private set
+
+    fun navigateTo(target: LocalDate) {
+        date = target
+        navigationVersion++
+    }
 }
 
 val ViewFocusSaver: Saver<ViewFocus, String> = Saver(

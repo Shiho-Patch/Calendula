@@ -85,6 +85,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -215,6 +216,8 @@ fun MonthScreen(
     val scope = rememberCoroutineScope()
 
     val scrolling = viewStyle.isScrolling
+    var pendingScrollMonth by remember { mutableStateOf<YearMonth?>(null) }
+    var scrollRequestId by remember { mutableIntStateOf(0) }
 
     // The paged and split styles' months. Made afresh whenever a paged style
     // comes on screen, opening on the month the scrolling style was showing: a
@@ -312,9 +315,14 @@ fun MonthScreen(
     // back there rather than staying on the month you were looking at.
     LaunchedEffect(listState, scrolling, dense, weekStart) {
         if (!scrolling) return@LaunchedEffect
-        snapshotFlow { visibleMonth }
+        snapshotFlow { visibleMonth to pendingScrollMonth }
             .distinctUntilChanged()
-            .collect { viewModel.syncScrollMonth(it) }
+            .collect { (visible, pending) ->
+                if (pending == null || pending == visible) {
+                    viewModel.syncScrollMonth(visible)
+                    if (pending == visible) pendingScrollMonth = null
+                }
+            }
     }
 
     val isOnCurrentMonth = titleMonth == YearMonth(today.year, today.month)
@@ -341,11 +349,21 @@ fun MonthScreen(
     }
     val jumpToToday: () -> Unit = {
         if (scrolling) {
+            val targetMonth = YearMonth(today.year, today.month)
+            pendingScrollMonth = targetMonth
+            val requestId = ++scrollRequestId
+            viewModel.goToToday()
             scope.launch {
-                listState.animateScrollToItem(
-                    if (dense) weekIndexOf(today, weekStart)
-                    else itemIndexForMonth(monthIndexOf(YearMonth(today.year, today.month))),
-                )
+                try {
+                    listState.animateScrollToItem(
+                        if (dense) weekIndexOf(today, weekStart)
+                        else itemIndexForMonth(monthIndexOf(targetMonth)),
+                    )
+                } finally {
+                    if (scrollRequestId == requestId) {
+                        pendingScrollMonth = null
+                    }
+                }
             }
         } else {
             viewModel.goToToday()
@@ -355,11 +373,21 @@ fun MonthScreen(
     // Drawer jump-to-date.
     val jumpToDate: (LocalDate) -> Unit = { target ->
         if (scrolling) {
+            val targetMonth = YearMonth(target.year, target.month)
+            pendingScrollMonth = targetMonth
+            val requestId = ++scrollRequestId
+            viewModel.goToDate(target)
             scope.launch {
-                listState.animateScrollToItem(
-                    if (dense) weekIndexOf(LocalDate(target.year, target.month, 1), weekStart)
-                    else itemIndexForMonth(monthIndexOf(YearMonth(target.year, target.month))),
-                )
+                try {
+                    listState.animateScrollToItem(
+                        if (dense) weekIndexOf(LocalDate(target.year, target.month, 1), weekStart)
+                        else itemIndexForMonth(monthIndexOf(targetMonth)),
+                    )
+                } finally {
+                    if (scrollRequestId == requestId) {
+                        pendingScrollMonth = null
+                    }
+                }
             }
         } else {
             viewModel.goToDate(target)

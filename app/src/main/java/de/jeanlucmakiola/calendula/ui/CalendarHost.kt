@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
@@ -48,10 +49,6 @@ import de.jeanlucmakiola.calendula.ui.common.ChromeHost
 import de.jeanlucmakiola.calendula.ui.common.ChromeSlot
 import de.jeanlucmakiola.calendula.ui.common.LocalChromeSlot
 import de.jeanlucmakiola.calendula.ui.common.next
-import de.jeanlucmakiola.calendula.ui.week.DayViewModel
-import de.jeanlucmakiola.calendula.ui.week.MultiDayViewModel
-import de.jeanlucmakiola.calendula.ui.week.TimelineViewModels
-import de.jeanlucmakiola.calendula.ui.week.WeekViewModel
 import de.jeanlucmakiola.floret.identity.fadeThrough
 import de.jeanlucmakiola.floret.identity.predictiveBackExit
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
@@ -83,7 +80,6 @@ import de.jeanlucmakiola.calendula.ui.search.SearchScreen
 import de.jeanlucmakiola.calendula.ui.settings.SettingsScreen
 import de.jeanlucmakiola.calendula.ui.week.TimelineScreen
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -142,6 +138,7 @@ fun CalendarHost(
     var viewStack by rememberSaveable(stateSaver = viewStackSaver) {
         mutableStateOf(listOf(defaultView))
     }
+    var navigationVersion by remember { mutableIntStateOf(0) }
     val view = viewStack.last()
     // The timeline view last shown, so the timeline leaving for another screen
     // keeps drawing the view it was on while it goes.
@@ -155,28 +152,15 @@ fun CalendarHost(
     // anywhere focuses it and opens the day view there.
     val focus = rememberSaveable(saver = ViewFocusSaver) { ViewFocus(localToday()) }
 
-    // Into the timeline from another screen, its page is loaded first, briefly,
-    // so its events are there to morph into rather than arriving mid-way.
-    val timelineModels = TimelineViewModels(
-        hiltViewModel<WeekViewModel>(),
-        hiltViewModel<MultiDayViewModel>(),
-        hiltViewModel<DayViewModel>(),
-    )
     val switchScope = rememberCoroutineScope()
-    val switchTo: (CalendarView, (List<CalendarView>) -> List<CalendarView>) -> Unit = { target, move ->
-        if (target.screen == ViewScreen.Timeline && viewStack.last().screen != ViewScreen.Timeline) {
-            switchScope.launch {
-                withTimeoutOrNull(VIEW_DATA_WAIT_MS) { timelineModels[target].prepare(focus.date) }
-                viewStack = move(viewStack)
-            }
-        } else {
-            viewStack = move(viewStack)
-        }
+    val switchTo: ((List<CalendarView>) -> List<CalendarView>) -> Unit = { move ->
+        navigationVersion++
+        viewStack = move(viewStack)
     }
-    val onSelectView: (CalendarView) -> Unit = { target -> switchTo(target) { it.selectView(target) } }
+    val onSelectView: (CalendarView) -> Unit = { target -> switchTo { it.selectView(target) } }
     val onOpenDay: (LocalDate) -> Unit = { date ->
-        focus.date = date
-        switchTo(CalendarView.Day) { it.drillToDay() }
+        focus.navigateTo(date)
+        switchTo { it.drillToDay() }
     }
 
     // The event-detail screen (S4) is a full-screen destination hoisted here so
@@ -326,13 +310,14 @@ fun CalendarHost(
     // [requestedDetailKey]. Date/event opens root the stack in the widget's own
     // view so backing out returns there (then home), not to the default.
     LaunchedEffect(widgetNavRequest) {
+        if (widgetNavRequest != null) navigationVersion++
         when (val req = widgetNavRequest) {
             is WidgetNavRequest.OpenDate -> {
                 // Drill the day view in over the widget's view: drop any overlay
                 // that would cover it, so the open doesn't land under Settings/form.
                 dismissCoveringOverlays()
                 createDateIso = null
-                focus.date = LocalDate.parse(req.dateIso)
+                focus.navigateTo(LocalDate.parse(req.dateIso))
                 // No widget source (an external date tap) roots over the default
                 // home view, so backing out of the day returns home then exits.
                 viewStack = viewBaseStack(defaultView, req.source ?: defaultView).drillToDay()
@@ -356,7 +341,7 @@ fun CalendarHost(
                 // default home — so backing out returns to the default, then exits.
                 dismissCoveringOverlays()
                 createDateIso = null
-                focus.date = localToday()
+                focus.navigateTo(localToday())
                 viewStack = viewBaseStack(defaultView, req.view ?: defaultView)
                 onWidgetNavConsumed()
             }
@@ -418,6 +403,7 @@ fun CalendarHost(
         editKey != null || showSettings || showCalendars || showBackup ||
         importUri != null || importForm != null
     BackHandler(enabled = !anyOverlayVisible && viewStack.size > 1) {
+        navigationVersion++
         viewStack = viewStack.dropLast(1)
     }
 
@@ -444,7 +430,7 @@ fun CalendarHost(
             LocalViewFocus provides focus,
             // The failure state's way out when every calendar is switched off
             // (#239); nothing else in the calendar surfaces navigates here.
-            LocalManageCalendars provides { showCalendars = true },
+            LocalManageCalendars provides remember { { showCalendars = true } },
         ) {
         // One drawer, top bar and FAB for every screen (#184): a switch changes
         // what they say, from what the screen on show publishes, rather than
@@ -462,12 +448,10 @@ fun CalendarHost(
                     viewOrder = drawerViewOrder,
                     onSelectView = { target ->
                         // Once the drawer is out of the way, so the switch is seen whole.
+                        val requestVersion = ++navigationVersion
                         switchScope.launch {
-                            try {
-                                drawerState.close()
-                            } finally {
-                                onSelectView(target)
-                            }
+                            drawerState.close()
+                            if (navigationVersion == requestVersion) onSelectView(target)
                         }
                     },
                     onJumpToDate = { target ->
@@ -487,7 +471,7 @@ fun CalendarHost(
                     host = chromeHost,
                     selectedView = view,
                     quickSwitchViews = quickSwitchViews,
-                    onCycleView = { onSelectView(view.next(quickSwitchViews)) },
+                    onCycleView = { onSelectView(viewStack.last().next(quickSwitchViews)) },
                     onOpenDrawer = { switchScope.launch { drawerState.open() } },
                     onOpenSearch = onOpenSearch,
                     showTodayButton = todayInToolbar,
@@ -748,6 +732,3 @@ private val viewStackSaver = listSaver<List<CalendarView>, Int>(
 
 private fun localToday(): LocalDate =
     Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
-
-/** How long a switch into the timeline waits for its page before going anyway. */
-private const val VIEW_DATA_WAIT_MS = 200L

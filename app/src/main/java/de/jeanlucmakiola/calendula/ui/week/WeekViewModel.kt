@@ -14,9 +14,6 @@ import de.jeanlucmakiola.calendula.domain.calendarListFailure
 import de.jeanlucmakiola.calendula.domain.isDeclined
 import de.jeanlucmakiola.calendula.ui.common.PageStateCache
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -166,20 +163,6 @@ abstract class PagedTimelineViewModel(
     }
 
     fun goToToday() = jumpTo(todayDate)
-
-    /**
-     * Moves to [date] and waits for its page to load, so a switch into this view
-     * opens on its events instead of watching them arrive mid-way (#184).
-     */
-    suspend fun prepare(date: LocalDate) {
-        jumpTo(date)
-        val position = positionOf(date, rule.value)
-        val page = DaySpan(position.grid.startForPage(position.page), position.grid.dayCount)
-        coroutineScope {
-            launch { state.first { it !is WeekUiState.Loading } }
-            span(page).first { it !is WeekUiState.Loading }
-        }
-    }
 
     private fun buildState(
         span: DaySpan,

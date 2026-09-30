@@ -68,6 +68,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.SideEffect
 import de.jeanlucmakiola.calendula.ui.common.laneSlot
 import de.jeanlucmakiola.calendula.ui.common.LaneColumn
@@ -77,6 +78,8 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -298,6 +301,8 @@ private fun PagedTimelineScreen(
 
     // Opens on the focused date, then carries it along as the pages move.
     val focus = LocalViewFocus.current
+    val navigationVersion = focus?.navigationVersion ?: 0
+    var handledNavigation by remember { mutableIntStateOf(navigationVersion) }
     EnterOnFocus(viewModel) { viewModel.jumpTo(it) }
     // Keyed on the view model: collected unkeyed, a switch would read the view
     // before's anchor and grid for a frame and open its pager.
@@ -307,6 +312,9 @@ private fun PagedTimelineScreen(
     var lastState by remember { mutableStateOf<WeekUiState>(WeekUiState.Loading) }
     val state = if (loadedState is WeekUiState.Loading) lastState else loadedState
     SideEffect { if (loadedState !is WeekUiState.Loading) lastState = loadedState }
+    LaunchedEffect(shown, loadedState) {
+        if (loadedState is WeekUiState.Success) handoffStrip = null
+    }
     val anchor by key(viewModel) { viewModel.anchor.collectAsStateWithLifecycle() }
     val rule by key(viewModel) { viewModel.rule.collectAsStateWithLifecycle() }
     val position = remember(anchor, rule) { positionOf(anchor, rule) }
@@ -357,7 +365,15 @@ private fun PagedTimelineScreen(
     val currentPager by rememberUpdatedState(pagerState)
     val currentGrid by rememberUpdatedState(grid)
     val currentState by rememberUpdatedState(state)
-    LaunchedEffect(view) {
+    LaunchedEffect(view, navigationVersion) {
+        if (navigationVersion != handledNavigation) {
+            handledNavigation = navigationVersion
+            morph = null
+            handoffStrip = null
+            viewModels[view].jumpTo(focus?.date ?: return@LaunchedEffect)
+            shown = view
+            return@LaunchedEffect
+        }
         // A switch interrupted by another lands first, and this one starts from there.
         snapshotFlow { morph }.first { it == null }
         withFrameNanos { }
@@ -382,9 +398,9 @@ private fun PagedTimelineScreen(
             withTimeoutOrNull(MORPH_DATA_WAIT_MS) { toLoaded.first { it !is WeekUiState.Loading } }
             morph = switch
             switch.progress.animateTo(1f, if (switch.isLong) longSwitchSpec else switchSpec)
-        } finally {
             handoffStrip = (toLoaded.value as? WeekUiState.Success)?.allDayStripHeight()
             shown = view
+        } finally {
             morph = null
         }
     }
@@ -656,19 +672,30 @@ private fun TimelineMorphFrame(
             side?.timedByDay?.get(date).orEmpty()
         }
     }
-    val progress = morph.progress.value
     val fromStrip = from?.allDayStripHeight() ?: 0.dp
     val toStrip = to?.allDayStripHeight() ?: fromStrip
-    val allDayHeight = androidx.compose.ui.unit.lerp(fromStrip, toStrip, progress.coerceIn(0f, 1f))
-    val weekNumbers = listOf(morph.fromKind, morph.toKind).map { if (it.showWeekNumber) 1f else 0f }
-    val weekNumberAlpha = lerp(weekNumbers[0], weekNumbers[1], progress).coerceIn(0f, 1f)
+    val animatedStrip = remember(morph, fromStrip, toStrip) {
+        { androidx.compose.ui.unit.lerp(fromStrip, toStrip, morph.progress.value.coerceIn(0f, 1f)) }
+    }
+    val fromBadge = if (morph.fromKind.showWeekNumber) 1f else 0f
+    val toBadge = if (morph.toKind.showWeekNumber) 1f else 0f
+    val badgeAlpha = remember(morph) {
+        { lerp(fromBadge, toBadge, morph.progress.value).coerceIn(0f, 1f) }
+    }
+    // The header changes its alignment once; its columns and bars move in layout.
+    val headerBias by remember(morph) {
+        derivedStateOf {
+            if (morph.progress.value < 0.5f) morph.fromKind.headerBias else morph.toKind.headerBias
+        }
+    }
     // The events travel inside the columns here, not between views.
     CompositionLocalProvider(LocalViewMorph provides null) {
         WeekFrame(
             weekStart = if (morph.toKind.showWeekNumber) morph.to.start else morph.from.start,
-            showWeekNumber = weekNumberAlpha > 0f,
-            allDayHeight = allDayHeight,
-            weekNumberAlpha = weekNumberAlpha,
+            showWeekNumber = morph.fromKind.showWeekNumber || morph.toKind.showWeekNumber,
+            allDayHeight = fromStrip,
+            animatedAllDayHeight = animatedStrip,
+            weekNumberAlpha = badgeAlpha,
             scrollState = scrollState,
             dragController = dragController,
         ) {
@@ -677,8 +704,9 @@ private fun TimelineMorphFrame(
                 today = today,
                 timedFor = timedFor,
                 bars = bars,
-                headerBias = lerp(morph.fromKind.headerBias, morph.toKind.headerBias, progress.coerceIn(0f, 1f)),
-                allDayHeight = allDayHeight,
+                headerBias = headerBias,
+                allDayHeight = fromStrip,
+                animatedAllDayHeight = animatedStrip,
                 scrollState = scrollState,
                 dragController = dragController,
                 active = false,
@@ -691,6 +719,23 @@ private fun TimelineMorphFrame(
     }
 }
 
+/** Read an animated strip height during measurement, without composing its contents again. */
+private fun Modifier.dynamicHeight(height: () -> Dp): Modifier = layout { measurable, constraints ->
+    val pixels = height().roundToPx().coerceIn(constraints.minHeight, constraints.maxHeight)
+    val placeable = measurable.measure(constraints.copy(minHeight = pixels, maxHeight = pixels))
+    layout(placeable.width, pixels) { placeable.place(0, 0) }
+}
+
+/** Keep a morph's expensive viewport content measured at one size while its visible edge moves. */
+private fun Modifier.stableMorphViewport(stripHeight: () -> Dp, fullHeight: IntArray): Modifier =
+    clipToBounds().layout { measurable, constraints ->
+        if (fullHeight[0] < 0) fullHeight[0] = constraints.maxHeight + stripHeight().roundToPx()
+        val measured = measurable.measure(
+            constraints.copy(minHeight = fullHeight[0], maxHeight = fullHeight[0]),
+        )
+        layout(constraints.maxWidth, constraints.maxHeight) { measured.place(0, 0) }
+    }
+
 /**
  * What stays put while the weeks swipe: the week-number badge and the hour
  * gutter, with [pages] filling the rest.
@@ -700,11 +745,13 @@ private fun WeekFrame(
     weekStart: LocalDate,
     showWeekNumber: Boolean,
     allDayHeight: Dp,
-    weekNumberAlpha: Float = 1f,
+    animatedAllDayHeight: (() -> Dp)? = null,
+    weekNumberAlpha: () -> Float = { 1f },
     scrollState: ScrollState,
     dragController: TimelineDragController,
     pages: @Composable () -> Unit,
 ) {
+    val gutterFullHeight = remember(animatedAllDayHeight) { intArrayOf(-1) }
     Row(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.width(GUTTER_WIDTH).fillMaxHeight()) {
             Column(
@@ -715,16 +762,24 @@ private fun WeekFrame(
                 WeekNumberCell(
                     weekStart = weekStart,
                     showBadge = showWeekNumber,
-                    modifier = if (weekNumberAlpha < 1f) Modifier.alpha(weekNumberAlpha) else Modifier,
+                    modifier = if (animatedAllDayHeight == null) Modifier
+                        else Modifier.graphicsLayer { alpha = weekNumberAlpha() },
                 )
-                Spacer(Modifier.height(allDayHeight))
+                Spacer(if (animatedAllDayHeight == null) Modifier.height(allDayHeight)
+                    else Modifier.dynamicHeight(animatedAllDayHeight))
             }
             Spacer(Modifier.height(TIMELINE_TOP_GAP))
             // Resolves the hour height off the same viewport height the pages'
             // timelines have, so labels and columns agree.
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxSize().then(
+                    if (animatedAllDayHeight == null) Modifier
+                    else Modifier.stableMorphViewport(animatedAllDayHeight, gutterFullHeight),
+                ),
+            ) {
                 val zoom = LocalTimelineZoom.current
-                val fitHeight = maxHeight + allDayHeight
+                val fitHeight = if (animatedAllDayHeight == null) maxHeight + allDayHeight
+                    else maxHeight
                 val hourHeight = zoom.scale.hourHeight(fitHeight)
                 HourGutter(
                     scrollState = scrollState,
@@ -827,6 +882,7 @@ private fun TimelinePageContent(
     bars: List<PlacedBar>,
     headerBias: Float,
     allDayHeight: Dp,
+    animatedAllDayHeight: (() -> Dp)? = null,
     scrollState: ScrollState,
     dragController: TimelineDragController,
     active: Boolean,
@@ -847,7 +903,8 @@ private fun TimelinePageContent(
             CompositionLocalProvider(
                 LocalChipGround provides MaterialTheme.colorScheme.surface,
             ) {
-                AllDayStrip(geometry = geometry, bars = bars, height = allDayHeight, onEventClick = onEventClick)
+                AllDayStrip(geometry = geometry, bars = bars, height = allDayHeight,
+                    animatedHeight = animatedAllDayHeight, onEventClick = onEventClick)
             }
         }
         Spacer(Modifier.height(TIMELINE_TOP_GAP))
@@ -856,6 +913,7 @@ private fun TimelinePageContent(
             today = today,
             timedFor = timedFor,
             allDayHeight = allDayHeight,
+            animatedAllDayHeight = animatedAllDayHeight,
             scrollState = scrollState,
             dragController = dragController,
             active = active,
@@ -984,6 +1042,7 @@ private fun AllDayStrip(
     geometry: ColumnGeometry,
     bars: List<PlacedBar>,
     height: Dp,
+    animatedHeight: (() -> Dp)? = null,
     onEventClick: (EventInstance) -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
@@ -993,7 +1052,7 @@ private fun AllDayStrip(
             .fillMaxWidth()
             // Height is hoisted + animated so it slides and resizes smoothly;
             // padding sits inside it so the content area is lanes * row height.
-            .height(height)
+            .then(if (animatedHeight == null) Modifier.height(height) else Modifier.dynamicHeight(animatedHeight))
             .padding(
                 top = ALL_DAY_VERTICAL_PADDING,
                 bottom = ALL_DAY_VERTICAL_PADDING,
@@ -1080,6 +1139,7 @@ private fun Timeline(
     today: LocalDate,
     timedFor: (LocalDate) -> List<TimedBlock>,
     allDayHeight: Dp,
+    animatedAllDayHeight: (() -> Dp)? = null,
     scrollState: ScrollState,
     dragController: TimelineDragController,
     active: Boolean,
@@ -1087,6 +1147,7 @@ private fun Timeline(
     onCreateAt: (LocalDate, Int) -> Unit,
     onDrop: (TimelineDrop) -> Unit,
 ) {
+    val fullViewportHeight = remember(geometry) { intArrayOf(-1) }
     val dark = isSystemInDarkTheme()
     val zoom = LocalTimelineZoom.current
     val density = LocalDensity.current
@@ -1102,8 +1163,13 @@ private fun Timeline(
     // timeline's own viewport height, which is only known here — below the top
     // bar, day header and all-day strip. The strip is given back, so the scale
     // holds while paging and matches the day view's (#184).
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val fitHeight = maxHeight + allDayHeight
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize().then(
+            if (animatedAllDayHeight == null) Modifier
+            else Modifier.stableMorphViewport(animatedAllDayHeight, fullViewportHeight),
+        ),
+    ) {
+        val fitHeight = if (animatedAllDayHeight == null) maxHeight + allDayHeight else maxHeight
         val hourHeight = zoom.scale.hourHeight(fitHeight)
         val totalHeight = hourHeight * 24
         // The pinch sits above the scroll viewport: it has to outrank the
@@ -1120,9 +1186,12 @@ private fun Timeline(
         // picks what travels on its first frame.
         val opening = LocalOpeningTimeline.current
         val viewportPx = with(density) { maxHeight.toPx() }
+        val visibleViewport: () -> Float = remember(animatedAllDayHeight, viewportPx, density) {
+            { viewportPx - (animatedAllDayHeight?.let { with(density) { it().toPx() } } ?: 0f) }
+        }
         val contentPx = with(density) { totalHeight.toPx() }
-        val visibleTop: () -> Float = remember(opening, scrollState, viewportPx, contentPx) {
-            { opening?.top(viewportPx, contentPx) ?: scrollState.value.toFloat() }
+        val visibleTop: () -> Float = remember(opening, scrollState, visibleViewport, contentPx) {
+            { opening?.top(visibleViewport(), contentPx) ?: scrollState.value.toFloat() }
         }
         // Scrolls on the same state as the gutter and the other pages, so they
         // all stay aligned. A static, rounded-clipped window — the content
@@ -1169,7 +1238,7 @@ private fun Timeline(
                     hourHeight = hourHeight,
                     columnWidth = columnWidth,
                     visibleTop = visibleTop,
-                    viewportHeight = viewportPx,
+                    viewportHeight = visibleViewport,
                     dragController = dragController,
                     onEventClick = onEventClick,
                     onCreateAt = onCreateAt,
@@ -1190,7 +1259,7 @@ private fun DayColumnCard(
     hourHeight: Dp,
     columnWidth: Dp,
     visibleTop: () -> Float,
-    viewportHeight: Float,
+    viewportHeight: () -> Float,
     dragController: TimelineDragController,
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
@@ -1316,9 +1385,9 @@ private fun DayColumnCard(
 
 /** Whether [top]..[bottom], in pixels down the scrolled content, lies wholly in its viewport. */
 @Composable
-private fun rememberInViewport(visibleTop: () -> Float, viewportHeight: Float, top: Float, bottom: Float): Boolean {
+private fun rememberInViewport(visibleTop: () -> Float, viewportHeight: () -> Float, top: Float, bottom: Float): Boolean {
     val inView by remember(visibleTop, viewportHeight, top, bottom) {
-        derivedStateOf { visibleTop().let { top >= it && bottom <= it + viewportHeight } }
+        derivedStateOf { visibleTop().let { top >= it && bottom <= it + viewportHeight() } }
     }
     return inView
 }

@@ -57,14 +57,12 @@ internal fun hourCellRadiusPx(cellHeight: Float, cellWidth: Float, maxRadius: Fl
  * drawn across one. Applied to a day column's content, so the cells sit over the
  * column background but beneath the event blocks — blocks stay in a continuous
  * coordinate space and keep spanning cells. [hourHeightPx] is one hour's pixel
- * height; [color] is resolved by the caller from the theme. [offsetPx] shifts
- * the cells up, for a fixed window over a scrolled column.
+ * height; [color] is resolved by the caller from the theme.
  */
 fun Modifier.hourGridCells(
     show: Boolean,
     hourHeightPx: Float,
     color: Color,
-    offsetPx: () -> Float = { 0f },
 ): Modifier =
     if (!show) {
         this
@@ -77,7 +75,7 @@ fun Modifier.hourGridCells(
                 hourCellRadiusPx(cellHeight, size.width, HOUR_CELL_CORNER.toPx()),
             )
             val cellSize = Size(size.width, cellHeight)
-            val top = inset - offsetPx()
+            val top = inset
             for (hour in 0 until 24) {
                 drawRoundRect(
                     color = color,

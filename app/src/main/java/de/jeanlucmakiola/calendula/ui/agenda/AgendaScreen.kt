@@ -87,12 +87,8 @@ fun AgendaScreen(
     // Opens on the focused date and hands back the day scrolled to the top.
     val focus = LocalViewFocus.current
     EnterOnFocus(viewModel) { if (it != viewModel.anchor.value) viewModel.goToDate(it) }
-    val loadedState by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val anchor by viewModel.anchor.collectAsStateWithLifecycle()
-    // Rows from before the anchor moved belong to another window: they would
-    // show the wrong days, and the view switch would match the wrong events.
-    val state = loadedState.takeUnless { it is AgendaUiState.Success && it.anchor != anchor }
-        ?: AgendaUiState.Loading
     val pastDisplay by viewModel.pastEventDisplay.collectAsStateWithLifecycle()
     val showToday by viewModel.showToday.collectAsStateWithLifecycle()
     val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
@@ -195,7 +191,9 @@ fun AgendaScreen(
                 onRetry = viewModel::goToToday,
                 onEventClick = onEventClick,
                 onOpenDay = onOpenDay,
-                onTopDay = { focus?.date = it },
+                onTopDay = if (successState?.anchor == anchor) {
+                    { focus?.date = it }
+                } else null,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
@@ -442,4 +440,3 @@ private fun AgendaEmpty(modifier: Modifier = Modifier) {
         )
     }
 }
-
