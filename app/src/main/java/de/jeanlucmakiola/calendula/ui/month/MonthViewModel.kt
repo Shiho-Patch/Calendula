@@ -13,6 +13,7 @@ import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.domain.calendarListFailure
 import de.jeanlucmakiola.calendula.ui.common.PageStateCache
 import de.jeanlucmakiola.calendula.domain.isDeclined
+import de.jeanlucmakiola.calendula.domain.eventDisplayComparator
 import de.jeanlucmakiola.calendula.ui.week.coversDay
 import de.jeanlucmakiola.calendula.ui.week.layoutAllDay
 import de.jeanlucmakiola.calendula.ui.week.spansMultipleDays
@@ -506,11 +507,7 @@ internal fun instancesByDay(
     days.associateWith { day ->
         instances
             .filter { it.coversDay(day, zone) }
-            .sortedWith(
-                compareBy<EventInstance> { it.isDeclined }
-                    .thenByDescending { it.isAllDay }
-                    .thenBy { it.start },
-            )
+            .sortedWith(eventDisplayComparator(zone))
     }
 
 /**
