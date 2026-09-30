@@ -1,1 +1,1 @@
-Ein moderner Material-3-Expressive-Kalender für Android.
+Ein Material-3-Expressive-Kalender für Android ohne Netzwerkzugriff.

@@ -8,9 +8,9 @@
 # the one build whose byte-for-byte output is verified by a third party.
 #
 # What fastlane IS here for is `supply` — the Play Developer API client — because
-# the store listing already lives in fastlane/metadata/android, which the
-# official F-Droid repo harvests from the tagged source tree. One metadata tree,
-# two stores.
+# the store listing lives in fastlane/metadata/android, which the official
+# F-Droid repo harvests from the tagged source tree. One metadata tree, two
+# stores; nothing about the Play listing is edited in the console.
 
 default_platform(:android)
 
@@ -21,8 +21,18 @@ def project_path(path)
   File.expand_path(path, File.expand_path("..", FastlaneCore::FastlaneFolder.path || "."))
 end
 
+# Listing text, graphics and screenshots all come from fastlane/metadata/android;
+# scripts/check_store_listing.py keeps the tree within Play's rules on every PR.
+LISTING = {
+  skip_upload_metadata: false,
+  skip_upload_images: false,
+  skip_upload_screenshots: false,
+  # Only re-upload graphics whose content changed.
+  sync_image_upload: true,
+}.freeze
+
 platform :android do
-  desc "Upload an already-built, already-signed AAB to Play"
+  desc "Upload an already-built, already-signed AAB to Play, with the store listing"
   lane :deploy do |options|
     aab = project_path(options[:aab] || "app/build/outputs/bundle/release/app-release.aab")
     UI.user_error!("AAB not found at #{aab}") unless File.exist?(aab)
@@ -36,52 +46,29 @@ platform :android do
       # gets the bundle. Never let the uploader reach for the other artifact.
       skip_upload_apk: true,
 
-      # Listing text is synced deliberately via the `listing` lane, not on every
-      # release. Overwriting a live listing by accident triggers a Play policy
-      # review, which is not a quick revert.
-      skip_upload_metadata: true,
-
-      # "What's New" DOES track every release.
-      # scripts/sync_changelog_to_fastlane.sh writes
-      # fastlane/metadata/android/en-US/changelogs/<versionCode>.txt from
-      # CHANGELOG.md, so Play shows exactly the text F-Droid does.
+      # "What's New" tracks every release: changelogs/<versionCode>.txt, the
+      # same file F-Droid shows.
       skip_upload_changelogs: false,
-
-      # See the `listing` lane for why the committed images can't go to Play yet.
-      skip_upload_images: true,
-      skip_upload_screenshots: true,
 
       # Dry run: validate the edit against the API and roll it back instead of
       # committing it. Used for the first end-to-end rehearsal.
       validate_only: options[:dry_run].to_s == "true",
+      **LISTING,
     )
   end
 
-  desc "Sync the store listing text (and, once the assets qualify, the images)"
+  desc "Push only the store listing, e.g. a listing fix between releases"
   lane :listing do |options|
-    # Deliberate and manual: `bundle exec fastlane listing`. Not wired into the
-    # release pipeline.
-    #
-    # Images stay off by default because the committed assets do not satisfy
-    # Play today, even though F-Droid accepts all of them:
-    #
-    #   * phoneScreenshots are 1280x2856. Play caps the long edge at twice the
-    #     short edge (2560 here), so every screenshot is rejected.
-    #   * those PNGs are 32-bit RGBA. Play wants 24-bit PNG, no alpha.
-    #   * icon.png is 512x512 but 24-bit RGB. Play's icon wants 32-bit PNG.
-    #   * there is no featureGraphic.png. Play requires one, exactly 1024x500.
-    #
-    # Until that is fixed, the Play listing's graphics are managed by hand in the
-    # console. Pass images:true once the assets qualify.
-    upload_images = options[:images].to_s == "true"
-
+    # supply still anchors the edit on a release: pass version_code: when the
+    # track holds more than one.
     supply(
+      track: options[:track] || "production",
+      version_code: options[:version_code],
       skip_upload_aab: true,
       skip_upload_apk: true,
-      skip_upload_metadata: false,
       skip_upload_changelogs: true,
-      skip_upload_images: !upload_images,
-      skip_upload_screenshots: !upload_images,
+      validate_only: options[:dry_run].to_s == "true",
+      **LISTING,
     )
   end
 end

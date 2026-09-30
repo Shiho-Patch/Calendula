@@ -15,7 +15,9 @@
 #   full_description.txt         -> description.txt
 #   title.txt                    -> name.txt
 #   images/icon.png              -> icon.png
+#   images/featureGraphic.png    -> featureGraphic.png
 #   images/phoneScreenshots/*    -> phoneScreenshots/*
+#   images/tenInchScreenshots/*  -> tenInchScreenshots/*
 #   changelogs/<versionCode>.txt -> changelogs/<versionCode>.txt
 # (changelogs are seeded into the fastlane tree by
 #  scripts/sync_changelog_to_fastlane.sh.)
@@ -33,10 +35,13 @@ for locdir in "$SRC"/*/; do
   [ -f "$locdir/full_description.txt"  ] && cp "$locdir/full_description.txt"  "$dst/description.txt"
   [ -f "$locdir/title.txt"             ] && cp "$locdir/title.txt"             "$dst/name.txt"
   [ -f "$locdir/images/icon.png"       ] && cp "$locdir/images/icon.png"       "$dst/icon.png"
-  if [ -d "$locdir/images/phoneScreenshots" ]; then
-    mkdir -p "$dst/phoneScreenshots"
-    cp "$locdir"images/phoneScreenshots/* "$dst/phoneScreenshots/"
-  fi
+  [ -f "$locdir/images/featureGraphic.png" ] && cp "$locdir/images/featureGraphic.png" "$dst/featureGraphic.png"
+  for shots in phoneScreenshots tenInchScreenshots; do
+    if [ -d "$locdir/images/$shots" ]; then
+      mkdir -p "$dst/$shots"
+      cp "$locdir"images/$shots/* "$dst/$shots/"
+    fi
+  done
   # Per-version changelogs live in the same fastlane tree (see
   # scripts/sync_changelog_to_fastlane.sh) and map straight across.
   if [ -d "$locdir/changelogs" ]; then

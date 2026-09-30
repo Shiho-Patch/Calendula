@@ -112,6 +112,7 @@ import de.jeanlucmakiola.calendula.ui.common.BlockTimeLabel
 import de.jeanlucmakiola.calendula.ui.common.BlockTitle
 import de.jeanlucmakiola.calendula.ui.common.blockTextLines
 import de.jeanlucmakiola.calendula.ui.common.blockTimeLines
+import de.jeanlucmakiola.calendula.ui.common.rememberBlockTimeRange
 import de.jeanlucmakiola.calendula.ui.common.rememberBlockTextMetrics
 import de.jeanlucmakiola.calendula.ui.common.animatedBlockPlacement
 import de.jeanlucmakiola.calendula.ui.common.ghostAlpha
@@ -1436,6 +1437,11 @@ private fun EventBlock(
     val showTime = block.laneCount == 1 &&
         metrics.available >= metrics.titleLine + metrics.timeLine
     val textWidth = width - (BLOCK_OUTER_INSET + BLOCK_TEXT_PADDING) * 2
+    val shownTime = rememberBlockTimeRange(
+        minToHm(block.startMin, use24Hour, locale),
+        minToHm(block.endMin, use24Hour, locale),
+        textWidth,
+    )
     // A short block drops the title rather than serving a horizontally sliced
     // one: half a letter reads as a rendering fault, while a bare colour chip
     // reads as what it is — an event too brief to label. Tap still opens it, and
@@ -1461,7 +1467,7 @@ private fun EventBlock(
     )
     val spare = metrics.available - metrics.titleHeight(titleMaxLines) -
         if (showTime) metrics.timeLine else 0.dp
-    val timeMaxLines = if (showTime) blockTimeLines(timeLabel, textWidth, spare) else 1
+    val timeMaxLines = if (showTime) blockTimeLines(shownTime, textWidth, spare) else 1
     val dimCutoff = LocalDimCutoff.current
     val dimmed = dimCutoff != null && block.event.hasEnded(dimCutoff)
     val zone = remember { TimeZone.currentSystemDefault() }
@@ -1520,7 +1526,7 @@ private fun EventBlock(
             }
             if (showTime) {
                 BlockTimeLabel(
-                    label = timeLabel,
+                    label = shownTime,
                     color = paint.secondaryInk,
                     maxLines = timeMaxLines,
                 )

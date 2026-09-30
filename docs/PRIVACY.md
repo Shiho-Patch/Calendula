@@ -26,7 +26,7 @@ Applies to the Android app **Calendula** (package `de.jeanlucmakiola.calendula`)
 
 ## In short
 
-Calendula collects nothing, sends nothing, and has no user accounts. It has **no internet permission at all** — the app is technically incapable of transmitting your data anywhere. Everything it shows you is read from the calendars that already exist on your device.
+Calendula collects nothing, sends nothing, and has no user accounts. It has **no internet permission at all**, so it cannot transmit your data anywhere. Everything it shows you is read from the calendars that already exist on your device.
 
 ## 1. Controller
 
@@ -47,9 +47,9 @@ All of the following is processed **locally on your device only**. None of it is
 
 ### Calendar data
 
-Calendula is a viewer and editor for the calendars Android already manages. It reads and writes events, reminders and calendar settings through Android's system calendar provider. The app keeps **no database of its own** — your events live in the system calendar, exactly where they lived before you installed Calendula, and they remain there if you uninstall it.
+Calendula is a viewer and editor for the calendars Android already manages. It reads and writes events, reminders and calendar settings through Android's system calendar provider. The app keeps **no database of its own**. Your events live in the system calendar, where they were before you installed Calendula, and they stay there if you uninstall it.
 
-Note: if one of those system calendars is itself synchronised with an online account (for example a Google account, or a CalDAV server via DAVx5), that synchronisation is performed by Android and that other app — not by Calendula. The privacy policy of the respective provider applies to it.
+Note: if one of those system calendars is itself synchronised with an online account (for example a Google account, or a CalDAV server via DAVx5), that synchronisation is performed by Android and that other app, not by Calendula. The privacy policy of the respective provider applies to it.
 
 ### Contacts (optional)
 
@@ -67,7 +67,7 @@ When you import or export an ICS file, Calendula reads or writes exactly the fil
 
 Your preferences (view options, theme, reminder defaults and similar) are stored locally on your device and are removed when you uninstall the app.
 
-## 4. Crash reports — the only case where data can leave your device
+## 4. Crash reports: the only case where data can leave your device
 
 If Calendula crashes, it offers to report the problem. Nothing is sent automatically. The report is copied to your clipboard and your browser is opened with the project's issue tracker, the text pre-filled. **You see the full content, you decide whether to submit it, and you can edit or discard it.**
 
@@ -86,19 +86,19 @@ If you choose to submit it, the report becomes a public issue on the project's i
 
 ## 5. External links
 
-The settings screen contains links to the source code, the licence, the issue tracker and a voluntary donation page (Ko-fi). Following one of these links opens your browser and leaves the app; the privacy policy of the respective website then applies. Calendula transmits no data of yours in the process — it only opens the address.
+The settings screen contains links to the source code, the licence, the issue tracker and a voluntary donation page (Ko-fi). Following one of these links opens your browser and leaves the app; the privacy policy of the respective website then applies. Calendula transmits none of your data in the process; it only opens the address.
 
 ## 6. Permissions and why they exist
 
-- `READ_CALENDAR`, `WRITE_CALENDAR` — display and edit your events; the core function.
-- `POST_NOTIFICATIONS` — show reminders.
-- `READ_CONTACTS` — optional, only for the “Contact special dates” feature.
-- `USE_EXACT_ALARM`, `SCHEDULE_EXACT_ALARM` — deliver reminders at the exact time, including after snoozing.
-- `RECEIVE_BOOT_COMPLETED` — re-register pending reminders after a restart.
-- `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` — only to open the system dialog for the “Reliable delivery” setting.
-- `WAKE_LOCK`, `FOREGROUND_SERVICE`, `ACCESS_NETWORK_STATE` — required by the Android system component used for scheduled background work (WorkManager).
+- `READ_CALENDAR`, `WRITE_CALENDAR`: display and edit your events (the core function).
+- `POST_NOTIFICATIONS`: show reminders.
+- `READ_CONTACTS`: optional, only for the “Contact special dates” feature.
+- `USE_EXACT_ALARM`, `SCHEDULE_EXACT_ALARM`: deliver reminders at the exact time, including after snoozing.
+- `RECEIVE_BOOT_COMPLETED`: re-register pending reminders after a restart.
+- `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`: only to open the system dialog for the “Reliable delivery” setting.
+- `WAKE_LOCK`, `FOREGROUND_SERVICE`, `ACCESS_NETWORK_STATE`: required by the Android system component used for scheduled background work (WorkManager).
 
-`ACCESS_NETWORK_STATE` allows reading *whether* a network connection exists — it does **not** permit using one. Without `INTERNET`, no connection is possible.
+`ACCESS_NETWORK_STATE` allows reading *whether* a network connection exists. It does **not** permit using one. Without `INTERNET`, no connection is possible.
 
 ## 7. Distribution channels
 
