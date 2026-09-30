@@ -99,9 +99,6 @@ fun rememberBlockTextMetrics(height: Dp): BlockTextMetrics {
     )
 }
 
-/** Most lines a time label may wrap over before it is worth more than a title line. */
-const val MAX_TIME_LINES = 2
-
 /**
  * Lines [text] needs to render whole at [textWidth], capped at [max].
  *
@@ -131,28 +128,64 @@ fun blockTextLines(text: String, style: TextStyle, textWidth: Dp, max: Int): Int
  * Lines the time label may take at [textWidth], out of the [spare] height left
  * once the title and the label's own first line are paid for.
  *
- * A week column is narrower than a "09:30–11:00" range, so the label takes a
- * second line rather than lose its end — but only out of a line the title
- * measured itself as not needing, never one it would have filled.
+ * A week column is narrower than a "09:30–11:00" range — and a 12-hour
+ * "6:00 PM–7:00 PM" can want four lines — so the label wraps over as many as it
+ * needs rather than lose its end, but only out of lines the title measured
+ * itself as not needing, never one it would have filled.
  */
 @Composable
 fun blockTimeLines(label: String, textWidth: Dp, spare: Dp): Int {
     val timeLineHeight = rememberTrimmedLineHeight(
         MaterialTheme.typography.labelSmall.asEventTime(),
     )
-    return if (spare >= timeLineHeight) {
-        blockTextLines(
-            text = label,
-            // The style it is drawn in, or the budget measures a line the label
-            // never uses (#219).
-            style = MaterialTheme.typography.labelSmall.asEventTime(),
-            textWidth = textWidth,
-            max = MAX_TIME_LINES,
-        )
-    } else {
-        1
+    return blockTextLines(
+        text = label,
+        // The style it is drawn in, or the budget measures a line the label
+        // never uses (#219).
+        style = MaterialTheme.typography.labelSmall.asEventTime(),
+        textWidth = textWidth,
+        max = timeLinesWithin(spare, timeLineHeight),
+    )
+}
+
+/** Lines a time label may take: its own first one, plus every whole [timeLine] in [spare]. */
+internal fun timeLinesWithin(spare: Dp, timeLine: Dp): Int =
+    if (spare < timeLine || timeLine <= 0.dp) 1 else 1 + (spare / timeLine).toInt()
+
+/**
+ * The time range as a timed block draws it.
+ *
+ * Each time stays whole where the column is wide enough for one, so a 12-hour
+ * label never parts "6:00" from its "PM": the range breaks at the dash, which
+ * rides on whichever side has room for it. Where not even one time fits, the
+ * text wraps wherever it can.
+ */
+@Composable
+fun rememberBlockTimeRange(start: String, end: String, textWidth: Dp): String {
+    val measurer = rememberTextMeasurer()
+    val style = MaterialTheme.typography.labelSmall.asEventTime()
+    val widthPx = with(LocalDensity.current) { textWidth.roundToPx() }
+    return remember(start, end, style, widthPx, measurer) {
+        blockTimeRange(start, end) {
+            measurer.measure(text = it, style = style, softWrap = false).size.width <= widthPx
+        }
     }
 }
+
+internal fun blockTimeRange(start: String, end: String, fits: (String) -> Boolean): String {
+    val from = start.replace(' ', NO_BREAK_SPACE)
+    val to = end.replace(' ', NO_BREAK_SPACE)
+    return when {
+        fits("$from–$to") -> "$from–$to"
+        !fits(from) || !fits(to) -> "$start–$ZERO_WIDTH_SPACE$end"
+        fits("$from–") -> "$from–\n$to"
+        fits("–$to") -> "$from\n–$to"
+        else -> "$from\n$to"
+    }
+}
+
+private const val NO_BREAK_SPACE = ' '
+private const val ZERO_WIDTH_SPACE = '​'
 
 /**
  * A timed block's title, over at most [maxLines], breaking at word boundaries.
