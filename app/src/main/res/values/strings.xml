@@ -67,6 +67,10 @@
     <!-- Day view (S3) -->
     <string name="day_today_action">Today</string>
 
+    <!-- Week and day timelines — edge bar for events scrolled out of view (#188) -->
+    <string name="timeline_earlier_events">Earlier events</string>
+    <string name="timeline_later_events">Later events</string>
+
     <!-- Event detail screen (S4) -->
     <string name="event_detail_back">Back</string>
     <string name="event_detail_edit">Edit</string>
