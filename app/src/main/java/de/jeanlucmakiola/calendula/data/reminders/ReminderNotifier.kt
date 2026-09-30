@@ -88,6 +88,7 @@ class ReminderNotifier @Inject constructor(
             is24Hour = is24Hour,
             today = Instant.now().atZone(zone).toLocalDate(),
             firstDayOfWeek = firstDayOfWeek,
+            todayLabel = context.getString(R.string.reminder_day_today),
             tomorrowLabel = context.getString(R.string.reminder_day_tomorrow),
             yesterdayLabel = context.getString(R.string.reminder_day_yesterday),
         )

@@ -9,9 +9,9 @@ import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.displayPriority
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.domain.calendarListFailure
-import de.jeanlucmakiola.calendula.domain.isDeclined
 import de.jeanlucmakiola.calendula.ui.common.PageStateCache
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -163,6 +163,7 @@ abstract class PagedTimelineViewModel(
     }
 
     fun goToToday() = jumpTo(todayDate)
+    fun goToDate(date: LocalDate) = jumpTo(date)
 
     private fun buildState(
         span: DaySpan,
@@ -254,7 +255,13 @@ internal fun layoutAllDay(
         }
         // Declined bars are packed after every other one, so on any day they
         // cover they land in a lane below it (#230).
-        .sortedWith(compareBy({ it.event.isDeclined }, { it.startCol }, { it.endCol }))
+        .sortedWith(
+            compareBy<Raw> { it.event.displayPriority(zone) }
+                .thenBy { it.startCol }
+                .thenBy { it.endCol }
+                .thenBy { it.event.start }
+                .thenBy { it.event.instanceId },
+        )
 
     // What each lane already holds, rather than just how far right it reaches.
     // A single "last occupied column" only answers correctly while spans arrive

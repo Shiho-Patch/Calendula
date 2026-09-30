@@ -164,6 +164,18 @@ class MonthLayoutTest {
     }
 
     @Test
+    fun `multi-day bar is above a one-day all-day bar on the same date`() {
+        val day = LocalDate(2026, 6, 10)
+        val single = allDay(day, id = 1L, title = "Single")
+        val multi = allDay(day, day.plus(2, DateTimeUnit.DAY), id = 2L, title = "Multi")
+        val week = layoutCalendarWeek(weekOf8th, listOf(single, multi), zone)
+        val lanes = week.spans.associate { it.event.title to it.lane }
+        assertThat(lanes.getValue("Multi")).isLessThan(lanes.getValue("Single"))
+        assertThat(instancesByDay(listOf(day), listOf(single, multi), zone).getValue(day).map { it.title })
+            .containsExactly("Multi", "Single").inOrder()
+    }
+
+    @Test
     fun `single-day timed events stay pills and sort by start`() {
         val late = timed(LocalDate(2026, 6, 10), 14, 15, id = 1L)
         val early = timed(LocalDate(2026, 6, 10), 9, 10, id = 2L)

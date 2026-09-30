@@ -139,3 +139,6 @@ val CalendarView.screen: ViewScreen
         CalendarView.Agenda -> ViewScreen.Agenda
         CalendarView.Week, CalendarView.MultiDay, CalendarView.Day -> ViewScreen.Timeline
     }
+/** Push the week view over the month after a week-number tap. */
+fun List<CalendarView>.drillToWeek(): List<CalendarView> =
+    if (lastOrNull() == CalendarView.Week) this else this + CalendarView.Week

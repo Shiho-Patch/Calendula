@@ -27,12 +27,12 @@ import java.util.Locale
  *                                                          alone would be ambiguous)
  * - timed, crossing days: "11 Jun, 23:30 – 12 Jun, 00:30" (medium date + short time,
  *                                                          already unambiguous)
- * - all-day, one day:     "11 Jun 2026"
- * - all-day, multi-day:   "11 Jun 2026 – 12 Jun 2026"
+ * - all-day, one day:     "Tomorrow" / "Thu" / "11 Jun 2026" (same relative rules,
+ *                                                          plus [todayLabel] — no time range to lean on)
+ * - all-day, multi-day:   "Tomorrow – 12 Jun 2026"        (relative start, explicit end)
  *
- * All-day instances already carry an explicit date, so they never gain a
- * relative prefix. They store UTC midnights with an exclusive end, so they are
- * read in UTC and the end day is the last *covered* day.
+ * All-day instances store UTC midnights with an exclusive end, so they are read
+ * in UTC and the end day is the last *covered* day (issue #308).
  */
 fun reminderTimeText(
     beginMillis: Long,
@@ -43,6 +43,7 @@ fun reminderTimeText(
     is24Hour: Boolean,
     today: LocalDate,
     firstDayOfWeek: DayOfWeek,
+    todayLabel: String,
     tomorrowLabel: String,
     yesterdayLabel: String,
 ): String {
@@ -53,11 +54,16 @@ fun reminderTimeText(
         val lastDay = Instant.ofEpochMilli(endMillis).atZone(ZoneOffset.UTC).toLocalDate()
             .minusDays(1)
             .coerceAtLeast(firstDay)
-        return if (lastDay == firstDay) {
-            dateFormat.format(firstDay)
-        } else {
-            dateFormat.format(firstDay) + RANGE + dateFormat.format(lastDay)
-        }
+        val start = relativeDayPrefix(
+            day = firstDay,
+            today = today,
+            firstDayOfWeek = firstDayOfWeek,
+            locale = locale,
+            dateFormat = dateFormat,
+            tomorrowLabel = tomorrowLabel,
+            yesterdayLabel = yesterdayLabel,
+        ) ?: todayLabel
+        return if (lastDay == firstDay) start else start + RANGE + dateFormat.format(lastDay)
     }
 
     val timeFormat = timeOfDayFormatter(is24Hour, locale)

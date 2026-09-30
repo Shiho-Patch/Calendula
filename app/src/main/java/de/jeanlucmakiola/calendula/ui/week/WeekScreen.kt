@@ -137,6 +137,8 @@ import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
 import de.jeanlucmakiola.calendula.ui.common.trimmedLines
 import de.jeanlucmakiola.calendula.ui.common.NowLine
+import de.jeanlucmakiola.calendula.ui.common.OutOfViewEdgeBars
+import de.jeanlucmakiola.calendula.ui.common.rememberOutOfViewEdges
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.calendula.ui.common.EnterOnFocus
 import de.jeanlucmakiola.calendula.ui.common.LocalViewFocus
@@ -1243,6 +1245,7 @@ private fun Timeline(
                     onEventClick = onEventClick,
                     onCreateAt = onCreateAt,
                     onDrop = onDrop,
+                    scrollState = scrollState,
                     modifier = Modifier.fillMaxHeight(),
                 )
             }
@@ -1264,6 +1267,7 @@ private fun DayColumnCard(
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
     onDrop: (TimelineDrop) -> Unit,
+    scrollState: ScrollState,
     modifier: Modifier = Modifier,
 ) {
     val density = LocalDensity.current
@@ -1281,6 +1285,8 @@ private fun DayColumnCard(
     // them, or taps land on the scale the column had before the zoom (#148).
     val currentHourPx = rememberUpdatedState(hourPx)
     val currentOnCreateAt = rememberUpdatedState(onCreateAt)
+    val edges = rememberOutOfViewEdges(blocks, scrollState, hourPx)
+    val currentEdges = rememberUpdatedState(edges)
     Card(
         // Plain rectangular columns — the soft corners come from the outer
         // rounded scroll viewport, so inner rounding would look odd at the edges.
@@ -1298,6 +1304,7 @@ private fun DayColumnCard(
         ),
         modifier = modifier,
     ) {
+        Box(Modifier.fillMaxSize()) {
         LaneColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -1308,6 +1315,7 @@ private fun DayColumnCard(
                 // blocks are consumed by their own handler first. Snaps to hour.
                 .pointerInput(date) {
                     detectTapGestures { offset ->
+                        if (currentEdges.value.tap(offset.y)) return@detectTapGestures
                         currentOnCreateAt.value(
                             date,
                             tappedMinuteOfDay(offset.y, currentHourPx.value),
@@ -1379,6 +1387,12 @@ private fun DayColumnCard(
             if (date == today) {
                 NowLine(date = date, hourHeight = hourHeight)
             }
+        }
+            OutOfViewEdgeBars(
+                edges = edges,
+                scrollState = scrollState,
+                dark = dark,
+            )
         }
     }
 }

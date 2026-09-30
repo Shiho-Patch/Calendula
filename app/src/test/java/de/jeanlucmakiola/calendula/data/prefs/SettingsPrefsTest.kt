@@ -14,6 +14,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.common.TimelineHours
 import de.jeanlucmakiola.calendula.ui.common.TimelineScale
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import kotlinx.coroutines.flow.first
@@ -123,6 +124,24 @@ class SettingsPrefsTest {
         // coexisting with one silently winning.
         prefs.setTimelineScale(TimelineScale.Comfortable)
         assertThat(prefs.timelineScale.first()).isEqualTo(TimelineScale.Comfortable)
+    }
+
+    @Test
+    fun `visible hours default off and round-trip`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        assertThat(prefs.timelineHours.first()).isEqualTo(TimelineHours(enabled = false, 7, 22))
+        prefs.setTimelineHours(TimelineHours(enabled = true, 6, 20))
+        assertThat(prefs.timelineHours.first()).isEqualTo(TimelineHours(enabled = true, 6, 20))
+        // Switching off keeps the chosen hours for next time.
+        prefs.setTimelineHours(TimelineHours(enabled = false, 6, 20))
+        assertThat(prefs.timelineHours.first()).isEqualTo(TimelineHours(enabled = false, 6, 20))
+    }
+
+    @Test
+    fun `visible hours are stored valid`(@TempDir tempDir: Path) = runTest {
+        val prefs = SettingsPrefs(newDataStore(tempDir))
+        prefs.setTimelineHours(TimelineHours(enabled = true, 23, 22))
+        assertThat(prefs.timelineHours.first()).isEqualTo(TimelineHours(enabled = true, 20, 22))
     }
 
     @Test

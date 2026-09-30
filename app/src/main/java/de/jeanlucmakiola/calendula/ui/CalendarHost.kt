@@ -68,6 +68,7 @@ import de.jeanlucmakiola.calendula.ui.common.ViewMorphScope
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.calendula.ui.common.rememberViewMorphBoundsTransform
 import de.jeanlucmakiola.calendula.ui.common.drillToDay
+import de.jeanlucmakiola.calendula.ui.common.drillToWeek
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.selectView
 import de.jeanlucmakiola.calendula.ui.common.viewBaseStack
@@ -161,6 +162,10 @@ fun CalendarHost(
     val onOpenDay: (LocalDate) -> Unit = { date ->
         focus.navigateTo(date)
         switchTo { it.drillToDay() }
+    }
+    val onOpenWeek: (LocalDate) -> Unit = { date ->
+        focus.navigateTo(date)
+        switchTo { it.drillToWeek() }
     }
 
     // The event-detail screen (S4) is a full-screen destination hoisted here so
@@ -511,6 +516,7 @@ fun CalendarHost(
                 )
                 ViewScreen.Month -> MonthScreen(
                     onOpenDay = onOpenDay,
+                    onOpenWeek = onOpenWeek,
                     onEventClick = onEventClick,
                     onCreateEvent = onCreateEvent,
                 )

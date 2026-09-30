@@ -170,6 +170,7 @@ class MainActivity : AppCompatActivity() {
             // weeks and switching between the week and day view.
             val timelineZoom = rememberTimelineZoom(
                 stored = settings.timelineScale,
+                hours = settings.timelineHours,
                 onPersist = settingsViewModel::setTimelineScale,
             )
             val fonts by settingsViewModel.fontState.collectAsStateWithLifecycle()
