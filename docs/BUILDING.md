@@ -1,7 +1,7 @@
 # Building from source
 
-Calendula builds with the standard Android Gradle toolchain — no extra setup
-beyond the SDK, a JDK, and the submodule.
+Calendula builds with the standard Android Gradle toolchain. You need the SDK,
+a JDK and the submodule, nothing else.
 
 ## Clone
 
@@ -9,9 +9,9 @@ beyond the SDK, a JDK, and the submodule.
 git clone --recurse-submodules https://codeberg.org/jlmakiola/calendula.git
 ```
 
-Calendula depends on **[floret-kit](https://codeberg.org/jlmakiola/floret-kit)**,
+Calendula depends on [floret-kit](https://codeberg.org/jlmakiola/floret-kit),
 the shared Material 3 Expressive kit, as a git submodule wired in as a Gradle
-composite build (`includeBuild("floret-kit")` in `settings.gradle.kts`) — it is
+composite build (`includeBuild("floret-kit")` in `settings.gradle.kts`). It is
 compiled from source, not resolved from a repository. A clone without the
 submodule fails to configure. For an existing clone:
 
@@ -21,14 +21,14 @@ git submodule update --init --recursive
 
 ## Requirements
 
-- **JDK 17** — not newer; the Android Gradle Plugin requires exactly 17. If your
+- **JDK 17**, not newer: the Android Gradle Plugin requires exactly 17. If your
   default JDK differs, set `JAVA_HOME` explicitly.
-- **Android SDK** — platform **37** (`compileSdk`) and **build-tools 36.0.0**.
+- **Android SDK**: platform 37 (`compileSdk`) and build-tools 36.0.0.
   `minSdk` is 29, `targetSdk` 36.
 
 The SDK is located via `ANDROID_HOME` (or `ANDROID_SDK_ROOT`), or via a
 gitignored `local.properties` with `sdk.dir`. If you use `local.properties`, note
-that the composite build needs **its own** copy at `floret-kit/local.properties`;
+that the composite build needs its own copy at `floret-kit/local.properties`;
 setting `ANDROID_HOME` covers both builds at once and is the simpler route.
 
 The Gradle wrapper is checked in, so you don't need a system Gradle.

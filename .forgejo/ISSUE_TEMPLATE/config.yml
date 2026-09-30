@@ -6,8 +6,8 @@ contact_links:
   - name: Translate Calendula
     url: https://weblate.dev.jeanlucmakiola.de/engage/calendula/
     about: >-
-      Translations are managed on Weblate, not here — it owns every values-*
-      file, so a hand-edited translation gets overwritten on the next sync.
+      Translations are managed on Weblate. It owns every values-* file, so a
+      hand-edited translation gets overwritten on the next sync.
       No coding needed: pick or request a language and translate in the browser.
 
   - name: Contributing guide

@@ -21,9 +21,9 @@ labels:
 - Calendula version: <!-- Settings → bottom of the screen -->
 - Android version:
 - Device:
-- Installed from: <!-- official F-Droid / the self-hosted repo / built from source -->
+- Installed from: <!-- official F-Droid / the self-hosted repo / Google Play / Codeberg APK or Obtainium / built from source -->
 - Affected calendar: <!-- Google, CalDAV (DAVx5, Nextcloud, …), on-device/local,
-                         subscribed/WebCal, birthdays — provider behaviour differs
+                         subscribed/WebCal, birthdays. Provider behaviour differs
                          a lot per account type, so this often points straight at
                          the cause -->
 - Time zone: <!-- only if the problem involves dates or all-day events -->
