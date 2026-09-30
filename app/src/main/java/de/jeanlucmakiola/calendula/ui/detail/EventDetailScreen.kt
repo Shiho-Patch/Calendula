@@ -140,6 +140,7 @@ fun EventDetailScreen(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: (EventForm) -> Unit,
+    visible: Boolean = true,
     viewModel: EventDetailViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(eventId, beginMillis, endMillis) {
@@ -227,7 +228,7 @@ fun EventDetailScreen(
     }
 
     Scaffold(
-        modifier = Modifier.predictiveBack(onBack = onBack),
+        modifier = Modifier.predictiveBack(onBack = onBack, visible = visible),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(

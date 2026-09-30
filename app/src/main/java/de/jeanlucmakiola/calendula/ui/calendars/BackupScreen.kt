@@ -82,6 +82,7 @@ private val RESTORE_MIME_TYPES = arrayOf(
 fun BackupScreen(
     onBack: () -> Unit,
     onImport: (Uri) -> Unit,
+    visible: Boolean = true,
     viewModel: CalendarsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.backupState.collectAsStateWithLifecycle()
@@ -137,6 +138,7 @@ fun BackupScreen(
         scrollable = state is BackupUiState.Ready,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         predictiveBack = true,
+        visible = visible,
     ) {
         when (val s = state) {
             BackupUiState.Loading -> BackupLoading()

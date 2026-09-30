@@ -288,6 +288,15 @@ class SettingsPrefs @Inject constructor(
         store.edit { it[TIMELINE_SCALE_KEY] = scale.storageValue() }
     }
 
+    /** How many days the multi-day view shows side by side (#193). */
+    val multiDayCount: Flow<Int> = store.data.map { prefs ->
+        (prefs[MULTI_DAY_COUNT_KEY] ?: DEFAULT_MULTI_DAY_COUNT).coerceIn(MULTI_DAY_COUNTS)
+    }
+
+    suspend fun setMultiDayCount(count: Int) {
+        store.edit { it[MULTI_DAY_COUNT_KEY] = count.coerceIn(MULTI_DAY_COUNTS) }
+    }
+
     /**
      * The hours the day, week and multi-day timelines fit to the screen when they
      * open (#322). Off by default; the hours survive switching it off.
@@ -307,15 +316,6 @@ class SettingsPrefs @Inject constructor(
             it[TIMELINE_HOURS_START_KEY] = valid.startHour
             it[TIMELINE_HOURS_END_KEY] = valid.endHour
         }
-    }
-
-    /** How many days the multi-day view shows side by side (#193). */
-    val multiDayCount: Flow<Int> = store.data.map { prefs ->
-        (prefs[MULTI_DAY_COUNT_KEY] ?: DEFAULT_MULTI_DAY_COUNT).coerceIn(MULTI_DAY_COUNTS)
-    }
-
-    suspend fun setMultiDayCount(count: Int) {
-        store.edit { it[MULTI_DAY_COUNT_KEY] = count.coerceIn(MULTI_DAY_COUNTS) }
     }
 
     /**

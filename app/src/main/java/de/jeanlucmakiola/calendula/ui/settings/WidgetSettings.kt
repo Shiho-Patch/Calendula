@@ -42,6 +42,7 @@ internal fun WidgetsScreen(
     state: SettingsUiState,
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
+    visible: Boolean = true,
 ) {
     var showAgendaWidgetRange by remember { mutableStateOf(false) }
     var showWidgetSize by remember { mutableStateOf(false) }
@@ -50,6 +51,7 @@ internal fun WidgetsScreen(
         title = stringResource(R.string.settings_section_widgets),
         onBack = onBack,
         predictiveBack = true,
+        visible = visible,
     ) {
         SettingsHint(stringResource(R.string.settings_widgets_hint))
         Spacer(Modifier.height(8.dp))

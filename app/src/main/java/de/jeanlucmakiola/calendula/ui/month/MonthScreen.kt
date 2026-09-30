@@ -9,8 +9,20 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.rememberUpdatedState
+import de.jeanlucmakiola.calendula.ui.common.PublishChrome
+import de.jeanlucmakiola.calendula.ui.common.ScreenActions
+import de.jeanlucmakiola.calendula.ui.common.ScreenBody
+import de.jeanlucmakiola.calendula.ui.common.ScreenChrome
+import de.jeanlucmakiola.calendula.ui.common.LocalViewMorph
+import de.jeanlucmakiola.calendula.ui.common.EnterOnFocus
+import de.jeanlucmakiola.calendula.ui.common.LocalViewFocus
+import de.jeanlucmakiola.calendula.ui.common.ViewMorphKey
+import de.jeanlucmakiola.calendula.ui.common.morphDay
+import de.jeanlucmakiola.calendula.ui.common.morphEvent
+import de.jeanlucmakiola.calendula.ui.common.morphPageActive
 import de.jeanlucmakiola.calendula.ui.common.jumpToPage
 import de.jeanlucmakiola.calendula.ui.common.pagedHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSpec
@@ -33,7 +45,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -62,23 +73,18 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -94,7 +100,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -126,7 +131,6 @@ import de.jeanlucmakiola.calendula.ui.common.DragSnapHaptics
 import de.jeanlucmakiola.calendula.ui.common.SETTLE_FADE_MILLIS
 import de.jeanlucmakiola.calendula.ui.common.SETTLE_GRACE_MILLIS
 import de.jeanlucmakiola.calendula.ui.common.EventMoveScope
-import de.jeanlucmakiola.calendula.domain.spanFirstDay
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.semantics.customActions
@@ -161,11 +165,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaEmptyDayRow
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaEventRow
 import de.jeanlucmakiola.calendula.ui.agenda.agendaDayLabel
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
-import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
 import de.jeanlucmakiola.calendula.ui.common.AppBarSpacing
-import de.jeanlucmakiola.calendula.ui.common.CalendarTitleButton
-import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
-import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
@@ -179,7 +179,6 @@ import de.jeanlucmakiola.calendula.ui.common.EventChipShape
 import de.jeanlucmakiola.calendula.ui.common.trimmedLines
 import de.jeanlucmakiola.calendula.ui.common.monthBarShape
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
-import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.floret.identity.animateItemMotion
@@ -250,20 +249,16 @@ private fun Modifier.todayRipple(relativeColumn: Int?, progress: () -> Float): M
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MonthScreen(
-    selectedView: CalendarView,
-    onSelectView: (CalendarView) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     onOpenWeek: (LocalDate) -> Unit,
     onEventClick: (EventInstance) -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenSearch: () -> Unit,
     onCreateEvent: (LocalDate, Int?) -> Unit,
-    quickSwitchViews: List<CalendarView> = IMPLEMENTED_VIEWS,
-    drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
-    todayInToolbar: Boolean = false,
     modifier: Modifier = Modifier,
     viewModel: MonthViewModel = hiltViewModel(),
 ) {
+    // Opens on the focused date's month, and hands its selection back as it moves.
+    val focus = LocalViewFocus.current
+    EnterOnFocus(viewModel) { viewModel.goToDate(it) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val continuousState by viewModel.continuousState.collectAsStateWithLifecycle()
     val month by viewModel.month.collectAsStateWithLifecycle()
@@ -280,15 +275,16 @@ fun MonthScreen(
         derivedStateOf { if (dimCompleted) nowState.value else null }
     }
 
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     val scrolling = viewStyle.isScrolling
+    var pendingScrollMonth by remember { mutableStateOf<YearMonth?>(null) }
+    var scrollRequestId by remember { mutableIntStateOf(0) }
 
     // The paged and split styles' months. Made afresh whenever a paged style
     // comes on screen, opening on the month the scrolling style was showing: a
     // pager that was never laid out can't be scrolled to follow it meanwhile.
-    val anchorPage by viewModel.anchorPage.collectAsStateWithLifecycle()
+    val anchorPage = monthIndexOf(month)
     val pagerState = key(scrolling) {
         rememberPagerState(initialPage = anchorPage) { continuousMonthCount() }
     }
@@ -304,6 +300,15 @@ fun MonthScreen(
     }
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }.drop(1).collect(viewModel::onPageSettled)
+    }
+    // Keep the shared focus on the visible month or its selected day.
+    LaunchedEffect(viewModel) {
+        snapshotFlow { month to selectedDate }.drop(1).collect { (visible, selected) ->
+            val current = focus?.date
+            focus?.date = selected ?: current?.takeIf {
+                it.year == visible.year && it.month == visible.month
+            } ?: LocalDate(visible.year, visible.month, 1)
+        }
     }
     val dense = viewStyle == MonthViewStyle.Dense
 
@@ -376,15 +381,21 @@ fun MonthScreen(
     // back there rather than staying on the month you were looking at.
     LaunchedEffect(listState, scrolling, dense, weekStart) {
         if (!scrolling) return@LaunchedEffect
-        snapshotFlow { visibleMonth }
+        snapshotFlow { visibleMonth to pendingScrollMonth }
             .distinctUntilChanged()
-            .collect { viewModel.syncScrollMonth(it) }
+            .collect { (visible, pending) ->
+                if (pending == null || pending == visible) {
+                    viewModel.syncScrollMonth(visible)
+                    if (pending == visible) pendingScrollMonth = null
+                }
+            }
     }
 
     val isOnCurrentMonth = titleMonth == YearMonth(today.year, today.month)
     var splitExpanded by rememberSaveable(viewStyle) {
         mutableStateOf(viewStyle == MonthViewStyle.Paged)
     }
+    var todayPulse by remember { mutableIntStateOf(0) }
 
     // Continuous names the month on the block's own sticky header, so the bar
     // carries the year instead of repeating it two lines further down. Dense has
@@ -406,15 +417,24 @@ fun MonthScreen(
     val jumpToMonth: (YearMonth) -> Unit = { ym ->
         scope.launch { pagerState.jumpToPage(monthIndexOf(ym), reduceMotion, pageSpec) }
     }
-    var todayPulse by remember { mutableIntStateOf(0) }
     val jumpToToday: () -> Unit = {
         todayPulse++
         if (scrolling) {
+            val targetMonth = YearMonth(today.year, today.month)
+            pendingScrollMonth = targetMonth
+            val requestId = ++scrollRequestId
+            viewModel.goToToday()
             scope.launch {
-                listState.animateScrollToItem(
-                    if (dense) weekIndexOf(today, weekStart)
-                    else itemIndexForMonth(monthIndexOf(YearMonth(today.year, today.month))),
-                )
+                try {
+                    listState.animateScrollToItem(
+                        if (dense) weekIndexOf(today, weekStart)
+                        else itemIndexForMonth(monthIndexOf(targetMonth)),
+                    )
+                } finally {
+                    if (scrollRequestId == requestId) {
+                        pendingScrollMonth = null
+                    }
+                }
             }
         } else {
             viewModel.goToToday()
@@ -424,11 +444,21 @@ fun MonthScreen(
     // Drawer jump-to-date.
     val jumpToDate: (LocalDate) -> Unit = { target ->
         if (scrolling) {
+            val targetMonth = YearMonth(target.year, target.month)
+            pendingScrollMonth = targetMonth
+            val requestId = ++scrollRequestId
+            viewModel.goToDate(target)
             scope.launch {
-                listState.animateScrollToItem(
-                    if (dense) weekIndexOf(LocalDate(target.year, target.month, 1), weekStart)
-                    else itemIndexForMonth(monthIndexOf(YearMonth(target.year, target.month))),
-                )
+                try {
+                    listState.animateScrollToItem(
+                        if (dense) weekIndexOf(LocalDate(target.year, target.month, 1), weekStart)
+                        else itemIndexForMonth(monthIndexOf(targetMonth)),
+                    )
+                } finally {
+                    if (scrollRequestId == requestId) {
+                        pendingScrollMonth = null
+                    }
+                }
             }
         } else {
             viewModel.goToDate(target)
@@ -436,141 +466,106 @@ fun MonthScreen(
         }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        // Open only via the menu button — edge-swipe would fight the month swipe.
-        gesturesEnabled = drawerState.isOpen,
-        drawerContent = {
-            CalendarDrawer(
-                currentView = selectedView,
-                currentDate = LocalDate(titleMonth.year, titleMonth.month, 1),
-                drawerState = drawerState,
-                viewOrder = drawerViewOrder,
-                onSelectView = { view ->
-                    onSelectView(view)
-                    scope.launch { drawerState.close() }
-                },
-                onJumpToDate = { target ->
-                    jumpToDate(target)
-                    scope.launch { drawerState.close() }
-                },
-                onSettings = {
-                    onOpenSettings()
-                    scope.launch { drawerState.close() }
-                },
-            )
-        },
-    ) {
-        Scaffold(
-            modifier = modifier,
-            topBar = {
-                MonthTopBar(
-                    title = topBarTitle,
-                    shortTitle = topBarShortTitle,
-                    titleDate = LocalDate(titleMonth.year, titleMonth.month, 1),
-                    selectedView = selectedView,
-                    onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
-                    quickSwitchViews = quickSwitchViews,
-                    onOpenDrawer = { scope.launch { drawerState.open() } },
-                    onOpenSearch = onOpenSearch,
-                    onJumpToDate = jumpToDate,
-                    showTodayButton = todayInToolbar,
-                    onToday = jumpToToday,
-                )
-            },
-            floatingActionButton = {
-                CalendarFabColumn(
-                    todayVisible = !isOnCurrentMonth && !todayInToolbar,
-                    todayText = stringResource(R.string.month_today_action),
-                    onToday = jumpToToday,
-                    onCreate = {
-                        // Split has a selected day; the other styles anchor on
-                        // today when its month is shown, else the 1st.
-                        onCreateEvent(
-                            when {
-                                (viewStyle == MonthViewStyle.Split ||
-                                    (viewStyle == MonthViewStyle.Paged && !splitExpanded)) -> selectedDate
-                                    ?: if (isOnCurrentMonth) today else LocalDate(titleMonth.year, titleMonth.month, 1)
-                                isOnCurrentMonth -> today
-                                else -> LocalDate(titleMonth.year, titleMonth.month, 1)
-                            },
-                            null,
-                        )
+    PublishChrome(
+        ScreenChrome(
+            title = topBarTitle,
+            shortTitle = topBarShortTitle,
+            titleDate = LocalDate(titleMonth.year, titleMonth.month, 1),
+            drawerDate = LocalDate(titleMonth.year, titleMonth.month, 1),
+            awayFromToday = !isOnCurrentMonth,
+            todayText = stringResource(R.string.month_today_action),
+        ),
+        ScreenActions(
+            onToday = jumpToToday,
+            onJumpToDate = jumpToDate,
+            onCreate = {
+                // Split has a selected day; the other styles anchor on today when
+                // its month is shown, else the 1st.
+                onCreateEvent(
+                    when {
+                        (viewStyle == MonthViewStyle.Split ||
+                            (viewStyle == MonthViewStyle.Paged && !splitExpanded)) -> selectedDate
+                            ?: if (isOnCurrentMonth) today else LocalDate(titleMonth.year, titleMonth.month, 1)
+                        isOnCurrentMonth -> today
+                        else -> LocalDate(titleMonth.year, titleMonth.month, 1)
                     },
+                    null,
                 )
             },
-        ) { innerPadding ->
-            // Hoisted above every style's grid: a dragged chip is drawn in an
-            // overlay, clear of the week row's and the list viewport's clips.
-            val chipDrag = rememberMonthDragController()
-            // Undo moves the event back, so the chip travels back too. The
-            // signal comes from the write, not from the chip that offers it.
-            OnUndoStarted { chipDrag.beginUndo() }
-            Box(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize(),
+        ),
+    )
+
+    ScreenBody(modifier = modifier) { innerPadding ->
+        // Hoisted above every style's grid: a dragged chip is drawn in an
+        // overlay, clear of the week row's and the list viewport's clips.
+        val chipDrag = rememberMonthDragController()
+        // Undo moves the event back, so the chip travels back too. The
+        // signal comes from the write, not from the chip that offers it.
+        OnUndoStarted { chipDrag.beginUndo() }
+        Box(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize(),
+        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            WeekdayHeader(weekStart = weekStart, showWeekNumbers = showWeekNumbers)
+            CompositionLocalProvider(
+                LocalDimCutoff provides dimCutoff,
+                LocalMonthDrag provides chipDrag,
+                LocalTodayPulse provides todayPulse,
+                LocalOpenWeek provides onOpenWeek,
             ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                WeekdayHeader(weekStart = weekStart, showWeekNumbers = showWeekNumbers)
-                CompositionLocalProvider(
-                    LocalDimCutoff provides dimCutoff,
-                    LocalMonthDrag provides chipDrag,
-                    LocalTodayPulse provides todayPulse,
-                    LocalOpenWeek provides onOpenWeek,
-                ) {
-                    if (scrolling) {
-                        ContinuousMonthContent(
-                            state = continuousState,
-                            listState = listState,
-                            dense = dense,
-                            showWeekNumbers = showWeekNumbers,
-                            onRetry = jumpToToday,
-                            onOpenDay = onOpenDay,
-                            onEventClick = onEventClick,
-                        )
-                    } else if (viewStyle == MonthViewStyle.Split || viewStyle == MonthViewStyle.Paged) {
-                        SplitMonthContent(
-                            state = state,
-                            selected = selectedDate,
-                            initiallyExpanded = viewStyle == MonthViewStyle.Paged,
-                            expanded = splitExpanded,
-                            onExpandedChange = { splitExpanded = it },
-                            pagerState = pagerState,
-                            weekStart = weekStart,
-                            monthState = viewModel::month,
-                            showWeekNumbers = showWeekNumbers,
-                            onPaneSwipeNext = { viewModel.stepSplitPane(1) },
-                            onPaneSwipePrev = { viewModel.stepSplitPane(-1) },
-                            onClearSelection = viewModel::clearSelection,
-                            onRetry = jumpToToday,
-                            // A tapped leading/trailing day follows to its own
-                            // month, pager and all — straight away, or a swipe
-                            // still settling would land and take the tap back.
-                            onSelectDay = { date ->
-                                viewModel.selectDate(date)
-                                jumpToMonth(YearMonth(date.year, date.month))
-                            },
-                            onOpenDay = onOpenDay,
-                            onEventClick = onEventClick,
-                            onCreateEvent = { onCreateEvent(it, null) },
-                        )
-                    } else {
-                        MonthContent(
-                            state = state,
-                            pagerState = pagerState,
-                            weekStart = weekStart,
-                            monthState = viewModel::month,
-                            showWeekNumbers = showWeekNumbers,
-                            onRetry = jumpToToday,
-                            onOpenDay = onOpenDay,
-                            onEventClick = onEventClick,
-                        )
-                    }
+                if (scrolling) {
+                    ContinuousMonthContent(
+                        state = continuousState,
+                        listState = listState,
+                        dense = dense,
+                        showWeekNumbers = showWeekNumbers,
+                        onRetry = jumpToToday,
+                        onOpenDay = onOpenDay,
+                        onEventClick = onEventClick,
+                    )
+                } else if (viewStyle == MonthViewStyle.Split || viewStyle == MonthViewStyle.Paged) {
+                    SplitMonthContent(
+                        state = state,
+                        selected = selectedDate,
+                        initiallyExpanded = viewStyle == MonthViewStyle.Paged,
+                        expanded = splitExpanded,
+                        onExpandedChange = { splitExpanded = it },
+                        pagerState = pagerState,
+                        weekStart = weekStart,
+                        monthState = viewModel::month,
+                        showWeekNumbers = showWeekNumbers,
+                        onPaneSwipeNext = { viewModel.stepSplitPane(1) },
+                        onPaneSwipePrev = { viewModel.stepSplitPane(-1) },
+                        onClearSelection = viewModel::clearSelection,
+                        onRetry = jumpToToday,
+                        // A tapped leading/trailing day follows to its own
+                        // month, pager and all — straight away, or a swipe
+                        // still settling would land and take the tap back.
+                        onSelectDay = { date ->
+                            viewModel.selectDate(date)
+                            jumpToMonth(YearMonth(date.year, date.month))
+                        },
+                        onOpenDay = onOpenDay,
+                        onEventClick = onEventClick,
+                        onCreateEvent = { onCreateEvent(it, null) },
+                    )
+                } else {
+                    MonthContent(
+                        state = state,
+                        pagerState = pagerState,
+                        weekStart = weekStart,
+                        monthState = viewModel::month,
+                        showWeekNumbers = showWeekNumbers,
+                        onRetry = jumpToToday,
+                        onOpenDay = onOpenDay,
+                        onEventClick = onEventClick,
+                    )
                 }
             }
-            MonthDragOverlay(chipDrag)
-            }
+        }
+        MonthDragOverlay(chipDrag)
         }
     }
 }
@@ -739,7 +734,7 @@ private fun MonthPager(
 ) {
     if (static) {
         Box(modifier) {
-            MonthPage(pagerState.currentPage, true, weekStart, monthState, loading, page)
+            MonthPage(pagerState.currentPage, true, true, weekStart, monthState, loading, page)
         }
         return
     }
@@ -758,7 +753,15 @@ private fun MonthPager(
             snapAnimationSpec = rememberCalendarPageSpec(),
         ),
     ) { index ->
-        MonthPage(index, index == pagerState.currentPage, weekStart, monthState, loading, page)
+        MonthPage(
+            index = index,
+            active = index == pagerState.currentPage,
+            morphActive = morphPageActive(index, pagerState.settledPage),
+            weekStart = weekStart,
+            monthState = monthState,
+            loading = loading,
+            page = page,
+        )
     }
 }
 
@@ -766,6 +769,7 @@ private fun MonthPager(
 private fun MonthPage(
     index: Int,
     active: Boolean,
+    morphActive: Boolean,
     weekStart: DayOfWeek,
     monthState: (YearMonth, DayOfWeek) -> StateFlow<MonthUiState>,
     loading: @Composable () -> Unit,
@@ -775,9 +779,11 @@ private fun MonthPage(
     val state by remember(ym, weekStart) { monthState(ym, weekStart) }.collectAsStateWithLifecycle()
     val chipDrag = LocalMonthDrag.current
     val morph = LocalMonthMorph.current
+    val viewMorph = LocalViewMorph.current
     CompositionLocalProvider(
         LocalMonthDrag provides chipDrag.takeIf { active },
         LocalMonthMorph provides morph.takeIf { active },
+        LocalViewMorph provides viewMorph.takeIf { morphActive },
     ) {
         when (val s = state) {
             is MonthUiState.Success -> page(index, s)
@@ -826,62 +832,6 @@ private fun ContinuousMonthContent(
             )
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun MonthTopBar(
-    title: String,
-    shortTitle: String,
-    titleDate: LocalDate,
-    selectedView: CalendarView,
-    onCycleView: () -> Unit,
-    quickSwitchViews: List<CalendarView>,
-    onOpenDrawer: () -> Unit,
-    onOpenSearch: () -> Unit,
-    onJumpToDate: (LocalDate) -> Unit,
-    showTodayButton: Boolean,
-    onToday: () -> Unit,
-) {
-    TopAppBar(
-        title = {
-            CalendarTitleButton(
-                title = title,
-                currentDate = titleDate,
-                onJumpToDate = onJumpToDate,
-                shortTitle = shortTitle,
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onOpenDrawer) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = stringResource(R.string.month_open_menu),
-                )
-            }
-        },
-        actions = {
-            TodayAction(show = showTodayButton, onToday = onToday)
-            IconButton(onClick = onOpenSearch) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = stringResource(R.string.search_action),
-                )
-            }
-            ViewSwitcherPill(
-                current = selectedView,
-                cycle = quickSwitchViews,
-                onCycle = onCycleView,
-            )
-        },
-        // Deliberately flat: M3 lifts the bar to mark content scrolling under
-        // it, but here the bar meets the header on the same surface and the
-        // tint is what makes that seam look like a separate block (#186).
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surface,
-        ),
-    )
 }
 
 @Composable
@@ -1418,6 +1368,10 @@ private fun SplitMonthContent(
                 // its month still for the length of the cross-fade.
                 val leaving = transition.targetState == EnterExitState.PostExit
                 CompositionLocalProvider(
+                    // The split style morphs within itself and so sits the view
+                    // switch's morph out (#184): one element can't travel in two
+                    // shared transitions at once.
+                    LocalViewMorph provides null,
                     // Null under reduced motion: nothing is tagged, nothing
                     // travels, and the cross-fade above is the whole transition.
                     LocalMonthMorph provides if (reduceMotion) {
@@ -2452,6 +2406,17 @@ private fun MonthWeekRow(
                                         instanceId = span.event.instanceId,
                                     ),
                                 )
+                                // A blanked day is drawn again in its own
+                                // month's block, which owns the tag.
+                                .then(
+                                    week.days[span.startCol].let { start ->
+                                        if (blankOutside && !inMonth(start)) {
+                                            Modifier
+                                        } else {
+                                            Modifier.morphEvent(ViewMorphKey.event(span.event, start))
+                                        }
+                                    },
+                                )
                                 .width(colW * cols)
                                 .height(EVENT_ROW_HEIGHT)
                                 .padding(horizontal = MONTH_CHIP_INSET, vertical = 1.dp),
@@ -2509,6 +2474,13 @@ private fun MonthWeekRow(
                                         y = EVENT_ROW_HEIGHT * freeSlots[i],
                                     )
                                     .morphBounds(MonthMorphKey.Event(d, ev.instanceId))
+                                    .then(
+                                        if (blankOutside && !inMonth(d)) {
+                                            Modifier
+                                        } else {
+                                            Modifier.morphEvent(ViewMorphKey.event(ev, d))
+                                        },
+                                    )
                                     .width(colW)
                                     .height(EVENT_ROW_HEIGHT)
                                     .todayRipple(todayCol?.let { col - it }) { ripple.value }
@@ -2780,6 +2752,7 @@ private fun DayNumberCell(
         if (isToday) {
             Box(
                 modifier = Modifier
+                    .morphDay(date)
                     .size(DAY_NUMBER_HEIGHT)
                     .background(MaterialTheme.colorScheme.primary, CircleShape),
                 contentAlignment = Alignment.Center,
@@ -2800,6 +2773,7 @@ private fun DayNumberCell(
                 maxLines = 1,
                 overflow = TextOverflow.Visible,
                 softWrap = false,
+                modifier = Modifier.morphDay(date),
             )
         } else {
             Text(
@@ -2807,6 +2781,7 @@ private fun DayNumberCell(
                 style = MaterialTheme.typography.labelMedium,
                 color = if (inMonth) MaterialTheme.colorScheme.onSurface
                 else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.morphDay(date),
             )
         }
     }

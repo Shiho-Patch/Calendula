@@ -1,6 +1,7 @@
 package de.jeanlucmakiola.calendula.ui.common
 
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.spring
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -52,3 +53,19 @@ fun rememberCalendarPageSpec(): FiniteAnimationSpec<Float> =
 @Composable
 fun rememberCalendarFadeSpec(): FiniteAnimationSpec<Float> =
     MaterialTheme.motionScheme.defaultEffectsSpec()
+
+/**
+ * A switch between views (#184): the default spatial spring, a little softer, as
+ * the whole screen reshapes rather than a page sliding by; softer still when
+ * [long], for a change the eye has further to follow.
+ */
+@Composable
+fun <T> rememberViewSwitchSpec(long: Boolean = false): FiniteAnimationSpec<T> =
+    spring(
+        dampingRatio = VIEW_SWITCH_DAMPING,
+        stiffness = if (long) LONG_VIEW_SWITCH_STIFFNESS else VIEW_SWITCH_STIFFNESS,
+    )
+
+private const val VIEW_SWITCH_DAMPING = 0.9f
+private const val VIEW_SWITCH_STIFFNESS = 450f
+private const val LONG_VIEW_SWITCH_STIFFNESS = 340f

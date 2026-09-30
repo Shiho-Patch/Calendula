@@ -68,6 +68,7 @@ internal fun ViewsScreen(
     state: SettingsUiState,
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
+    visible: Boolean = true,
 ) {
     var showMonthStyle by remember { mutableStateOf(false) }
     var showDefaultView by remember { mutableStateOf(false) }
@@ -85,6 +86,7 @@ internal fun ViewsScreen(
         title = stringResource(R.string.settings_section_views),
         onBack = onBack,
         predictiveBack = true,
+        visible = visible,
     ) {
         val config = state.quickSwitchConfig
 

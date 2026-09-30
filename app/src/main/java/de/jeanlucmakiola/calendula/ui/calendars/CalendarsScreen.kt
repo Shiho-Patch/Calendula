@@ -133,6 +133,7 @@ private const val NEW_CALENDAR_ID = Long.MIN_VALUE
 fun CalendarsScreen(
     onBack: () -> Unit,
     onOpenBackup: () -> Unit,
+    visible: Boolean = true,
     viewModel: CalendarsViewModel = hiltViewModel(),
 ) {
     val calendars by viewModel.calendars.collectAsStateWithLifecycle()
@@ -177,6 +178,7 @@ fun CalendarsScreen(
             onConsumeError = viewModel::consumeError,
             onOpenBackup = onOpenBackup,
             onBack = onBack,
+            visible = visible,
             onAdd = { editorSession++; editorId = NEW_CALENDAR_ID },
             onEdit = { calendar -> editorSession++; editorId = calendar.id },
             onSetVisible = viewModel::setCalendarVisible,
@@ -193,6 +195,7 @@ private fun CalendarsList(
     onConsumeError: () -> Unit,
     onOpenBackup: () -> Unit,
     onBack: () -> Unit,
+    visible: Boolean,
     onAdd: () -> Unit,
     onEdit: (CalendarSource) -> Unit,
     onSetVisible: (Long, Boolean) -> Unit,
@@ -218,6 +221,7 @@ private fun CalendarsList(
         onBack = onBack,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         predictiveBack = true,
+        visible = visible,
     ) {
         // What the per-calendar / per-account switches below actually do.
         HintText(stringResource(R.string.calendars_visibility_hint))

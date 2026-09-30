@@ -41,6 +41,7 @@ internal fun EventFormScreen(
     state: SettingsUiState,
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
+    visible: Boolean = true,
 ) {
     var showDefaultDuration by remember { mutableStateOf(false) }
     // The calendar whose duration-override picker is open, if any.
@@ -53,6 +54,7 @@ internal fun EventFormScreen(
         title = stringResource(R.string.settings_section_event_form),
         onBack = onBack,
         predictiveBack = true,
+        visible = visible,
     ) {
         SettingsHint(stringResource(R.string.settings_form_fields_hint))
         Spacer(Modifier.height(8.dp))

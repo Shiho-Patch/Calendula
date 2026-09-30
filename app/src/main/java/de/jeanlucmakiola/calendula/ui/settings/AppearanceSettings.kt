@@ -76,6 +76,7 @@ internal fun AppearanceScreen(
     state: SettingsUiState,
     viewModel: SettingsViewModel,
     onBack: () -> Unit,
+    visible: Boolean = true,
 ) {
     var showTheme by remember { mutableStateOf(false) }
     var showBrandFont by remember { mutableStateOf(false) }
@@ -96,6 +97,7 @@ internal fun AppearanceScreen(
         title = stringResource(R.string.settings_section_appearance),
         onBack = onBack,
         predictiveBack = true,
+        visible = visible,
     ) {
         // Theme & colour
         GroupedRow(

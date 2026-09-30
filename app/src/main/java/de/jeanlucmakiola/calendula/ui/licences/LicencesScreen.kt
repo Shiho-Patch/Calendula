@@ -23,13 +23,14 @@ import de.jeanlucmakiola.floret.components.positionOf
  * what the *recipient of the binary* is told. Each row opens the project's source.
  */
 @Composable
-internal fun LicencesScreen(onBack: () -> Unit) {
+internal fun LicencesScreen(onBack: () -> Unit, visible: Boolean = true) {
     val uriHandler = LocalUriHandler.current
 
     CollapsingScaffold(
         title = stringResource(R.string.licences_title),
         onBack = onBack,
         predictiveBack = true,
+        visible = visible,
     ) {
         Text(
             stringResource(R.string.licences_intro),
