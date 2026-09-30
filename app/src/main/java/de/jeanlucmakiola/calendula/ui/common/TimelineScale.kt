@@ -38,6 +38,12 @@ sealed interface TimelineScale {
     /** A height the user pinched to. Build it through [custom], which clamps. */
     data class Custom(val hourHeight: Dp) : TimelineScale
 
+    /**
+     * [startHour]..[endHour] fills the viewport (#322). Applied when a timeline
+     * opens with [TimelineHours] on, never picked from the preset list.
+     */
+    data class FitHours(val startHour: Int, val endHour: Int) : TimelineScale
+
     companion object {
         /** The named steps the settings picker offers, coarse to roomy. */
         val presets: List<TimelineScale> = listOf(FitDay, Compact, Regular, Comfortable)
@@ -72,6 +78,9 @@ fun TimelineScale.hourHeight(viewportHeight: Dp): Dp = when (this) {
     TimelineScale.Regular -> 56.dp
     TimelineScale.Comfortable -> 80.dp
     is TimelineScale.Custom -> this.hourHeight
+        .coerceAtMost(MAX_PINCH_HOUR_HEIGHT)
+        .coerceAtLeast(fillHourHeight(viewportHeight))
+    is TimelineScale.FitHours -> (viewportHeight / (endHour - startHour).coerceIn(1, 24).toFloat())
         .coerceAtMost(MAX_PINCH_HOUR_HEIGHT)
         .coerceAtLeast(fillHourHeight(viewportHeight))
 }
@@ -134,6 +143,7 @@ val TimelineScale.labelRes: Int
         TimelineScale.Regular -> R.string.timeline_scale_regular
         TimelineScale.Comfortable -> R.string.timeline_scale_comfortable
         is TimelineScale.Custom -> R.string.timeline_scale_custom
+        is TimelineScale.FitHours -> R.string.settings_visible_hours
     }
 
 @get:StringRes
@@ -144,10 +154,14 @@ val TimelineScale.descriptionRes: Int
         TimelineScale.Regular -> R.string.timeline_scale_regular_summary
         TimelineScale.Comfortable -> R.string.timeline_scale_comfortable_summary
         is TimelineScale.Custom -> R.string.timeline_scale_custom_summary
+        is TimelineScale.FitHours -> R.string.settings_visible_hours_summary
     }
 
 /** Marks a stored custom height; the rest of the value is its dp. */
 private const val CUSTOM_PREFIX = "custom:"
+
+/** Marks a stored hour range, as `start-end`. */
+private const val HOURS_PREFIX = "hours:"
 
 /**
  * Stored names for the presets. Spelled out rather than taken from `toString()`
@@ -171,6 +185,7 @@ private val PRESET_NAMES: Map<TimelineScale, String> = mapOf(
  */
 fun TimelineScale.storageValue(): String = when (this) {
     is TimelineScale.Custom -> CUSTOM_PREFIX + hourHeight.value
+    is TimelineScale.FitHours -> "$HOURS_PREFIX$startHour-$endHour"
     TimelineScale.FitDay,
     TimelineScale.Compact,
     TimelineScale.Regular,
@@ -187,6 +202,12 @@ fun parseTimelineScale(stored: String?): TimelineScale = when {
     stored == null -> TimelineScale.Regular
     stored.startsWith(CUSTOM_PREFIX) -> stored.removePrefix(CUSTOM_PREFIX).toFloatOrNull()
         ?.let { TimelineScale.custom(it.dp) }
+        ?: TimelineScale.Regular
+    stored.startsWith(HOURS_PREFIX) -> stored.removePrefix(HOURS_PREFIX).split('-')
+        .mapNotNull { it.toIntOrNull() }
+        .takeIf { it.size == 2 }
+        ?.let { (start, end) -> TimelineHours.of(enabled = true, start, end) }
+        ?.let { TimelineScale.FitHours(it.startHour, it.endHour) }
         ?: TimelineScale.Regular
     else -> PRESET_NAMES.entries.firstOrNull { it.value == stored }?.key ?: TimelineScale.Regular
 }

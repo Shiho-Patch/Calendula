@@ -50,6 +50,7 @@ internal fun WeekViewPreview(
         WeekSuccess(
             state = state,
             showWeekNumber = dayCount == 7,
+            headerBias = if (dayCount == 1) TimelineKind.Day.headerBias else 0f,
             scrollState = scrollState,
             allDayHeight = state.allDayStripHeight(),
             dragController = rememberTimelineDragController(),

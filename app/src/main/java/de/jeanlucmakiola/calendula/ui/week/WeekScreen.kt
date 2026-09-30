@@ -8,9 +8,16 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateMapOf
+import de.jeanlucmakiola.calendula.ui.common.PublishChrome
+import de.jeanlucmakiola.calendula.ui.common.ScreenActions
+import de.jeanlucmakiola.calendula.ui.common.ScreenBody
+import de.jeanlucmakiola.calendula.ui.common.ScreenChrome
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSpec
+import de.jeanlucmakiola.calendula.ui.common.rememberViewSwitchSpec
 import de.jeanlucmakiola.calendula.ui.common.jumpToPage
 import de.jeanlucmakiola.calendula.ui.common.pagedHeight
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +26,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -38,38 +44,42 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.key
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import de.jeanlucmakiola.calendula.ui.common.LocalViewMorph
+import de.jeanlucmakiola.calendula.ui.common.StayPut
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.SideEffect
+import de.jeanlucmakiola.calendula.ui.common.laneSlot
+import de.jeanlucmakiola.calendula.ui.common.LaneColumn
+import kotlin.math.roundToInt
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -93,13 +103,8 @@ import de.jeanlucmakiola.calendula.ui.common.LocalChipGround
 import de.jeanlucmakiola.calendula.ui.common.eventPaint
 import de.jeanlucmakiola.calendula.ui.common.eventSurface
 import de.jeanlucmakiola.calendula.ui.common.formatCalendarTitle
-import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
-import de.jeanlucmakiola.calendula.ui.common.CalendarTitleButton
-import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
-import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
-import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.EventDimAlpha
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_OUTER_INSET
 import de.jeanlucmakiola.calendula.ui.common.BLOCK_TEXT_PADDING
@@ -132,13 +137,18 @@ import de.jeanlucmakiola.calendula.ui.common.LocalDimCutoff
 import de.jeanlucmakiola.calendula.ui.common.EventChipShape
 import de.jeanlucmakiola.calendula.ui.common.trimmedLines
 import de.jeanlucmakiola.calendula.ui.common.NowLine
+import de.jeanlucmakiola.calendula.ui.common.OutOfViewEdgeBars
+import de.jeanlucmakiola.calendula.ui.common.rememberOutOfViewEdges
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
-import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
+import de.jeanlucmakiola.calendula.ui.common.EnterOnFocus
+import de.jeanlucmakiola.calendula.ui.common.LocalViewFocus
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.calendula.ui.common.ViewMorphKey
 import de.jeanlucmakiola.calendula.ui.common.ViewMorphPage
 import de.jeanlucmakiola.calendula.ui.common.morphDay
 import de.jeanlucmakiola.calendula.ui.common.morphEvent
+import de.jeanlucmakiola.calendula.ui.common.rememberTimelineScrollState
+import de.jeanlucmakiola.calendula.ui.common.LocalOpeningTimeline
 import de.jeanlucmakiola.calendula.ui.common.morphPageActive
 import de.jeanlucmakiola.calendula.ui.common.withTitleWeight
 import de.jeanlucmakiola.floret.identity.rememberReduceMotion
@@ -157,9 +167,7 @@ import de.jeanlucmakiola.calendula.ui.common.TIMELINE_CONTENT_END_INSET
 import de.jeanlucmakiola.calendula.ui.common.hourCellBlockInset
 import de.jeanlucmakiola.calendula.ui.common.hourGridCells
 import de.jeanlucmakiola.calendula.ui.common.tappedMinuteOfDay
-import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.floret.time.isoWeekNumber
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -183,6 +191,18 @@ private val HEADER_BOTTOM_PADDING = 8.dp
 /** The header's date slot, reserved whether or not it holds today's circle. */
 private val DATE_SLOT_SIZE = 28.dp
 
+/** A start-aligned header cell's inset, lining its date up with the event titles below. */
+private val HEADER_START_INSET = BLOCK_OUTER_INSET + BLOCK_TEXT_PADDING
+
+/** The weekday header's height, which the day view takes off to fit the week's hours (#184). */
+@Composable
+internal fun weekDayHeaderHeight(): Dp {
+    val label = MaterialTheme.typography.labelSmall
+    val line = label.lineHeight.takeIf { it.isSp } ?: label.fontSize
+    return HEADER_TOP_PADDING + with(LocalDensity.current) { line.toDp() } + 2.dp +
+        DATE_SLOT_SIZE + HEADER_BOTTOM_PADDING
+}
+
 /** Total all-day strip height for a week (0 when there are no all-day events). */
 internal fun WeekUiState.Success.allDayStripHeight(): Dp {
     if (allDaySpans.isEmpty()) return 0.dp
@@ -190,90 +210,119 @@ internal fun WeekUiState.Success.allDayStripHeight(): Dp {
     return ALL_DAY_ROW_HEIGHT * lanes + ALL_DAY_VERTICAL_PADDING * 2
 }
 
+/**
+ * The day, multi-day (#193) and week views: one timeline whose columns resize
+ * in place when switching between them (#184), rather than three screens.
+ */
 @Composable
-fun WeekScreen(
-    selectedView: CalendarView,
-    onSelectView: (CalendarView) -> Unit,
+fun TimelineScreen(
+    view: CalendarView,
     onOpenDay: (LocalDate) -> Unit,
     onEventClick: (EventInstance) -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenSearch: () -> Unit,
     onCreateEvent: (LocalDate, Int?) -> Unit,
-    quickSwitchViews: List<CalendarView> = IMPLEMENTED_VIEWS,
-    drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
-    todayInToolbar: Boolean = false,
     modifier: Modifier = Modifier,
-    viewModel: WeekViewModel = hiltViewModel(),
-) = PagedTimelineScreen(
-    viewModel = viewModel,
-    showWeekNumber = true,
-    selectedView = selectedView,
-    onSelectView = onSelectView,
-    onOpenDay = onOpenDay,
-    onEventClick = onEventClick,
-    onOpenSettings = onOpenSettings,
-    onOpenSearch = onOpenSearch,
-    onCreateEvent = onCreateEvent,
-    quickSwitchViews = quickSwitchViews,
-    drawerViewOrder = drawerViewOrder,
-    todayInToolbar = todayInToolbar,
-    modifier = modifier,
-)
+    weekViewModel: WeekViewModel = hiltViewModel(),
+    multiDayViewModel: MultiDayViewModel = hiltViewModel(),
+    dayViewModel: DayViewModel = hiltViewModel(),
+) {
+    val viewModels = remember(weekViewModel, multiDayViewModel, dayViewModel) {
+        TimelineViewModels(weekViewModel, multiDayViewModel, dayViewModel)
+    }
+    PagedTimelineScreen(
+        view = view,
+        viewModels = viewModels,
+        onOpenDay = onOpenDay,
+        onEventClick = onEventClick,
+        onCreateEvent = onCreateEvent,
+        modifier = modifier,
+    )
+}
 
-/** The multi-day view (#193): the week view's timeline over the day count from Settings. */
-@Composable
-fun MultiDayScreen(
-    selectedView: CalendarView,
-    onSelectView: (CalendarView) -> Unit,
-    onOpenDay: (LocalDate) -> Unit,
-    onEventClick: (EventInstance) -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenSearch: () -> Unit,
-    onCreateEvent: (LocalDate, Int?) -> Unit,
-    quickSwitchViews: List<CalendarView> = IMPLEMENTED_VIEWS,
-    drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
-    todayInToolbar: Boolean = false,
-    modifier: Modifier = Modifier,
-    viewModel: MultiDayViewModel = hiltViewModel(),
-) = PagedTimelineScreen(
-    viewModel = viewModel,
+/** Each timeline view's own pages and anchor, held side by side so a switch can show both. */
+internal class TimelineViewModels(
+    private val week: WeekViewModel,
+    private val multiDay: MultiDayViewModel,
+    private val day: DayViewModel,
+) {
+    operator fun get(view: CalendarView): PagedTimelineViewModel = when (view) {
+        CalendarView.MultiDay -> multiDay
+        CalendarView.Day -> day
+        else -> week
+    }
+}
+
+/** What sets the timeline views apart; everything else they share. */
+internal enum class TimelineKind(
+    val showWeekNumber: Boolean,
+    val todayText: Int,
+    /** Where a header cell sits in its column: centred, or at the start like the event titles. */
+    val headerBias: Float,
+) {
+    Week(showWeekNumber = true, todayText = R.string.week_today_action, headerBias = 0f),
+
     // A run of days often straddles two weeks, so no single number fits it.
-    showWeekNumber = false,
-    selectedView = selectedView,
-    onSelectView = onSelectView,
-    onOpenDay = onOpenDay,
-    onEventClick = onEventClick,
-    onOpenSettings = onOpenSettings,
-    onOpenSearch = onOpenSearch,
-    onCreateEvent = onCreateEvent,
-    quickSwitchViews = quickSwitchViews,
-    drawerViewOrder = drawerViewOrder,
-    todayInToolbar = todayInToolbar,
-    modifier = modifier,
-)
+    MultiDay(showWeekNumber = false, todayText = R.string.week_today_action, headerBias = 0f),
+    Day(showWeekNumber = false, todayText = R.string.day_today_action, headerBias = -1f),
+    ;
+
+    fun title(start: LocalDate, end: LocalDate, locale: Locale, currentYear: Int, abbreviated: Boolean): String =
+        if (this == Day) {
+            formatDayTitle(start, locale, currentYear, abbreviated)
+        } else {
+            formatWeekTitle(start, end, locale, currentYear, abbreviated)
+        }
+}
+
+internal val CalendarView.timelineKind: TimelineKind
+    get() = when (this) {
+        CalendarView.MultiDay -> TimelineKind.MultiDay
+        CalendarView.Day -> TimelineKind.Day
+        else -> TimelineKind.Week
+    }
+
+/** How long a switch waits for the view it goes to before resizing into it without its events. */
+private const val MORPH_DATA_WAIT_MS = 150L
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PagedTimelineScreen(
-    viewModel: PagedTimelineViewModel,
-    showWeekNumber: Boolean,
-    selectedView: CalendarView,
-    onSelectView: (CalendarView) -> Unit,
+    view: CalendarView,
+    viewModels: TimelineViewModels,
     onOpenDay: (LocalDate) -> Unit,
     onEventClick: (EventInstance) -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenSearch: () -> Unit,
     onCreateEvent: (LocalDate, Int?) -> Unit,
-    quickSwitchViews: List<CalendarView>,
-    drawerViewOrder: List<CalendarView>,
-    todayInToolbar: Boolean,
     modifier: Modifier,
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    val position by viewModel.position.collectAsStateWithLifecycle()
+    // The view on screen, which trails [view] while the columns resize into it.
+    var shown by remember { mutableStateOf(view) }
+    var morph by remember { mutableStateOf<TimelineMorph?>(null) }
+    // The strip height a switch ended on, for the pager it hands over to.
+    var handoffStrip by remember { mutableStateOf<Dp?>(null) }
+    val viewModel = viewModels[shown]
+    val kind = shown.timelineKind
+
+    // Opens on the focused date, then carries it along as the pages move.
+    val focus = LocalViewFocus.current
+    val navigationVersion = focus?.navigationVersion ?: 0
+    var handledNavigation by remember { mutableIntStateOf(navigationVersion) }
+    EnterOnFocus(viewModel) { viewModel.jumpTo(it) }
+    // Keyed on the view model: collected unkeyed, a switch would read the view
+    // before's anchor and grid for a frame and open its pager.
+    val loadedState by key(viewModel) { viewModel.state.collectAsStateWithLifecycle() }
+    // A view not shown before has nothing loaded yet; the one before it stands
+    // in, as its pages load their own days anyway, rather than a skeleton.
+    var lastState by remember { mutableStateOf<WeekUiState>(WeekUiState.Loading) }
+    val state = if (loadedState is WeekUiState.Loading) lastState else loadedState
+    SideEffect { if (loadedState !is WeekUiState.Loading) lastState = loadedState }
+    LaunchedEffect(shown, loadedState) {
+        if (loadedState is WeekUiState.Success) handoffStrip = null
+    }
+    val anchor by key(viewModel) { viewModel.anchor.collectAsStateWithLifecycle() }
+    val rule by key(viewModel) { viewModel.rule.collectAsStateWithLifecycle() }
+    val position = remember(anchor, rule) { positionOf(anchor, rule) }
     val grid = position.grid
     val anchorPage = position.page
-    val dimCompleted by viewModel.dimCompletedEvents.collectAsStateWithLifecycle()
+    val dimCompleted by key(viewModel) { viewModel.dimCompletedEvents.collectAsStateWithLifecycle() }
     // The instant before which an event counts as completed, or null when dimming
     // is off. derivedStateOf keeps the per-minute "now" from recomposing the
     // screen while the setting is off (it stays null regardless of the tick).
@@ -282,16 +331,17 @@ private fun PagedTimelineScreen(
         derivedStateOf { if (dimCompleted) nowState.value else null }
     }
 
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
     // A new grid numbers the pages differently, so it gets a pager of its own,
-    // opened straight on the anchor's page: the first day of the week changing,
-    // or a multi-day jump moving another date into the first column.
-    val pagerState = key(grid) {
+    // opened straight on the anchor's page: another view, the first day of the
+    // week changing, or a multi-day jump moving another date into the first column.
+    val pagerState = key(viewModel, grid) {
         rememberPagerState(initialPage = anchorPage) { grid.pageCount }
     }
     val pageSpec = rememberCalendarPageSpec()
+    val switchSpec = rememberViewSwitchSpec<Float>()
+    val longSwitchSpec = rememberViewSwitchSpec<Float>(long = true)
     val reduceMotion = rememberReduceMotion()
     // The pager leads and the anchor follows once it settles, so this only
     // catches the anchor moving on its own. Snapped, since that is a correction
@@ -304,11 +354,65 @@ private fun PagedTimelineScreen(
     // The page it opened on is skipped: a grid change landing in between would
     // read it as a different page.
     LaunchedEffect(pagerState) {
-        snapshotFlow { pagerState.settledPage }.drop(1).collect(viewModel::onPageSettled)
+        snapshotFlow { pagerState.settledPage }.drop(1).collect { page ->
+            viewModel.onPageSettled(page)
+            focus?.let { it.date = grid.focusOnPage(it.date, page) }
+        }
     }
-    // The page under the finger, so the title turns over mid-swipe, not after it.
-    val weekStart = grid.startForPage(pagerState.currentPage)
-    val weekEnd = weekStart.plus(grid.dayCount - 1, kotlinx.datetime.DateTimeUnit.DAY)
+
+    // Switching to another timeline view resizes the columns into it (#184):
+    // from the page on screen to the target view's page around the focused
+    // date, then hands over to that view's pager at the page the resize ended on.
+    val currentShown by rememberUpdatedState(shown)
+    val currentPager by rememberUpdatedState(pagerState)
+    val currentGrid by rememberUpdatedState(grid)
+    val currentState by rememberUpdatedState(state)
+    LaunchedEffect(view, navigationVersion) {
+        if (navigationVersion != handledNavigation) {
+            handledNavigation = navigationVersion
+            morph = null
+            handoffStrip = null
+            viewModels[view].jumpTo(focus?.date ?: return@LaunchedEffect)
+            shown = view
+            return@LaunchedEffect
+        }
+        // A switch interrupted by another lands first, and this one starts from there.
+        snapshotFlow { morph }.first { it == null }
+        withFrameNanos { }
+        if (view == currentShown) return@LaunchedEffect
+        val from = currentShown
+        val fromGrid = currentGrid
+        val fromSpan = DaySpan(fromGrid.startForPage(currentPager.currentPage), fromGrid.dayCount)
+        val target = (focus?.date ?: fromSpan.start).coerceIn(fromSpan.start, fromSpan.end)
+        focus?.date = target
+        val toModel = viewModels[view]
+        toModel.jumpTo(target)
+        val to = positionOf(target, toModel.rule.value)
+        val toSpan = DaySpan(to.grid.startForPage(to.page), to.grid.dayCount)
+        val fromLoaded = viewModels[from].span(fromSpan)
+        val toLoaded = toModel.span(toSpan)
+        if (reduceMotion || currentState !is WeekUiState.Success) {
+            shown = view
+            return@LaunchedEffect
+        }
+        val switch = TimelineMorph(from.timelineKind, view.timelineKind, fromSpan, toSpan, fromLoaded, toLoaded)
+        try {
+            withTimeoutOrNull(MORPH_DATA_WAIT_MS) { toLoaded.first { it !is WeekUiState.Loading } }
+            morph = switch
+            switch.progress.animateTo(1f, if (switch.isLong) longSwitchSpec else switchSpec)
+            handoffStrip = (toLoaded.value as? WeekUiState.Success)?.allDayStripHeight()
+            shown = view
+        } finally {
+            morph = null
+        }
+    }
+
+    // The page under the finger, so the title turns over mid-swipe, not after
+    // it; mid-switch, the page being switched to.
+    val weekStart = morph?.to?.start ?: grid.startForPage(pagerState.currentPage)
+    val titleKind = morph?.toKind ?: kind
+    val dayCount = morph?.to?.count ?: grid.dayCount
+    val weekEnd = weekStart.plus(dayCount - 1, kotlinx.datetime.DateTimeUnit.DAY)
 
     // Off the ticking clock rather than the loaded page, so it turns over at
     // midnight; derived, so the per-minute tick doesn't recompose the screen.
@@ -320,6 +424,7 @@ private fun PagedTimelineScreen(
     // hasn't caught up with the fling yet to tell the difference. A date that
     // would open mid-page on this grid re-frames the pages around it instead.
     val jumpToDate: (LocalDate) -> Unit = { target ->
+        focus?.date = target
         val page = grid.pageFor(target)
         if (grid is DaysGrid && grid.startForPage(page) != target) {
             viewModel.jumpTo(target)
@@ -329,76 +434,46 @@ private fun PagedTimelineScreen(
     }
     val jumpToToday = { jumpToDate(today) }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        // Open only via the menu button — edge-swipe would fight the week swipe.
-        gesturesEnabled = drawerState.isOpen,
-        drawerContent = {
-            CalendarDrawer(
-                currentView = selectedView,
-                currentDate = weekStart,
-                drawerState = drawerState,
-                viewOrder = drawerViewOrder,
-                onSelectView = { view ->
-                    onSelectView(view)
-                    scope.launch { drawerState.close() }
-                },
-                onJumpToDate = { target ->
-                    jumpToDate(target)
-                    scope.launch { drawerState.close() }
-                },
-                onSettings = {
-                    onOpenSettings()
-                    scope.launch { drawerState.close() }
-                },
+    val locale = currentLocale()
+    val (title, shortTitle) = remember(titleKind, weekStart, weekEnd, locale, today.year) {
+        titleKind.title(weekStart, weekEnd, locale, today.year, abbreviated = false) to
+            titleKind.title(weekStart, weekEnd, locale, today.year, abbreviated = true)
+    }
+    PublishChrome(
+        ScreenChrome(
+            title = title,
+            shortTitle = shortTitle,
+            titleDate = weekStart,
+            drawerDate = weekStart,
+            awayFromToday = !isOnCurrentWeek,
+            todayText = stringResource(titleKind.todayText),
+        ),
+        ScreenActions(
+            onToday = jumpToToday,
+            onJumpToDate = jumpToDate,
+            // Anchor on today when it's in view, else the page's first day.
+            onCreate = { onCreateEvent(if (isOnCurrentWeek) today else weekStart, null) },
+        ),
+    )
+
+    ScreenBody(modifier = modifier) { innerPadding ->
+        CompositionLocalProvider(LocalDimCutoff provides dimCutoff) {
+            WeekContent(
+                state = state,
+                pagerState = pagerState,
+                grid = grid,
+                kind = kind,
+                morph = morph,
+                handoffStrip = handoffStrip,
+                span = viewModel::span,
+                onRetry = viewModel::goToToday,
+                onEventClick = onEventClick,
+                onOpenDay = onOpenDay,
+                onCreateAt = { d, minutes -> onCreateEvent(d, minutes) },
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
             )
-        },
-    ) {
-        Scaffold(
-            modifier = modifier,
-            topBar = {
-                WeekTopBar(
-                    weekStart = weekStart,
-                    weekEnd = weekEnd,
-                    currentYear = today.year,
-                    selectedView = selectedView,
-                    onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
-                    quickSwitchViews = quickSwitchViews,
-                    onOpenDrawer = { scope.launch { drawerState.open() } },
-                    onOpenSearch = onOpenSearch,
-                    onJumpToDate = jumpToDate,
-                    showTodayButton = todayInToolbar,
-                    onToday = jumpToToday,
-                )
-            },
-            floatingActionButton = {
-                CalendarFabColumn(
-                    todayVisible = !isOnCurrentWeek && !todayInToolbar,
-                    todayText = stringResource(R.string.week_today_action),
-                    onToday = jumpToToday,
-                    onCreate = {
-                        // Anchor on today when it's in view, else the week's first day.
-                        onCreateEvent(if (isOnCurrentWeek) today else weekStart, null)
-                    },
-                )
-            },
-        ) { innerPadding ->
-            CompositionLocalProvider(LocalDimCutoff provides dimCutoff) {
-                WeekContent(
-                    state = state,
-                    pagerState = pagerState,
-                    grid = grid,
-                    showWeekNumber = showWeekNumber,
-                    span = viewModel::span,
-                    onRetry = viewModel::goToToday,
-                    onEventClick = onEventClick,
-                    onOpenDay = onOpenDay,
-                    onCreateAt = { d, minutes -> onCreateEvent(d, minutes) },
-                    modifier = Modifier
-                        .padding(innerPadding)
-                        .fillMaxSize(),
-                )
-            }
         }
     }
 }
@@ -408,7 +483,9 @@ private fun WeekContent(
     state: WeekUiState,
     pagerState: PagerState,
     grid: PageGrid,
-    showWeekNumber: Boolean,
+    kind: TimelineKind,
+    morph: TimelineMorph?,
+    handoffStrip: Dp?,
     span: (DaySpan) -> StateFlow<WeekUiState>,
     onRetry: () -> Unit,
     onEventClick: (EventInstance) -> Unit,
@@ -419,16 +496,11 @@ private fun WeekContent(
     val fadeSpec = rememberCalendarFadeSpec()
 
     // Shared by every page and the gutter, so the vertical scroll position
-    // survives week-to-week swipes (e.g. 18:00 stays centred). We only centre on
-    // noon once, on first entry into the week view (i.e. when arriving from the
-    // month/day view), not on every swipe.
-    val scrollState = rememberScrollState()
-    LaunchedEffect(Unit) {
-        snapshotFlow { scrollState.maxValue }.first { it > 0 }
-        // Half the scroll range *is* noon: the content spans a full 24 hours, so
-        // centring the range centres midday at whatever hour height is in force.
-        scrollState.scrollTo(scrollState.maxValue / 2)
-    }
+    // survives week-to-week swipes (e.g. 18:00 stays centred), and carried over
+    // from the timeline view before this one.
+    val stripHeight = (state as? WeekUiState.Success)?.allDayStripHeight() ?: 0.dp
+    val timelineScroll = rememberTimelineScrollState(weekDayHeaderHeight() + stripHeight + TIMELINE_TOP_GAP)
+    val scrollState = timelineScroll.state
 
     // Above the pager: a page change mid-drag would strand the floating block
     // inside the outgoing page.
@@ -447,32 +519,45 @@ private fun WeekContent(
     }
 
     Box(modifier = modifier) {
-        // Loading and failure concern the provider as a whole, so they stand in
-        // for the pager; a page still loading its own week handles that itself.
-        AnimatedContent(
-            targetState = state,
-            modifier = Modifier.fillMaxSize(),
-            contentKey = { it::class },
-            transitionSpec = { fadeIn(fadeSpec).togetherWith(fadeOut(fadeSpec)) },
-            label = "week-state",
-        ) { s ->
-            when (s) {
-                WeekUiState.Loading -> WeekLoading(dayCount = grid.dayCount)
-                is WeekUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
-                is WeekUiState.Success -> WeekPager(
-                    pagerState = pagerState,
-                    grid = grid,
-                    showWeekNumber = showWeekNumber,
-                    span = span,
-                    today = s.today,
-                    initialStripHeight = s.allDayStripHeight(),
-                    scrollState = scrollState,
-                    dragController = dragController,
-                    onEventClick = onEventClick,
-                    onOpenDay = onOpenDay,
-                    onCreateAt = onCreateAt,
-                    onDrop = onDrop,
-                )
+        CompositionLocalProvider(LocalOpeningTimeline provides timelineScroll) {
+            // Loading and failure concern the provider as a whole, so they stand in
+            // for the pager; a page still loading its own week handles that itself.
+            AnimatedContent(
+                targetState = state,
+                modifier = Modifier.fillMaxSize(),
+                contentKey = { it::class },
+                transitionSpec = { fadeIn(fadeSpec).togetherWith(fadeOut(fadeSpec)) },
+                label = "week-state",
+            ) { s ->
+                when (s) {
+                    WeekUiState.Loading -> WeekLoading(dayCount = grid.dayCount)
+                    is WeekUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
+                    is WeekUiState.Success -> if (morph != null) {
+                        TimelineMorphFrame(
+                            morph = morph,
+                            today = s.today,
+                            scrollState = scrollState,
+                            dragController = dragController,
+                            onEventClick = onEventClick,
+                            onOpenDay = onOpenDay,
+                            onCreateAt = onCreateAt,
+                            onDrop = onDrop,
+                        )
+                    } else WeekPager(
+                        pagerState = pagerState,
+                        grid = grid,
+                        kind = kind,
+                        span = span,
+                        today = s.today,
+                        initialStripHeight = handoffStrip ?: s.allDayStripHeight(),
+                        scrollState = scrollState,
+                        dragController = dragController,
+                        onEventClick = onEventClick,
+                        onOpenDay = onOpenDay,
+                        onCreateAt = onCreateAt,
+                        onDrop = onDrop,
+                    )
+                }
             }
         }
         TimelineDragOverlay(dragController)
@@ -487,7 +572,7 @@ private fun WeekContent(
 private fun WeekPager(
     pagerState: PagerState,
     grid: PageGrid,
-    showWeekNumber: Boolean,
+    kind: TimelineKind,
     span: (DaySpan) -> StateFlow<WeekUiState>,
     today: LocalDate,
     initialStripHeight: Dp,
@@ -502,7 +587,7 @@ private fun WeekPager(
     val allDayHeight = pagedHeight(pagerState, stripHeights, initialStripHeight)
     WeekFrame(
         weekStart = grid.startForPage(pagerState.currentPage),
-        showWeekNumber = showWeekNumber,
+        showWeekNumber = kind.showWeekNumber,
         allDayHeight = allDayHeight,
         scrollState = scrollState,
         dragController = dragController,
@@ -533,6 +618,7 @@ private fun WeekPager(
             ViewMorphPage(active = morphPageActive(page, pagerState.settledPage)) {
                 WeekPage(
                     state = loaded ?: empty,
+                    headerBias = kind.headerBias,
                     allDayHeight = allDayHeight,
                     scrollState = scrollState,
                     dragController = dragController,
@@ -560,6 +646,99 @@ private fun emptySpan(span: DaySpan, today: LocalDate): WeekUiState.Success {
 }
 
 /**
+ * The timeline mid-switch between two views (#184): every day of both pages,
+ * each column between its place on the one and on the other, with no pager
+ * under them. It starts and ends exactly as the two pages lay out, so the
+ * pagers either side hand over without a jump.
+ */
+@Composable
+private fun TimelineMorphFrame(
+    morph: TimelineMorph,
+    today: LocalDate,
+    scrollState: ScrollState,
+    dragController: TimelineDragController,
+    onEventClick: (EventInstance) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+    onCreateAt: (LocalDate, Int) -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
+) {
+    val fromState by morph.fromState.collectAsStateWithLifecycle()
+    val toState by morph.toState.collectAsStateWithLifecycle()
+    val from = fromState as? WeekUiState.Success
+    val to = toState as? WeekUiState.Success
+    val geometry = remember(morph) { ColumnGeometry(morph.from, morph.to) { morph.progress.value } }
+    val bars = remember(from, to) { morphBars(from, to) }
+    val timedFor: (LocalDate) -> List<TimedBlock> = remember(morph, from, to) {
+        { date ->
+            val side = if (morph.sourceOf(date) == TimelineMorph.Side.From) from else to
+            side?.timedByDay?.get(date).orEmpty()
+        }
+    }
+    val fromStrip = from?.allDayStripHeight() ?: 0.dp
+    val toStrip = to?.allDayStripHeight() ?: fromStrip
+    val animatedStrip = remember(morph, fromStrip, toStrip) {
+        { androidx.compose.ui.unit.lerp(fromStrip, toStrip, morph.progress.value.coerceIn(0f, 1f)) }
+    }
+    val fromBadge = if (morph.fromKind.showWeekNumber) 1f else 0f
+    val toBadge = if (morph.toKind.showWeekNumber) 1f else 0f
+    val badgeAlpha = remember(morph) {
+        { lerp(fromBadge, toBadge, morph.progress.value).coerceIn(0f, 1f) }
+    }
+    // The header changes its alignment once; its columns and bars move in layout.
+    val headerBias by remember(morph) {
+        derivedStateOf {
+            if (morph.progress.value < 0.5f) morph.fromKind.headerBias else morph.toKind.headerBias
+        }
+    }
+    // The events travel inside the columns here, not between views.
+    CompositionLocalProvider(LocalViewMorph provides null) {
+        WeekFrame(
+            weekStart = if (morph.toKind.showWeekNumber) morph.to.start else morph.from.start,
+            showWeekNumber = morph.fromKind.showWeekNumber || morph.toKind.showWeekNumber,
+            allDayHeight = fromStrip,
+            animatedAllDayHeight = animatedStrip,
+            weekNumberAlpha = badgeAlpha,
+            scrollState = scrollState,
+            dragController = dragController,
+        ) {
+            TimelinePageContent(
+                geometry = geometry,
+                today = today,
+                timedFor = timedFor,
+                bars = bars,
+                headerBias = headerBias,
+                allDayHeight = fromStrip,
+                animatedAllDayHeight = animatedStrip,
+                scrollState = scrollState,
+                dragController = dragController,
+                active = false,
+                onEventClick = onEventClick,
+                onOpenDay = onOpenDay,
+                onCreateAt = onCreateAt,
+                onDrop = onDrop,
+            )
+        }
+    }
+}
+
+/** Read an animated strip height during measurement, without composing its contents again. */
+private fun Modifier.dynamicHeight(height: () -> Dp): Modifier = layout { measurable, constraints ->
+    val pixels = height().roundToPx().coerceIn(constraints.minHeight, constraints.maxHeight)
+    val placeable = measurable.measure(constraints.copy(minHeight = pixels, maxHeight = pixels))
+    layout(placeable.width, pixels) { placeable.place(0, 0) }
+}
+
+/** Keep a morph's expensive viewport content measured at one size while its visible edge moves. */
+private fun Modifier.stableMorphViewport(stripHeight: () -> Dp, fullHeight: IntArray): Modifier =
+    clipToBounds().layout { measurable, constraints ->
+        if (fullHeight[0] < 0) fullHeight[0] = constraints.maxHeight + stripHeight().roundToPx()
+        val measured = measurable.measure(
+            constraints.copy(minHeight = fullHeight[0], maxHeight = fullHeight[0]),
+        )
+        layout(constraints.maxWidth, constraints.maxHeight) { measured.place(0, 0) }
+    }
+
+/**
  * What stays put while the weeks swipe: the week-number badge and the hour
  * gutter, with [pages] filling the rest.
  */
@@ -568,10 +747,13 @@ private fun WeekFrame(
     weekStart: LocalDate,
     showWeekNumber: Boolean,
     allDayHeight: Dp,
+    animatedAllDayHeight: (() -> Dp)? = null,
+    weekNumberAlpha: () -> Float = { 1f },
     scrollState: ScrollState,
     dragController: TimelineDragController,
     pages: @Composable () -> Unit,
 ) {
+    val gutterFullHeight = remember(animatedAllDayHeight) { intArrayOf(-1) }
     Row(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.width(GUTTER_WIDTH).fillMaxHeight()) {
             Column(
@@ -579,24 +761,38 @@ private fun WeekFrame(
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface),
             ) {
-                WeekNumberCell(weekStart, showBadge = showWeekNumber)
-                Spacer(Modifier.height(allDayHeight))
+                WeekNumberCell(
+                    weekStart = weekStart,
+                    showBadge = showWeekNumber,
+                    modifier = if (animatedAllDayHeight == null) Modifier
+                        else Modifier.graphicsLayer { alpha = weekNumberAlpha() },
+                )
+                Spacer(if (animatedAllDayHeight == null) Modifier.height(allDayHeight)
+                    else Modifier.dynamicHeight(animatedAllDayHeight))
             }
             Spacer(Modifier.height(TIMELINE_TOP_GAP))
             // Resolves the hour height off the same viewport height the pages'
             // timelines have, so labels and columns agree.
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxSize().then(
+                    if (animatedAllDayHeight == null) Modifier
+                    else Modifier.stableMorphViewport(animatedAllDayHeight, gutterFullHeight),
+                ),
+            ) {
                 val zoom = LocalTimelineZoom.current
-                val hourHeight = zoom.scale.hourHeight(maxHeight)
+                val fitHeight = if (animatedAllDayHeight == null) maxHeight + allDayHeight
+                    else maxHeight
+                val hourHeight = zoom.scale.hourHeight(fitHeight)
                 HourGutter(
                     scrollState = scrollState,
                     hourHeight = hourHeight,
                     dragController = dragController,
-                    modifier = rememberTimelinePinchZoom(scrollState, maxHeight, hourHeight, zoom),
+                    modifier = rememberTimelinePinchZoom(scrollState, fitHeight, hourHeight, zoom),
                 )
             }
         }
-        Box(modifier = Modifier.weight(1f).fillMaxHeight()) { pages() }
+        // Clipped, as the pager was: a view switch slides columns in past its edges.
+        Box(modifier = Modifier.weight(1f).fillMaxHeight().clipToBounds()) { pages() }
     }
 }
 
@@ -605,6 +801,7 @@ private fun WeekFrame(
 internal fun WeekSuccess(
     state: WeekUiState.Success,
     showWeekNumber: Boolean = true,
+    headerBias: Float = 0f,
     scrollState: ScrollState,
     allDayHeight: Dp,
     dragController: TimelineDragController,
@@ -622,6 +819,7 @@ internal fun WeekSuccess(
     ) {
         WeekPage(
             state = state,
+            headerBias = headerBias,
             allDayHeight = allDayHeight,
             scrollState = scrollState,
             dragController = dragController,
@@ -643,7 +841,50 @@ internal fun WeekSuccess(
 @Composable
 private fun WeekPage(
     state: WeekUiState.Success,
+    headerBias: Float,
     allDayHeight: Dp,
+    scrollState: ScrollState,
+    dragController: TimelineDragController,
+    active: Boolean,
+    onEventClick: (EventInstance) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+    onCreateAt: (LocalDate, Int) -> Unit,
+    onDrop: (TimelineDrop) -> Unit,
+) {
+    val geometry = remember(state.weekStart, state.days.size) {
+        ColumnGeometry.of(DaySpan(state.weekStart, state.days.size))
+    }
+    val bars = remember(state) { staticBars(state) }
+    TimelinePageContent(
+        geometry = geometry,
+        today = state.today,
+        timedFor = { state.timedByDay[it].orEmpty() },
+        bars = bars,
+        headerBias = headerBias,
+        allDayHeight = allDayHeight,
+        scrollState = scrollState,
+        dragController = dragController,
+        active = active,
+        onEventClick = onEventClick,
+        onOpenDay = onOpenDay,
+        onCreateAt = onCreateAt,
+        onDrop = onDrop,
+    )
+}
+
+/**
+ * A page's header, all-day strip and day columns, laid out over [geometry]: a
+ * single page's, or both pages' of a view switch mid-way (#184).
+ */
+@Composable
+private fun TimelinePageContent(
+    geometry: ColumnGeometry,
+    today: LocalDate,
+    timedFor: (LocalDate) -> List<TimedBlock>,
+    bars: List<PlacedBar>,
+    headerBias: Float,
+    allDayHeight: Dp,
+    animatedAllDayHeight: (() -> Dp)? = null,
     scrollState: ScrollState,
     dragController: TimelineDragController,
     active: Boolean,
@@ -658,18 +899,23 @@ private fun WeekPage(
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surface),
         ) {
-            WeekDayHeader(days = state.days, today = state.today, onOpenDay = onOpenDay)
+            WeekDayHeader(geometry = geometry, today = today, bias = headerBias, onOpenDay = onOpenDay)
             // This strip is painted on `surface`, so an outlined chip has to
             // fill with that and not with the columns' container (#230).
             CompositionLocalProvider(
                 LocalChipGround provides MaterialTheme.colorScheme.surface,
             ) {
-                AllDayStrip(state = state, height = allDayHeight, onEventClick = onEventClick)
+                AllDayStrip(geometry = geometry, bars = bars, height = allDayHeight,
+                    animatedHeight = animatedAllDayHeight, onEventClick = onEventClick)
             }
         }
         Spacer(Modifier.height(TIMELINE_TOP_GAP))
         Timeline(
-            state = state,
+            geometry = geometry,
+            today = today,
+            timedFor = timedFor,
+            allDayHeight = allDayHeight,
+            animatedAllDayHeight = animatedAllDayHeight,
             scrollState = scrollState,
             dragController = dragController,
             active = active,
@@ -680,126 +926,66 @@ private fun WeekPage(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun WeekTopBar(
-    weekStart: LocalDate,
-    weekEnd: LocalDate,
-    currentYear: Int,
-    selectedView: CalendarView,
-    onCycleView: () -> Unit,
-    quickSwitchViews: List<CalendarView>,
-    onOpenDrawer: () -> Unit,
-    onOpenSearch: () -> Unit,
-    onJumpToDate: (LocalDate) -> Unit,
-    showTodayButton: Boolean,
-    onToday: () -> Unit,
-) {
-    val locale = currentLocale()
-    val (title, shortTitle) = remember(weekStart, weekEnd, locale, currentYear) {
-        formatWeekTitle(weekStart, weekEnd, locale, currentYear) to
-            formatWeekTitle(weekStart, weekEnd, locale, currentYear, abbreviated = true)
-    }
-    TopAppBar(
-        title = {
-            CalendarTitleButton(
-                title = title,
-                currentDate = weekStart,
-                onJumpToDate = onJumpToDate,
-                shortTitle = shortTitle,
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onOpenDrawer) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = stringResource(R.string.month_open_menu),
-                )
-            }
-        },
-        actions = {
-            TodayAction(show = showTodayButton, onToday = onToday)
-            IconButton(onClick = onOpenSearch) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = stringResource(R.string.search_action),
-                )
-            }
-            ViewSwitcherPill(
-                current = selectedView,
-                cycle = quickSwitchViews,
-                onCycle = onCycleView,
-            )
-        },
-        // Deliberately flat: M3 lifts the bar to mark content scrolling under
-        // it, but here the bar meets the header on the same surface and the
-        // tint is what makes that seam look like a separate block (#186).
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surface,
-        ),
-    )
-}
-
 @Composable
 private fun WeekDayHeader(
-    days: List<LocalDate>,
+    geometry: ColumnGeometry,
     today: LocalDate,
+    bias: Float,
     onOpenDay: (LocalDate) -> Unit,
 ) {
     val locale = currentLocale()
-    Row(
+    TimelineColumns(
+        geometry = geometry,
+        gap = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = HEADER_TOP_PADDING, bottom = HEADER_BOTTOM_PADDING, end = TIMELINE_CONTENT_END_INSET),
-    ) {
-        days.forEach { date ->
-            val javaDow = java.time.DayOfWeek.of(date.dayOfWeek.ordinal + 1)
-            val isToday = date == today
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { onOpenDay(date) },
-                horizontalAlignment = Alignment.CenterHorizontally,
+    ) { date ->
+        val javaDow = java.time.DayOfWeek.of(date.dayOfWeek.ordinal + 1)
+        val isToday = date == today
+        Column(
+            modifier = Modifier
+                .clip(RoundedCornerShape(12.dp))
+                .clickable { onOpenDay(date) }
+                .padding(start = HEADER_START_INSET * -bias),
+            horizontalAlignment = BiasAlignment.Horizontal(bias),
+        ) {
+            // One line, as the gutter cell beside it assumes (see WeekNumberCell).
+            Text(
+                text = javaDow.getDisplayName(JavaTextStyle.SHORT, locale),
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(2.dp))
+            // Always reserve the circle slot so the header height is
+            // identical whether or not the week contains today.
+            Box(
+                modifier = Modifier.size(DATE_SLOT_SIZE),
+                contentAlignment = Alignment.Center,
             ) {
-                // One line, as the gutter cell beside it assumes (see WeekNumberCell).
-                Text(
-                    text = javaDow.getDisplayName(JavaTextStyle.SHORT, locale),
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(2.dp))
-                // Always reserve the circle slot so the header height is
-                // identical whether or not the week contains today.
-                Box(
-                    modifier = Modifier.size(DATE_SLOT_SIZE),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isToday) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.morphDay(date).fillMaxSize(),
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = date.day.toString(),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                            }
+                if (isToday) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.morphDay(date).fillMaxSize(),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = date.day.toString(),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
                         }
-                    } else {
-                        Text(
-                            text = date.day.toString(),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.morphDay(date),
-                        )
                     }
+                } else {
+                    Text(
+                        text = date.day.toString(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.morphDay(date),
+                    )
                 }
             }
         }
@@ -813,10 +999,10 @@ private fun WeekDayHeader(
  * bar's hamburger (see GUTTER_CONTENT_START_INSET).
  */
 @Composable
-private fun WeekNumberCell(weekStart: LocalDate, showBadge: Boolean) {
+private fun WeekNumberCell(weekStart: LocalDate, showBadge: Boolean, modifier: Modifier = Modifier) {
     val weekNumber = remember(weekStart) { weekStart.toJavaLocalDate().isoWeekNumber() }
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(
                 start = GUTTER_CONTENT_START_INSET,
@@ -855,8 +1041,10 @@ private fun WeekNumberBadge(weekNumber: Int, modifier: Modifier = Modifier) {
 
 @Composable
 private fun AllDayStrip(
-    state: WeekUiState.Success,
+    geometry: ColumnGeometry,
+    bars: List<PlacedBar>,
     height: Dp,
+    animatedHeight: (() -> Dp)? = null,
     onEventClick: (EventInstance) -> Unit,
 ) {
     val dark = isSystemInDarkTheme()
@@ -866,7 +1054,7 @@ private fun AllDayStrip(
             .fillMaxWidth()
             // Height is hoisted + animated so it slides and resizes smoothly;
             // padding sits inside it so the content area is lanes * row height.
-            .height(height)
+            .then(if (animatedHeight == null) Modifier.height(height) else Modifier.dynamicHeight(animatedHeight))
             .padding(
                 top = ALL_DAY_VERTICAL_PADDING,
                 bottom = ALL_DAY_VERTICAL_PADDING,
@@ -876,29 +1064,39 @@ private fun AllDayStrip(
         // Span bars are positioned absolutely so a multi-day event is one
         // connected bar across columns rather than a chip per day. clipToBounds
         // keeps bars from spilling out while the height animates.
-        BoxWithConstraints(
+        Layout(
+            content = {
+                bars.forEach { bar ->
+                    key(bar.event.eventId, bar.event.start) {
+                        AllDayBar(
+                            event = bar.event,
+                            dark = dark,
+                            onClick = { onEventClick(bar.event) },
+                            modifier = Modifier
+                                .morphEvent(ViewMorphKey.event(bar.event, bar.keyDate))
+                                .padding(horizontal = 1.dp, vertical = 1.dp),
+                        )
+                    }
+                }
+            },
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
                 .clipToBounds(),
-        ) {
-            val colWidth = maxWidth / state.days.size
-            state.allDaySpans.forEach { span ->
-                val spanCols = span.endCol - span.startCol + 1
-                AllDayBar(
-                    event = span.event,
-                    dark = dark,
-                    onClick = { onEventClick(span.event) },
-                    modifier = Modifier
-                        .offset(
-                            x = colWidth * span.startCol,
-                            y = ALL_DAY_ROW_HEIGHT * span.lane,
-                        )
-                        .morphEvent(ViewMorphKey.event(span.event, state.days[span.startCol]))
-                        .width(colWidth * spanCols)
-                        .height(ALL_DAY_ROW_HEIGHT)
-                        .padding(horizontal = 1.dp, vertical = 1.dp),
-                )
+        ) { measurables, constraints ->
+            val width = constraints.maxWidth.toFloat()
+            val rowPx = ALL_DAY_ROW_HEIGHT.toPx()
+            val progress = geometry.progress()
+            val placed = measurables.mapIndexed { i, measurable ->
+                val bar = bars[i]
+                val extent = geometry.extent(bar.fromRange, bar.toRange, width, 0f)
+                val left = extent.left.roundToInt()
+                val barWidth = (extent.right.roundToInt() - left).coerceAtLeast(0)
+                val y = (lerp(bar.fromLane.toFloat(), bar.toLane.toFloat(), progress) * rowPx).roundToInt()
+                Triple(measurable.measure(Constraints.fixed(barWidth, rowPx.roundToInt())), left, y)
+            }
+            layout(constraints.maxWidth, constraints.maxHeight) {
+                placed.forEach { (placeable, x, y) -> placeable.placeRelative(x, y) }
             }
         }
     }
@@ -939,7 +1137,11 @@ private fun AllDayBar(
 
 @Composable
 private fun Timeline(
-    state: WeekUiState.Success,
+    geometry: ColumnGeometry,
+    today: LocalDate,
+    timedFor: (LocalDate) -> List<TimedBlock>,
+    allDayHeight: Dp,
+    animatedAllDayHeight: (() -> Dp)? = null,
     scrollState: ScrollState,
     dragController: TimelineDragController,
     active: Boolean,
@@ -947,6 +1149,7 @@ private fun Timeline(
     onCreateAt: (LocalDate, Int) -> Unit,
     onDrop: (TimelineDrop) -> Unit,
 ) {
+    val fullViewportHeight = remember(geometry) { intArrayOf(-1) }
     val dark = isSystemInDarkTheme()
     val zoom = LocalTimelineZoom.current
     val density = LocalDensity.current
@@ -960,14 +1163,38 @@ private fun Timeline(
 
     // BoxWithConstraints rather than Box: the fit-the-whole-day scale needs the
     // timeline's own viewport height, which is only known here — below the top
-    // bar, day header and all-day strip.
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val hourHeight = zoom.scale.hourHeight(maxHeight)
+    // bar, day header and all-day strip. The strip is given back, so the scale
+    // holds while paging and matches the day view's (#184).
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize().then(
+            if (animatedAllDayHeight == null) Modifier
+            else Modifier.stableMorphViewport(animatedAllDayHeight, fullViewportHeight),
+        ),
+    ) {
+        val fitHeight = if (animatedAllDayHeight == null) maxHeight + allDayHeight else maxHeight
+        val hourHeight = zoom.scale.hourHeight(fitHeight)
         val totalHeight = hourHeight * 24
         // The pinch sits above the scroll viewport: it has to outrank the
         // vertical scroll, and it does that by watching the initial pass, which
         // only reaches it if it is the viewport's ancestor.
-        val pinch = rememberTimelinePinchZoom(scrollState, maxHeight, hourHeight, zoom)
+        val pinch = rememberTimelinePinchZoom(scrollState, fitHeight, hourHeight, zoom)
+        // What a block's text is fitted to: the column it will end up in once a
+        // view switch is past half way, so it reflows once rather than per frame.
+        val textColumns by remember(geometry) {
+            derivedStateOf { if (geometry.progress() >= 0.5f) geometry.to.count else geometry.from.count }
+        }
+        val columnWidth = (maxWidth - TIMELINE_CONTENT_END_INSET + COLUMN_GAP) / textColumns - COLUMN_GAP
+        // What the scroll shows, known before it is laid out: a view switch
+        // picks what travels on its first frame.
+        val opening = LocalOpeningTimeline.current
+        val viewportPx = with(density) { maxHeight.toPx() }
+        val visibleViewport: () -> Float = remember(animatedAllDayHeight, viewportPx, density) {
+            { viewportPx - (animatedAllDayHeight?.let { with(density) { it().toPx() } } ?: 0f) }
+        }
+        val contentPx = with(density) { totalHeight.toPx() }
+        val visibleTop: () -> Float = remember(opening, scrollState, visibleViewport, contentPx) {
+            { opening?.top(visibleViewport(), contentPx) ?: scrollState.value.toFloat() }
+        }
         // Scrolls on the same state as the gutter and the other pages, so they
         // all stay aligned. A static, rounded-clipped window — the content
         // scrolls inside it, so the soft corners are permanent at any scroll
@@ -981,7 +1208,9 @@ private fun Timeline(
                 .verticalScroll(scrollState)
                 .onGloballyPositioned { if (active) dragController.geometry.viewport = it },
         ) {
-            Row(
+            TimelineColumns(
+                geometry = geometry,
+                gap = COLUMN_GAP,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(totalHeight)
@@ -997,29 +1226,28 @@ private fun Timeline(
                             it.hourPx = with(density) { hourHeight.toPx() }
                             it.blockInsetPx = blockInsetPx
                             it.columnGapPx = gap
-                            it.columnWidthPx = (coords.size.width + gap) / state.days.size
-                            it.days = state.days
+                            it.columnWidthPx = (coords.size.width + gap) / geometry.to.count
+                            it.days = geometry.dates
                             it.isRtl = isRtl
                         }
                     },
-                horizontalArrangement = Arrangement.spacedBy(COLUMN_GAP),
-            ) {
-                state.days.forEach { day ->
-                    DayColumnCard(
-                        blocks = state.timedByDay[day].orEmpty(),
-                        dark = dark,
-                        date = day,
-                        today = state.today,
-                        hourHeight = hourHeight,
-                        dragController = dragController,
-                        onEventClick = onEventClick,
-                        onCreateAt = onCreateAt,
-                        onDrop = onDrop,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                    )
-                }
+            ) { day ->
+                DayColumnCard(
+                    blocks = timedFor(day),
+                    dark = dark,
+                    date = day,
+                    today = today,
+                    hourHeight = hourHeight,
+                    columnWidth = columnWidth,
+                    visibleTop = visibleTop,
+                    viewportHeight = visibleViewport,
+                    dragController = dragController,
+                    onEventClick = onEventClick,
+                    onCreateAt = onCreateAt,
+                    onDrop = onDrop,
+                    scrollState = scrollState,
+                    modifier = Modifier.fillMaxHeight(),
+                )
             }
         }
     }
@@ -1032,13 +1260,19 @@ private fun DayColumnCard(
     date: LocalDate,
     today: LocalDate,
     hourHeight: Dp,
+    columnWidth: Dp,
+    visibleTop: () -> Float,
+    viewportHeight: () -> Float,
     dragController: TimelineDragController,
     onEventClick: (EventInstance) -> Unit,
     onCreateAt: (LocalDate, Int) -> Unit,
     onDrop: (TimelineDrop) -> Unit,
+    scrollState: ScrollState,
     modifier: Modifier = Modifier,
 ) {
-    val hourPx = with(LocalDensity.current) { hourHeight.toPx() }
+    val density = LocalDensity.current
+    val hourPx = with(density) { hourHeight.toPx() }
+    val morphing = LocalViewMorph.current != null
     val showHourGrid = LocalShowHourGrid.current
     val zone = remember { TimeZone.currentSystemDefault() }
     // Tells a settled drop when this column has caught up with it.
@@ -1051,6 +1285,8 @@ private fun DayColumnCard(
     // them, or taps land on the scale the column had before the zoom (#148).
     val currentHourPx = rememberUpdatedState(hourPx)
     val currentOnCreateAt = rememberUpdatedState(onCreateAt)
+    val edges = rememberOutOfViewEdges(blocks, scrollState, hourPx)
+    val currentEdges = rememberUpdatedState(edges)
     Card(
         // Plain rectangular columns — the soft corners come from the outer
         // rounded scroll viewport, so inner rounding would look odd at the edges.
@@ -1068,7 +1304,8 @@ private fun DayColumnCard(
         ),
         modifier = modifier,
     ) {
-        BoxWithConstraints(
+        Box(Modifier.fillMaxSize()) {
+        LaneColumn(
             modifier = Modifier
                 .fillMaxSize()
                 // The hour cells sit over the column background but under the
@@ -1078,6 +1315,7 @@ private fun DayColumnCard(
                 // blocks are consumed by their own handler first. Snaps to hour.
                 .pointerInput(date) {
                     detectTapGestures { offset ->
+                        if (currentEdges.value.tap(offset.y)) return@detectTapGestures
                         currentOnCreateAt.value(
                             date,
                             tappedMinuteOfDay(offset.y, currentHourPx.value),
@@ -1085,7 +1323,6 @@ private fun DayColumnCard(
                     }
                 },
         ) {
-            val colWidth = maxWidth
             val minEventHeight = hourHeight * MIN_EVENT_FRACTION
             // Keyed by event, so a block that changes time or lane is the *same*
             // composable afterwards and tweens there. The ordinal disambiguates
@@ -1094,14 +1331,13 @@ private fun DayColumnCard(
             blocks.forEach { block ->
                 val ordinal = ordinals.merge(block.event.eventId, 1, Int::plus)!! - 1
                 key(block.event.eventId, ordinal) {
-                    val laneWidth = colWidth / block.laneCount
                     val top = hourHeight * (block.startMin / 60f)
                     val rawHeight = hourHeight * ((block.endMin - block.startMin) / 60f)
                     val height = if (rawHeight < minEventHeight) minEventHeight else rawHeight
                     val place = animatedBlockPlacement(
-                        x = laneWidth * block.lane,
+                        xFraction = block.lane.toFloat() / block.laneCount,
+                        widthFraction = 1f / block.laneCount,
                         y = top,
-                        width = laneWidth,
                         height = height,
                     )
                     // Where this block is cut at midnight, which decides both
@@ -1116,11 +1352,22 @@ private fun DayColumnCard(
                     val bottomInset = hourCellBlockInset(showHourGrid, cuts.bottom)
                     val blockHeight = (place.height - topInset - bottomInset)
                         .coerceAtLeast(0.dp)
+                    // Only a block wholly on screen travels in a view switch: the
+                    // rest would cross the header on their way. They fade with
+                    // their screen, and the other view leaves them be too.
+                    val travels = morphing && rememberInViewport(
+                        visibleTop = visibleTop,
+                        viewportHeight = viewportHeight,
+                        top = with(density) { (top + topInset).toPx() },
+                        bottom = with(density) { (top + height - bottomInset).toPx() },
+                    )
+                    val morphKey = ViewMorphKey.event(block.event, date)
+                    StayPut(morphKey, stays = morphing && !travels)
                     EventBlock(
                         block = block,
                         dark = dark,
                         height = blockHeight,
-                        width = place.width,
+                        width = columnWidth / block.laneCount,
                         date = date,
                         cuts = cuts,
                         topInset = topInset,
@@ -1128,9 +1375,9 @@ private fun DayColumnCard(
                         onClick = { onEventClick(block.event) },
                         onDrop = onDrop,
                         modifier = Modifier
-                            .offset(x = place.x, y = place.y + topInset)
-                            .morphEvent(ViewMorphKey.event(block.event, date))
-                            .width(place.width)
+                            .laneSlot(place)
+                            .offset(y = place.y + topInset)
+                            .then(if (travels) Modifier.morphEvent(morphKey) else Modifier)
                             .height(blockHeight)
                             .padding(horizontal = BLOCK_OUTER_INSET),
                     )
@@ -1141,7 +1388,22 @@ private fun DayColumnCard(
                 NowLine(date = date, hourHeight = hourHeight)
             }
         }
+            OutOfViewEdgeBars(
+                edges = edges,
+                scrollState = scrollState,
+                dark = dark,
+            )
+        }
     }
+}
+
+/** Whether [top]..[bottom], in pixels down the scrolled content, lies wholly in its viewport. */
+@Composable
+private fun rememberInViewport(visibleTop: () -> Float, viewportHeight: () -> Float, top: Float, bottom: Float): Boolean {
+    val inView by remember(visibleTop, viewportHeight, top, bottom) {
+        derivedStateOf { visibleTop().let { top >= it && bottom <= it + viewportHeight() } }
+    }
+    return inView
 }
 
 @Composable
@@ -1267,20 +1529,24 @@ private fun EventBlock(
     }
 }
 
+private val SKELETON_HEADER_HEIGHT = 36.dp
+private val SKELETON_HEADER_PADDING = 8.dp
+
 @Composable
 private fun WeekLoading(dayCount: Int) {
     val scale = LocalTimelineZoom.current.scale
     val scrollState = rememberScrollState()
+    val headerHeight = weekDayHeaderHeight()
     Column(modifier = Modifier.fillMaxSize()) {
         // Header skeleton
-        Row(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(SKELETON_HEADER_PADDING)) {
             Spacer(Modifier.width(GUTTER_WIDTH))
             repeat(dayCount) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .padding(horizontal = 2.dp)
-                        .height(36.dp)
+                        .height(SKELETON_HEADER_HEIGHT)
                         .background(
                             MaterialTheme.colorScheme.surfaceContainer,
                             RoundedCornerShape(8.dp),
@@ -1291,7 +1557,9 @@ private fun WeekLoading(dayCount: Int) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             // Same scale resolution as the loaded timeline, so the skeleton's
             // columns don't resize the moment the real week arrives.
-            val hourHeight = scale.hourHeight(maxHeight)
+            val fitHeight = maxHeight + SKELETON_HEADER_HEIGHT + SKELETON_HEADER_PADDING * 2 -
+                headerHeight - TIMELINE_TOP_GAP
+            val hourHeight = scale.hourHeight(fitHeight)
             val totalHeight = hourHeight * 24
             // The skeleton wears the loaded columns' own ground, so the arrival
             // of the real week doesn't flash solid blocks into a gapped grid.
@@ -1359,3 +1627,17 @@ private fun formatWeekTitle(
         forceYear = weekEnd.year != weekStart.year,
     )
 }
+
+/** The day's title: its weekday and date, abbreviated to the date alone when short of room. */
+private fun formatDayTitle(
+    date: LocalDate,
+    locale: Locale,
+    currentYear: Int,
+    abbreviated: Boolean = false,
+): String =
+    formatCalendarTitle(
+        date = java.time.LocalDate.of(date.year, date.month.ordinal + 1, date.day),
+        locale = locale,
+        currentYear = currentYear,
+        skeleton = if (abbreviated) "dMMM" else "EEEdMMM",
+    )

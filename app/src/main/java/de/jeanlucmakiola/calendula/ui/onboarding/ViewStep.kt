@@ -23,7 +23,6 @@ import de.jeanlucmakiola.calendula.ui.common.PickerDescription
 import de.jeanlucmakiola.calendula.ui.common.ViewPreviewFrame
 import de.jeanlucmakiola.calendula.ui.common.icon
 import de.jeanlucmakiola.calendula.ui.common.label
-import de.jeanlucmakiola.calendula.ui.day.DayViewPreview
 import de.jeanlucmakiola.calendula.ui.month.MonthStylePreview
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import de.jeanlucmakiola.calendula.ui.month.descriptionRes
@@ -73,7 +72,7 @@ internal fun ViewStep(
                     height = PREVIEW_HEIGHT,
                     dayCount = LocalMultiDayCount.current,
                 )
-                CalendarView.Day -> DayViewPreview(height = PREVIEW_HEIGHT)
+                CalendarView.Day -> WeekViewPreview(weekStart = weekStart, height = PREVIEW_HEIGHT, dayCount = 1)
                 CalendarView.Agenda -> AgendaViewPreview(height = PREVIEW_HEIGHT)
             }
         }

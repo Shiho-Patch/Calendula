@@ -66,6 +66,14 @@ class ViewBackStackTest {
     }
 
     @Test
+    fun `week number drills into week and back returns to month`() {
+        val stack = listOf(CalendarView.Month).drillToWeek()
+        assertThat(stack).containsExactly(CalendarView.Month, CalendarView.Week).inOrder()
+        assertThat(stack.dropLast(1).last()).isEqualTo(CalendarView.Month)
+        assertThat(stack.drillToWeek()).isEqualTo(stack)
+    }
+
+    @Test
     fun `agenda widget date tap backs out agenda then home`() {
         // openDate(source = Agenda): root in Agenda over the Week home, then drill.
         val stack = viewBaseStack(CalendarView.Week, CalendarView.Agenda).drillToDay()

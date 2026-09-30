@@ -64,4 +64,18 @@ class WeekPagingTest {
         assertThat(grid.startForPage(page)).isEqualTo(date)
         assertThat(grid.startForPage(page - 1)).isEqualTo(LocalDate(1990, 5, 13))
     }
+
+    @Test
+    fun `a day page and its day round-trip`() {
+        listOf(LocalDate(2026, 9, 27), LocalDate(1990, 5, 16), LocalDate(2100, 2, 28)).forEach { day ->
+            assertThat(DayGrid.startForPage(DayGrid.pageFor(day))).isEqualTo(day)
+        }
+    }
+
+    @Test
+    fun `adjacent day pages are adjacent days across a month end`() {
+        val page = DayGrid.pageFor(LocalDate(2026, 2, 28))
+        assertThat(DayGrid.startForPage(page + 1)).isEqualTo(LocalDate(2026, 3, 1))
+        assertThat(DayGrid.startForPage(page - 1)).isEqualTo(LocalDate(2026, 2, 27))
+    }
 }

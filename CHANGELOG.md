@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Pages can open the split agenda.** Swipe up from a full month to reveal the compact grid and month agenda; tap a day to filter it, then swipe down to return. The transition gives haptic feedback ([#111]).
+- **Week numbers open their week.** Tap a week number in the month grid to open Week at that row; Back returns to Month ([#197]).
+
+### Changed
+- **Split view opens with the month's agenda.** It starts at today in the current month; tapping a day filters the list, and the filter chip restores the full month. Swiping the list moves by day when filtered and by month otherwise ([#142]).
+- **Today stands out in the month grid.** Its whole cell has a distinct background; tapping Today briefly expands that cell and nudges its neighbours aside ([#241]).
+
+### Fixed
+- **Multi-day events stay above shorter events.** Month and Week bars, Split day lists, and Agenda now place multi-day events before one-day all-day events, then timed events; declined events remain last ([#291]).
+
 ## [2.21.0] — 2026-09-23
 
 ### Added

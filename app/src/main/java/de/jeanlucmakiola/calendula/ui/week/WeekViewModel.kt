@@ -9,9 +9,9 @@ import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.displayPriority
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.domain.calendarListFailure
-import de.jeanlucmakiola.calendula.domain.isDeclined
 import de.jeanlucmakiola.calendula.ui.common.PageStateCache
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -54,6 +55,10 @@ data class DaySpan(val start: LocalDate, val count: Int)
 
 /** How the pager cuts the calendar, and the page the anchor sits on. */
 data class PagerPosition(val grid: PageGrid, val page: Int)
+
+/** Where [anchor] sits under [rule]. */
+fun positionOf(anchor: LocalDate, rule: (LocalDate) -> PageGrid): PagerPosition =
+    rule(anchor).let { PagerPosition(it, it.pageFor(anchor)) }
 
 /**
  * A timeline paged in runs of days: the week view, and the multi-day view (#193).
@@ -89,14 +94,22 @@ abstract class PagedTimelineViewModel(
     // A day on the visible page; the page itself comes from the grid, so a
     // settings change re-frames the same days instead of jumping.
     private val _anchor = MutableStateFlow(todayDate)
+    val anchor: StateFlow<LocalDate> = _anchor
 
-    val position: StateFlow<PagerPosition> =
-        combine(_anchor, gridRule) { anchor, rule -> rule(anchor).let { PagerPosition(it, it.pageFor(anchor)) } }
+    /**
+     * The grid for a given anchor, held eagerly so a screen can place its pager
+     * on its very first frame rather than a frame after the anchor moved.
+     */
+    val rule: StateFlow<(LocalDate) -> PageGrid> =
+        gridRule.stateIn(viewModelScope, SharingStarted.Eagerly, initialRule)
+
+    private val position: StateFlow<PagerPosition> =
+        combine(_anchor, rule) { anchor, rule -> positionOf(anchor, rule) }
             .distinctUntilChanged()
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000L),
-                initialValue = initialRule(todayDate).let { PagerPosition(it, it.pageFor(todayDate)) },
+                initialValue = positionOf(todayDate, initialRule),
             )
 
     /**
@@ -140,7 +153,7 @@ abstract class PagedTimelineViewModel(
 
     /** The pager came to rest on [page]; follow it unless it is already the anchor's. */
     fun onPageSettled(page: Int) {
-        val grid = position.value.grid
+        val grid = rule.value(_anchor.value)
         if (grid.pageFor(_anchor.value) != page) _anchor.value = grid.startForPage(page)
     }
 
@@ -150,6 +163,7 @@ abstract class PagedTimelineViewModel(
     }
 
     fun goToToday() = jumpTo(todayDate)
+    fun goToDate(date: LocalDate) = jumpTo(date)
 
     private fun buildState(
         span: DaySpan,
@@ -208,6 +222,20 @@ class MultiDayViewModel @Inject constructor(
     initialRule = { DaysGrid.startingAt(it, SettingsPrefs.DEFAULT_MULTI_DAY_COUNT) },
 )
 
+/** The day view: the timeline one day at a time. */
+@HiltViewModel
+class DayViewModel @Inject constructor(
+    repository: CalendarRepository,
+    settingsPrefs: SettingsPrefs,
+    @IoDispatcher io: CoroutineDispatcher,
+) : PagedTimelineViewModel(
+    repository = repository,
+    settingsPrefs = settingsPrefs,
+    io = io,
+    gridRule = flowOf { _: LocalDate -> DayGrid },
+    initialRule = { DayGrid },
+)
+
 /**
  * Lay out all-day events as connected horizontal spans across the visible week.
  * Each event becomes one [AllDaySpan] from its first to its last covered column;
@@ -227,7 +255,13 @@ internal fun layoutAllDay(
         }
         // Declined bars are packed after every other one, so on any day they
         // cover they land in a lane below it (#230).
-        .sortedWith(compareBy({ it.event.isDeclined }, { it.startCol }, { it.endCol }))
+        .sortedWith(
+            compareBy<Raw> { it.event.displayPriority(zone) }
+                .thenBy { it.startCol }
+                .thenBy { it.endCol }
+                .thenBy { it.event.start }
+                .thenBy { it.event.instanceId },
+        )
 
     // What each lane already holds, rather than just how far right it reaches.
     // A single "last occupied column" only answers correctly while spans arrive

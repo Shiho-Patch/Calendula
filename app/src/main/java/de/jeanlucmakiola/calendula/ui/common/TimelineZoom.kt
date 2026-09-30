@@ -49,13 +49,49 @@ class TimelineZoom(
     var isPinching: Boolean by mutableStateOf(false)
         private set
 
+    /** The visible-hours preference (#322); a timeline re-fits when it changes. */
+    var hours: TimelineHours by mutableStateOf(TimelineHours())
+        private set
+
+    private var stored: TimelineScale = initial
+
     /**
      * Take a value that came from the preference. Ignored mid-pinch: the stored
      * value is a frame or two behind the fingers there, and letting it land would
-     * snap the timeline back while the user is still pinching.
+     * snap the timeline back while the user is still pinching. With visible
+     * hours on it is only remembered, so a late-arriving preference can't undo
+     * the fit a timeline just opened with.
      */
     fun adopt(stored: TimelineScale) {
-        if (!isPinching) scale = stored
+        this.stored = stored
+        if (!isPinching && !hours.enabled) scale = stored
+    }
+
+    /** Take the visible-hours preference; switching it off hands back the stored scale. */
+    fun adoptHours(hours: TimelineHours) {
+        val wasEnabled = this.hours.enabled
+        this.hours = hours
+        if (wasEnabled && !hours.enabled && !isPinching) scale = stored
+    }
+
+    /**
+     * A timeline is opening. With visible hours on, the range replaces whatever
+     * scale is in force — a stored preset and a pinch alike — and its start hour
+     * is returned for the timeline to scroll to; otherwise null.
+     */
+    fun open(): Int? {
+        val hours = hours
+        if (!hours.enabled) return null
+        if (!isPinching) scale = TimelineScale.FitHours(hours.startHour, hours.endHour)
+        return hours.startHour
+    }
+
+    /**
+     * Holds the height [open] fitted, so a viewport that changes afterwards (the
+     * all-day strip following a swipe) doesn't rescale the hours under the scroll.
+     */
+    fun holdFit(hourHeight: Dp) {
+        if (!isPinching && scale is TimelineScale.FitHours) scale = TimelineScale.Custom(hourHeight)
     }
 
     fun beginPinch() {
@@ -66,9 +102,10 @@ class TimelineZoom(
         scale = TimelineScale.custom(hourHeight)
     }
 
+    /** Settles the pinch. With visible hours on it only lasts until the next [open]. */
     fun endPinch() {
         isPinching = false
-        persist(scale)
+        if (!hours.enabled) persist(scale)
     }
 }
 
@@ -82,16 +119,18 @@ private val DetachedTimelineZoom by lazy { TimelineZoom(TimelineScale.Regular) {
 val LocalTimelineZoom = staticCompositionLocalOf { DetachedTimelineZoom }
 
 /**
- * The app-wide [TimelineZoom], seeded from [stored] and writing settled pinches
- * back through [onPersist].
+ * The app-wide [TimelineZoom], seeded from [stored] and [hours] and writing
+ * settled pinches back through [onPersist].
  */
 @Composable
 fun rememberTimelineZoom(
     stored: TimelineScale,
+    hours: TimelineHours,
     onPersist: (TimelineScale) -> Unit,
 ): TimelineZoom {
     val persist by rememberUpdatedState(onPersist)
     val zoom = remember { TimelineZoom(stored) { persist(it) } }
+    LaunchedEffect(hours) { zoom.adoptHours(hours) }
     // Picking a preset in Settings has to reach the timelines, and so does the
     // stored value arriving after the first frame.
     LaunchedEffect(stored) { zoom.adopt(stored) }

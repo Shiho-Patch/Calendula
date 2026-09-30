@@ -59,7 +59,11 @@ internal fun hourCellRadiusPx(cellHeight: Float, cellWidth: Float, maxRadius: Fl
  * coordinate space and keep spanning cells. [hourHeightPx] is one hour's pixel
  * height; [color] is resolved by the caller from the theme.
  */
-fun Modifier.hourGridCells(show: Boolean, hourHeightPx: Float, color: Color): Modifier =
+fun Modifier.hourGridCells(
+    show: Boolean,
+    hourHeightPx: Float,
+    color: Color,
+): Modifier =
     if (!show) {
         this
     } else {
@@ -71,10 +75,11 @@ fun Modifier.hourGridCells(show: Boolean, hourHeightPx: Float, color: Color): Mo
                 hourCellRadiusPx(cellHeight, size.width, HOUR_CELL_CORNER.toPx()),
             )
             val cellSize = Size(size.width, cellHeight)
+            val top = inset
             for (hour in 0 until 24) {
                 drawRoundRect(
                     color = color,
-                    topLeft = Offset(0f, hour * hourHeightPx + inset),
+                    topLeft = Offset(0f, hour * hourHeightPx + top),
                     size = cellSize,
                     cornerRadius = radius,
                 )

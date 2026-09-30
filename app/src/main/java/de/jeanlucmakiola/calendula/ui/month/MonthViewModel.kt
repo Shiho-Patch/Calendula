@@ -13,6 +13,7 @@ import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.domain.calendarListFailure
 import de.jeanlucmakiola.calendula.ui.common.PageStateCache
 import de.jeanlucmakiola.calendula.domain.isDeclined
+import de.jeanlucmakiola.calendula.domain.eventDisplayComparator
 import de.jeanlucmakiola.calendula.ui.week.coversDay
 import de.jeanlucmakiola.calendula.ui.week.layoutAllDay
 import de.jeanlucmakiola.calendula.ui.week.spansMultipleDays
@@ -292,12 +293,10 @@ class MonthViewModel @Inject constructor(
 
     // --- Split style (#53) ------------------------------------------------
     //
-    // The first selected-day concept in the app: the other views drill straight
-    // into a date, while the split style keeps one selected and lists it below
-    // the grid.
+    // Null means the full-month agenda; a date narrows the pane to that day.
 
-    private val _selectedDate = MutableStateFlow(todayDate)
-    val selectedDate: StateFlow<LocalDate> = _selectedDate
+    private val _selectedDate = MutableStateFlow<LocalDate?>(null)
+    val selectedDate: StateFlow<LocalDate?> = _selectedDate
 
     /**
      * Select [date], following it to its month if it sits in the grid's leading
@@ -305,23 +304,33 @@ class MonthViewModel @Inject constructor(
      * silently list a date the grid isn't pointing at.
      */
     fun selectDate(date: LocalDate) {
-        _selectedDate.value = date
         val target = YearMonth(date.year, date.month)
+        _selectedDate.value = if (target == _month.value && _selectedDate.value == date) null else date
         if (target != _month.value) _month.value = target
     }
 
-    /**
-     * Move the selection with the month: today if the new month holds it, else
-     * its 1st. Leaving the old date selected would list a day the grid no longer
-     * shows.
-     */
+    fun clearSelection() { _selectedDate.value = null }
+
+    /** A pane swipe walks days when filtered, months when showing the agenda. */
+    fun stepSplitPane(days: Int) {
+        val selected = _selectedDate.value
+        if (selected == null) {
+            _month.value = yearMonthForIndex(monthIndexOf(_month.value) + days)
+        } else {
+            val next = selected.plus(days, DateTimeUnit.DAY)
+            _selectedDate.value = next
+            _month.value = YearMonth(next.year, next.month)
+        }
+    }
+
+    /** Moving the grid to another month restores its full agenda. */
     private fun realignSelection() {
-        _selectedDate.value = selectionForMonth(_month.value, todayDate)
+        _selectedDate.value = null
     }
 
     fun goToToday() {
         _month.value = YearMonth(todayDate.year, todayDate.month)
-        _selectedDate.value = todayDate
+        _selectedDate.value = null
     }
 
     /**
@@ -330,13 +339,12 @@ class MonthViewModel @Inject constructor(
      * otherwise sit wherever paged navigation last left it (today's month, on a
      * fresh open) — and a switch to a paged style, or a reseed of the other
      * scrolling style's list, would jump there instead of holding position. The
-     * selection is realigned alongside it so that landing on the Split style
-     * shows a live day in the month on screen rather than a stale, off-month one.
+     * selection is cleared alongside it so Split opens the visible month's agenda.
      */
     fun syncScrollMonth(ym: YearMonth) {
         if (_month.value == ym) return
         _month.value = ym
-        _selectedDate.value = selectionForMonth(ym, todayDate)
+        _selectedDate.value = null
     }
 
     /** Jump to the month containing [date] (drawer jump-to-date). */
@@ -499,11 +507,7 @@ internal fun instancesByDay(
     days.associateWith { day ->
         instances
             .filter { it.coversDay(day, zone) }
-            .sortedWith(
-                compareBy<EventInstance> { it.isDeclined }
-                    .thenByDescending { it.isAllDay }
-                    .thenBy { it.start },
-            )
+            .sortedWith(eventDisplayComparator(zone))
     }
 
 /**
@@ -544,11 +548,10 @@ private const val WINDOW_EDGE = 2
 internal fun edgeForPad(pad: Int): Int = minOf(WINDOW_EDGE, pad - 1).coerceAtLeast(0)
 
 /**
- * Which day the split style should select when the grid lands on [month]:
- * [today] when the month holds it, otherwise the 1st. Pure so the rule can be
- * tested without standing up a view model and a provider behind it.
+ * First day shown in the split agenda: today in the current month, otherwise
+ * the first of the visible month.
  */
-internal fun selectionForMonth(month: YearMonth, today: LocalDate): LocalDate =
+internal fun agendaStartForMonth(month: YearMonth, today: LocalDate): LocalDate =
     if (YearMonth(today.year, today.month) == month) {
         today
     } else {
