@@ -19,10 +19,12 @@ import kotlinx.coroutines.flow.drop
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -81,6 +83,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.DisposableEffect
@@ -89,6 +92,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -107,6 +111,7 @@ import de.jeanlucmakiola.calendula.ui.common.eventPaint
 import de.jeanlucmakiola.calendula.ui.common.eventSurface
 import de.jeanlucmakiola.calendula.ui.common.monthBarCuts
 import kotlin.math.roundToInt
+import kotlin.math.abs
 import de.jeanlucmakiola.calendula.ui.common.rememberDragSurface
 import de.jeanlucmakiola.calendula.ui.common.eventMoveAction
 import de.jeanlucmakiola.calendula.ui.common.eventTitleOverflow
@@ -199,6 +204,47 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
+
+private val LocalTodayPulse = staticCompositionLocalOf { 0 }
+
+/** A brief push from today's full cell into its immediate neighbours. */
+@Composable
+private fun rememberTodayRipple(active: Boolean): Animatable<Float, androidx.compose.animation.core.AnimationVector1D> {
+    val pulse = remember { Animatable(0f) }
+    val pulseKey = LocalTodayPulse.current
+    val reduceMotion = rememberReduceMotion()
+    LaunchedEffect(pulseKey, active, reduceMotion) {
+        if (active && pulseKey > 0 && !reduceMotion) {
+            pulse.snapTo(0f)
+            pulse.animateTo(1f, tween(durationMillis = 180))
+            pulse.animateTo(
+                0f,
+                spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow,
+                ),
+            )
+        } else {
+            pulse.snapTo(0f)
+        }
+    }
+    return pulse
+}
+
+/** Paint-only motion keeps hit targets and the month grid's lane geometry stable. */
+private fun Modifier.todayRipple(relativeColumn: Int?, progress: () -> Float): Modifier {
+    if (relativeColumn == null || abs(relativeColumn) > 1) return this
+    return graphicsLayer {
+        val pulse = progress()
+        if (relativeColumn == 0) {
+            scaleX = 1f + 0.10f * pulse
+            scaleY = 1f + 0.06f * pulse
+        } else {
+            translationX = (if (relativeColumn < 0) -1f else 1f) * 4.dp.toPx() * pulse
+            scaleX = 1f - 0.025f * pulse
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -358,7 +404,9 @@ fun MonthScreen(
     val jumpToMonth: (YearMonth) -> Unit = { ym ->
         scope.launch { pagerState.jumpToPage(monthIndexOf(ym), reduceMotion, pageSpec) }
     }
+    var todayPulse by remember { mutableIntStateOf(0) }
     val jumpToToday: () -> Unit = {
+        todayPulse++
         if (scrolling) {
             scope.launch {
                 listState.animateScrollToItem(
@@ -466,6 +514,7 @@ fun MonthScreen(
                 CompositionLocalProvider(
                     LocalDimCutoff provides dimCutoff,
                     LocalMonthDrag provides chipDrag,
+                    LocalTodayPulse provides todayPulse,
                 ) {
                     if (scrolling) {
                         ContinuousMonthContent(
@@ -1672,6 +1721,8 @@ internal fun SplitMonthGrid(
 ) {
     val dark = isSystemInDarkTheme()
     val month = state.month
+    val hasToday = state.today.year == month.year && state.today.month == month.month
+    val ripple = rememberTodayRipple(active = hasToday)
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -1679,6 +1730,7 @@ internal fun SplitMonthGrid(
         verticalArrangement = Arrangement.spacedBy(SPLIT_ROW_GAP),
     ) {
         state.weeks.forEach { week ->
+            val todayCol = week.days.indexOf(state.today).takeIf { hasToday && it >= 0 }
             Row(Modifier.fillMaxWidth().height(SPLIT_ROW_HEIGHT)) {
                 if (showWeekNumbers) {
                     WeekNumberGutter(
@@ -1709,6 +1761,8 @@ internal fun SplitMonthGrid(
                         // page transition.
                         isSelected = day == selected && inMonth,
                         inMonth = inMonth,
+                        relativeToToday = todayCol?.let { col - it },
+                        rippleProgress = { ripple.value },
                         dark = dark,
                         onClick = { onSelectDay(day) },
                         modifier = Modifier.weight(1f).fillMaxHeight(),
@@ -1735,6 +1789,8 @@ private fun SplitDayCell(
     isToday: Boolean,
     isSelected: Boolean,
     inMonth: Boolean,
+    relativeToToday: Int?,
+    rippleProgress: () -> Float,
     dark: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1743,6 +1799,7 @@ private fun SplitDayCell(
     // the whole cell, which read as a second state on top of the day rather than
     // as a mark on it — and fought today's own circle when they coincided.
     val background = when {
+        isToday && inMonth -> MaterialTheme.colorScheme.primaryContainer
         inMonth -> MaterialTheme.colorScheme.surfaceContainer
         else -> MaterialTheme.colorScheme.surfaceContainerLow
     }
@@ -1775,6 +1832,7 @@ private fun SplitDayCell(
     Box(
         modifier = modifier
             .padding(horizontal = CELL_GAP, vertical = 1.dp)
+            .todayRipple(relativeToToday, rippleProgress)
             .selectable(selected = isSelected, onClick = onClick),
         contentAlignment = Alignment.TopCenter,
     ) {
@@ -2171,6 +2229,8 @@ private fun MonthWeekRow(
     selected: LocalDate? = null,
 ) {
     val dark = isSystemInDarkTheme()
+    val todayCol = week.days.indexOf(today).takeIf { it >= 0 && inMonth(today) }
+    val ripple = rememberTodayRipple(active = todayCol != null)
     val overflowRow = rememberOverflowRowHeight()
     val laneCap = week.laneCapFor(rowHeight, overflowRow)
     val laneCount = (week.spans.maxOfOrNull { it.lane } ?: -1) + 1
@@ -2290,15 +2350,17 @@ private fun MonthWeekRow(
             // Spanning bars draw on top of these, bridging cells, so they still read
             // as one continuous event.
             Row(Modifier.matchParentSize()) {
-                week.days.forEach { d ->
+                week.days.forEachIndexed { col, d ->
                     Box(
                         Modifier
                             .weight(1f)
                             .fillMaxHeight()
                             .padding(horizontal = CELL_GAP, vertical = 1.dp)
                             .morphElement(MonthMorphKey.Cell(d))
+                            .todayRipple(todayCol?.let { col - it }) { ripple.value }
                             .background(
                                 color = when {
+                                    d == today && inMonth(d) -> MaterialTheme.colorScheme.primaryContainer
                                     inMonth(d) -> MaterialTheme.colorScheme.surfaceContainer
                                     // A blanked cell draws nothing at all: it is
                                     // the gap that shows where the month starts.
@@ -2313,7 +2375,7 @@ private fun MonthWeekRow(
 
             Column(Modifier.fillMaxSize().padding(top = CELL_TOP_PADDING)) {
                 Row(Modifier.fillMaxWidth()) {
-                    week.days.forEach { d ->
+                    week.days.forEachIndexed { col, d ->
                         if (blankOutside && !inMonth(d)) {
                             Spacer(Modifier.weight(1f).height(DAY_NUMBER_HEIGHT))
                         } else {
@@ -2330,7 +2392,8 @@ private fun MonthWeekRow(
                                 },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .morphElement(MonthMorphKey.DayNumber(d)),
+                                    .morphElement(MonthMorphKey.DayNumber(d))
+                                    .todayRipple(todayCol?.let { col - it }) { ripple.value },
                             )
                         }
                     }
@@ -2445,6 +2508,7 @@ private fun MonthWeekRow(
                                     .morphBounds(MonthMorphKey.Event(d, ev.instanceId))
                                     .width(colW)
                                     .height(EVENT_ROW_HEIGHT)
+                                    .todayRipple(todayCol?.let { col - it }) { ripple.value }
                                     .padding(horizontal = MONTH_CHIP_INSET, vertical = 1.dp),
                             )
                         }

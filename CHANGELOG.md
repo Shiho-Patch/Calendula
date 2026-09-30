@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Split view opens with the month's agenda.** It starts at today in the current month; tapping a day filters the list, and the filter chip restores the full month. Swiping the list moves by day when filtered and by month otherwise ([#142]).
+- **Today stands out in the month grid.** Its whole cell has a distinct background; tapping Today briefly expands that cell and nudges its neighbours aside ([#241]).
 
 ## [2.21.0] — 2026-09-23
 
