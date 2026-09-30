@@ -45,6 +45,7 @@ import de.jeanlucmakiola.calendula.ui.imports.ImportScreen
 import de.jeanlucmakiola.calendula.ui.month.MonthScreen
 import de.jeanlucmakiola.calendula.ui.search.SearchScreen
 import de.jeanlucmakiola.calendula.ui.settings.SettingsScreen
+import de.jeanlucmakiola.calendula.ui.week.MultiDayScreen
 import de.jeanlucmakiola.calendula.ui.week.WeekScreen
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -369,6 +370,18 @@ fun CalendarHost(
         ) { currentView ->
             when (currentView) {
                 CalendarView.Week -> WeekScreen(
+                    selectedView = currentView,
+                    onSelectView = onSelectView,
+                    onOpenDay = onOpenDay,
+                    onEventClick = onEventClick,
+                    onOpenSettings = onOpenSettings,
+                    onOpenSearch = onOpenSearch,
+                    onCreateEvent = onCreateEvent,
+                    quickSwitchViews = quickSwitchViews,
+                    drawerViewOrder = drawerViewOrder,
+                    todayInToolbar = todayInToolbar,
+                )
+                CalendarView.MultiDay -> MultiDayScreen(
                     selectedView = currentView,
                     onSelectView = onSelectView,
                     onOpenDay = onOpenDay,

@@ -18,10 +18,11 @@ import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaViewPreview
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
+import de.jeanlucmakiola.calendula.ui.common.LocalMultiDayCount
 import de.jeanlucmakiola.calendula.ui.common.PickerDescription
 import de.jeanlucmakiola.calendula.ui.common.ViewPreviewFrame
 import de.jeanlucmakiola.calendula.ui.common.icon
-import de.jeanlucmakiola.calendula.ui.common.labelRes
+import de.jeanlucmakiola.calendula.ui.common.label
 import de.jeanlucmakiola.calendula.ui.day.DayViewPreview
 import de.jeanlucmakiola.calendula.ui.month.MonthStylePreview
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
@@ -67,6 +68,11 @@ internal fun ViewStep(
                     height = PREVIEW_HEIGHT,
                 )
                 CalendarView.Week -> WeekViewPreview(weekStart = weekStart, height = PREVIEW_HEIGHT)
+                CalendarView.MultiDay -> WeekViewPreview(
+                    weekStart = weekStart,
+                    height = PREVIEW_HEIGHT,
+                    dayCount = LocalMultiDayCount.current,
+                )
                 CalendarView.Day -> DayViewPreview(height = PREVIEW_HEIGHT)
                 CalendarView.Agenda -> AgendaViewPreview(height = PREVIEW_HEIGHT)
             }
@@ -74,7 +80,7 @@ internal fun ViewStep(
         IMPLEMENTED_VIEWS.forEachIndexed { index, view ->
             val isSelected = view == choice.defaultView
             GroupedRow(
-                title = stringResource(view.labelRes),
+                title = view.label(),
                 position = positionOf(index, IMPLEMENTED_VIEWS.size),
                 selected = isSelected,
                 leading = {

@@ -32,10 +32,13 @@ internal fun WeekViewPreview(
     weekStart: DayOfWeek,
     height: Dp,
     modifier: Modifier = Modifier,
+    dayCount: Int = 7,
 ) {
     val zone = remember { TimeZone.currentSystemDefault() }
     val today = remember(zone) { Clock.System.now().toLocalDateTime(zone).date }
-    val state = remember(today, weekStart, zone) { sampleWeekState(today, weekStart, zone) }
+    val state = remember(today, weekStart, dayCount, zone) {
+        sampleWeekState(today, weekStart, dayCount, zone)
+    }
     val scrollState = rememberScrollState()
     LaunchedEffect(Unit) {
         snapshotFlow { scrollState.maxValue }.first { it > 0 }
@@ -46,6 +49,7 @@ internal fun WeekViewPreview(
     ScaledViewPreview(height = height, modifier = modifier) {
         WeekSuccess(
             state = state,
+            showWeekNumber = dayCount == 7,
             scrollState = scrollState,
             allDayHeight = state.allDayStripHeight(),
             dragController = rememberTimelineDragController(),
@@ -61,10 +65,11 @@ internal fun WeekViewPreview(
 private fun sampleWeekState(
     today: LocalDate,
     weekStart: DayOfWeek,
+    dayCount: Int,
     zone: TimeZone,
 ): WeekUiState.Success {
-    val start = today.startOfWeek(weekStart)
-    val days = (0 until 7).map { start.plus(it, DateTimeUnit.DAY) }
+    val start = if (dayCount == 7) today.startOfWeek(weekStart) else today
+    val days = (0 until dayCount).map { start.plus(it, DateTimeUnit.DAY) }
     val events = sampleTimelineEvents(days, today, zone)
     return WeekUiState.Success(
         weekStart = start,

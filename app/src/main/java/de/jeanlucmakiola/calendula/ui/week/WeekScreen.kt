@@ -12,10 +12,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateMapOf
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSpec
 import de.jeanlucmakiola.calendula.ui.common.jumpToPage
-import de.jeanlucmakiola.calendula.ui.common.pagedStripHeight
+import de.jeanlucmakiola.calendula.ui.common.pagedHeight
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
-import kotlinx.datetime.DayOfWeek
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -186,7 +185,6 @@ internal fun WeekUiState.Success.allDayStripHeight(): Dp {
     return ALL_DAY_ROW_HEIGHT * lanes + ALL_DAY_VERTICAL_PADDING * 2
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeekScreen(
     selectedView: CalendarView,
@@ -201,10 +199,75 @@ fun WeekScreen(
     todayInToolbar: Boolean = false,
     modifier: Modifier = Modifier,
     viewModel: WeekViewModel = hiltViewModel(),
+) = PagedTimelineScreen(
+    viewModel = viewModel,
+    showWeekNumber = true,
+    selectedView = selectedView,
+    onSelectView = onSelectView,
+    onOpenDay = onOpenDay,
+    onEventClick = onEventClick,
+    onOpenSettings = onOpenSettings,
+    onOpenSearch = onOpenSearch,
+    onCreateEvent = onCreateEvent,
+    quickSwitchViews = quickSwitchViews,
+    drawerViewOrder = drawerViewOrder,
+    todayInToolbar = todayInToolbar,
+    modifier = modifier,
+)
+
+/** The multi-day view (#193): the week view's timeline over the day count from Settings. */
+@Composable
+fun MultiDayScreen(
+    selectedView: CalendarView,
+    onSelectView: (CalendarView) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenSearch: () -> Unit,
+    onCreateEvent: (LocalDate, Int?) -> Unit,
+    quickSwitchViews: List<CalendarView> = IMPLEMENTED_VIEWS,
+    drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
+    todayInToolbar: Boolean = false,
+    modifier: Modifier = Modifier,
+    viewModel: MultiDayViewModel = hiltViewModel(),
+) = PagedTimelineScreen(
+    viewModel = viewModel,
+    // A run of days often straddles two weeks, so no single number fits it.
+    showWeekNumber = false,
+    selectedView = selectedView,
+    onSelectView = onSelectView,
+    onOpenDay = onOpenDay,
+    onEventClick = onEventClick,
+    onOpenSettings = onOpenSettings,
+    onOpenSearch = onOpenSearch,
+    onCreateEvent = onCreateEvent,
+    quickSwitchViews = quickSwitchViews,
+    drawerViewOrder = drawerViewOrder,
+    todayInToolbar = todayInToolbar,
+    modifier = modifier,
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PagedTimelineScreen(
+    viewModel: PagedTimelineViewModel,
+    showWeekNumber: Boolean,
+    selectedView: CalendarView,
+    onSelectView: (CalendarView) -> Unit,
+    onOpenDay: (LocalDate) -> Unit,
+    onEventClick: (EventInstance) -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenSearch: () -> Unit,
+    onCreateEvent: (LocalDate, Int?) -> Unit,
+    quickSwitchViews: List<CalendarView>,
+    drawerViewOrder: List<CalendarView>,
+    todayInToolbar: Boolean,
+    modifier: Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val firstDay by viewModel.firstDayOfWeek.collectAsStateWithLifecycle()
-    val anchorPage by viewModel.anchorPage.collectAsStateWithLifecycle()
+    val position by viewModel.position.collectAsStateWithLifecycle()
+    val grid = position.grid
+    val anchorPage = position.page
     val dimCompleted by viewModel.dimCompletedEvents.collectAsStateWithLifecycle()
     // The instant before which an event counts as completed, or null when dimming
     // is off. derivedStateOf keeps the per-minute "now" from recomposing the
@@ -217,39 +280,47 @@ fun WeekScreen(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    val pagerState = rememberPagerState(initialPage = anchorPage) { WEEK_PAGE_COUNT }
+    // A new grid numbers the pages differently, so it gets a pager of its own,
+    // opened straight on the anchor's page: the first day of the week changing,
+    // or a multi-day jump moving another date into the first column.
+    val pagerState = key(grid) {
+        rememberPagerState(initialPage = anchorPage) { grid.pageCount }
+    }
     val pageSpec = rememberCalendarPageSpec()
     val reduceMotion = rememberReduceMotion()
-    // The pager leads and the anchor follows once it settles, so the only thing
-    // left moving the anchor on its own is the first day re-framing the week —
-    // including the stored preference arriving after the pager opened on the
-    // Monday default. Snapped, since that is a correction rather than a move.
-    LaunchedEffect(anchorPage) {
+    // The pager leads and the anchor follows once it settles, so this only
+    // catches the anchor moving on its own. Snapped, since that is a correction
+    // rather than a move.
+    LaunchedEffect(pagerState, anchorPage) {
         if (pagerState.currentPage != anchorPage && !pagerState.isScrollInProgress) {
             pagerState.scrollToPage(anchorPage)
         }
     }
-    // The page it opened on is skipped: a first-day change landing in between
-    // would read it as a different week.
+    // The page it opened on is skipped: a grid change landing in between would
+    // read it as a different page.
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }.drop(1).collect(viewModel::onPageSettled)
     }
-    // The week under the finger, so the title turns over mid-swipe, not after it.
-    val weekStart = weekStartForPage(pagerState.currentPage, firstDay)
+    // The page under the finger, so the title turns over mid-swipe, not after it.
+    val weekStart = grid.startForPage(pagerState.currentPage)
+    val weekEnd = weekStart.plus(grid.dayCount - 1, kotlinx.datetime.DateTimeUnit.DAY)
 
-    // Off the ticking clock rather than the loaded week, so it turns over at
+    // Off the ticking clock rather than the loaded page, so it turns over at
     // midnight; derived, so the per-minute tick doesn't recompose the screen.
     val zone = remember { TimeZone.currentSystemDefault() }
     val today by remember(zone) { derivedStateOf { nowState.value.toLocalDateTime(zone).date } }
-    // Independent of which weekday the user picked as the first day.
-    val isOnCurrentWeek = state !is WeekUiState.Success ||
-        (today >= weekStart && today <= weekStart.plus(6, kotlinx.datetime.DateTimeUnit.DAY))
+    val isOnCurrentWeek = state !is WeekUiState.Success || (today >= weekStart && today <= weekEnd)
 
     // Straight to the pager: a tap mid-fling must still land, and the anchor
-    // hasn't caught up with the fling yet to tell the difference.
+    // hasn't caught up with the fling yet to tell the difference. A date that
+    // would open mid-page on this grid re-frames the pages around it instead.
     val jumpToDate: (LocalDate) -> Unit = { target ->
-        val page = weekPageFor(target, firstDay)
-        scope.launch { pagerState.jumpToPage(page, reduceMotion, pageSpec) }
+        val page = grid.pageFor(target)
+        if (grid is DaysGrid && grid.startForPage(page) != target) {
+            viewModel.jumpTo(target)
+        } else {
+            scope.launch { pagerState.jumpToPage(page, reduceMotion, pageSpec) }
+        }
     }
     val jumpToToday = { jumpToDate(today) }
 
@@ -283,6 +354,7 @@ fun WeekScreen(
             topBar = {
                 WeekTopBar(
                     weekStart = weekStart,
+                    weekEnd = weekEnd,
                     currentYear = today.year,
                     selectedView = selectedView,
                     onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
@@ -310,8 +382,9 @@ fun WeekScreen(
                 WeekContent(
                     state = state,
                     pagerState = pagerState,
-                    firstDay = firstDay,
-                    week = viewModel::week,
+                    grid = grid,
+                    showWeekNumber = showWeekNumber,
+                    span = viewModel::span,
                     onRetry = viewModel::goToToday,
                     onEventClick = onEventClick,
                     onOpenDay = onOpenDay,
@@ -329,8 +402,9 @@ fun WeekScreen(
 private fun WeekContent(
     state: WeekUiState,
     pagerState: PagerState,
-    firstDay: DayOfWeek,
-    week: (LocalDate) -> StateFlow<WeekUiState>,
+    grid: PageGrid,
+    showWeekNumber: Boolean,
+    span: (DaySpan) -> StateFlow<WeekUiState>,
     onRetry: () -> Unit,
     onEventClick: (EventInstance) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
@@ -378,12 +452,13 @@ private fun WeekContent(
             label = "week-state",
         ) { s ->
             when (s) {
-                WeekUiState.Loading -> WeekLoading()
+                WeekUiState.Loading -> WeekLoading(dayCount = grid.dayCount)
                 is WeekUiState.Failure -> CalendarFailure(reason = s.reason, onRetry = onRetry)
                 is WeekUiState.Success -> WeekPager(
                     pagerState = pagerState,
-                    firstDay = firstDay,
-                    week = week,
+                    grid = grid,
+                    showWeekNumber = showWeekNumber,
+                    span = span,
                     today = s.today,
                     initialStripHeight = s.allDayStripHeight(),
                     scrollState = scrollState,
@@ -406,8 +481,9 @@ private fun WeekContent(
 @Composable
 private fun WeekPager(
     pagerState: PagerState,
-    firstDay: DayOfWeek,
-    week: (LocalDate) -> StateFlow<WeekUiState>,
+    grid: PageGrid,
+    showWeekNumber: Boolean,
+    span: (DaySpan) -> StateFlow<WeekUiState>,
     today: LocalDate,
     initialStripHeight: Dp,
     scrollState: ScrollState,
@@ -418,9 +494,10 @@ private fun WeekPager(
     onDrop: (TimelineDrop) -> Unit,
 ) {
     val stripHeights = remember { mutableStateMapOf<Int, Dp>() }
-    val allDayHeight = pagedStripHeight(pagerState, stripHeights, initialStripHeight)
+    val allDayHeight = pagedHeight(pagerState, stripHeights, initialStripHeight)
     WeekFrame(
-        weekStart = weekStartForPage(pagerState.currentPage, firstDay),
+        weekStart = grid.startForPage(pagerState.currentPage),
+        showWeekNumber = showWeekNumber,
         allDayHeight = allDayHeight,
         scrollState = scrollState,
         dragController = dragController,
@@ -438,11 +515,11 @@ private fun WeekPager(
                 snapAnimationSpec = rememberCalendarPageSpec(),
             ),
         ) { page ->
-            val start = weekStartForPage(page, firstDay)
-            val pageState by remember(start) { week(start) }.collectAsStateWithLifecycle()
+            val pageSpan = DaySpan(grid.startForPage(page), grid.dayCount)
+            val pageState by remember(pageSpan) { span(pageSpan) }.collectAsStateWithLifecycle()
             val loaded = pageState as? WeekUiState.Success
-            // Until its week arrives a page shows the week's frame without events.
-            val empty = remember(start, today) { emptyWeek(start, today) }
+            // Until its days arrive a page shows their frame without events.
+            val empty = remember(pageSpan, today) { emptySpan(pageSpan, today) }
             val stripHeight = loaded?.allDayStripHeight()
             DisposableEffect(page, stripHeight) {
                 if (stripHeight != null) stripHeights[page] = stripHeight
@@ -463,11 +540,11 @@ private fun WeekPager(
     }
 }
 
-/** A week with no events yet, for a page whose week is still loading. */
-private fun emptyWeek(start: LocalDate, today: LocalDate): WeekUiState.Success {
-    val days = (0 until 7).map { start.plus(it, kotlinx.datetime.DateTimeUnit.DAY) }
+/** A page with no events yet, for one whose days are still loading. */
+private fun emptySpan(span: DaySpan, today: LocalDate): WeekUiState.Success {
+    val days = (0 until span.count).map { span.start.plus(it, kotlinx.datetime.DateTimeUnit.DAY) }
     return WeekUiState.Success(
-        weekStart = start,
+        weekStart = span.start,
         today = today,
         days = days,
         allDaySpans = emptyList(),
@@ -482,6 +559,7 @@ private fun emptyWeek(start: LocalDate, today: LocalDate): WeekUiState.Success {
 @Composable
 private fun WeekFrame(
     weekStart: LocalDate,
+    showWeekNumber: Boolean,
     allDayHeight: Dp,
     scrollState: ScrollState,
     dragController: TimelineDragController,
@@ -494,7 +572,7 @@ private fun WeekFrame(
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surface),
             ) {
-                WeekNumberCell(weekStart)
+                WeekNumberCell(weekStart, showBadge = showWeekNumber)
                 Spacer(Modifier.height(allDayHeight))
             }
             Spacer(Modifier.height(TIMELINE_TOP_GAP))
@@ -519,6 +597,7 @@ private fun WeekFrame(
 @Composable
 internal fun WeekSuccess(
     state: WeekUiState.Success,
+    showWeekNumber: Boolean = true,
     scrollState: ScrollState,
     allDayHeight: Dp,
     dragController: TimelineDragController,
@@ -529,6 +608,7 @@ internal fun WeekSuccess(
 ) {
     WeekFrame(
         weekStart = state.weekStart,
+        showWeekNumber = showWeekNumber,
         allDayHeight = allDayHeight,
         scrollState = scrollState,
         dragController = dragController,
@@ -597,6 +677,7 @@ private fun WeekPage(
 @Composable
 private fun WeekTopBar(
     weekStart: LocalDate,
+    weekEnd: LocalDate,
     currentYear: Int,
     selectedView: CalendarView,
     onCycleView: () -> Unit,
@@ -608,9 +689,9 @@ private fun WeekTopBar(
     onToday: () -> Unit,
 ) {
     val locale = currentLocale()
-    val (title, shortTitle) = remember(weekStart, locale, currentYear) {
-        formatWeekTitle(weekStart, locale, currentYear) to
-            formatWeekTitle(weekStart, locale, currentYear, abbreviated = true)
+    val (title, shortTitle) = remember(weekStart, weekEnd, locale, currentYear) {
+        formatWeekTitle(weekStart, weekEnd, locale, currentYear) to
+            formatWeekTitle(weekStart, weekEnd, locale, currentYear, abbreviated = true)
     }
     TopAppBar(
         title = {
@@ -724,7 +805,7 @@ private fun WeekDayHeader(
  * bar's hamburger (see GUTTER_CONTENT_START_INSET).
  */
 @Composable
-private fun WeekNumberCell(weekStart: LocalDate) {
+private fun WeekNumberCell(weekStart: LocalDate, showBadge: Boolean) {
     val weekNumber = remember(weekStart) { weekStart.toJavaLocalDate().isoWeekNumber() }
     Column(
         modifier = Modifier
@@ -739,7 +820,7 @@ private fun WeekNumberCell(weekStart: LocalDate) {
         Text(text = " ", style = MaterialTheme.typography.labelSmall)
         Spacer(Modifier.height(2.dp))
         Box(modifier = Modifier.height(DATE_SLOT_SIZE), contentAlignment = Alignment.TopCenter) {
-            WeekNumberBadge(weekNumber = weekNumber)
+            if (showBadge) WeekNumberBadge(weekNumber = weekNumber)
         }
     }
 }
@@ -793,7 +874,7 @@ private fun AllDayStrip(
                 .fillMaxHeight()
                 .clipToBounds(),
         ) {
-            val colWidth = maxWidth / 7
+            val colWidth = maxWidth / state.days.size
             state.allDaySpans.forEach { span ->
                 val spanCols = span.endCol - span.startCol + 1
                 AllDayBar(
@@ -1177,14 +1258,14 @@ private fun EventBlock(
 }
 
 @Composable
-private fun WeekLoading() {
+private fun WeekLoading(dayCount: Int) {
     val scale = LocalTimelineZoom.current.scale
     val scrollState = rememberScrollState()
     Column(modifier = Modifier.fillMaxSize()) {
         // Header skeleton
         Row(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
             Spacer(Modifier.width(GUTTER_WIDTH))
-            repeat(7) {
+            repeat(dayCount) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -1215,7 +1296,7 @@ private fun WeekLoading() {
                     .verticalScroll(scrollState),
             ) {
                 Spacer(Modifier.width(GUTTER_WIDTH))
-                repeat(7) {
+                repeat(dayCount) {
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -1255,11 +1336,11 @@ private fun minToHm(min: Int, is24Hour: Boolean, locale: java.util.Locale): Stri
  */
 private fun formatWeekTitle(
     weekStart: LocalDate,
+    weekEnd: LocalDate,
     locale: Locale,
     currentYear: Int,
     abbreviated: Boolean = false,
 ): String {
-    val weekEnd = weekStart.plus(6, kotlinx.datetime.DateTimeUnit.DAY)
     return formatCalendarTitle(
         date = java.time.LocalDate.of(weekStart.year, weekStart.month.ordinal + 1, 1),
         locale = locale,

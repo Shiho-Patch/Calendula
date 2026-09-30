@@ -11,6 +11,7 @@ import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.domain.calendarListFailure
+import de.jeanlucmakiola.calendula.ui.common.PageStateCache
 import de.jeanlucmakiola.calendula.domain.isDeclined
 import de.jeanlucmakiola.calendula.ui.week.coversDay
 import de.jeanlucmakiola.calendula.ui.week.layoutAllDay
@@ -25,6 +26,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.filterNot
+import kotlinx.coroutines.flow.map
+import kotlin.math.abs
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.DateTimeUnit
@@ -43,6 +47,9 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Instant
 import javax.inject.Inject
+
+/** How many months either side of the requested one [MonthViewModel.month] keeps cached. */
+private const val MONTH_CACHE_SPAN = 2
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -87,6 +94,21 @@ class MonthViewModel @Inject constructor(
     private val _month = MutableStateFlow(YearMonth(todayDate.year, todayDate.month))
     val month: StateFlow<YearMonth> = _month
 
+    /** The pager page the anchor month sits on, for the paged and split styles. */
+    val anchorPage: StateFlow<Int> = _month
+        .map { monthIndexOf(it) }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = monthIndexOf(_month.value),
+        )
+
+    /**
+     * The anchor month's state. Once loaded it never falls back to
+     * [MonthUiState.Loading]: moving the anchor keeps the last result until the
+     * new month arrives, since the pages draw their own months and this feeds
+     * the failure screen and the split style's day pane.
+     */
     val state: StateFlow<MonthUiState> =
         combine(_month, weekStart, viewStyle) { ym, ws, style -> Triple(ym, ws, style) }
             .flatMapLatest { (ym, ws, style) ->
@@ -94,21 +116,47 @@ class MonthViewModel @Inject constructor(
                 // Split draw, so under a scrolling style this query is a month
                 // of provider work for a view that isn't on screen.
                 if (style.isScrolling) return@flatMapLatest flowOf(MonthUiState.Loading)
-                val range = monthGridRange(ym, ws, zone)
-                combine(
-                    repository.calendars(),
-                    repository.instances(range),
-                ) { calendars, instances ->
-                    buildState(ym, ws, calendars, instances)
-                }
+                month(ym, ws).filterNot { it is MonthUiState.Loading }
             }
             .catch { emit(MonthUiState.Failure(FailureReason.ProviderUnavailable)) }
-            .flowOn(io)
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000L),
                 initialValue = MonthUiState.Loading,
             )
+
+    private val months = PageStateCache<Pair<YearMonth, DayOfWeek>, MonthUiState>(
+        scope = viewModelScope,
+        initial = MonthUiState.Loading,
+        // Far enough to cover the pages either side and a swipe back, so paging
+        // through a year doesn't keep a year of queries around. A week-start
+        // change lays every month out afresh.
+        keep = { (cached, cachedWs), (requested, ws) ->
+            cachedWs == ws && abs(monthIndexOf(cached) - monthIndexOf(requested)) <= MONTH_CACHE_SPAN
+        },
+    ) { (ym, ws) ->
+        combine(
+            repository.calendars(),
+            repository.instances(monthGridRange(ym, ws, zone)),
+        ) { calendars, instances ->
+            buildState(ym, ws, calendars, instances)
+        }
+            .catch { emit(MonthUiState.Failure(FailureReason.ProviderUnavailable)) }
+            .flowOn(io)
+    }
+
+    /**
+     * Month [ym] laid out with weeks starting on [ws], shared between its pager
+     * page and [state]. Main thread only.
+     */
+    fun month(ym: YearMonth, ws: DayOfWeek): StateFlow<MonthUiState> = months.get(ym to ws)
+
+    /** The pager came to rest on [page]; follow it unless it is already the anchor's. */
+    fun onPageSettled(page: Int) {
+        if (monthIndexOf(_month.value) == page) return
+        _month.value = yearMonthForIndex(page)
+        realignSelection()
+    }
 
     // --- Continuous + Dense styles (#38) ----------------------------------
     //
@@ -269,16 +317,6 @@ class MonthViewModel @Inject constructor(
      */
     private fun realignSelection() {
         _selectedDate.value = selectionForMonth(_month.value, todayDate)
-    }
-
-    fun goToPrev() {
-        _month.value = _month.value.minus(1, DateTimeUnit.MONTH)
-        realignSelection()
-    }
-
-    fun goToNext() {
-        _month.value = _month.value.plus(1, DateTimeUnit.MONTH)
-        realignSelection()
     }
 
     fun goToToday() {

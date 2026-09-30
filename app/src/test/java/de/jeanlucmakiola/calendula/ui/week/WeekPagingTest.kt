@@ -44,4 +44,24 @@ class WeekPagingTest {
         val page = weekPageFor(old, DayOfWeek.MONDAY)
         assertThat(weekStartForPage(page, DayOfWeek.MONDAY)).isEqualTo(LocalDate(1990, 5, 14))
     }
+
+    @Test
+    fun `multi-day pages begin on the selected date and advance by the chosen count`() {
+        (3..6).forEach { count ->
+            val grid = DaysGrid.startingAt(sunday, count)
+            val page = grid.pageFor(sunday)
+            assertThat(grid.startForPage(page)).isEqualTo(sunday)
+            assertThat(grid.startForPage(page + 1)).isEqualTo(sunday.plus(count, DateTimeUnit.DAY))
+            assertThat(grid.pageFor(sunday.plus(count - 1, DateTimeUnit.DAY))).isEqualTo(page)
+        }
+    }
+
+    @Test
+    fun `multi-day pages also work before the epoch`() {
+        val date = LocalDate(1990, 5, 16)
+        val grid = DaysGrid.startingAt(date, 3)
+        val page = grid.pageFor(date)
+        assertThat(grid.startForPage(page)).isEqualTo(date)
+        assertThat(grid.startForPage(page - 1)).isEqualTo(LocalDate(1990, 5, 13))
+    }
 }

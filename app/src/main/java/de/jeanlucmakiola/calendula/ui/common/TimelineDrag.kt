@@ -284,8 +284,8 @@ class TimelineGeometry {
 }
 
 /**
- * Hoisted drag state for one timeline (#68). It lives above the per-page
- * `AnimatedContent`, so a page change mid-drag can't strand a ghost, and the
+ * Hoisted drag state for one timeline (#68). It lives above the pager, so a
+ * page change mid-drag can't strand a ghost, and the
  * block it renders is drawn in an overlay, clear of the day column's clip.
  */
 @Stable

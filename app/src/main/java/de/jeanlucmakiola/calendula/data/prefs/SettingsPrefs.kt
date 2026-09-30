@@ -287,6 +287,15 @@ class SettingsPrefs @Inject constructor(
         store.edit { it[TIMELINE_SCALE_KEY] = scale.storageValue() }
     }
 
+    /** How many days the multi-day view shows side by side (#193). */
+    val multiDayCount: Flow<Int> = store.data.map { prefs ->
+        (prefs[MULTI_DAY_COUNT_KEY] ?: DEFAULT_MULTI_DAY_COUNT).coerceIn(MULTI_DAY_COUNTS)
+    }
+
+    suspend fun setMultiDayCount(count: Int) {
+        store.edit { it[MULTI_DAY_COUNT_KEY] = count.coerceIn(MULTI_DAY_COUNTS) }
+    }
+
     /**
      * Where the jump-to-today control lives (issue #60). Default OFF — the
      * historical layout, where it's an extended FAB that fades in above the "+"
@@ -948,10 +957,20 @@ class SettingsPrefs @Inject constructor(
             if (view in config.enabled) view.name else "!${view.name}"
         }
 
-    /** Keep the given order (de-duplicated), then append any views it omits. */
+    /** Keep stored order; insert the new multi-day view after Week on upgrades. */
     private fun completeViewOrder(seen: List<CalendarView>): List<CalendarView> {
-        val ordered = seen.distinct()
-        return ordered + IMPLEMENTED_VIEWS.filterNot { it in ordered }
+        val ordered = seen.distinct().toMutableList()
+        IMPLEMENTED_VIEWS.forEach { view ->
+            if (view !in ordered) {
+                val index = if (view == CalendarView.MultiDay && CalendarView.Week in ordered) {
+                    ordered.indexOf(CalendarView.Week) + 1
+                } else {
+                    ordered.size
+                }
+                ordered.add(index, view)
+            }
+        }
+        return ordered
     }
 
     companion object {
@@ -1017,8 +1036,11 @@ class SettingsPrefs @Inject constructor(
         internal const val DEFAULT_ALLDAY_REMINDER_TIME = 540
         private const val MINUTES_PER_DAY = 1_440
         internal val SNOOZE_MINUTES_KEY = intPreferencesKey("snooze_minutes")
+        internal val MULTI_DAY_COUNT_KEY = intPreferencesKey("multi_day_count")
         /** Default snooze delay for the notification "Snooze" action. */
         const val DEFAULT_SNOOZE_MINUTES = 10
+        const val DEFAULT_MULTI_DAY_COUNT = 3
+        val MULTI_DAY_COUNTS = 3..6
         internal val CALENDAR_REMINDER_OVERRIDE_KEY =
             stringPreferencesKey("per_calendar_reminder_override")
         internal val CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY =

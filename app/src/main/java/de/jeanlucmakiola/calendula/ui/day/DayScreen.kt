@@ -12,7 +12,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import de.jeanlucmakiola.calendula.ui.common.jumpToPage
-import de.jeanlucmakiola.calendula.ui.common.pagedStripHeight
+import de.jeanlucmakiola.calendula.ui.common.pagedHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSpec
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import kotlinx.coroutines.flow.StateFlow
@@ -376,7 +376,7 @@ private fun DayPager(
     onDrop: (TimelineDrop) -> Unit,
 ) {
     val stripHeights = remember { mutableStateMapOf<Int, Dp>() }
-    val allDayHeight = pagedStripHeight(pagerState, stripHeights, initialStripHeight)
+    val allDayHeight = pagedHeight(pagerState, stripHeights, initialStripHeight)
     DayFrame(allDayHeight = allDayHeight, scrollState = scrollState, dragController = dragController) {
         HorizontalPager(
             state = pagerState,

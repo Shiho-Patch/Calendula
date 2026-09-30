@@ -1,37 +1,53 @@
 package de.jeanlucmakiola.calendula.ui.common
 
-import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarViewDay
 import androidx.compose.material.icons.filled.CalendarViewMonth
 import androidx.compose.material.icons.filled.CalendarViewWeek
 import androidx.compose.material.icons.filled.ViewAgenda
+import androidx.compose.material.icons.filled.ViewColumn
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import de.jeanlucmakiola.calendula.R
+import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 
 /** The top-level calendar views the user can switch between (spec M1). */
 enum class CalendarView {
     Month,
     Week,
+    MultiDay,
     Day,
     Agenda,
 }
 
-/** Switcher label, shared by the top-bar pill and the drawer's View section. */
-@get:StringRes
-val CalendarView.labelRes: Int
-    get() = when (this) {
-        CalendarView.Month -> R.string.view_month
-        CalendarView.Week -> R.string.view_week
-        CalendarView.Day -> R.string.view_day
-        CalendarView.Agenda -> R.string.view_agenda
+/** How many days the multi-day view shows (#193), provided once at the app root. */
+val LocalMultiDayCount = staticCompositionLocalOf { SettingsPrefs.DEFAULT_MULTI_DAY_COUNT }
+
+/**
+ * The view's name, shared by the top-bar pill, the drawer and Settings. The
+ * multi-day view is named after its day count ("3 days").
+ */
+@Composable
+fun CalendarView.label(): String = when (this) {
+    CalendarView.Month -> stringResource(R.string.view_month)
+    CalendarView.Week -> stringResource(R.string.view_week)
+    CalendarView.MultiDay -> {
+        val count = LocalMultiDayCount.current
+        pluralStringResource(R.plurals.view_multi_day, count, count)
     }
+    CalendarView.Day -> stringResource(R.string.view_day)
+    CalendarView.Agenda -> stringResource(R.string.view_agenda)
+}
 
 /** Leading icon for the view in the drawer's View section. */
 val CalendarView.icon: ImageVector
     get() = when (this) {
         CalendarView.Month -> Icons.Filled.CalendarViewMonth
         CalendarView.Week -> Icons.Filled.CalendarViewWeek
+        CalendarView.MultiDay -> Icons.Filled.ViewColumn
         CalendarView.Day -> Icons.Filled.CalendarViewDay
         CalendarView.Agenda -> Icons.Filled.ViewAgenda
     }
@@ -41,7 +57,13 @@ val CalendarView.icon: ImageVector
  * through these in order.
  */
 val IMPLEMENTED_VIEWS: List<CalendarView> =
-    listOf(CalendarView.Month, CalendarView.Week, CalendarView.Day, CalendarView.Agenda)
+    listOf(
+        CalendarView.Month,
+        CalendarView.Week,
+        CalendarView.MultiDay,
+        CalendarView.Day,
+        CalendarView.Agenda,
+    )
 
 /** Next view in [available], wrapping around. Falls back to Month if absent. */
 fun CalendarView.next(available: List<CalendarView> = IMPLEMENTED_VIEWS): CalendarView {
