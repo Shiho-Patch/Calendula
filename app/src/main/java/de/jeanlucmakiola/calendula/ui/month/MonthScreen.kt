@@ -140,6 +140,7 @@ import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -230,6 +231,14 @@ private fun rememberTodayRipple(active: Boolean): Animatable<Float, androidx.com
     }
     return pulse
 }
+
+/** Today's cell: a light primary tint over the ordinary cell, set apart without shouting (#241). */
+@Composable
+private fun todayCellColor(): Color =
+    MaterialTheme.colorScheme.primaryContainer.copy(alpha = TODAY_CELL_TINT)
+        .compositeOver(MaterialTheme.colorScheme.surfaceContainer)
+
+private const val TODAY_CELL_TINT = 0.45f
 
 /** Paint-only motion keeps hit targets and the month grid's lane geometry stable. */
 private fun Modifier.todayRipple(relativeColumn: Int?, progress: () -> Float): Modifier {
@@ -1756,7 +1765,7 @@ private fun SplitDayCell(
     // the whole cell, which read as a second state on top of the day rather than
     // as a mark on it — and fought today's own circle when they coincided.
     val background = when {
-        isToday && inMonth -> MaterialTheme.colorScheme.primaryContainer
+        isToday && inMonth -> todayCellColor()
         inMonth -> MaterialTheme.colorScheme.surfaceContainer
         else -> MaterialTheme.colorScheme.surfaceContainerLow
     }
@@ -2317,7 +2326,7 @@ private fun MonthWeekRow(
                             .todayRipple(todayCol?.let { col - it }) { ripple.value }
                             .background(
                                 color = when {
-                                    d == today && inMonth(d) -> MaterialTheme.colorScheme.primaryContainer
+                                    d == today && inMonth(d) -> todayCellColor()
                                     inMonth(d) -> MaterialTheme.colorScheme.surfaceContainer
                                     // A blanked cell draws nothing at all: it is
                                     // the gap that shows where the month starts.
