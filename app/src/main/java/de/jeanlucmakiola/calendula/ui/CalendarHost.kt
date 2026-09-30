@@ -1,10 +1,13 @@
 package de.jeanlucmakiola.calendula.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.SeekableTransitionState
+import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.layout.Box
@@ -29,7 +32,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import de.jeanlucmakiola.calendula.ui.common.screen
 import de.jeanlucmakiola.calendula.ui.common.ViewScreen
-import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
@@ -80,10 +82,13 @@ import de.jeanlucmakiola.calendula.ui.month.MonthScreen
 import de.jeanlucmakiola.calendula.ui.search.SearchScreen
 import de.jeanlucmakiola.calendula.ui.settings.SettingsScreen
 import de.jeanlucmakiola.calendula.ui.week.TimelineScreen
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 
 /**
@@ -141,14 +146,6 @@ fun CalendarHost(
     }
     var navigationVersion by remember { mutableIntStateOf(0) }
     val view = viewStack.last()
-    // The timeline view last shown, so the timeline leaving for another screen
-    // keeps drawing the view it was on while it goes.
-    var heldTimeline by rememberSaveable {
-        mutableStateOf(if (view.screen == ViewScreen.Timeline) view else CalendarView.Week)
-    }
-    val timelineView = if (view.screen == ViewScreen.Timeline) view else heldTimeline
-    SideEffect { heldTimeline = timelineView }
-
     // The date every view opens on and carries along (#184); tapping a day
     // anywhere focuses it and opens the day view there.
     val focus = rememberSaveable(saver = ViewFocusSaver) { ViewFocus(localToday()) }
@@ -407,9 +404,30 @@ fun CalendarHost(
     val anyOverlayVisible = showSearch || detailKey != null || createDateIso != null ||
         editKey != null || showSettings || showCalendars || showBackup ||
         importUri != null || importForm != null
-    BackHandler(enabled = !anyOverlayVisible && viewStack.size > 1) {
-        navigationVersion++
-        viewStack = viewStack.dropLast(1)
+    // The view switch runs on a seekable transition, so a back gesture can scrub
+    // it (#185): the previous view morphs in under the finger, releasing finishes
+    // the pop and cancelling springs back. Reduced motion keeps a plain back.
+    val viewTransition = remember { SeekableTransitionState(view) }
+    LaunchedEffect(view) { viewTransition.animateTo(view) }
+    val reduceMotion = rememberReduceMotion()
+    val viewBackEnabled = !anyOverlayVisible && viewStack.size > 1
+    if (reduceMotion) {
+        BackHandler(enabled = viewBackEnabled) {
+            navigationVersion++
+            viewStack = viewStack.dropLast(1)
+        }
+    } else {
+        PredictiveBackHandler(enabled = viewBackEnabled) { events ->
+            val previous = viewStack[viewStack.size - 2]
+            try {
+                events.collect { viewTransition.seekTo(it.progress, targetState = previous) }
+                navigationVersion++
+                viewStack = viewStack.dropLast(1)
+            } catch (e: CancellationException) {
+                withContext(NonCancellable) { viewTransition.animateTo(viewTransition.currentState) }
+                throw e
+            }
+        }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -418,7 +436,6 @@ fun CalendarHost(
         // view keeps the directional slide. What both views show morphs across
         // (#184): see [ViewMorphKey]. Reduced motion keeps the plain fade.
         val viewSwitch = fadeThrough()
-        val reduceMotion = rememberReduceMotion()
         val morphBounds = rememberViewMorphBoundsTransform()
         val morphFade = rememberCalendarFadeSpec()
         val morphClip = remember { BelowTopBarClip() }
@@ -493,11 +510,11 @@ fun CalendarHost(
         // Keyed on the screen, not the view: the day, multi-day and week views
         // are one timeline that resizes between them itself (#184), so switching
         // among them must not replay this transition.
-        AnimatedContent(
-            targetState = view.screen,
+        rememberTransition(viewTransition, label = "view-switch").AnimatedContent(
             transitionSpec = { viewSwitch },
-            label = "view-switch",
-        ) { screen ->
+            contentKey = { it.screen },
+        ) { currentView ->
+            val screen = currentView.screen
             val sharedScope = this@SharedTransitionLayout
             val visibilityScope = this@AnimatedContent
             val viewMorph = remember(reduceMotion, sharedScope, visibilityScope, morphBounds, morphFade, morphClip, stayingPut) {
@@ -509,7 +526,7 @@ fun CalendarHost(
             ) {
             when (screen) {
                 ViewScreen.Timeline -> TimelineScreen(
-                    view = timelineView,
+                    view = currentView,
                     onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
                     onCreateEvent = onCreateEvent,
