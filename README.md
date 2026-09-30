@@ -26,12 +26,13 @@ It works on top of the system calendar and has no network access.</p>
 </p>
 
 <p>
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01-week.png" width="16%" alt="Week view">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02-month.png" width="16%" alt="Month view">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03-day.png" width="16%" alt="Day view">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04-detail.png" width="16%" alt="Event detail">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05-agenda.png" width="16%" alt="Agenda view">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/06-onboarding.png" width="16%" alt="Reminder onboarding">
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01-week.png" width="13%" alt="Week view">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02-month.png" width="13%" alt="Month view">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03-agenda.png" width="13%" alt="Agenda view">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04-detail.png" width="13%" alt="Event detail">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05-recurring.png" width="13%" alt="Editing a recurring event">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/06-calendars.png" width="13%" alt="Calendars from your accounts">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/07-dark.png" width="13%" alt="Dark theme">
 </p>
 
 </div>
