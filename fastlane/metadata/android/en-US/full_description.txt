@@ -1,20 +1,9 @@
-Calendula is a modern, open-source calendar app for Android. It works
-directly on the system calendar provider, so any source synced to your
-device — Nextcloud via DAVx5, Google, local, WebCal subscriptions — shows up
-automatically, and changes you make sync back the same way.
+Calendula is a modern, open-source calendar app for Android. It works directly on the system calendar provider, so any source synced to your device — Nextcloud via DAVx5, Google, local, WebCal subscriptions — shows up automatically, and changes you make sync back the same way.
 
-Create, edit and delete events, including recurring events with scoped
-changes (only this event / this and all following / the whole series) and a
-simple repeat picker. Calendula also delivers your event reminders as
-notifications — tap one and you're on the event.
+Create, edit and delete events, including recurring events with scoped changes (only this event / this and all following / the whole series) and a simple repeat picker. Calendula also delivers your event reminders as notifications — tap one and you're on the event.
 
-Optionally, show your contacts' birthdays, anniversaries and other special
-dates in your calendar. You turn this on yourself; contacts are read only on
-your device, are never uploaded, and are never changed — Calendula only
-mirrors the dates into local calendars you fully control.
+Optionally, show your contacts' birthdays, anniversaries and other special dates in your calendar. You turn this on yourself; contacts are read only on your device, are never uploaded, and are never changed — Calendula only mirrors the dates into local calendars you fully control.
 
-The differentiator is the design: real Material 3 Expressive throughout,
-with dynamic color, expressive motion, and expressive shapes.
+The differentiator is the design: real Material 3 Expressive throughout, with dynamic color, expressive motion, and expressive shapes.
 
-Privacy: zero telemetry, no analytics, no network access — your data never
-leaves the device.
+Privacy: zero telemetry, no analytics, no network access — your data never leaves the device.

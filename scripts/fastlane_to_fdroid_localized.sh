@@ -15,6 +15,7 @@
 #   full_description.txt         -> description.txt
 #   title.txt                    -> name.txt
 #   images/icon.png              -> icon.png
+#   images/featureGraphic.png    -> featureGraphic.png
 #   images/phoneScreenshots/*    -> phoneScreenshots/*
 #   changelogs/<versionCode>.txt -> changelogs/<versionCode>.txt
 # (changelogs are seeded into the fastlane tree by
@@ -33,6 +34,7 @@ for locdir in "$SRC"/*/; do
   [ -f "$locdir/full_description.txt"  ] && cp "$locdir/full_description.txt"  "$dst/description.txt"
   [ -f "$locdir/title.txt"             ] && cp "$locdir/title.txt"             "$dst/name.txt"
   [ -f "$locdir/images/icon.png"       ] && cp "$locdir/images/icon.png"       "$dst/icon.png"
+  [ -f "$locdir/images/featureGraphic.png" ] && cp "$locdir/images/featureGraphic.png" "$dst/featureGraphic.png"
   if [ -d "$locdir/images/phoneScreenshots" ]; then
     mkdir -p "$dst/phoneScreenshots"
     cp "$locdir"images/phoneScreenshots/* "$dst/phoneScreenshots/"

@@ -12,7 +12,7 @@ Where to look for what:
 | [Issues](https://codeberg.org/jlmakiola/calendula/issues) + [milestones](https://codeberg.org/jlmakiola/calendula/milestones) | **The roadmap.** What's planned, in progress, and shipped — a milestone maps to its `release/vX.Y.Z` branch |
 | [`../.planning/PROJECT.md`](../.planning/PROJECT.md) | What the project is: core value, stack + version pins, constraints, naming, forge/release infrastructure |
 | [`design/`](design/) | Per-feature design notes kept for features whose provider behaviour is worth recording |
-| [`../fastlane/metadata/android/`](../fastlane/metadata/android/) | Store metadata (single source of truth): descriptions, title, icon, screenshots (DE + EN). Harvested directly by the official F-Droid repo; transformed into the self-hosted repo layout at release time by [`../scripts/fastlane_to_fdroid_localized.sh`](../scripts/fastlane_to_fdroid_localized.sh) |
+| [`../fastlane/metadata/android/`](../fastlane/metadata/android/) | Store metadata (single source of truth) for every app language, mapped in `store-locales.txt`: descriptions, title, graphics. Harvested directly by the official F-Droid repo, pushed to Google Play with every release, validated by [`../scripts/check_store_listing.py`](../scripts/check_store_listing.py); transformed into the self-hosted repo layout at release time by [`../scripts/fastlane_to_fdroid_localized.sh`](../scripts/fastlane_to_fdroid_localized.sh) |
 | [`../fdroid-metadata/`](../fdroid-metadata/) | App-level F-Droid control file (`*.yml`: Categories, License, links) for the self-hosted repo's `fdroid update` |
 | [`fdroid-official/`](fdroid-official/) | Recipe + notes for publishing to the **official** F-Droid repo (reproducible build + developer-signed binary) |
 

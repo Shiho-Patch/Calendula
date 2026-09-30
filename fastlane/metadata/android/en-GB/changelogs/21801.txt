@@ -1,2 +1,0 @@
-Fixed
-• Week and day view: tapping an empty slot now creates the event at the hour you tapped, even after zooming the timeline or changing the hour height.

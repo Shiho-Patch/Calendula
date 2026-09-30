@@ -1,23 +1,9 @@
-Calendula ist eine moderne, quelloffene Kalender-App für Android. Sie
-arbeitet direkt auf dem System-Kalender-Provider — jede Quelle, die mit
-deinem Gerät synchronisiert ist (Nextcloud über DAVx5, Google, lokal,
-WebCal-Subscriptions), erscheint automatisch, und deine Änderungen
-synchronisieren auf demselben Weg zurück.
+Calendula ist eine moderne, quelloffene Kalender-App für Android. Sie arbeitet direkt auf dem System-Kalender-Provider — jede Quelle, die mit deinem Gerät synchronisiert ist (Nextcloud über DAVx5, Google, lokal, WebCal-Subscriptions), erscheint automatisch, und deine Änderungen synchronisieren auf demselben Weg zurück.
 
-Termine erstellen, bearbeiten und löschen — auch wiederkehrende, mit
-wählbarer Reichweite (nur dieser Termin / dieser und alle folgenden / ganze
-Serie) und einem einfachen Wiederholungs-Picker. Erinnerungen stellt
-Calendula selbst als Benachrichtigung zu — ein Tipp darauf öffnet den
-Termin.
+Termine erstellen, bearbeiten und löschen — auch wiederkehrende, mit wählbarer Reichweite (nur dieser Termin / dieser und alle folgenden / ganze Serie) und einem einfachen Wiederholungs-Picker. Erinnerungen stellt Calendula selbst als Benachrichtigung zu — ein Tipp darauf öffnet den Termin.
 
-Optional lassen sich Geburtstage, Jahrestage und weitere besondere Tage
-deiner Kontakte im Kalender anzeigen. Du schaltest das selbst ein; Kontakte
-werden nur auf deinem Gerät gelesen, nie hochgeladen und nie verändert —
-Calendula spiegelt die Daten lediglich in lokale Kalender, die du voll
-kontrollierst.
+Optional lassen sich Geburtstage, Jahrestage und weitere besondere Tage deiner Kontakte im Kalender anzeigen. Du schaltest das selbst ein; Kontakte werden nur auf deinem Gerät gelesen, nie hochgeladen und nie verändert — Calendula spiegelt die Daten lediglich in lokale Kalender, die du voll kontrollierst.
 
-Der Unterschied liegt im Design: echtes Material 3 Expressive durchgehend,
-mit Dynamic Color, expressiven Animationen und neuen Shape-Sprachen.
+Der Unterschied liegt im Design: echtes Material 3 Expressive durchgehend, mit Dynamic Color, expressiven Animationen und neuen Shape-Sprachen.
 
-Datenschutz: keinerlei Telemetrie, kein Tracking, kein Netzwerkzugriff —
-deine Daten bleiben auf dem Gerät.
+Datenschutz: keinerlei Telemetrie, kein Tracking, kein Netzwerkzugriff — deine Daten bleiben auf dem Gerät.

@@ -1,0 +1,9 @@
+A Calendula egy modern, nyílt forráskódú naptáralkalmazás Androidra. Közvetlenül a rendszer naptárszolgáltatójával dolgozik, így bármely, az eszközödre szinkronizált forrás — Nextcloud a DAVx5-ön keresztül, Google, helyi naptárak, WebCal-előfizetések — automatikusan megjelenik, és a módosításaid ugyanígy szinkronizálódnak vissza.
+
+Hozz létre, szerkessz és törölj eseményeket, ismétlődőket is, a módosítás hatókörének megválasztásával (csak ez az esemény / ez és az összes következő / a teljes sorozat) és egyszerű ismétlésválasztóval. A Calendula az emlékeztetőidet értesítésként is megjeleníti — egy koppintás, és már az eseménynél is vagy.
+
+Ha szeretnéd, a naptárban megjelenítheted a névjegyeid születésnapjait, évfordulóit és más különleges dátumait. Ezt te magad kapcsolod be; a névjegyeket csak az eszközön olvassa, soha nem tölti fel és soha nem módosítja — a Calendula csupán átmásolja a dátumokat a teljesen általad kezelt helyi naptárakba.
+
+A különbséget a dizájn adja: valódi Material 3 Expressive mindenhol, dinamikus színekkel, kifejező mozgással és kifejező formákkal.
+
+Adatvédelem: nincs telemetria, nincs analitika, nincs hálózati hozzáférés — az adataid soha nem hagyják el az eszközt.

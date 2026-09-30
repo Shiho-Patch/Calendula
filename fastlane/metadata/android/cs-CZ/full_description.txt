@@ -1,0 +1,9 @@
+Calendula je moderní open-source kalendář pro Android. Pracuje přímo se systémovým poskytovatelem kalendáře, takže se automaticky zobrazí jakýkoli zdroj synchronizovaný do vašeho zařízení — Nextcloud přes DAVx5, Google, místní kalendáře, odběry WebCal — a vaše změny se stejnou cestou synchronizují zpět.
+
+Vytvářejte, upravujte a mažte události, včetně opakovaných s volbou rozsahu změny (jen tato událost / tato a všechny následující / celá série) a jednoduchým výběrem opakování. Calendula také doručuje připomínky událostí jako oznámení — klepněte na ně a otevře se událost.
+
+Volitelně můžete v kalendáři zobrazit narozeniny, výročí a další významná data svých kontaktů. Zapínáte si to sami; kontakty se čtou pouze v zařízení, nikdy se neodesílají a nikdy se nemění — Calendula data jen zrcadlí do místních kalendářů, které máte plně pod kontrolou.
+
+Rozdíl dělá design: skutečný Material 3 Expressive všude, s dynamickými barvami, výrazným pohybem a výraznými tvary.
+
+Soukromí: žádná telemetrie, žádná analytika, žádný přístup k síti — vaše data nikdy neopustí zařízení.
