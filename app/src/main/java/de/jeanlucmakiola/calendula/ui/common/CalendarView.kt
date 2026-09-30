@@ -129,3 +129,7 @@ fun viewBaseStack(default: CalendarView, source: CalendarView): List<CalendarVie
 /** Push the day view as a drill-in over the current stack (no-op if already on it). */
 fun List<CalendarView>.drillToDay(): List<CalendarView> =
     if (lastOrNull() == CalendarView.Day) this else this + CalendarView.Day
+
+/** Push the week view over the month after a week-number tap. */
+fun List<CalendarView>.drillToWeek(): List<CalendarView> =
+    if (lastOrNull() == CalendarView.Week) this else this + CalendarView.Week
