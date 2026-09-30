@@ -13,6 +13,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.common.TimelineHours
 import de.jeanlucmakiola.calendula.ui.common.TimelineScale
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import de.jeanlucmakiola.calendula.widget.WidgetSize
@@ -64,6 +65,7 @@ data class SettingsUiState(
     val monthViewStyle: MonthViewStyle = MonthViewStyle.Paged,
     /** How tall an hour is drawn in the week and day timelines (#56). */
     val timelineScale: TimelineScale = TimelineScale.Regular,
+    val timelineHours: TimelineHours = TimelineHours(),
     /** Order of the views in the navigation drawer (#24); every view is always listed. */
     val drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
     /** Optional event-form fields shown by default (rest behind "more fields"). */

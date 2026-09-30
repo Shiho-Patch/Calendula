@@ -34,9 +34,12 @@ import de.jeanlucmakiola.calendula.ui.common.AgendaRangePicker
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.PickerDescription
+import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
+import de.jeanlucmakiola.calendula.ui.common.TimelineHours
 import de.jeanlucmakiola.calendula.ui.common.TimelineScale
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.calendula.ui.common.descriptionRes
+import de.jeanlucmakiola.calendula.ui.common.formatMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.common.formatTimeOfDay
 import de.jeanlucmakiola.calendula.ui.common.icon
 import de.jeanlucmakiola.calendula.ui.common.label
@@ -74,6 +77,9 @@ internal fun ViewsScreen(
     var showAgendaScreenRange by remember { mutableStateOf(false) }
     var showTimelineScale by remember { mutableStateOf(false) }
     var showMultiDayCount by remember { mutableStateOf(false) }
+    var showHoursStart by remember { mutableStateOf(false) }
+    var showHoursEnd by remember { mutableStateOf(false) }
+    val hours = state.timelineHours
 
     CollapsingScaffold(
         title = stringResource(R.string.settings_section_views),
@@ -170,10 +176,49 @@ internal fun ViewsScreen(
         )
         GroupedRow(
             title = stringResource(R.string.settings_timeline_scale),
-            summary = stringResource(state.timelineScale.labelRes),
+            summary = if (hours.enabled) {
+                stringResource(R.string.settings_timeline_scale_by_visible_hours)
+            } else {
+                stringResource(state.timelineScale.labelRes)
+            },
             position = Position.Middle,
-            onClick = { showTimelineScale = true },
+            dimmed = hours.enabled,
+            onClick = if (hours.enabled) null else ({ showTimelineScale = true }),
         )
+        GroupedRow(
+            title = stringResource(R.string.settings_visible_hours),
+            summary = if (hours.enabled) {
+                stringResource(
+                    R.string.settings_visible_hours_on_summary,
+                    hourLabel(hours.startHour),
+                    hourLabel(hours.endHour),
+                )
+            } else {
+                stringResource(R.string.settings_visible_hours_summary)
+            },
+            position = Position.Middle,
+            trailing = {
+                Switch(
+                    checked = hours.enabled,
+                    onCheckedChange = { viewModel.setTimelineHours(hours.copy(enabled = it)) },
+                )
+            },
+            onClick = { viewModel.setTimelineHours(hours.copy(enabled = !hours.enabled)) },
+        )
+        if (hours.enabled) {
+            GroupedRow(
+                title = stringResource(R.string.settings_visible_hours_start),
+                summary = hourLabel(hours.startHour),
+                position = Position.Middle,
+                onClick = { showHoursStart = true },
+            )
+            GroupedRow(
+                title = stringResource(R.string.settings_visible_hours_end),
+                summary = hourLabel(hours.endHour),
+                position = Position.Middle,
+                onClick = { showHoursEnd = true },
+            )
+        }
         GroupedRow(
             title = stringResource(R.string.settings_hour_lines),
             summary = stringResource(R.string.settings_hour_lines_summary),
@@ -378,6 +423,30 @@ internal fun ViewsScreen(
             onDismiss = { showTimelineScale = false },
         )
     }
+    if (showHoursStart) {
+        OptionPicker(
+            title = stringResource(R.string.settings_visible_hours_start),
+            header = { PickerDescription(stringResource(R.string.settings_visible_hours_start_hint)) },
+            predictiveBack = true,
+            options = TimelineHours.startOptions(hours.endHour),
+            selected = hours.startHour,
+            label = { hourLabel(it) },
+            onSelect = { viewModel.setTimelineHours(hours.copy(startHour = it)) },
+            onDismiss = { showHoursStart = false },
+        )
+    }
+    if (showHoursEnd) {
+        OptionPicker(
+            title = stringResource(R.string.settings_visible_hours_end),
+            header = { PickerDescription(stringResource(R.string.settings_visible_hours_end_hint)) },
+            predictiveBack = true,
+            options = TimelineHours.endOptions(hours.startHour),
+            selected = hours.endHour,
+            label = { hourLabel(it) },
+            onSelect = { viewModel.setTimelineHours(hours.copy(endHour = it)) },
+            onDismiss = { showHoursEnd = false },
+        )
+    }
     if (showAgendaScreenRange) {
         AgendaRangePicker(
             title = stringResource(R.string.settings_agenda_range),
@@ -475,3 +544,8 @@ internal fun pastEventDisplayLabelRes(mode: PastEventDisplay): Int = when (mode)
 @Composable
 private fun multiDayLabel(count: Int): String =
     pluralStringResource(R.plurals.view_multi_day, count, count)
+
+/** A whole hour in the app's clock convention; 24 reads as the end of the day. */
+@Composable
+private fun hourLabel(hour: Int): String =
+    formatMinuteOfDay(hour * 60, LocalUse24HourFormat.current, currentLocale())

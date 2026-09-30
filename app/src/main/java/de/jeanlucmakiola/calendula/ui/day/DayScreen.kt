@@ -131,6 +131,7 @@ import de.jeanlucmakiola.floret.locale.currentLocale
 import de.jeanlucmakiola.calendula.ui.common.LocalUse24HourFormat
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourGrid
 import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
+import de.jeanlucmakiola.calendula.ui.common.OpenTimelineScroll
 import de.jeanlucmakiola.calendula.ui.common.MIN_EVENT_FRACTION
 import de.jeanlucmakiola.calendula.ui.common.hourHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelinePinchZoom
@@ -142,7 +143,6 @@ import de.jeanlucmakiola.calendula.ui.common.hourCellBlockInset
 import de.jeanlucmakiola.calendula.ui.common.hourGridCells
 import de.jeanlucmakiola.calendula.ui.common.tappedMinuteOfDay
 import de.jeanlucmakiola.calendula.ui.week.TimedBlock
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -303,15 +303,10 @@ private fun DayContent(
     val fadeSpec = rememberCalendarFadeSpec()
 
     // Shared by every page and the gutter, so the vertical scroll position
-    // survives day-to-day swipes. We only centre on noon once, on first entry
-    // into the day view (i.e. when arriving from the month/week view).
+    // survives day-to-day swipes. Positioned once on entry into the day view:
+    // at the visible hours' start if set (#322), otherwise noon.
     val scrollState = rememberScrollState()
-    LaunchedEffect(Unit) {
-        snapshotFlow { scrollState.maxValue }.first { it > 0 }
-        // Half the scroll range *is* noon: the content spans a full 24 hours, so
-        // centring the range centres midday at whatever hour height is in force.
-        scrollState.scrollTo(scrollState.maxValue / 2)
-    }
+    OpenTimelineScroll(scrollState, LocalTimelineZoom.current)
 
     // Above the pager: a page change mid-drag would strand the floating block
     // inside the outgoing page.
