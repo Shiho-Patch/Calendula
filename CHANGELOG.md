@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Split view opens with the month's agenda.** It starts at today in the current month; tapping a day filters the list, and the filter chip restores the full month. Swiping the list moves by day when filtered and by month otherwise ([#142]).
 - **Today stands out in the month grid.** Its whole cell has a distinct background; tapping Today briefly expands that cell and nudges its neighbours aside ([#241]).
-- **The store listing speaks every app language.** Google Play and F-Droid now show Calendula's description in all 16 languages the app ships, and the Play listing is published from the repository with each release ([#285]).
+- **Store listing in every app language.** Google Play and F-Droid show the description in all 16 languages the app ships, and each release publishes the Play listing from the repository ([#285]).
 
 ### Fixed
 - **Multi-day events stay above shorter events.** Month and Week bars, Split day lists, and Agenda now place multi-day events before one-day all-day events, then timed events; declined events remain last ([#291]).

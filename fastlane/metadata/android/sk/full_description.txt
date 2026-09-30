@@ -1,9 +1,11 @@
-Calendula je moderná open-source kalendárová aplikácia pre Android. Pracuje priamo so systémovým poskytovateľom kalendára, takže sa automaticky zobrazí akýkoľvek zdroj synchronizovaný do vášho zariadenia — Nextcloud cez DAVx5, Google, miestne kalendáre, odbery WebCal — a vaše zmeny sa rovnakou cestou synchronizujú späť.
+Calendula je open-source kalendár pre Android. Pracuje priamo so systémovým poskytovateľom kalendára, takže všetko, čo sa synchronizuje do vášho zariadenia (Nextcloud cez DAVx5, Google, miestne kalendáre, odbery WebCal), sa zobrazí v Calendule a vaše zmeny sa rovnakou cestou synchronizujú späť.
 
-Vytvárajte, upravujte a odstraňujte udalosti vrátane opakujúcich sa, s voľbou rozsahu zmeny (len táto udalosť / táto a všetky nasledujúce / celá séria) a jednoduchým výberom opakovania. Calendula tiež doručuje pripomienky udalostí ako upozornenia — ťuknite na upozornenie a otvorí sa udalosť.
+Ponúka zobrazenie mesiaca, týždňa, dňa a agendy. Udalosti môžete vytvárať, upravovať a odstraňovať vrátane opakujúcich sa a opakovanie nastaviť z predvolieb alebo vlastných pravidiel. Pri zmene opakujúcej sa udalosti si zvolíte, či sa zmena týka len tejto udalosti, tejto a všetkých nasledujúcich, alebo celej série.
 
-Voliteľne môžete v kalendári zobraziť narodeniny, výročia a ďalšie významné dátumy svojich kontaktov. Zapínate si to sami; kontakty sa čítajú iba v zariadení, nikdy sa neodosielajú a nikdy sa nemenia — Calendula dátumy len zrkadlí do miestnych kalendárov, ktoré máte plne pod kontrolou.
+Calendula zobrazuje pripomienky udalostí ako upozornenia. Ťuknutím na upozornenie otvoríte udalosť.
 
-Rozdiel robí dizajn: skutočný Material 3 Expressive všade, s dynamickými farbami, výrazným pohybom a výraznými tvarmi.
+Keď to zapnete, Calendula zobrazí aj narodeniny, výročia a ďalšie dátumy vašich kontaktov. Kontakty sa čítajú v zariadení a nikdy sa neodosielajú ani nemenia. Calendula kopíruje dátumy do miestnych kalendárov, ktoré máte pod kontrolou.
 
-Súkromie: žiadna telemetria, žiadna analytika, žiadny prístup k sieti — vaše údaje nikdy neopustia zariadenie.
+Dizajn je všade Material 3 Expressive, s dynamickými farbami a výrazným pohybom a tvarmi.
+
+Calendula nemá telemetriu, analytiku ani prístup k sieti. Vaše údaje nikdy neopustia zariadenie.

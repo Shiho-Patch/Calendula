@@ -1,9 +1,11 @@
-Calendula ist eine moderne, quelloffene Kalender-App für Android. Sie arbeitet direkt auf dem System-Kalender-Provider — jede Quelle, die mit deinem Gerät synchronisiert ist (Nextcloud über DAVx5, Google, lokal, WebCal-Subscriptions), erscheint automatisch, und deine Änderungen synchronisieren auf demselben Weg zurück.
+Calendula ist eine quelloffene Kalender-App für Android. Sie arbeitet direkt mit dem Kalender-Provider des Systems. Alles, was mit deinem Gerät synchronisiert wird (Nextcloud über DAVx5, Google, lokale Kalender, WebCal-Abos), erscheint in Calendula, und deine Änderungen synchronisieren auf demselben Weg zurück.
 
-Termine erstellen, bearbeiten und löschen — auch wiederkehrende, mit wählbarer Reichweite (nur dieser Termin / dieser und alle folgenden / ganze Serie) und einem einfachen Wiederholungs-Picker. Erinnerungen stellt Calendula selbst als Benachrichtigung zu — ein Tipp darauf öffnet den Termin.
+Es gibt Monats-, Wochen-, Tages- und Agenda-Ansicht. Du kannst Termine erstellen, bearbeiten und löschen, auch wiederkehrende, und Wiederholungen aus Vorlagen oder eigenen Regeln festlegen. Änderst du einen wiederkehrenden Termin, wählst du, ob die Änderung nur für diesen Termin, für diesen und alle folgenden oder für die ganze Serie gilt.
 
-Optional lassen sich Geburtstage, Jahrestage und weitere besondere Tage deiner Kontakte im Kalender anzeigen. Du schaltest das selbst ein; Kontakte werden nur auf deinem Gerät gelesen, nie hochgeladen und nie verändert — Calendula spiegelt die Daten lediglich in lokale Kalender, die du voll kontrollierst.
+Calendula zeigt deine Terminerinnerungen als Benachrichtigungen. Ein Tipp darauf öffnet den Termin.
 
-Der Unterschied liegt im Design: echtes Material 3 Expressive durchgehend, mit Dynamic Color, expressiven Animationen und neuen Shape-Sprachen.
+Wenn du es einschaltest, zeigt Calendula auch Geburtstage, Jahrestage und andere Daten deiner Kontakte. Die Kontakte werden auf deinem Gerät gelesen und nie hochgeladen oder verändert. Calendula kopiert die Daten in lokale Kalender, über die du bestimmst.
 
-Datenschutz: keinerlei Telemetrie, kein Tracking, kein Netzwerkzugriff — deine Daten bleiben auf dem Gerät.
+Das Design ist durchgehend Material 3 Expressive, mit dynamischen Farben und ausdrucksstarken Animationen und Formen.
+
+Calendula hat keine Telemetrie, keine Analyse und keinen Netzwerkzugriff. Deine Daten verlassen das Gerät nie.

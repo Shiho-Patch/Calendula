@@ -1,9 +1,11 @@
-O Calendula é uma aplicação de calendário moderna e de código aberto para Android. Funciona diretamente sobre o fornecedor de calendário do sistema, pelo que qualquer origem sincronizada no seu dispositivo — Nextcloud através do DAVx5, Google, calendários locais, subscrições WebCal — aparece automaticamente, e as alterações que fizer são sincronizadas de volta da mesma forma.
+O Calendula é uma aplicação de calendário de código aberto para Android. Funciona diretamente sobre o fornecedor de calendário do sistema, pelo que tudo o que é sincronizado no seu dispositivo (Nextcloud através do DAVx5, Google, calendários locais, subscrições WebCal) aparece no Calendula, e as alterações que fizer são sincronizadas de volta da mesma forma.
 
-Crie, edite e elimine eventos, incluindo eventos recorrentes com alterações por âmbito (apenas este evento / este e os seguintes / toda a série) e um seletor de repetição simples. O Calendula também entrega os seus lembretes como notificações — toque numa e abre o evento.
+Tem vistas de mês, semana, dia e agenda. Pode criar, editar e eliminar eventos, incluindo recorrentes, e definir repetições a partir de predefinições ou das suas próprias regras. Ao alterar um evento recorrente, escolhe se a alteração se aplica apenas a esse evento, a esse e aos seguintes, ou a toda a série.
 
-Opcionalmente, mostre no calendário os aniversários, datas comemorativas e outras datas especiais dos seus contactos. É o utilizador que ativa esta opção; os contactos são lidos apenas no dispositivo, nunca são enviados nem alterados — o Calendula limita-se a espelhar as datas em calendários locais que controla totalmente.
+O Calendula mostra os lembretes dos seus eventos como notificações. Toque numa para abrir o evento.
 
-O que o distingue é o design: verdadeiro Material 3 Expressive em toda a aplicação, com cores dinâmicas, movimento expressivo e formas expressivas.
+Se ativar esta opção, o Calendula mostra também os aniversários, datas comemorativas e outras datas dos seus contactos. Os contactos são lidos no dispositivo e nunca são enviados nem alterados. O Calendula copia as datas para calendários locais que controla.
 
-Privacidade: zero telemetria, nenhuma análise, nenhum acesso à rede — os seus dados nunca saem do dispositivo.
+O design é Material 3 Expressive em toda a aplicação, com cores dinâmicas e movimentos e formas expressivos.
+
+O Calendula não tem telemetria, análises nem acesso à rede. Os seus dados nunca saem do dispositivo.

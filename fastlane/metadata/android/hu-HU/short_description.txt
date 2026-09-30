@@ -1,1 +1,1 @@
-Modern, Material 3 Expressive stílusú naptár Androidra.
+Material 3 Expressive naptár Androidra, hálózati hozzáférés nélkül.

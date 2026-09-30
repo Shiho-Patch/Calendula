@@ -1,1 +1,1 @@
-Moderní kalendář v Material 3 Expressive pro Android.
+Kalendář v Material 3 Expressive pro Android bez přístupu k síti.

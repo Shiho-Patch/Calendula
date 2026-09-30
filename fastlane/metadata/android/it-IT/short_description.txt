@@ -1,1 +1,1 @@
-Un moderno calendario Material 3 Expressive per Android.
+Un calendario Material 3 Expressive per Android senza accesso alla rete.

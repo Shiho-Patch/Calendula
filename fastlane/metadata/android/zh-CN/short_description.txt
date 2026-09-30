@@ -1,1 +1,1 @@
-一款采用 Material 3 Expressive 设计的现代 Android 日历。
+一款采用 Material 3 Expressive 设计、不联网的 Android 日历。

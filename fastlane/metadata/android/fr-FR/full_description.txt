@@ -1,9 +1,11 @@
-Calendula est une application de calendrier moderne et open source pour Android. Elle fonctionne directement sur le fournisseur de calendrier du système : toute source synchronisée sur votre appareil — Nextcloud via DAVx5, Google, calendriers locaux, abonnements WebCal — apparaît automatiquement, et vos modifications sont synchronisées en retour de la même manière.
+Calendula est une application de calendrier open source pour Android. Elle fonctionne directement sur le fournisseur de calendrier du système : tout ce qui est synchronisé sur votre appareil (Nextcloud via DAVx5, Google, calendriers locaux, abonnements WebCal) apparaît dans Calendula, et vos modifications sont synchronisées en retour de la même façon.
 
-Créez, modifiez et supprimez des événements, y compris des événements récurrents avec des modifications ciblées (uniquement cet événement / cet événement et les suivants / toute la série) et un sélecteur de répétition simple. Calendula affiche aussi vos rappels sous forme de notifications — touchez-en une pour ouvrir l'événement.
+Elle propose des vues mois, semaine, jour et agenda. Vous pouvez créer, modifier et supprimer des événements, y compris récurrents, et définir les répétitions à partir de modèles ou de vos propres règles. Quand vous modifiez un événement récurrent, vous choisissez si la modification s'applique à cet événement seul, à celui-ci et aux suivants, ou à toute la série.
 
-Si vous le souhaitez, affichez dans votre calendrier les anniversaires, anniversaires de mariage et autres dates importantes de vos contacts. C'est vous qui l'activez ; les contacts sont lus uniquement sur votre appareil, ne sont jamais envoyés et jamais modifiés — Calendula se contente de reporter les dates dans des calendriers locaux que vous contrôlez entièrement.
+Calendula affiche les rappels de vos événements sous forme de notifications. Touchez-en une pour ouvrir l'événement.
 
-Ce qui fait la différence, c'est le design : du vrai Material 3 Expressive partout, avec couleurs dynamiques, animations expressives et formes expressives.
+Si vous l'activez, Calendula affiche aussi les anniversaires, fêtes et autres dates de vos contacts. Les contacts sont lus sur votre appareil et ne sont jamais envoyés ni modifiés. Calendula copie les dates dans des calendriers locaux que vous contrôlez.
 
-Confidentialité : aucune télémétrie, aucune analyse, aucun accès réseau — vos données ne quittent jamais l'appareil.
+Le design suit Material 3 Expressive partout, avec des couleurs dynamiques et des animations et formes expressives.
+
+Calendula n'a ni télémétrie, ni statistiques d'usage, ni accès au réseau. Vos données ne quittent jamais l'appareil.
