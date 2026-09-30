@@ -53,7 +53,18 @@ class ViewMorphScope(
     val fadeSpec: FiniteAnimationSpec<Float>,
     val clip: BelowTopBarClip,
     val stayingPut: StayingPut,
-)
+    /** Read while matching, so a tag can sit out without leaving the modifier chain. */
+    val enabled: () -> Boolean = { true },
+) {
+    /** This scope with its tags switched off while [enabled] is false. */
+    fun gated(enabled: () -> Boolean): ViewMorphScope =
+        ViewMorphScope(shared, visibility, boundsTransform, fadeSpec, clip, stayingPut, enabled)
+
+    internal val config = object : SharedTransitionScope.SharedContentConfig {
+        override val SharedTransitionScope.SharedContentState.isEnabled: Boolean
+            get() = enabled()
+    }
+}
 
 /**
  * The events a view has but keeps out of the switch, being scrolled out of
@@ -127,7 +138,7 @@ fun Modifier.morphEvent(key: ViewMorphKey.Event): Modifier {
     if (key in morph.stayingPut.keys) return this
     return with(morph.shared) {
         this@morphEvent.sharedBounds(
-            sharedContentState = rememberSharedContentState(key),
+            sharedContentState = rememberSharedContentState(key, morph.config),
             animatedVisibilityScope = morph.visibility,
             enter = fadeIn(morph.fadeSpec),
             exit = fadeOut(morph.fadeSpec),
@@ -146,7 +157,7 @@ fun Modifier.morphDay(date: LocalDate): Modifier {
     val morph = LocalViewMorph.current ?: return this
     return with(morph.shared) {
         this@morphDay.sharedBounds(
-            sharedContentState = rememberSharedContentState(ViewMorphKey.Day(date)),
+            sharedContentState = rememberSharedContentState(ViewMorphKey.Day(date), morph.config),
             animatedVisibilityScope = morph.visibility,
             enter = fadeIn(morph.fadeSpec),
             exit = fadeOut(morph.fadeSpec),

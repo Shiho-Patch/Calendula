@@ -10,7 +10,6 @@ import androidx.compose.foundation.pager.PagerDefaults
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.rememberUpdatedState
 import de.jeanlucmakiola.calendula.ui.common.PublishChrome
 import de.jeanlucmakiola.calendula.ui.common.ScreenActions
@@ -24,12 +23,10 @@ import de.jeanlucmakiola.calendula.ui.common.morphDay
 import de.jeanlucmakiola.calendula.ui.common.morphEvent
 import de.jeanlucmakiola.calendula.ui.common.morphPageActive
 import de.jeanlucmakiola.calendula.ui.common.jumpToPage
-import de.jeanlucmakiola.calendula.ui.common.pagedHeight
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarPageSpec
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
 import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.RepeatMode
@@ -41,6 +38,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -726,10 +724,6 @@ private fun MonthContent(
  * carries the chip drag and the morph tags: its neighbours show some of its
  * dates among their leading and trailing days, and would otherwise claim its
  * drops and its shared elements.
- *
- * @param static draw the current page alone, without a pager — for a face of the
- *   split style on its way out, which must not hold on to the pager state the
- *   incoming face now drives.
  */
 @Composable
 private fun MonthPager(
@@ -737,16 +731,9 @@ private fun MonthPager(
     weekStart: DayOfWeek,
     monthState: (YearMonth, DayOfWeek) -> StateFlow<MonthUiState>,
     modifier: Modifier = Modifier,
-    static: Boolean = false,
     loading: @Composable () -> Unit = { MonthGridLoading() },
     page: @Composable (index: Int, state: MonthUiState.Success) -> Unit,
 ) {
-    if (static) {
-        Box(modifier) {
-            MonthPage(pagerState.currentPage, true, true, weekStart, monthState, loading, page)
-        }
-        return
-    }
     val chipDrag = LocalMonthDrag.current
     HorizontalPager(
         state = pagerState,
@@ -1304,13 +1291,16 @@ private val MONTH_EXPAND_THRESHOLD = 48.dp
 
 /**
  * Split style content: the compact grid keeps the month swipe, the pane below it
- * lists whatever day is selected — and a downward drag trades the pane away for
- * the full paged grid, an upward one brings it back (#53).
+ * lists the month's agenda or the selected day — and a downward drag trades the
+ * pane away for the full paged grid, an upward one brings it back (#53). The
+ * paged style is the same surface opened the other way up (#111).
  *
- * The grid slides between months like the paged style, and stands only as many
- * rows tall as its own month spans (#162). A swipe between a five-row month and
- * a six-row one therefore moves the pane by a row as well as swapping the grid;
- * the row it hands back is worth more to the pane than a still edge is.
+ * One pager holds whole months — grid, handle and pane — and each page switches
+ * between its two faces itself. An expand therefore morphs inside a page that
+ * stays put: with a pager per face, every expand swapped one pager for another,
+ * and whether the pieces paired up came down to frame timing.
+ *
+ * The grid stands only as many rows tall as its own month spans (#162).
  *
  * Expansion is deliberately **not** a stored preference. It is a way to look at
  * the month you are on, not a fourth style; persisted, someone would expand it
@@ -1359,53 +1349,90 @@ private fun SplitMonthContent(
             }
         },
     )
+    // In the split style a tap in the expanded grid picks the day and drops back,
+    // which gives the expanded month a job — a chooser you dip into — rather than
+    // a mode you can get stranded in. The collapse then runs with the selection
+    // already set, so the pane arrives showing the day you picked. The paged
+    // style's grid is its home, so a tap there opens the day (#111).
+    val onPickDay: (LocalDate) -> Unit = if (initiallyExpanded) {
+        onOpenDay
+    } else {
+        {
+            onSelectDay(it)
+            onExpandedChange(false)
+        }
+    }
+    // The view switch's own shared scope: a SharedTransitionLayout nested in the
+    // host's would be a second lookahead scope. Null under reduced motion.
+    val viewMorph = LocalViewMorph.current
+    val shared = viewMorph?.shared
+    val chipDrag = LocalMonthDrag.current
 
     when (state) {
         MonthUiState.Loading -> MonthGridLoading()
         is MonthUiState.Failure -> CalendarFailure(reason = state.reason, onRetry = onRetry)
-        is MonthUiState.Success -> SharedTransitionLayout(Modifier.fillMaxSize()) {
+        is MonthUiState.Success -> HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            // The months either side are composed ahead, so a swipe lands on a
+            // loaded month rather than watching it fill in.
+            beyondViewportPageCount = 1,
+            verticalAlignment = Alignment.Top,
+            // A held chip moves within its month; the page stays put under it.
+            userScrollEnabled = chipDrag?.isDragging != true,
+            flingBehavior = PagerDefaults.flingBehavior(
+                state = pagerState,
+                snapAnimationSpec = rememberCalendarPageSpec(),
+            ),
+        ) { index ->
+            val ym = yearMonthForIndex(index)
+            val pageState by remember(ym, weekStart) { monthState(ym, weekStart) }
+                .collectAsStateWithLifecycle()
+            val page = pageState as? MonthUiState.Success ?: return@HorizontalPager
+            // Only the settled page carries the drag and the morph tags: its
+            // neighbours repeat some of its dates and would claim them.
+            val active = index == pagerState.settledPage
+            // The selection only ever lies in the anchor month.
+            val pageSelected = selected?.takeIf { it.year == ym.year && it.month == ym.month }
             AnimatedContent(
                 targetState = expanded,
                 modifier = Modifier.fillMaxSize(),
-                // Both branches fill the same box — the grid grows into exactly the
+                // Both faces fill the same page — the grid grows into exactly the
                 // room the pane gives up — so there is no size change to contain.
-                // The travel between them is the shared elements' job, not a slide.
+                // The travel between them is the shared elements' job.
                 transitionSpec = { fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec) },
-                label = "split-expand-transition",
+                label = "split-expand",
             ) { isExpanded ->
-                // Only the incoming face drives the pager; the outgoing one draws
-                // its month still for the length of the cross-fade.
-                val leaving = transition.targetState == EnterExitState.PostExit
-                CompositionLocalProvider(
-                    // The split style morphs within itself and so sits the view
-                    // switch's morph out (#184): one element can't travel in two
-                    // shared transitions at once.
-                    LocalViewMorph provides null,
-                    // Null under reduced motion: nothing is tagged, nothing
-                    // travels, and the cross-fade above is the whole transition.
-                    LocalMonthMorph provides if (reduceMotion) {
-                        null
+                // The view switch's morph stays off a face until it has fully
+                // entered (#184): both faces tag the same events for it. Switched
+                // off rather than removed — adding and dropping the tags rebuilt
+                // every bar's modifier chain around the expand morph, which left
+                // bars standing still on later collapses.
+                val faceTransition = transition
+                val faceViewMorph = remember(viewMorph, active, faceTransition) {
+                    viewMorph?.takeIf { active }?.gated {
+                        faceTransition.currentState == EnterExitState.Visible
+                    }
+                }
+                val monthMorph = remember(active, reduceMotion, shared, this) {
+                    if (active && !reduceMotion && shared != null) {
+                        MonthMorphScope(shared, this)
                     } else {
-                        MonthMorphScope(this@SharedTransitionLayout, this@AnimatedContent)
-                    },
+                        null
+                    }
+                }
+                CompositionLocalProvider(
+                    LocalMonthDrag provides chipDrag.takeIf { active },
+                    LocalViewMorph provides faceViewMorph,
+                    LocalMonthMorph provides monthMorph,
                 ) {
-                    val months = SplitMonths(pagerState, weekStart, monthState, static = leaving)
                     if (isExpanded) {
                         SplitMonthExpanded(
-                            months = months,
-                            selected = selected,
+                            state = page,
+                            selected = pageSelected,
                             showWeekNumbers = showWeekNumbers,
                             expandDrag = expandDrag,
-                            // A tap in the expanded grid picks the day and drops
-                            // back, which gives the expanded month a job — a
-                            // chooser you dip into — rather than a mode you can
-                            // get stranded in. The collapse then runs with the
-                            // selection already set, so the pane arrives showing
-                            // the day you picked.
-                            onPickDay = {
-                                onSelectDay(it)
-                                onExpandedChange(false)
-                            },
+                            onPickDay = onPickDay,
                             // A tapped chip is asking for that event, not for its
                             // day, so it opens the detail from here too rather
                             // than collapsing (#187).
@@ -1413,10 +1440,22 @@ private fun SplitMonthContent(
                             onCollapse = { onExpandedChange(false) },
                         )
                     } else {
+                        // The pane is still invisible for the first stretch of a
+                        // collapse, so it is built once the grid has mostly
+                        // landed, not on the morph's opening frames.
+                        var paneReady by remember {
+                            mutableStateOf(reduceMotion || transition.currentState == EnterExitState.Visible)
+                        }
+                        LaunchedEffect(Unit) {
+                            if (!paneReady) {
+                                delay(SPLIT_PANE_COMPOSE_DELAY_MILLIS)
+                                paneReady = true
+                            }
+                        }
                         SplitMonthCollapsed(
-                            state = state,
-                            months = months,
-                            selected = selected,
+                            state = page,
+                            paneReady = paneReady,
+                            selected = pageSelected,
                             showWeekNumbers = showWeekNumbers,
                             expandDrag = expandDrag,
                             onSelectDay = onSelectDay,
@@ -1427,6 +1466,18 @@ private fun SplitMonthContent(
                             onEventClick = onEventClick,
                             onCreateEvent = onCreateEvent,
                             onExpand = { onExpandedChange(true) },
+                            // The pane waits for the grid to settle, and clears
+                            // out before it grows, so the two never overlap.
+                            paneModifier = if (reduceMotion) {
+                                Modifier
+                            } else {
+                                Modifier.animateEnterExit(
+                                    enter = fadeIn(
+                                        tween(SPLIT_PANE_FADE_IN_MILLIS, SPLIT_PANE_FADE_IN_DELAY_MILLIS, SPLIT_PANE_EASING),
+                                    ),
+                                    exit = fadeOut(tween(SPLIT_PANE_FADE_OUT_MILLIS)),
+                                )
+                            },
                         )
                     }
                 }
@@ -1435,19 +1486,11 @@ private fun SplitMonthContent(
     }
 }
 
-/** What both faces of the split style page through — see [MonthPager]. */
-private class SplitMonths(
-    val pagerState: PagerState,
-    val weekStart: DayOfWeek,
-    val monthState: (YearMonth, DayOfWeek) -> StateFlow<MonthUiState>,
-    val static: Boolean,
-)
-
-/** The split style at rest: compact grid, handle, then the selected day's events. */
+/** The split style at rest: compact grid, handle, then the agenda or the selected day. */
 @Composable
 private fun SplitMonthCollapsed(
     state: MonthUiState.Success,
-    months: SplitMonths,
+    paneReady: Boolean,
     selected: LocalDate?,
     showWeekNumbers: Boolean,
     expandDrag: Modifier,
@@ -1459,76 +1502,64 @@ private fun SplitMonthCollapsed(
     onEventClick: (EventInstance) -> Unit,
     onCreateEvent: (LocalDate) -> Unit,
     onExpand: () -> Unit,
+    paneModifier: Modifier = Modifier,
 ) {
-    // The grid stands only as many rows tall as its month spans (#162), so a
-    // swipe between a five-row and a six-row month moves the pane by a row; the
-    // blend has it move with the finger rather than jump on settle.
-    val gridHeights = remember { mutableStateMapOf<Int, Dp>() }
-    val gridHeight = pagedHeight(months.pagerState, gridHeights, splitGridHeight(state.weeks.size))
-
     Column(Modifier.fillMaxSize()) {
         // Grid and handle drag as one surface — the handle is what advertises the
         // gesture, so it has to answer to it as well as to a tap. The pane is
         // outside: it scrolls, and is full of tappable rows.
         Column(expandDrag) {
-            MonthPager(
-                pagerState = months.pagerState,
-                weekStart = months.weekStart,
-                monthState = months.monthState,
-                static = months.static,
-                modifier = Modifier.fillMaxWidth().height(gridHeight),
-                loading = {},
-            ) { index, page ->
-                val height = splitGridHeight(page.weeks.size)
-                DisposableEffect(index, height) {
-                    gridHeights[index] = height
-                    onDispose { gridHeights.remove(index) }
-                }
-                SplitMonthGrid(
-                    state = page,
-                    selected = selected,
-                    showWeekNumbers = showWeekNumbers,
-                    onSelectDay = onSelectDay,
-                )
-            }
+            SplitMonthGrid(
+                state = state,
+                selected = selected,
+                showWeekNumbers = showWeekNumbers,
+                onSelectDay = onSelectDay,
+                modifier = Modifier.height(splitGridHeight(state.weeks.size)),
+            )
             SplitExpandHandle(expanded = false, onToggle = onExpand)
         }
-        Box(
-            Modifier.weight(1f).fillMaxWidth()
-                .then(rememberSplitPaneSwipe(onPaneSwipeNext, onPaneSwipePrev)),
-        ) {
-            if (selected == null) {
+        if (!paneReady) {
+            Spacer(Modifier.weight(1f))
+        } else if (selected == null) {
+            // The agenda pages with the month, on the pager itself.
+            Box(Modifier.weight(1f).fillMaxWidth().then(paneModifier)) {
                 SplitMonthAgendaPane(
                     state = state,
                     onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
                     onCreateEvent = onCreateEvent,
                 )
-            } else {
-                Column {
-                    InputChip(
-                        selected = true,
-                        onClick = onClearSelection,
-                        label = { Text(agendaDayLabel(selected, state.today)) },
-                        trailingIcon = {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = stringResource(R.string.month_split_clear_filter),
-                            )
-                        },
-                        modifier = Modifier.padding(start = 16.dp),
-                    )
-                    SplitDayPane(
-                        date = selected,
-                        today = state.today,
-                        events = state.instancesByDay[selected],
-                        zone = state.zone,
-                        onOpenDay = onOpenDay,
-                        onEventClick = onEventClick,
-                        onCreateEvent = onCreateEvent,
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                    )
-                }
+            }
+        } else {
+            // A selected day steps a day at a time instead, so the swipe is
+            // taken before the pager sees it.
+            Column(
+                Modifier.weight(1f).fillMaxWidth()
+                    .then(paneModifier)
+                    .then(rememberSplitPaneSwipe(onPaneSwipeNext, onPaneSwipePrev)),
+            ) {
+                InputChip(
+                    selected = true,
+                    onClick = onClearSelection,
+                    label = { Text(agendaDayLabel(selected, state.today)) },
+                    trailingIcon = {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.month_split_clear_filter),
+                        )
+                    },
+                    modifier = Modifier.padding(start = 16.dp),
+                )
+                SplitDayPane(
+                    date = selected,
+                    today = state.today,
+                    events = state.instancesByDay[selected],
+                    zone = state.zone,
+                    onOpenDay = onOpenDay,
+                    onEventClick = onEventClick,
+                    onCreateEvent = onCreateEvent,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                )
             }
         }
     }
@@ -1544,7 +1575,8 @@ private fun rememberSplitPaneSwipe(onNext: () -> Unit, onPrev: () -> Unit): Modi
         var fired = false
         detectHorizontalDragGestures(
             onDragStart = { distance = 0f; fired = false },
-            onHorizontalDrag = { _, drag ->
+            onHorizontalDrag = { change, drag ->
+                change.consume()
                 distance += drag
                 if (!fired && kotlin.math.abs(distance) >= threshold) {
                     fired = true
@@ -1566,7 +1598,7 @@ private fun rememberSplitPaneSwipe(onNext: () -> Unit, onPrev: () -> Unit): Modi
  */
 @Composable
 private fun SplitMonthExpanded(
-    months: SplitMonths,
+    state: MonthUiState.Success,
     /** Marked nowhere here; it only anchors the outline's morph. */
     selected: LocalDate?,
     showWeekNumbers: Boolean,
@@ -1578,15 +1610,9 @@ private fun SplitMonthExpanded(
     // The whole screen drags here, handle included — there is no pane to keep out
     // of it, and the handle is the obvious thing to reach for on the way back.
     Column(Modifier.fillMaxSize().then(expandDrag)) {
-        MonthPager(
-            pagerState = months.pagerState,
-            weekStart = months.weekStart,
-            monthState = months.monthState,
-            static = months.static,
-            modifier = Modifier.weight(1f),
-        ) { _, page ->
+        Box(Modifier.weight(1f)) {
             MonthGrid(
-                state = page,
+                state = state,
                 showWeekNumbers = showWeekNumbers,
                 onOpenDay = onPickDay,
                 onEventClick = onEventClick,
@@ -1663,6 +1689,13 @@ private val SPLIT_DOT_SIZE = 5.dp
 private val SPLIT_HANDLE_WIDTH = 32.dp
 private val SPLIT_HANDLE_HEIGHT = 4.dp
 private val SPLIT_HANDLE_ROW_HEIGHT = 24.dp
+
+/** The pane below the split grid fades in once the grid's morph has mostly landed. */
+private const val SPLIT_PANE_FADE_IN_DELAY_MILLIS = 300
+private const val SPLIT_PANE_COMPOSE_DELAY_MILLIS = 250L
+private const val SPLIT_PANE_FADE_IN_MILLIS = 250
+private const val SPLIT_PANE_FADE_OUT_MILLIS = 100
+private val SPLIT_PANE_EASING = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
 
 /**
  * The split style's grid (#53): the month compressed to day numbers and event
@@ -1962,7 +1995,7 @@ private fun SplitMonthAgendaPane(
                         zone = state.zone,
                         position = positionOf(index, events.size),
                         dimmed = dimCutoff != null && event.hasEnded(dimCutoff),
-                        modifier = animateItemMotion(),
+                        modifier = animateItemMotion().morphEvent(ViewMorphKey.event(event, day)),
                         onClick = { onEventClick(event) },
                     )
                 }
@@ -2035,7 +2068,7 @@ internal fun SplitDayPane(
                             // An event added to or removed from the day you are
                             // already looking at moves its neighbours rather
                             // than teleporting them.
-                            modifier = animateItemMotion(),
+                            modifier = animateItemMotion().morphEvent(ViewMorphKey.event(event, day)),
                         )
                     }
                 }
