@@ -551,7 +551,7 @@
     <string name="settings_month_header">Month view</string>
     <string name="settings_month_view_style">Month view style</string>
     <string name="month_style_paged">Pages</string>
-    <string name="month_style_paged_summary">One month fills the screen. Swipe left or right to change month.</string>
+    <string name="month_style_paged_summary">One month fills the screen. Swipe left or right to change month, or swipe up to show the month agenda.</string>
     <string name="month_style_continuous">Scrolling months</string>
     <string name="month_style_continuous_summary">Each month sits under its own heading, with a little space setting it apart from the next.</string>
     <string name="month_style_dense">Seamless weeks</string>

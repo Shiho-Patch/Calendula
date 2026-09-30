@@ -135,6 +135,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -332,6 +334,9 @@ fun MonthScreen(
     }
 
     val isOnCurrentMonth = titleMonth == YearMonth(today.year, today.month)
+    var splitExpanded by rememberSaveable(viewStyle) {
+        mutableStateOf(viewStyle == MonthViewStyle.Paged)
+    }
 
     // Continuous names the month on the block's own sticky header, so the bar
     // carries the year instead of repeating it two lines further down. Dense has
@@ -433,7 +438,8 @@ fun MonthScreen(
                         // today when its month is shown, else the 1st.
                         onCreateEvent(
                             when {
-                                viewStyle == MonthViewStyle.Split -> selectedDate
+                                (viewStyle == MonthViewStyle.Split ||
+                                    (viewStyle == MonthViewStyle.Paged && !splitExpanded)) -> selectedDate
                                     ?: if (isOnCurrentMonth) today else LocalDate(titleMonth.year, titleMonth.month, 1)
                                 isOnCurrentMonth -> today
                                 else -> LocalDate(titleMonth.year, titleMonth.month, 1)
@@ -471,10 +477,13 @@ fun MonthScreen(
                             onOpenDay = onOpenDay,
                             onEventClick = onEventClick,
                         )
-                    } else if (viewStyle == MonthViewStyle.Split) {
+                    } else if (viewStyle == MonthViewStyle.Split || viewStyle == MonthViewStyle.Paged) {
                         SplitMonthContent(
                             state = state,
                             selected = selectedDate,
+                            initiallyExpanded = viewStyle == MonthViewStyle.Paged,
+                            expanded = splitExpanded,
+                            onExpandedChange = { splitExpanded = it },
                             pagerState = pagerState,
                             weekStart = weekStart,
                             monthState = viewModel::month,
@@ -1303,6 +1312,9 @@ private val MONTH_EXPAND_THRESHOLD = 48.dp
 private fun SplitMonthContent(
     state: MonthUiState,
     selected: LocalDate?,
+    initiallyExpanded: Boolean,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
     pagerState: PagerState,
     weekStart: DayOfWeek,
     monthState: (YearMonth, DayOfWeek) -> StateFlow<MonthUiState>,
@@ -1318,15 +1330,23 @@ private fun SplitMonthContent(
 ) {
     val fadeSpec = rememberCalendarFadeSpec()
     val reduceMotion = rememberReduceMotion()
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    // Back collapses before it does anything else. Expanding replaces the whole
-    // screen, so it is a place you can be, and every other place in the app can
-    // be backed out of. Declared deeper than CalendarHost's view-stack handler,
-    // which is what makes it win while it is enabled.
-    BackHandler(enabled = expanded) { expanded = false }
+    val haptics = LocalHapticFeedback.current
+    BackHandler(enabled = expanded != initiallyExpanded) {
+        onExpandedChange(initiallyExpanded)
+    }
     val expandDrag = rememberSplitExpandDrag(
-        onExpand = { expanded = true },
-        onCollapse = { expanded = false },
+        onExpand = {
+            if (!expanded) {
+                onExpandedChange(true)
+                haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+            }
+        },
+        onCollapse = {
+            if (expanded) {
+                onExpandedChange(false)
+                haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
+            }
+        },
     )
 
     when (state) {
@@ -1369,13 +1389,13 @@ private fun SplitMonthContent(
                             // the day you picked.
                             onPickDay = {
                                 onSelectDay(it)
-                                expanded = false
+                                onExpandedChange(false)
                             },
                             // A tapped chip is asking for that event, not for its
                             // day, so it opens the detail from here too rather
                             // than collapsing (#187).
                             onEventClick = onEventClick,
-                            onCollapse = { expanded = false },
+                            onCollapse = { onExpandedChange(false) },
                         )
                     } else {
                         SplitMonthCollapsed(
@@ -1391,7 +1411,7 @@ private fun SplitMonthContent(
                             onOpenDay = onOpenDay,
                             onEventClick = onEventClick,
                             onCreateEvent = onCreateEvent,
-                            onExpand = { expanded = true },
+                            onExpand = { onExpandedChange(true) },
                         )
                     }
                 }

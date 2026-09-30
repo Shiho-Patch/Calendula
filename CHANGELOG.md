@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Pages can open the split agenda.** Swipe up from a full month to reveal the compact grid and month agenda; tap a day to filter it, then swipe down to return. The transition gives haptic feedback ([#111]).
+
 ### Changed
 - **Split view opens with the month's agenda.** It starts at today in the current month; tapping a day filters the list, and the filter chip restores the full month. Swiping the list moves by day when filtered and by month otherwise ([#142]).
 
