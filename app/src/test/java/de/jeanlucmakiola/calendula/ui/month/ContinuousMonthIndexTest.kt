@@ -222,17 +222,17 @@ class ContinuousMonthIndexTest {
     }
 
     @Test
-    fun `the split selection follows the month, landing on today when it's there`() {
+    fun `the split agenda starts at today in the current month`() {
         val today = LocalDate(2026, 6, 10)
-        assertThat(selectionForMonth(jun26, today)).isEqualTo(today)
+        assertThat(agendaStartForMonth(jun26, today)).isEqualTo(today)
     }
 
     @Test
-    fun `the split selection falls to the 1st of any other month`() {
+    fun `the split agenda starts at the 1st of another month`() {
         val today = LocalDate(2026, 6, 10)
-        assertThat(selectionForMonth(YearMonth(2026, Month.JULY), today))
+        assertThat(agendaStartForMonth(YearMonth(2026, Month.JULY), today))
             .isEqualTo(LocalDate(2026, 7, 1))
-        assertThat(selectionForMonth(YearMonth(2025, Month.JUNE), today))
+        assertThat(agendaStartForMonth(YearMonth(2025, Month.JUNE), today))
             .isEqualTo(LocalDate(2025, 6, 1))
     }
 }

@@ -55,6 +55,7 @@
     <string name="month_prev">Previous month</string>
     <string name="month_next">Next month</string>
     <string name="month_today_action">Today</string>
+    <string name="month_split_clear_filter">Show full month agenda</string>
     <string name="month_more_actions">More actions</string>
     <string name="month_open_menu">Open menu</string>
     <string name="month_action_settings">Settings</string>
