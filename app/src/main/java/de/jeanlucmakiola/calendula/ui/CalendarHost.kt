@@ -66,6 +66,7 @@ import de.jeanlucmakiola.calendula.ui.common.ViewFocusSaver
 import de.jeanlucmakiola.calendula.ui.common.LocalViewMorph
 import de.jeanlucmakiola.calendula.ui.common.RescheduleViewModel
 import de.jeanlucmakiola.calendula.ui.common.TimelineScrollMemory
+import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.ViewMorphScope
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
 import de.jeanlucmakiola.calendula.ui.common.rememberViewMorphBoundsTransform
@@ -446,6 +447,14 @@ fun CalendarHost(
         val topBarBottom = TopAppBarDefaults.windowInsets.getTop(density) +
             with(density) { TopAppBarDefaults.TopAppBarExpandedHeight.toPx() }
         val timelineScroll = remember { TimelineScrollMemory() }
+        // A timeline reached from another screen opens on the visible hours
+        // (#322); only a switch between timeline views carries the scroll over.
+        val timelineZoom = LocalTimelineZoom.current
+        LaunchedEffect(view.screen) {
+            if (view.screen != ViewScreen.Timeline && timelineZoom.hours.enabled) {
+                timelineScroll.midnightY = null
+            }
+        }
         CompositionLocalProvider(
             LocalEventMove provides moveScope,
             LocalTimelineScroll provides timelineScroll,

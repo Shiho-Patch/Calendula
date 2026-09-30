@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
 
 /**
@@ -81,14 +82,20 @@ fun rememberTimelineScrollState(timelineTop: Dp): TimelineScroll {
             snapshotFlow { scrollState.maxValue }.first { it > 0 }
             scrollState.scrollTo(scrollState.maxValue / 2)
         } else {
-            val (target, hourHeight) = snapshotFlow {
-                val viewport = scrollState.viewportSize
-                val hourHeight = zoom.scale.hourHeight(with(density) { viewport.toDp() })
-                val hourPx = with(density) { hourHeight.toPx() }
-                startHourScroll(scrollState.maxValue, viewport, startHour, hourPx)?.let { it to hourHeight }
-            }.filterNotNull().first()
-            scrollState.scrollTo(target)
+            // Fitted to the scroll viewport itself: the layout resolves scales
+            // against the viewport plus the all-day strip, which would push the
+            // end hour below the screen.
+            val viewport = snapshotFlow { scrollState.viewportSize }.first { it > 0 }
+            val hourHeight = zoom.scale.hourHeight(with(density) { viewport.toDp() })
             zoom.holdFit(hourHeight)
+            val hourPx = with(density) { hourHeight.toPx() }
+            val target = withTimeoutOrNull(FIT_LAYOUT_TIMEOUT_MILLIS) {
+                snapshotFlow {
+                    startHourScroll(scrollState.maxValue, scrollState.viewportSize, startHour, hourPx)
+                }.filterNotNull().first()
+            } ?: (startHour * (scrollState.maxValue + scrollState.viewportSize) / 24)
+                .coerceIn(0, scrollState.maxValue.coerceAtLeast(0))
+            scrollState.scrollTo(target)
         }
         scroll.noonPending = false
     }
@@ -99,3 +106,6 @@ fun rememberTimelineScrollState(timelineTop: Dp): TimelineScroll {
     }
     return scroll
 }
+
+/** How long an opening timeline waits to be laid out at its fitted hours before scrolling anyway. */
+private const val FIT_LAYOUT_TIMEOUT_MILLIS = 500L
