@@ -1,0 +1,11 @@
+Calendula is een opensource agenda-app voor Android. De app werkt rechtstreeks met de agendaprovider van het systeem, dus alles wat met je toestel wordt gesynchroniseerd (Nextcloud via DAVx5, Google, lokale agenda's, WebCal-abonnementen) verschijnt in Calendula, en wijzigingen die je maakt worden op dezelfde manier teruggesynchroniseerd.
+
+De app heeft maand-, week-, dag- en agendaweergaven. Je kunt afspraken aanmaken, bewerken en verwijderen, ook terugkerende, en herhalingen instellen via voorinstellingen of eigen regels. Wanneer je een terugkerende afspraak wijzigt, kies je of de wijziging geldt voor die ene afspraak, voor deze en alle volgende, of voor de hele reeks.
+
+Calendula toont je afspraakherinneringen als meldingen. Tik erop om de afspraak te openen.
+
+Als je het inschakelt, toont Calendula ook verjaardagen, jubilea en andere data van je contacten. Contacten worden op je toestel gelezen en nooit geüpload of gewijzigd. Calendula kopieert de data naar lokale agenda's die jij beheert.
+
+Het ontwerp is volledig Material 3 Expressive, met dynamische kleuren en expressieve beweging en vormen.
+
+Calendula heeft geen telemetrie, geen analyse en geen netwerktoegang. Je gegevens verlaten het toestel nooit.
