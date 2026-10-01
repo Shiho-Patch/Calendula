@@ -247,6 +247,10 @@ internal fun buildEventUpdateValues(
  * DTSTART + DURATION itself, clearing the inherited RRULE in the process. This
  * matches how AOSP Calendar/Etar write exceptions; sending DTEND is what made
  * "only this event" fail on-device (Codeberg #16).
+ *
+ * A palette key is left out: the provider crashes on an exception insert that
+ * carries `EVENT_COLOR_KEY` (Codeberg #338), so the caller sets it with a plain
+ * update once the row exists.
  */
 internal fun buildOccurrenceExceptionValues(
     form: EventForm,
@@ -264,7 +268,7 @@ internal fun buildOccurrenceExceptionValues(
     put(CalendarContract.Events.ACCESS_LEVEL, form.accessLevel.toProviderValue())
     put(CalendarContract.Events.EVENT_LOCATION, form.location.trim().ifEmpty { null })
     put(CalendarContract.Events.DESCRIPTION, form.description.trim().ifEmpty { null })
-    putAll(eventColorColumns(form.colorKey, form.color))
+    if (form.colorKey == null) putAll(eventColorColumns(null, form.color))
 }
 
 /**

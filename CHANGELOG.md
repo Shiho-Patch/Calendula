@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Multi-day events stay above shorter events.** Month and Week bars, Split day lists, and Agenda now place multi-day events before one-day all-day events, then timed events; declined events remain last ([#291]).
+- **Editing one occurrence of a coloured Google series saves again.** Saving with "Only this event" kept you on the edit screen without saving anything ([#338]).
 
 ## [2.21.0] — 2026-09-23
 
@@ -1789,3 +1790,4 @@ automatically, with zero telemetry and no internet permission.
 [#321]: https://codeberg.org/jlmakiola/calendula/issues/321
 [#329]: https://codeberg.org/jlmakiola/calendula/issues/329
 [#285]: https://codeberg.org/jlmakiola/calendula/issues/285
+[#338]: https://codeberg.org/jlmakiola/calendula/issues/338
