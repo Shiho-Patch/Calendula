@@ -645,4 +645,7 @@
     <string name="special_dates_default_title_birthday">Aniversário de {nome} ({ano})</string>
     <string name="special_dates_default_title_anniversary">Aniversário de relacionamento de {nome} ({ano})</string>
     <string name="special_dates_default_title_custom">{nome}</string>
+    <string name="state_failure_permission_body">Calendula lê seus eventos diretamente do calendário do sistema, então precisa de acesso ao calendário para exibir qualquer informação.</string>
+    <string name="state_failure_no_calendars_body">Adicione uma conta de calendário a este dispositivo e seus calendários aparecerão aqui.</string>
+    <string name="state_failure_all_hidden">Todos os seus calendários estão desativados.</string>
 </resources>
