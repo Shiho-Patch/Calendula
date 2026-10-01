@@ -801,4 +801,5 @@
     <string name="month_split_clear_filter">إظهار جدول الشهر كامل</string>
     <string name="timeline_earlier_events">أحداث سابقة</string>
     <string name="timeline_later_events">أحداث لاحقة</string>
+    <string name="reminder_day_today">اليوم</string>
 </resources>
