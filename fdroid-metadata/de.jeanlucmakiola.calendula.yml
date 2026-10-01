@@ -1,7 +1,7 @@
 AuthorName: Jean-Luc Makiola
 License: MIT
 Name: Calendula
-Summary: A modern Material 3 Expressive calendar for Android.
+Summary: A Material 3 Expressive calendar for Android with no network access.
 
 Categories:
   - Calendar & Agenda

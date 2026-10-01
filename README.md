@@ -4,8 +4,8 @@
 
 <h1>Calendula</h1>
 
-<p><strong>A modern Material 3 Expressive calendar for Android.</strong><br>
-Reads, writes, and reminds — on top of the system calendar, with zero network access.</p>
+<p><strong>A Material 3 Expressive calendar for Android.</strong><br>
+It works on top of the system calendar and has no network access.</p>
 
 <p>
 <a href="https://codeberg.org/jlmakiola/calendula/actions"><img src="https://codeberg.org/jlmakiola/calendula/actions/workflows/ci.yaml/badge.svg?branch=main" alt="CI"></a>
@@ -26,84 +26,89 @@ Reads, writes, and reminds — on top of the system calendar, with zero network 
 </p>
 
 <p>
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01-week.png" width="16%" alt="Week view">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02-month.png" width="16%" alt="Month view">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03-day.png" width="16%" alt="Day view">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04-detail.png" width="16%" alt="Event detail">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05-agenda.png" width="16%" alt="Agenda view">&nbsp;
-<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/06-onboarding.png" width="16%" alt="Reminder onboarding">
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01-week.png" width="13%" alt="Week view">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02-month.png" width="13%" alt="Month view">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03-agenda.png" width="13%" alt="Agenda view">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04-detail.png" width="13%" alt="Event detail">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/05-recurring.png" width="13%" alt="Editing a recurring event">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/06-calendars.png" width="13%" alt="Calendars from your accounts">&nbsp;
+<img src="fastlane/metadata/android/en-US/images/phoneScreenshots/07-dark.png" width="13%" alt="Dark theme">
 </p>
 
 </div>
 
-Calendula is named after the flower whose name — like the word *calendar* —
-comes from the Latin *kalendae*, the first day of the month. It lives
-entirely on top of Android's `CalendarContract`: any calendar synced to your
-device (CalDAV via DAVx5, Google, local, WebCal subscriptions, …) simply
-appears, and everything you create or edit syncs back the same way. No own
-database, no sync stack reinvented.
+Calendula is named after the flower. Both its name and the word *calendar*
+come from the Latin *kalendae*, the first day of the month.
 
-## ✨ Features
+The app works directly on Android's `CalendarContract`. Any calendar synced to
+your device (CalDAV via DAVx5, Google, local, WebCal subscriptions) shows up in
+Calendula, and whatever you create or edit syncs back the same way. Calendula
+has no database or sync code of its own.
 
-**Calendar**
+## Features
 
-- Month, week, and day views with a one-tap view switcher
-- Full event details — attendees and their responses, reminders, recurrence
-  (humanized), availability, visibility, foreign time zones
-- Per-calendar visibility toggle, grouped by account
+### Calendar
 
-**Editing**
+- Month, week and day views, with a switcher in the top bar
+- Event details with attendees and their responses, reminders, recurrence in
+  plain words, availability, visibility and foreign time zones
+- Calendars can be shown or hidden one by one, grouped by account
+- Your contacts' birthdays, anniversaries and other dates, if you turn it on.
+  Contacts are read on the device and never changed.
 
-- Create, edit, and delete events — including recurring events with scoped
-  writes: *only this event*, *this and all following*, or *the whole series*
-- Recurrence picker with one-tap presets and custom rules (interval, weekday
-  toggles, end conditions); rules it can't express are preserved verbatim
-- Conflict-safe saves: if an event changed elsewhere while you were editing,
-  Calendula asks instead of silently overwriting
-- Read-only calendars (WebCal, birthdays) are detected and respected
+### Editing
 
-**Reminders**
+- Create, edit and delete events. For a recurring event you choose whether a
+  change applies to *only this event*, *this and all following*, or *the whole
+  series*.
+- The repeat picker has presets and custom rules (interval, weekdays, end
+  condition). Rules it can't show are kept as they are.
+- If an event changed elsewhere while you were editing it, Calendula asks
+  before saving over it.
+- Read-only calendars such as WebCal subscriptions and birthdays are detected
+  and can't be edited by accident.
 
-- Event reminders delivered by Calendula itself as notifications —
-  essential when it's your only calendar app, since Android delegates
-  reminder delivery to calendar apps
-- Tap a reminder to land on the event
+### Reminders
 
-**Design & privacy**
+- Calendula shows event reminders as notifications itself. Android leaves
+  reminder delivery to calendar apps, so if Calendula is your only one, this is
+  where your reminders come from.
+- Tapping a reminder opens the event.
 
-- Real Material 3 Expressive throughout — dynamic color (Android 12+),
-  expressive motion and shapes, light/dark theme
-- English and German UI plus community translations (Spanish, French, Italian,
-  Polish, and more in progress), per-app language setting — and [open to more
-  languages](#-translations)
-- **Zero telemetry, zero analytics, no internet permission** — your data
-  never leaves the device
+### Design and privacy
 
-## 📦 Install
+- Material 3 Expressive throughout, with dynamic color on Android 12+, light
+  and dark themes, and expressive motion and shapes
+- Available in 16 languages, with a per-app language setting.
+  [Help translate](#translations).
+- No telemetry, no analytics and no internet permission. Your data stays on
+  the device.
 
-Pick whichever channel you already use — they all install the same app:
+## Install
+
+All channels install the same app:
 
 | Channel | Updates | Notes |
 | --- | --- | --- |
 | [Official F-Droid](#f-droid-recommended) | On F-Droid's build schedule | Recommended; no extra setup |
-| [Self-hosted F-Droid repo](#self-hosted-f-droid-repo-fastest-updates) | Minutes after a release | Fastest; needs the repo added once |
-| [Codeberg release / Obtainium](#codeberg-release--obtainium) | Per release | Plain APK download, or automated by Obtainium |
-| [Google Play](#google-play) | Per release | Signed with Google's key — see below |
+| [Self-hosted F-Droid repo](#self-hosted-f-droid-repo-fastest-updates) | Minutes after a release | Fastest; add the repo once |
+| [Codeberg release / Obtainium](#codeberg-release--obtainium) | Per release | Plain APK download, or automatic with Obtainium |
+| [Google Play](#google-play) | Per release | Signed with Google's key, see below |
 | [Build from source](#build-from-source) | Whenever you build | Full control |
 
 ### F-Droid (recommended)
 
-Calendula is on the **official [F-Droid](https://f-droid.org) repository** —
-just search for **Calendula** in any F-Droid client, or
+Calendula is in the official [F-Droid](https://f-droid.org) repository. Search
+for Calendula in any F-Droid client, or
 [install it from f-droid.org](https://f-droid.org/packages/de.jeanlucmakiola.calendula/).
 
-F-Droid rebuilds from source on its own schedule, so a new version usually
-shows up there a few days after release.
+F-Droid builds from source on its own schedule, so a new version usually shows
+up there a few days after release.
 
 ### Self-hosted F-Droid repo (fastest updates)
 
-Every release is built, signed, and published to a self-hosted F-Droid
-repository as part of the release pipeline, so it lands there first. Add it once
+The release pipeline builds, signs and publishes every release to a
+self-hosted F-Droid repository, so new versions land there first. Add it once
 and your F-Droid client handles updates from then on:
 
 1. In your F-Droid client, open *Settings → Repositories → Add* (or open the
@@ -117,88 +122,86 @@ and your F-Droid client handles updates from then on:
    fingerprint (SHA-256):
    `C2C0 6404 02BF 458F C0ED 957A F0B3 7AA4 C140 22E7 2F89 CE90 B596 5B45 8CF7 3425`</sub>
 
-2. Refresh, search for **Calendula**, install.
+2. Refresh, search for Calendula and install it.
 
 ### Codeberg release / Obtainium
 
-If you'd rather not use F-Droid at all, every release is also published on
-**[Codeberg](https://codeberg.org/jlmakiola/calendula/releases)** with the
-signed APK (`calendula_vX.Y.Z.apk`) and a `.sha256` checksum attached — download
-and install it directly.
+Every release is also on
+[Codeberg](https://codeberg.org/jlmakiola/calendula/releases) with the signed
+APK (`calendula_vX.Y.Z.apk`) and a `.sha256` checksum. Download it and install
+it directly.
 
-For automatic updates from that channel, use
-**[Obtainium](https://github.com/ImranR98/Obtainium)** — on the phone,
-**[add Calendula in one tap](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://codeberg.org/jlmakiola/calendula)**,
-or do it by hand: *Add App* → paste `https://codeberg.org/jlmakiola/calendula`
-→ *Add*. Either way, Obtainium tracks the releases and prompts you when a new
-one appears.
+For automatic updates from Codeberg, use
+[Obtainium](https://github.com/ImranR98/Obtainium). On your phone,
+[add Calendula in one tap](https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://codeberg.org/jlmakiola/calendula),
+or add it by hand: *Add App*, paste `https://codeberg.org/jlmakiola/calendula`,
+then *Add*. Obtainium then watches the releases and tells you when a new one
+is out.
 
 ### Google Play
 
-Calendula is live on Google Play:
-**[play.google.com/store/apps/details?id=de.jeanlucmakiola.calendula](https://play.google.com/store/apps/details?id=de.jeanlucmakiola.calendula)**.
+Calendula is on
+[Google Play](https://play.google.com/store/apps/details?id=de.jeanlucmakiola.calendula).
 
 Play builds are signed with Google's key rather than mine, so switching between
-Play and any other channel requires an uninstall (and with it, a fresh start for
-app settings — your events live in the system calendar and are unaffected).
+Play and any other channel means uninstalling first. You lose the app settings.
+Your events live in the system calendar and aren't affected.
 
 ### Build from source
 
-The build is a plain Gradle build with no proprietary dependencies — see
-**[docs/BUILDING.md](docs/BUILDING.md)** (note the `floret-kit` submodule).
+It's a plain Gradle build with no proprietary dependencies. See
+[docs/BUILDING.md](docs/BUILDING.md), and note the `floret-kit` submodule.
 
-<sub>Official F-Droid, the self-hosted repo, and the Codeberg releases all share
-the same signing key, so you can switch freely between them without
-reinstalling. Google Play is the exception — see above.</sub>
+<sub>Official F-Droid, the self-hosted repo and the Codeberg releases share the
+same signing key, so you can switch between them without reinstalling. Google
+Play is the exception (see above).</sub>
 
-## 📚 Documentation
+## Documentation
 
-- **[Contributing](CONTRIBUTING.md)** — how to report, propose, and patch
-- **[Building from source](docs/BUILDING.md)** — requirements and Gradle tasks
-- **[Architecture](docs/ARCHITECTURE.md)** — the layered design and key pipelines
-- **[Milestones](https://codeberg.org/jlmakiola/calendula/milestones)** — what's shipped and what's next
-- **[Privacy policy](docs/PRIVACY.md)** — the source of the page published at
+- [Contributing](CONTRIBUTING.md): how to report bugs, propose features and send patches
+- [Building from source](docs/BUILDING.md): requirements and Gradle tasks
+- [Architecture](docs/ARCHITECTURE.md): the layers and the main pipelines
+- [Milestones](https://codeberg.org/jlmakiola/calendula/milestones): what has shipped and what's next
+- [Privacy policy](docs/PRIVACY.md): the source of the page at
   [jeanlucmakiola.de/calendula/privacy](https://jeanlucmakiola.de/calendula/privacy)
 
-## 🤝 Contributing
+## Contributing
 
-Bug reports, ideas, and patches are all welcome on
-**[Codeberg](https://codeberg.org/jlmakiola/calendula/issues)**.
+Bug reports, ideas and patches are welcome on
+[Codeberg](https://codeberg.org/jlmakiola/calendula/issues).
 
-The short version: **start with an issue.** Features get a yes-or-no before they
-get code, and both features and bugs are assigned a milestone whose
-`release/vX.Y.Z` branch your pull request then targets. Typo and docs fixes can
-skip straight to a pull request. Translations don't go through pull requests at
-all — [Weblate owns them](#-translations).
+Start with an issue. A feature gets a yes or no before anyone writes code, and
+features and bugs are assigned a milestone whose `release/vX.Y.Z` branch your
+pull request targets. Typo and docs fixes can go straight to a pull request.
+Translations go through [Weblate](#translations), not pull requests.
 
-Read **[CONTRIBUTING.md](CONTRIBUTING.md)** before writing code: it covers the
-workflow, the build (note the `floret-kit` submodule), and the architectural
-rules a change is reviewed against.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before writing code. It covers the
+workflow, the build (including the `floret-kit` submodule) and the
+architectural rules changes are reviewed against.
 
-## 🌍 Translations
+## Translations
 
-Calendula ships in English and German, with community translations in Arabic,
-Chinese, French, Italian, Polish, Portuguese, Russian, and Spanish at varying
-degrees of completeness — partial is fine, untranslated strings simply fall back
-to English. You're warmly invited to add or finish your language. Translations
-are managed on a self-hosted **Weblate**:
+Calendula is written in English. Translators on Weblate have added Arabic,
+Belarusian, Chinese (Simplified), Czech, French, German, Hungarian, Italian,
+Japanese, Polish, Portuguese (Portugal and Brazil), Russian, Slovak and Spanish,
+some of them partly. Untranslated strings fall back to English, so a partial
+translation is fine. Translations are managed on a self-hosted Weblate:
 
-**→ [Help translate Calendula](https://weblate.dev.jeanlucmakiola.de/engage/calendula/)**
+[Help translate Calendula](https://weblate.dev.jeanlucmakiola.de/engage/calendula/)
 
-No coding needed — register on the Weblate server, pick (or request) a language,
-and translate the strings in your browser. You can also reach this link in the
-app from the top of **Settings → App language**.
+You don't need to code. Register on the Weblate server, pick a language (or
+request one) and translate in your browser. The app links here from the top of
+*Settings → App language*.
 
-## 🔒 Privacy
+## Privacy
 
-No analytics, no tracking, no advertising, no crash-reporting SDK, no third-party
-services — and **no internet permission at all**, so the app is technically
-incapable of transmitting anything anywhere. Your events stay in Android's own
-calendar store, where they already were.
+Calendula has no analytics, tracking, ads, crash-reporting SDK or third-party
+services. It doesn't have the internet permission, so it can't send anything
+anywhere. Your events stay in Android's own calendar store.
 
-**→ [Privacy policy](https://jeanlucmakiola.de/calendula/privacy)** — written in
+[Privacy policy](https://jeanlucmakiola.de/calendula/privacy), written in
 [`docs/PRIVACY.md`](docs/PRIVACY.md), which is what that page renders.
 
-## 📜 License
+## License
 
-[MIT](LICENSE) — Jean-Luc Makiola, 2026
+[MIT](LICENSE), Jean-Luc Makiola, 2026

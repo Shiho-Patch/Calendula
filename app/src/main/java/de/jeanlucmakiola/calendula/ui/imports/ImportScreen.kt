@@ -78,6 +78,7 @@ fun ImportScreen(
     onOpenSingle: (EventForm) -> Unit,
     forceMany: Boolean = false,
     onManageCalendars: (() -> Unit)? = null,
+    visible: Boolean = true,
     viewModel: ImportViewModel = hiltViewModel(),
 ) {
     // hiltViewModel() resolves to the Activity's store and is retained across
@@ -103,7 +104,7 @@ fun ImportScreen(
 
     Scaffold(
         modifier = Modifier
-            .predictiveBack(onBack = onClose)
+            .predictiveBack(onBack = onClose, visible = visible)
             .fillMaxSize(),
         topBar = {
             TopAppBar(

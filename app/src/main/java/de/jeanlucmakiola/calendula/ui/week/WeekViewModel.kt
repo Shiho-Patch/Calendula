@@ -9,18 +9,22 @@ import de.jeanlucmakiola.calendula.data.prefs.SettingsPrefs
 import de.jeanlucmakiola.calendula.data.prefs.resolveFirstDay
 import de.jeanlucmakiola.calendula.domain.CalendarSource
 import de.jeanlucmakiola.calendula.domain.EventInstance
+import de.jeanlucmakiola.calendula.domain.displayPriority
 import de.jeanlucmakiola.calendula.domain.FailureReason
 import de.jeanlucmakiola.calendula.domain.calendarListFailure
-import de.jeanlucmakiola.calendula.domain.isDeclined
+import de.jeanlucmakiola.calendula.ui.common.PageStateCache
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNot
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -30,6 +34,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.atTime
+import kotlinx.datetime.daysUntil
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlinx.datetime.toInstant
@@ -38,19 +43,42 @@ import java.util.Locale
 import kotlin.time.Clock
 import kotlin.time.Instant
 import javax.inject.Inject
+import kotlin.math.abs
 
 const val MINUTES_PER_DAY: Int = 24 * 60
 
+/** How far from the requested page [PagedTimelineViewModel.span] keeps other pages cached. */
+private const val SPAN_CACHE_DAYS = 28
+
+/** A run of [count] days from [start]: what one timeline page shows. */
+data class DaySpan(val start: LocalDate, val count: Int)
+
+/** How the pager cuts the calendar, and the page the anchor sits on. */
+data class PagerPosition(val grid: PageGrid, val page: Int)
+
+/** Where [anchor] sits under [rule]. */
+fun positionOf(anchor: LocalDate, rule: (LocalDate) -> PageGrid): PagerPosition =
+    rule(anchor).let { PagerPosition(it, it.pageFor(anchor)) }
+
+/**
+ * A timeline paged in runs of days: the week view, and the multi-day view (#193).
+ * The pager leads; the anchor follows it once it settles, and the grid it is
+ * cut by is derived from the anchor through [gridRule], so a subclass decides
+ * whether a jump re-frames the pages or only moves between them.
+ *
+ * @param gridRule the grid to use for a given anchor, as the settings behind it change.
+ * @param initialRule the rule used until [gridRule] first emits.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
-@HiltViewModel
-class WeekViewModel @Inject constructor(
+abstract class PagedTimelineViewModel(
     private val repository: CalendarRepository,
     settingsPrefs: SettingsPrefs,
-    @IoDispatcher private val io: CoroutineDispatcher,
+    private val io: CoroutineDispatcher,
+    gridRule: Flow<(LocalDate) -> PageGrid>,
+    initialRule: (LocalDate) -> PageGrid,
 ) : ViewModel() {
 
     private val zone = TimeZone.currentSystemDefault()
-    private val locale: Locale = Locale.getDefault()
 
     /** Whether to fade events that have already finished (display concern only). */
     val dimCompletedEvents: StateFlow<Boolean> = settingsPrefs.dimCompletedEvents
@@ -63,76 +91,91 @@ class WeekViewModel @Inject constructor(
     private val todayDate: LocalDate
         get() = Clock.System.now().toLocalDateTime(zone).date
 
-    /** First day of the week, from the Settings preference (AUTO → locale). */
-    private val weekStart: StateFlow<DayOfWeek> = settingsPrefs.weekStart
-        .map { it.resolveFirstDay(locale) }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = DayOfWeek.MONDAY,
-        )
-
-    // Anchor is a representative day inside the visible week; the actual week
-    // start is derived against [weekStart], so changing the first-day preference
-    // re-frames the same week instead of jumping.
+    // A day on the visible page; the page itself comes from the grid, so a
+    // settings change re-frames the same days instead of jumping.
     private val _anchor = MutableStateFlow(todayDate)
+    val anchor: StateFlow<LocalDate> = _anchor
 
-    val weekStartDate: StateFlow<LocalDate> =
-        combine(_anchor, weekStart) { anchor, ws -> anchor.startOfWeek(ws) }
+    /**
+     * The grid for a given anchor, held eagerly so a screen can place its pager
+     * on its very first frame rather than a frame after the anchor moved.
+     */
+    val rule: StateFlow<(LocalDate) -> PageGrid> =
+        gridRule.stateIn(viewModelScope, SharingStarted.Eagerly, initialRule)
+
+    private val position: StateFlow<PagerPosition> =
+        combine(_anchor, rule) { anchor, rule -> positionOf(anchor, rule) }
+            .distinctUntilChanged()
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000L),
-                initialValue = todayDate.startOfWeek(DayOfWeek.MONDAY),
+                initialValue = positionOf(todayDate, initialRule),
             )
 
+    /**
+     * The anchor page's state. Once loaded it never falls back to [WeekUiState.Loading]:
+     * moving the anchor keeps the last result until the new page arrives, since
+     * the pages draw their own days and this only gates the failure screen.
+     */
     val state: StateFlow<WeekUiState> =
-        combine(_anchor, weekStart) { anchor, ws -> anchor.startOfWeek(ws) }
+        position.map { DaySpan(it.grid.startForPage(it.page), it.grid.dayCount) }
             .distinctUntilChanged()
-            .flatMapLatest { start ->
-                val range = weekRange(start, zone)
-                combine(
-                    repository.calendars(),
-                    repository.instances(range),
-                ) { calendars, instances ->
-                    buildState(start, calendars, instances)
-                }
-            }
+            .flatMapLatest { span -> span(span).filterNot { it is WeekUiState.Loading } }
             .catch { emit(WeekUiState.Failure(FailureReason.ProviderUnavailable)) }
-            .flowOn(io)
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000L),
                 initialValue = WeekUiState.Loading,
             )
 
-    fun goToPrev() {
-        _anchor.value = _anchor.value.minus(7, DateTimeUnit.DAY)
+    private val spans = PageStateCache<DaySpan, WeekUiState>(
+        scope = viewModelScope,
+        initial = WeekUiState.Loading,
+        // Far enough to cover the pages either side and a swipe back, so paging
+        // through a year doesn't keep a year of queries around.
+        keep = { cached, requested ->
+            cached.count == requested.count &&
+                abs(cached.start.daysUntil(requested.start)) <= SPAN_CACHE_DAYS
+        },
+    ) { span ->
+        combine(
+            repository.calendars(),
+            repository.instances(spanRange(span.start, span.count, zone)),
+        ) { calendars, instances ->
+            buildState(span, calendars, instances)
+        }
+            .catch { emit(WeekUiState.Failure(FailureReason.ProviderUnavailable)) }
+            .flowOn(io)
     }
 
-    fun goToNext() {
-        _anchor.value = _anchor.value.plus(7, DateTimeUnit.DAY)
+    /** The days of one page, shared between that page and [state]. Main thread only. */
+    fun span(span: DaySpan): StateFlow<WeekUiState> = spans.get(span)
+
+    /** The pager came to rest on [page]; follow it unless it is already the anchor's. */
+    fun onPageSettled(page: Int) {
+        val grid = rule.value(_anchor.value)
+        if (grid.pageFor(_anchor.value) != page) _anchor.value = grid.startForPage(page)
     }
 
-    fun goToToday() {
-        _anchor.value = todayDate
-    }
-
-    /** Jump to the week containing [date] (drawer jump-to-date). */
-    fun goToDate(date: LocalDate) {
+    /** Move the anchor to [date], re-framing the pages if the grid depends on it. */
+    fun jumpTo(date: LocalDate) {
         _anchor.value = date
     }
 
+    fun goToToday() = jumpTo(todayDate)
+    fun goToDate(date: LocalDate) = jumpTo(date)
+
     private fun buildState(
-        start: LocalDate,
+        span: DaySpan,
         calendars: List<CalendarSource>,
         instances: List<EventInstance>,
     ): WeekUiState {
         calendarListFailure(calendars)?.let { return WeekUiState.Failure(it) }
-        val days = (0 until 7).map { start.plus(it, DateTimeUnit.DAY) }
+        val days = (0 until span.count).map { span.start.plus(it, DateTimeUnit.DAY) }
         val allDay = instances.filter { it.isAllDay }
         val timed = instances.filterNot { it.isAllDay }
         return WeekUiState.Success(
-            weekStart = start,
+            weekStart = span.start,
             today = todayDate,
             days = days,
             allDaySpans = layoutAllDay(allDay, days, zone),
@@ -140,6 +183,58 @@ class WeekViewModel @Inject constructor(
         )
     }
 }
+
+/** Whole weeks, starting on the first day from Settings (AUTO → locale). */
+@HiltViewModel
+class WeekViewModel @Inject constructor(
+    repository: CalendarRepository,
+    settingsPrefs: SettingsPrefs,
+    @IoDispatcher io: CoroutineDispatcher,
+) : PagedTimelineViewModel(
+    repository = repository,
+    settingsPrefs = settingsPrefs,
+    io = io,
+    gridRule = settingsPrefs.weekStart.map { pref ->
+        val grid = WeekGrid(pref.resolveFirstDay(Locale.getDefault()))
+        val rule: (LocalDate) -> PageGrid = { grid }
+        rule
+    },
+    initialRule = { WeekGrid(DayOfWeek.MONDAY) },
+)
+
+/**
+ * The multi-day view (#193): runs of the day count from Settings, with the
+ * anchor always a page's first day, so today — or a date jumped to — opens in
+ * the first column.
+ */
+@HiltViewModel
+class MultiDayViewModel @Inject constructor(
+    repository: CalendarRepository,
+    settingsPrefs: SettingsPrefs,
+    @IoDispatcher io: CoroutineDispatcher,
+) : PagedTimelineViewModel(
+    repository = repository,
+    settingsPrefs = settingsPrefs,
+    io = io,
+    gridRule = settingsPrefs.multiDayCount.map { count ->
+        { anchor: LocalDate -> DaysGrid.startingAt(anchor, count) }
+    },
+    initialRule = { DaysGrid.startingAt(it, SettingsPrefs.DEFAULT_MULTI_DAY_COUNT) },
+)
+
+/** The day view: the timeline one day at a time. */
+@HiltViewModel
+class DayViewModel @Inject constructor(
+    repository: CalendarRepository,
+    settingsPrefs: SettingsPrefs,
+    @IoDispatcher io: CoroutineDispatcher,
+) : PagedTimelineViewModel(
+    repository = repository,
+    settingsPrefs = settingsPrefs,
+    io = io,
+    gridRule = flowOf { _: LocalDate -> DayGrid },
+    initialRule = { DayGrid },
+)
 
 /**
  * Lay out all-day events as connected horizontal spans across the visible week.
@@ -160,7 +255,13 @@ internal fun layoutAllDay(
         }
         // Declined bars are packed after every other one, so on any day they
         // cover they land in a lane below it (#230).
-        .sortedWith(compareBy({ it.event.isDeclined }, { it.startCol }, { it.endCol }))
+        .sortedWith(
+            compareBy<Raw> { it.event.displayPriority(zone) }
+                .thenBy { it.startCol }
+                .thenBy { it.endCol }
+                .thenBy { it.event.start }
+                .thenBy { it.event.instanceId },
+        )
 
     // What each lane already holds, rather than just how far right it reaches.
     // A single "last occupied column" only answers correctly while spans arrive
@@ -194,10 +295,10 @@ internal fun LocalDate.startOfWeek(weekStart: DayOfWeek): LocalDate {
     return minus(offset, DateTimeUnit.DAY)
 }
 
-/** Half-open instant range covering the seven days starting at [start]. */
-internal fun weekRange(start: LocalDate, zone: TimeZone): ClosedRange<Instant> {
+/** Instant range covering the [count] days starting at [start]. */
+internal fun spanRange(start: LocalDate, count: Int, zone: TimeZone): ClosedRange<Instant> {
     val from = start.atStartOfDayIn(zone)
-    val to = start.plus(6, DateTimeUnit.DAY).atTime(23, 59, 59).toInstant(zone)
+    val to = start.plus(count - 1, DateTimeUnit.DAY).atTime(23, 59, 59).toInstant(zone)
     return from..to
 }
 

@@ -1,0 +1,10 @@
+Új
+• A Nap, Hét és Hónap nézet mostantól ujjkövető lapozóval lapozható.
+• A többnapos nézet beállítható számú napot jelenít meg egymás mellett.
+• Látható órák: a kiválasztott óratartomány kitölti a képernyőt az idővonalas nézetekben.
+
+Változások
+• A mai nap kiemelkedik a havi rácsban, és a nézetek közti váltás most lágyan átalakul ahelyett, hogy vágna.
+
+Javítva
+• A címek és helyszínek 255 karakter után nem nőnek tovább, hogy a CalDAV-kiszolgálók ne vágják le őket szinkronizáláskor.

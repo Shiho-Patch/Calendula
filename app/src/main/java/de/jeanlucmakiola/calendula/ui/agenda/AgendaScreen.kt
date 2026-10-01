@@ -1,5 +1,18 @@
 package de.jeanlucmakiola.calendula.ui.agenda
 
+import de.jeanlucmakiola.calendula.ui.common.PublishChrome
+import de.jeanlucmakiola.calendula.ui.common.ScreenActions
+import de.jeanlucmakiola.calendula.ui.common.ScreenBody
+import de.jeanlucmakiola.calendula.ui.common.ScreenChrome
+import de.jeanlucmakiola.calendula.ui.common.LocalViewFocus
+import de.jeanlucmakiola.calendula.ui.common.EnterOnFocus
+import kotlinx.coroutines.flow.drop
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.rememberUpdatedState
+import de.jeanlucmakiola.calendula.ui.common.ViewMorphKey
+import de.jeanlucmakiola.calendula.ui.common.morphEvent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,34 +31,22 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Coffee
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,14 +59,9 @@ import de.jeanlucmakiola.calendula.ui.common.AppBarSpacing
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
 import de.jeanlucmakiola.calendula.ui.common.agendaRangeLabel
 import de.jeanlucmakiola.floret.identity.animateItemMotion
-import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
-import de.jeanlucmakiola.calendula.ui.common.CalendarFabColumn
-import de.jeanlucmakiola.calendula.ui.common.TodayAction
 import de.jeanlucmakiola.calendula.ui.common.CalendarFailure
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
-import de.jeanlucmakiola.calendula.ui.common.ViewSwitcherPill
-import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.floret.components.positionOf
 import de.jeanlucmakiola.calendula.ui.common.rememberCurrentMinute
 import de.jeanlucmakiola.floret.locale.currentLocale
@@ -81,26 +77,22 @@ import kotlin.time.Instant
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AgendaScreen(
-    selectedView: CalendarView,
-    onSelectView: (CalendarView) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
     onEventClick: (EventInstance) -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenSearch: () -> Unit,
     onCreateEvent: (LocalDate, Int?) -> Unit,
     quickSwitchViews: List<CalendarView> = IMPLEMENTED_VIEWS,
-    drawerViewOrder: List<CalendarView> = IMPLEMENTED_VIEWS,
-    todayInToolbar: Boolean = false,
     modifier: Modifier = Modifier,
     viewModel: AgendaViewModel = hiltViewModel(),
 ) {
+    // Opens on the focused date and hands back the day scrolled to the top.
+    val focus = LocalViewFocus.current
+    EnterOnFocus(viewModel) { if (it != viewModel.anchor.value) viewModel.goToDate(it) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val anchor by viewModel.anchor.collectAsStateWithLifecycle()
     val pastDisplay by viewModel.pastEventDisplay.collectAsStateWithLifecycle()
     val showToday by viewModel.showToday.collectAsStateWithLifecycle()
     val weekStart by viewModel.weekStart.collectAsStateWithLifecycle()
 
-    val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var showRangePicker by remember { mutableStateOf(false) }
 
@@ -124,112 +116,88 @@ fun AgendaScreen(
     // requested: scrolling before the new rows compose leaves the list keyed to
     // a row that reappears further down, and it follows it there.
     LaunchedEffect(successState?.anchor) { listState.scrollToItem(0) }
-    val jumpToToday = {
+    val jumpToToday: () -> Unit = {
         // Off today, moving the anchor is what resets the list (above); on today
         // the window doesn't change, so the scroll back is the whole action.
         if (isOnToday) scope.launch { listState.animateScrollToItem(0) }
         viewModel.goToToday()
+        (state as? AgendaUiState.Success)?.today?.let { focus?.date = it }
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            CalendarDrawer(
-                currentView = selectedView,
-                currentDate = anchor,
-                drawerState = drawerState,
-                viewOrder = drawerViewOrder,
-                onSelectView = { view ->
-                    onSelectView(view)
-                    scope.launch { drawerState.close() }
-                },
-                onJumpToDate = { target ->
-                    viewModel.goToDate(target)
-                    scope.launch { drawerState.close() }
-                },
-                onSettings = {
-                    onOpenSettings()
-                    scope.launch { drawerState.close() }
-                },
-            )
-        },
-    ) {
-        Scaffold(
-            modifier = modifier,
-            topBar = {
-                AgendaTopBar(
-                    selectedView = selectedView,
-                    onCycleView = { onSelectView(selectedView.next(quickSwitchViews)) },
-                    quickSwitchViews = quickSwitchViews,
-                    onOpenDrawer = { scope.launch { drawerState.open() } },
-                    onOpenSearch = onOpenSearch,
-                    showTodayButton = todayInToolbar,
-                    onToday = jumpToToday,
-                )
+    PublishChrome(
+        ScreenChrome(
+            title = stringResource(R.string.view_agenda),
+            titleDate = null,
+            drawerDate = anchor,
+            awayFromToday = !isOnToday || (scrolledAway && successState != null),
+            todayText = stringResource(R.string.agenda_today_action),
+        ),
+        ScreenActions(
+            onToday = jumpToToday,
+            onJumpToDate = { target ->
+                focus?.date = target
+                viewModel.goToDate(target)
             },
-            floatingActionButton = {
-                CalendarFabColumn(
-                    todayVisible = (!isOnToday || (scrolledAway && successState != null)) &&
-                        !todayInToolbar,
-                    todayText = stringResource(R.string.agenda_today_action),
-                    onToday = jumpToToday,
-                    onCreate = { onCreateEvent(anchor, null) },
-                )
-            },
-        ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            ) {
-                // One bar at the top: the "showing …" header on the left and the
-                // session range switcher on the right (one settings toggle).
-                successState?.takeIf { it.showRangeBar }?.let { s ->
-                    // end lines the selector up with whatever ends the top bar:
-                    // the view switcher's background, or — once #150 hides it —
-                    // the search icon's glyph.
-                    val selectorEnd = if (quickSwitchViews.size >= QuickSwitchConfig.MIN_CYCLE) {
-                        AppBarSpacing.Inset
-                    } else {
-                        AppBarSpacing.IconTrailingInset
-                    }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(
-                                start = RANGE_BAR_TEXT_INSET,
-                                end = selectorEnd,
-                                top = 8.dp,
-                                bottom = 8.dp,
-                            ),
-                    ) {
-                        AgendaRangeBanner(
-                            range = s.range,
-                            start = s.anchor,
-                            end = s.rangeEnd,
-                            modifier = Modifier.weight(1f),
-                        )
-                        AgendaRangePill(
-                            range = s.range,
-                            isOverride = s.rangeIsOverride,
-                            onClick = { showRangePicker = true },
-                        )
-                    }
+            onCreate = { onCreateEvent(anchor, null) },
+        ),
+    )
+
+    ScreenBody(modifier = modifier) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
+            // One bar at the top: the "showing …" header on the left and the
+            // session range switcher on the right (one settings toggle).
+            successState?.takeIf { it.showRangeBar }?.let { s ->
+                // end lines the selector up with whatever ends the top bar:
+                // the view switcher's background, or — once #150 hides it —
+                // the search icon's glyph.
+                val selectorEnd = if (quickSwitchViews.size >= QuickSwitchConfig.MIN_CYCLE) {
+                    AppBarSpacing.Inset
+                } else {
+                    AppBarSpacing.IconTrailingInset
                 }
-                AgendaContent(
-                    state = state,
-                    pastDisplay = pastDisplay,
-                    showToday = showToday,
-                    listState = listState,
-                    onRetry = viewModel::goToToday,
-                    onEventClick = onEventClick,
-                    onOpenDay = onOpenDay,
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                )
+                        .fillMaxWidth()
+                        .padding(
+                            start = RANGE_BAR_TEXT_INSET,
+                            end = selectorEnd,
+                            top = 8.dp,
+                            bottom = 8.dp,
+                        ),
+                ) {
+                    AgendaRangeBanner(
+                        range = s.range,
+                        start = s.anchor,
+                        end = s.rangeEnd,
+                        modifier = Modifier.weight(1f),
+                    )
+                    AgendaRangePill(
+                        range = s.range,
+                        isOverride = s.rangeIsOverride,
+                        onClick = { showRangePicker = true },
+                    )
+                }
             }
+            AgendaContent(
+                state = state,
+                pastDisplay = pastDisplay,
+                showToday = showToday,
+                listState = listState,
+                onRetry = viewModel::goToToday,
+                onEventClick = onEventClick,
+                onOpenDay = onOpenDay,
+                onTopDay = if (successState?.anchor == anchor) {
+                    { focus?.date = it }
+                } else null,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+            )
         }
     }
 
@@ -326,6 +294,7 @@ internal fun AgendaContent(
     onOpenDay: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
+    onTopDay: ((LocalDate) -> Unit)? = null,
 ) {
     when (state) {
         AgendaUiState.Loading -> Box(modifier)
@@ -368,6 +337,7 @@ internal fun AgendaContent(
                     now = now,
                     onEventClick = onEventClick,
                     onOpenDay = onOpenDay,
+                    onTopDay = onTopDay,
                     modifier = modifier,
                 )
             }
@@ -386,8 +356,20 @@ private fun AgendaList(
     now: Instant,
     onEventClick: (EventInstance) -> Unit,
     onOpenDay: (LocalDate) -> Unit,
+    onTopDay: ((LocalDate) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    if (onTopDay != null) {
+        val itemDates by rememberUpdatedState(agendaItemDates(days))
+        val currentOnTopDay by rememberUpdatedState(onTopDay)
+        // The day the list opened on is where the view already is; only a
+        // scroll moves it on.
+        LaunchedEffect(listState) {
+            snapshotFlow { listState.firstVisibleItemIndex }
+                .drop(1)
+                .collect { index -> itemDates.getOrNull(index)?.let(currentOnTopDay) }
+        }
+    }
     LazyColumn(
         modifier = modifier,
         state = listState,
@@ -420,7 +402,7 @@ private fun AgendaList(
                         zone = zone,
                         position = positionOf(index, day.events.size),
                         dimmed = dimPast && event.hasEnded(now),
-                        modifier = animateItemMotion(),
+                        modifier = animateItemMotion().morphEvent(ViewMorphKey.event(event, day.date)),
                         onClick = { onEventClick(event) },
                     )
                 }
@@ -429,6 +411,13 @@ private fun AgendaList(
         }
     }
 }
+
+/** The day of each item [AgendaList] lays out for [days], in its order. */
+internal fun agendaItemDates(days: List<AgendaDay>): List<LocalDate> =
+    days.flatMap { day ->
+        // Header, the placeholder or the events, then the gap.
+        List(2 + day.events.size.coerceAtLeast(1)) { day.date }
+    }
 
 @Composable
 private fun AgendaEmpty(modifier: Modifier = Modifier) {
@@ -450,59 +439,4 @@ private fun AgendaEmpty(modifier: Modifier = Modifier) {
             textAlign = TextAlign.Center,
         )
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AgendaTopBar(
-    selectedView: CalendarView,
-    onCycleView: () -> Unit,
-    quickSwitchViews: List<CalendarView>,
-    onOpenDrawer: () -> Unit,
-    onOpenSearch: () -> Unit,
-    showTodayButton: Boolean,
-    onToday: () -> Unit,
-) {
-    TopAppBar(
-        title = {
-            // A plain label rather than a CalendarTitleButton, so it takes that
-            // one's inset and one-line clamp itself.
-            Text(
-                text = stringResource(R.string.view_agenda),
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = AppBarSpacing.TitleInset),
-            )
-        },
-        navigationIcon = {
-            IconButton(onClick = onOpenDrawer) {
-                Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = stringResource(R.string.month_open_menu),
-                )
-            }
-        },
-        actions = {
-            TodayAction(show = showTodayButton, onToday = onToday)
-            IconButton(onClick = onOpenSearch) {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = stringResource(R.string.search_action),
-                )
-            }
-            ViewSwitcherPill(
-                current = selectedView,
-                cycle = quickSwitchViews,
-                onCycle = onCycleView,
-            )
-        },
-        // Deliberately flat: M3 lifts the bar to mark content scrolling under
-        // it, but here the bar meets the header on the same surface and the
-        // tint is what makes that seam look like a separate block (#186).
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            scrolledContainerColor = MaterialTheme.colorScheme.surface,
-        ),
-    )
 }

@@ -162,24 +162,34 @@ before. fastlane appears only as the Play Developer API client (`supply`),
 because the store listing already lives in `fastlane/metadata/android/` — the
 same tree the official F-Droid repo harvests. One metadata source, two stores.
 
-**What gets uploaded per release:** the AAB, plus the per-version "What's New"
-from `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt` — the
+**What gets uploaded per release:** the AAB, the per-version "What's New"
+from `fastlane/metadata/android/<locale>/changelogs/<versionCode>.txt` (the
 hand-written summary from step 3, which is why it must stay **under 500
-characters**: Play rejects a longer one. Listing text is
-**not** touched — an accidental overwrite of a live listing triggers a Play
-policy review. Sync it deliberately with `bundle exec fastlane listing`.
+characters**), and the **whole store listing** — title, short and full
+description, icon, feature graphic and screenshots for every locale — all in one
+Play edit. Nothing about the Play listing is edited in the console any more:
+change the files, and the next release pushes them. Unchanged images are
+skipped (`sync_image_upload`). Every listing change goes through Play's review,
+together with the bundle. To push a listing fix between releases, run
+`bundle exec fastlane listing` (add `version_code:<code>` if the track holds
+more than one release).
 
-**Screenshots and graphics are skipped**, because the committed assets satisfy
-F-Droid but not Play:
+The listing tree is guarded by `scripts/check_store_listing.py`, which CI runs
+on every pull request:
 
-| Asset | Committed | Play requires |
-| --- | --- | --- |
-| `phoneScreenshots/*.png` | 1280×2856, 32-bit RGBA | long edge ≤ 2× short edge (so ≤ 2560), 24-bit PNG, no alpha |
-| `icon.png` | 512×512, 24-bit RGB | 512×512, 32-bit PNG |
-| `featureGraphic.png` | *missing* | required, exactly 1024×500 |
+| Rule | Play limit |
+| --- | --- |
+| `title.txt` / `short_description.txt` / `full_description.txt` | 30 / 80 / 4000 chars, all three present in every locale |
+| `full_description.txt` | one line per paragraph — Play renders every newline |
+| `images/icon.png` | 512×512, 32-bit PNG |
+| `images/featureGraphic.png` | 1024×500, JPEG or 24-bit PNG |
+| `images/*Screenshots/*` | JPEG or 24-bit PNG (no alpha), sides 320–3840, long edge ≤ 2× short, 2–8 per type |
+| locale directories | exactly the ones in `fastlane/store-locales.txt`, which maps every app `values-*` to a Play locale code |
 
-Until those are fixed, Play's graphics are managed by hand in the console. Then
-pass `images:true` to the `listing` lane.
+A locale without its own images falls back to en-US in both stores, so graphics
+only need to exist there. Adding an app language means adding its line to
+`fastlane/store-locales.txt` and its listing directory — CI fails until both
+exist. Store text is not on Weblate; it is edited here.
 
 **Track.** Uploads go straight to `production` at a full rollout
 (`PLAY_RELEASE_STATUS=completed`). The merge to `main` is already the human

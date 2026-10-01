@@ -156,4 +156,5 @@ class EventToneTest {
         assertThat(eventTone(0xFFFFF6C0.toInt(), dark = false, harmonise = false).onContainer)
             .isEqualTo(0xFF000000.toInt())
     }
+
 }

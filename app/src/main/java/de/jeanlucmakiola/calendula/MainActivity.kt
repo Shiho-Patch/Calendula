@@ -32,6 +32,7 @@ import de.jeanlucmakiola.calendula.domain.EventForm
 import de.jeanlucmakiola.calendula.domain.buildInsertEventForm
 import de.jeanlucmakiola.calendula.ui.RootScreen
 import de.jeanlucmakiola.calendula.ui.common.LocalShowHourGrid
+import de.jeanlucmakiola.calendula.ui.common.LocalMultiDayCount
 import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.rememberTimelineZoom
 import de.jeanlucmakiola.calendula.ui.common.LocalSoftenColors
@@ -169,6 +170,7 @@ class MainActivity : AppCompatActivity() {
             // weeks and switching between the week and day view.
             val timelineZoom = rememberTimelineZoom(
                 stored = settings.timelineScale,
+                hours = settings.timelineHours,
                 onPersist = settingsViewModel::setTimelineScale,
             )
             val fonts by settingsViewModel.fontState.collectAsStateWithLifecycle()
@@ -188,6 +190,7 @@ class MainActivity : AppCompatActivity() {
                         LocalUse24HourFormat provides use24Hour,
                         LocalShowHourGrid provides settings.showHourGrid,
                         LocalTimelineZoom provides timelineZoom,
+                        LocalMultiDayCount provides settings.multiDayCount,
                         LocalSoftenColors provides settings.softenColors,
                     ) {
                         RootScreen(

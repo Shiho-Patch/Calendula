@@ -36,6 +36,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.AgendaRange
 import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.common.TimelineHours
 import de.jeanlucmakiola.calendula.ui.common.TimelineScale
 import de.jeanlucmakiola.calendula.ui.month.MonthViewStyle
 import de.jeanlucmakiola.calendula.ui.theme.AppFontSettings
@@ -148,11 +149,12 @@ class SettingsViewModel @Inject constructor(
                     combine(
                         prefs.todayButtonInToolbar,
                         prefs.dragToReschedule,
-                        ::Pair,
+                        prefs.multiDayCount,
+                        ::Triple,
                     ),
-                ) { hourLines, weekNumbers, showToday, soften, (todayInToolbar, dragToMove) ->
+                ) { hourLines, weekNumbers, showToday, soften, (todayInToolbar, dragToMove, multiDay) ->
                     DisplayToggles(
-                        hourLines, weekNumbers, showToday, soften, todayInToolbar, dragToMove,
+                        hourLines, weekNumbers, showToday, soften, todayInToolbar, dragToMove, multiDay,
                     )
                 },
             ) { view, screenRange, widgetRange, timeFormat, toggles ->
@@ -164,6 +166,7 @@ class SettingsViewModel @Inject constructor(
                     softenColors = toggles.softenColors,
                     todayButtonInToolbar = toggles.todayButtonInToolbar,
                     dragToReschedule = toggles.dragToReschedule,
+                    multiDayCount = toggles.multiDayCount,
                 )
             },
             combine(
@@ -178,9 +181,11 @@ class SettingsViewModel @Inject constructor(
                     prefs.drawerViewOrder,
                     prefs.monthViewStyle,
                     prefs.widgetSize,
-                    prefs.timelineScale,
-                ) { quickSwitch, drawer, monthStyle, widgetSize, timelineScale ->
-                    ViewCustomization(quickSwitch, drawer, monthStyle, widgetSize, timelineScale)
+                    combine(prefs.timelineScale, prefs.timelineHours, ::Pair),
+                ) { quickSwitch, drawer, monthStyle, widgetSize, (timelineScale, timelineHours) ->
+                    ViewCustomization(
+                        quickSwitch, drawer, monthStyle, widgetSize, timelineScale, timelineHours,
+                    )
                 },
             ) { showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization ->
                 MiscSettings(showRangeBar, autofocus, pastEvents, dimCompleted, viewCustomization)
@@ -197,6 +202,7 @@ class SettingsViewModel @Inject constructor(
                 softenColors = views.softenColors,
                 todayButtonInToolbar = views.todayButtonInToolbar,
                 dragToReschedule = views.dragToReschedule,
+                multiDayCount = views.multiDayCount,
                 agendaShowRangeBar = misc.showRangeBar,
                 autofocusEventTitle = misc.autofocusEventTitle,
                 pastEventDisplay = misc.pastEventDisplay,
@@ -206,6 +212,7 @@ class SettingsViewModel @Inject constructor(
                 monthViewStyle = misc.viewCustomization.monthViewStyle,
                 widgetSize = misc.viewCustomization.widgetSize,
                 timelineScale = misc.viewCustomization.timelineScale,
+                timelineHours = misc.viewCustomization.timelineHours,
                 allowColorOnUnsupportedCalendars = defaults.allowColor,
                 defaultReminderMinutes = defaults.defaultReminder,
                 defaultAllDayReminderMinutes = defaults.allDayReminder,
@@ -298,6 +305,7 @@ class SettingsViewModel @Inject constructor(
         val softenColors: Boolean,
         val todayButtonInToolbar: Boolean,
         val dragToReschedule: Boolean,
+        val multiDayCount: Int,
     )
 
     private data class DisplayToggles(
@@ -307,6 +315,7 @@ class SettingsViewModel @Inject constructor(
         val softenColors: Boolean,
         val todayButtonInToolbar: Boolean,
         val dragToReschedule: Boolean,
+        val multiDayCount: Int,
     )
 
     private data class MiscSettings(
@@ -323,6 +332,7 @@ class SettingsViewModel @Inject constructor(
         val monthViewStyle: MonthViewStyle,
         val widgetSize: WidgetSize,
         val timelineScale: TimelineScale,
+        val timelineHours: TimelineHours,
     )
 
     /** Contact special-dates sub-page (issue #15); its own flow — the main state is full. */
@@ -532,6 +542,10 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { prefs.setTimeFormat(pref) }
     }
 
+    fun setMultiDayCount(count: Int) {
+        viewModelScope.launch { prefs.setMultiDayCount(count) }
+    }
+
     fun setShowHourGrid(enabled: Boolean) {
         viewModelScope.launch { prefs.setShowHourGrid(enabled) }
     }
@@ -615,6 +629,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setTimelineScale(scale: TimelineScale) {
         viewModelScope.launch { prefs.setTimelineScale(scale) }
+    }
+
+    fun setTimelineHours(hours: TimelineHours) {
+        viewModelScope.launch { prefs.setTimelineHours(hours) }
     }
 
     fun setDrawerViewOrder(order: List<CalendarView>) {

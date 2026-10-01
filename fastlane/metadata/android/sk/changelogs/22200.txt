@@ -1,0 +1,10 @@
+Novinky
+• Deň, Týždeň a Mesiac sa teraz dajú listovať stránkovačom, ktorý sleduje prst.
+• Viacdňové zobrazenie ukazuje nastaviteľný počet dní vedľa seba.
+• Viditeľné hodiny: zvolený rozsah hodín vyplní obrazovku v časových zobrazeniach.
+
+Zmeny
+• Dnešok vyniká v mriežke mesiaca a prepínanie zobrazení teraz plynule prechádza namiesto ostrého strihu.
+
+Opravené
+• Názvy a miesta prestávajú rásť po 255 znakoch, aby ich servery CalDAV nezrezali uprostred synchronizácie.

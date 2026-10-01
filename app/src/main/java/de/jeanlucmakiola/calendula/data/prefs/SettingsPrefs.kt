@@ -21,6 +21,7 @@ import de.jeanlucmakiola.calendula.ui.agenda.storageValue
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.IMPLEMENTED_VIEWS
 import de.jeanlucmakiola.calendula.ui.common.QuickSwitchConfig
+import de.jeanlucmakiola.calendula.ui.common.TimelineHours
 import de.jeanlucmakiola.calendula.ui.common.TimelineScale
 import de.jeanlucmakiola.calendula.ui.common.parseTimelineScale
 import de.jeanlucmakiola.calendula.ui.common.storageValue
@@ -285,6 +286,36 @@ class SettingsPrefs @Inject constructor(
 
     suspend fun setTimelineScale(scale: TimelineScale) {
         store.edit { it[TIMELINE_SCALE_KEY] = scale.storageValue() }
+    }
+
+    /** How many days the multi-day view shows side by side (#193). */
+    val multiDayCount: Flow<Int> = store.data.map { prefs ->
+        (prefs[MULTI_DAY_COUNT_KEY] ?: DEFAULT_MULTI_DAY_COUNT).coerceIn(MULTI_DAY_COUNTS)
+    }
+
+    suspend fun setMultiDayCount(count: Int) {
+        store.edit { it[MULTI_DAY_COUNT_KEY] = count.coerceIn(MULTI_DAY_COUNTS) }
+    }
+
+    /**
+     * The hours the day, week and multi-day timelines fit to the screen when they
+     * open (#322). Off by default; the hours survive switching it off.
+     */
+    val timelineHours: Flow<TimelineHours> = store.data.map { prefs ->
+        TimelineHours.of(
+            enabled = prefs[TIMELINE_HOURS_ENABLED_KEY] ?: false,
+            startHour = prefs[TIMELINE_HOURS_START_KEY] ?: TimelineHours.DEFAULT_START_HOUR,
+            endHour = prefs[TIMELINE_HOURS_END_KEY] ?: TimelineHours.DEFAULT_END_HOUR,
+        )
+    }
+
+    suspend fun setTimelineHours(hours: TimelineHours) {
+        val valid = TimelineHours.of(hours.enabled, hours.startHour, hours.endHour)
+        store.edit {
+            it[TIMELINE_HOURS_ENABLED_KEY] = valid.enabled
+            it[TIMELINE_HOURS_START_KEY] = valid.startHour
+            it[TIMELINE_HOURS_END_KEY] = valid.endHour
+        }
     }
 
     /**
@@ -948,10 +979,20 @@ class SettingsPrefs @Inject constructor(
             if (view in config.enabled) view.name else "!${view.name}"
         }
 
-    /** Keep the given order (de-duplicated), then append any views it omits. */
+    /** Keep stored order; insert the new multi-day view after Week on upgrades. */
     private fun completeViewOrder(seen: List<CalendarView>): List<CalendarView> {
-        val ordered = seen.distinct()
-        return ordered + IMPLEMENTED_VIEWS.filterNot { it in ordered }
+        val ordered = seen.distinct().toMutableList()
+        IMPLEMENTED_VIEWS.forEach { view ->
+            if (view !in ordered) {
+                val index = if (view == CalendarView.MultiDay && CalendarView.Week in ordered) {
+                    ordered.indexOf(CalendarView.Week) + 1
+                } else {
+                    ordered.size
+                }
+                ordered.add(index, view)
+            }
+        }
+        return ordered
     }
 
     companion object {
@@ -1017,8 +1058,14 @@ class SettingsPrefs @Inject constructor(
         internal const val DEFAULT_ALLDAY_REMINDER_TIME = 540
         private const val MINUTES_PER_DAY = 1_440
         internal val SNOOZE_MINUTES_KEY = intPreferencesKey("snooze_minutes")
+        internal val MULTI_DAY_COUNT_KEY = intPreferencesKey("multi_day_count")
+        internal val TIMELINE_HOURS_ENABLED_KEY = booleanPreferencesKey("timeline_hours_enabled")
+        internal val TIMELINE_HOURS_START_KEY = intPreferencesKey("timeline_hours_start")
+        internal val TIMELINE_HOURS_END_KEY = intPreferencesKey("timeline_hours_end")
         /** Default snooze delay for the notification "Snooze" action. */
         const val DEFAULT_SNOOZE_MINUTES = 10
+        const val DEFAULT_MULTI_DAY_COUNT = 3
+        val MULTI_DAY_COUNTS = 3..6
         internal val CALENDAR_REMINDER_OVERRIDE_KEY =
             stringPreferencesKey("per_calendar_reminder_override")
         internal val CALENDAR_ALLDAY_REMINDER_OVERRIDE_KEY =

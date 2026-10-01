@@ -1261,6 +1261,13 @@ class AndroidCalendarDataSource @Inject constructor(
             values.toContentValues(),
         ) ?: throw WriteFailedException("modify occurrence event id=$eventId begin=$beginMillis")
         val exceptionId = ContentUris.parseId(uri)
+        form.colorKey?.let { key ->
+            resolver.update(
+                ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, exceptionId),
+                ContentValues().apply { put(CalendarContract.Events.EVENT_COLOR_KEY, key) },
+                null, null,
+            )
+        }
         // Whether the provider copied the parent's reminder rows is its
         // business — reconciling against the actual rows handles both ways.
         reconcileReminders(exceptionId, encodedReminders(form, allDayReminderTimeMinutes))

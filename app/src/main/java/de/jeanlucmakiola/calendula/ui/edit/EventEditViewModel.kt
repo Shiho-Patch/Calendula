@@ -63,6 +63,26 @@ private const val TAG = "EventEdit"
 private val LINE_BREAK = Regex("""[ \t]*\R[ \t]*""")
 
 /**
+ * Title and location are single-line provider columns that several CalDAV
+ * servers (Open-Xchange among them, #331) store as `VARCHAR(255)` and
+ * silently truncate past that on sync, with no error surfaced back to the
+ * app. 255 is the common floor, so it's what Calendula enforces up front.
+ */
+internal const val MAX_SINGLE_LINE_FIELD = 255
+
+/**
+ * Caps [new] at [max] chars, but only while growing past it — an [old] value
+ * that already exceeds [max] (imported, or synced in from elsewhere) may
+ * still shrink freely, it just can't grow any further. Never splits a
+ * surrogate pair at the cut point.
+ */
+internal fun capLength(new: String, old: String, max: Int = MAX_SINGLE_LINE_FIELD): String = when {
+    new.length <= max || new.length <= old.length -> new
+    old.length >= max -> old
+    else -> new.take(max).let { if (it.isNotEmpty() && it.last().isHighSurrogate()) it.dropLast(1) else it }
+}
+
+/**
  * Where a prefilled [EventEditViewModel.openImported] form came from. The sources
  * want different reminder handling (#49), and differ in whether they own the
  * event's length ([ownsDuration], #54) — one that does is never restretched to the
@@ -533,13 +553,17 @@ class EventEditViewModel @Inject constructor(
     // The title field wraps (multi-line) so long titles stay visible (#33), but
     // a title is one logical line: drop any newline the IME's Enter key or a
     // paste would introduce, so it never reaches the provider's TITLE column.
-    fun setTitle(value: String) =
-        update { it.copy(title = value.replace("\n", "").replace("\r", "")) }
+    fun setTitle(value: String) = update {
+        val cleaned = value.replace("\n", "").replace("\r", "")
+        it.copy(title = capLength(cleaned, it.title))
+    }
     // The location wraps too (#273) but is likewise one logical line. A pasted
     // multi-line address joins the way the contact picker's does (#146), so it
     // never runs together into "12 Main St10115 Berlin".
-    fun setLocation(value: String) =
-        update { it.copy(location = value.replace(LINE_BREAK, ", ")) }
+    fun setLocation(value: String) = update {
+        val cleaned = value.replace(LINE_BREAK, ", ")
+        it.copy(location = capLength(cleaned, it.location))
+    }
     fun setDescription(value: String) = update { it.copy(description = value) }
     fun setAllDay(value: Boolean) {
         // Going all-day drops any pinned zone: the times become bare dates that

@@ -284,8 +284,8 @@ class TimelineGeometry {
 }
 
 /**
- * Hoisted drag state for one timeline (#68). It lives above the per-page
- * `AnimatedContent`, so a page change mid-drag can't strand a ghost, and the
+ * Hoisted drag state for one timeline (#68). It lives above the pager, so a
+ * page change mid-drag can't strand a ghost, and the
  * block it renders is drawn in an overlay, clear of the day column's clip.
  */
 @Stable
@@ -710,7 +710,7 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
         val startMin = drag.eventStartMin.mod(MINUTES_PER_DAY)
         val rawEnd = startMin + drag.eventSpanMin
         val endMin = if (rawEnd > MINUTES_PER_DAY) rawEnd % MINUTES_PER_DAY else rawEnd
-        val label = "${formatMinuteOfDay(startMin, use24Hour, locale)}–" +
+        val range = formatMinuteOfDay(startMin, use24Hour, locale) to
             formatMinuteOfDay(endMin, use24Hour, locale)
         // The timeline's own bounds. The copy is drawn over the whole calendar
         // so no column clip or rounded corner cuts it, but it still belongs to
@@ -764,7 +764,7 @@ fun TimelineDragOverlay(controller: TimelineDragController, modifier: Modifier =
                     title = title,
                     titleLines = drag.titleLines,
                     // Once for the whole event: repeated, it would name it per day.
-                    label = label.takeIf { index == labelled },
+                    range = range.takeIf { index == labelled },
                 )
             }
         }
@@ -784,7 +784,7 @@ private fun DragCopy(
     alpha: Float,
     title: String,
     titleLines: Int,
-    label: String?,
+    range: Pair<String, String>?,
 ) {
     val density = LocalDensity.current
     val width = with(density) { sizePx.width.toDp() }
@@ -814,6 +814,7 @@ private fun DragCopy(
         )
     }
     val left = metrics.available - metrics.titleHeight(lines)
+    val label = range?.let { rememberBlockTimeRange(it.first, it.second, textWidth) }
     val showTime = label != null && left >= metrics.timeLine
     val timeMaxLines = if (showTime) {
         blockTimeLines(label!!, textWidth, left - metrics.timeLine)

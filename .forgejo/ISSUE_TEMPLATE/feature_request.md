@@ -9,7 +9,7 @@ labels:
 ### What would you like Calendula to do?
 
 
-### Why — what problem does it solve?
+### What problem does it solve?
 
 
 ### Anything else

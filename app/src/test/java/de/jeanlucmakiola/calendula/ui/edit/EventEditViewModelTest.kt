@@ -340,4 +340,71 @@ class EventEditViewModelTest {
         assertThat(fake.movedEvents).isEmpty()
         job.cancel()
     }
+
+    @Test
+    fun `setTitle caps a long paste at 255 chars`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { calendarsResult = listOf(cal(1L)) }
+        val vm = viewModel(tempDir, fake)
+        val job = activate(vm)
+
+        vm.openNew(LocalDate(2030, 1, 15))
+        advanceUntilIdle()
+        vm.setTitle("a".repeat(300))
+
+        assertThat(vm.state.value?.form?.title).hasLength(MAX_SINGLE_LINE_FIELD)
+        job.cancel()
+    }
+
+    @Test
+    fun `setTitle refuses to grow past 255 chars once capped`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { calendarsResult = listOf(cal(1L)) }
+        val vm = viewModel(tempDir, fake)
+        val job = activate(vm)
+
+        vm.openNew(LocalDate(2030, 1, 15))
+        advanceUntilIdle()
+        vm.setTitle("a".repeat(255))
+        vm.setTitle("a".repeat(256))
+
+        assertThat(vm.state.value?.form?.title).hasLength(255)
+        job.cancel()
+    }
+
+    @Test
+    fun `setLocation joins a multi-line address then caps it`(
+        @TempDir tempDir: Path,
+    ) = runTest(dispatcher) {
+        val fake = FakeCalendarDataSource().apply { calendarsResult = listOf(cal(1L)) }
+        val vm = viewModel(tempDir, fake)
+        val job = activate(vm)
+
+        vm.openNew(LocalDate(2030, 1, 15))
+        advanceUntilIdle()
+        vm.setLocation("${"a".repeat(200)}\n${"b".repeat(200)}")
+
+        val location = vm.state.value?.form?.location
+        assertThat(location).hasLength(MAX_SINGLE_LINE_FIELD)
+        assertThat(location).contains(", ")
+        job.cancel()
+    }
+
+    @Test
+    fun `capLength lets an already-over-long value shrink`() {
+        val overLong = "a".repeat(300)
+        val shortened = overLong.dropLast(1)
+
+        assertThat(capLength(shortened, overLong)).hasLength(299)
+    }
+
+    @Test
+    fun `capLength never splits a surrogate pair at the cut point`() {
+        // U+1F600, a surrogate pair, sits right across the 255 boundary.
+        val new = "a".repeat(254) + "😀"
+
+        assertThat(capLength(new, "")).isEqualTo("a".repeat(254))
+    }
 }

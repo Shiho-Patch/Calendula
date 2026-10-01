@@ -1,0 +1,10 @@
+Novidades
+• Dia, Semana e Mês deslizam agora com um pager que acompanha o dedo.
+• Vista de vários dias: mostra um número configurável de dias lado a lado.
+• Horas visíveis: um intervalo de horas escolhido preenche o ecrã nas vistas de linha temporal.
+
+Alterações
+• Hoje destaca-se na grelha do mês; mudar de vista transforma-se agora em vez de cortar.
+
+Corrigido
+• Títulos e localizações deixam de crescer a partir dos 255 carateres, para que CalDAV não os corte ao sincronizar.

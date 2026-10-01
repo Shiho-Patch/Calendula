@@ -1,24 +1,40 @@
 package de.jeanlucmakiola.calendula.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.SeekableTransitionState
+import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import de.jeanlucmakiola.calendula.ui.common.screen
+import de.jeanlucmakiola.calendula.ui.common.ViewScreen
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.jeanlucmakiola.calendula.domain.EventForm
@@ -26,18 +42,39 @@ import de.jeanlucmakiola.calendula.domain.EventInstance
 import de.jeanlucmakiola.calendula.ui.agenda.AgendaScreen
 import de.jeanlucmakiola.calendula.ui.calendars.BackupScreen
 import de.jeanlucmakiola.calendula.ui.calendars.CalendarsScreen
+import de.jeanlucmakiola.calendula.ui.common.BelowTopBarClip
+import de.jeanlucmakiola.calendula.ui.common.StayingPut
+import de.jeanlucmakiola.calendula.ui.common.CalendarDrawer
+import de.jeanlucmakiola.calendula.ui.common.CalendarFab
+import de.jeanlucmakiola.calendula.ui.common.CalendarTopBar
+import de.jeanlucmakiola.calendula.ui.common.ChromeHost
+import de.jeanlucmakiola.calendula.ui.common.ChromeSlot
+import de.jeanlucmakiola.calendula.ui.common.LocalChromeSlot
+import de.jeanlucmakiola.calendula.ui.common.next
 import de.jeanlucmakiola.floret.identity.fadeThrough
+import de.jeanlucmakiola.floret.identity.predictiveBackExit
+import de.jeanlucmakiola.floret.identity.rememberReduceMotion
 import de.jeanlucmakiola.calendula.ui.common.CalendarView
 import de.jeanlucmakiola.calendula.ui.common.EventMoveHost
 import de.jeanlucmakiola.calendula.ui.common.EventMoveScope
 import de.jeanlucmakiola.calendula.ui.common.LocalEventMove
 import de.jeanlucmakiola.calendula.ui.common.LocalManageCalendars
+import de.jeanlucmakiola.calendula.ui.common.LocalTimelineScroll
+import de.jeanlucmakiola.calendula.ui.common.LocalViewFocus
+import de.jeanlucmakiola.calendula.ui.common.ViewFocus
+import de.jeanlucmakiola.calendula.ui.common.ViewFocusSaver
+import de.jeanlucmakiola.calendula.ui.common.LocalViewMorph
 import de.jeanlucmakiola.calendula.ui.common.RescheduleViewModel
+import de.jeanlucmakiola.calendula.ui.common.TimelineScrollMemory
+import de.jeanlucmakiola.calendula.ui.common.LocalTimelineZoom
+import de.jeanlucmakiola.calendula.ui.common.ViewMorphScope
+import de.jeanlucmakiola.calendula.ui.common.rememberCalendarFadeSpec
+import de.jeanlucmakiola.calendula.ui.common.rememberViewMorphBoundsTransform
 import de.jeanlucmakiola.calendula.ui.common.drillToDay
+import de.jeanlucmakiola.calendula.ui.common.drillToWeek
 import de.jeanlucmakiola.calendula.ui.common.rememberCalendarSlideSpec
 import de.jeanlucmakiola.calendula.ui.common.selectView
 import de.jeanlucmakiola.calendula.ui.common.viewBaseStack
-import de.jeanlucmakiola.calendula.ui.day.DayScreen
 import de.jeanlucmakiola.calendula.ui.detail.EventDetailScreen
 import de.jeanlucmakiola.calendula.ui.edit.EventEditScreen
 import de.jeanlucmakiola.calendula.ui.edit.ImportSource
@@ -45,16 +82,21 @@ import de.jeanlucmakiola.calendula.ui.imports.ImportScreen
 import de.jeanlucmakiola.calendula.ui.month.MonthScreen
 import de.jeanlucmakiola.calendula.ui.search.SearchScreen
 import de.jeanlucmakiola.calendula.ui.settings.SettingsScreen
-import de.jeanlucmakiola.calendula.ui.week.WeekScreen
+import de.jeanlucmakiola.calendula.ui.week.TimelineScreen
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 
 /**
  * Holds the top-level view back stack (spec M1) and swaps between the calendar
- * screens. Each screen owns its own ViewModel and date anchor; the view-switcher
- * pill in their top bars writes back here via [onSelectView].
+ * screens. Each screen owns its own ViewModel; they all open on the one focused
+ * date held here ([ViewFocus]), and the view-switcher pill in their top bars
+ * writes back here via [onSelectView].
  *
  * The stack's bottom is the user's [CalendarHostViewModel.defaultView] home view.
  * A lateral switch (pill / drawer) builds a visit history so back retraces it
@@ -71,6 +113,7 @@ import kotlin.time.Clock
  * as [WidgetNavRequest.OpenEvent], which also roots the back stack in the
  * widget's view.)
  */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun CalendarHost(
     modifier: Modifier = Modifier,
@@ -102,14 +145,25 @@ fun CalendarHost(
     var viewStack by rememberSaveable(stateSaver = viewStackSaver) {
         mutableStateOf(listOf(defaultView))
     }
+    var navigationVersion by remember { mutableIntStateOf(0) }
     val view = viewStack.last()
-    val onSelectView: (CalendarView) -> Unit = { viewStack = viewStack.selectView(it) }
+    // The date every view opens on and carries along (#184); tapping a day
+    // anywhere focuses it and opens the day view there.
+    val focus = rememberSaveable(saver = ViewFocusSaver) { ViewFocus(localToday()) }
 
-    // Tapping a day in the month grid opens the day view anchored to that date.
-    var pendingDayIso by rememberSaveable { mutableStateOf<String?>(null) }
+    val switchScope = rememberCoroutineScope()
+    val switchTo: ((List<CalendarView>) -> List<CalendarView>) -> Unit = { move ->
+        navigationVersion++
+        viewStack = move(viewStack)
+    }
+    val onSelectView: (CalendarView) -> Unit = { target -> switchTo { it.selectView(target) } }
     val onOpenDay: (LocalDate) -> Unit = { date ->
-        pendingDayIso = date.toString()
-        viewStack = viewStack.drillToDay()
+        focus.navigateTo(date)
+        switchTo { it.drillToDay() }
+    }
+    val onOpenWeek: (LocalDate) -> Unit = { date ->
+        focus.navigateTo(date)
+        switchTo { it.drillToWeek() }
     }
 
     // The event-detail screen (S4) is a full-screen destination hoisted here so
@@ -259,13 +313,14 @@ fun CalendarHost(
     // [requestedDetailKey]. Date/event opens root the stack in the widget's own
     // view so backing out returns there (then home), not to the default.
     LaunchedEffect(widgetNavRequest) {
+        if (widgetNavRequest != null) navigationVersion++
         when (val req = widgetNavRequest) {
             is WidgetNavRequest.OpenDate -> {
                 // Drill the day view in over the widget's view: drop any overlay
                 // that would cover it, so the open doesn't land under Settings/form.
                 dismissCoveringOverlays()
                 createDateIso = null
-                pendingDayIso = req.dateIso
+                focus.navigateTo(LocalDate.parse(req.dateIso))
                 // No widget source (an external date tap) roots over the default
                 // home view, so backing out of the day returns home then exits.
                 viewStack = viewBaseStack(defaultView, req.source ?: defaultView).drillToDay()
@@ -289,7 +344,7 @@ fun CalendarHost(
                 // default home — so backing out returns to the default, then exits.
                 dismissCoveringOverlays()
                 createDateIso = null
-                pendingDayIso = null
+                focus.navigateTo(localToday())
                 viewStack = viewBaseStack(defaultView, req.view ?: defaultView)
                 onWidgetNavConsumed()
             }
@@ -340,6 +395,9 @@ fun CalendarHost(
     }
 
     val slideSpec = rememberCalendarSlideSpec()
+    // Overlays leave from the predictive-back preview (#184): shrinking on from
+    // where the gesture let go instead of snapping back and sliding off.
+    val overlayExit = predictiveBackExit()
 
     // Base-level back: pop the view stack while no overlay covers it (each overlay
     // owns its own BackHandler and takes precedence). Disabled at the home view,
@@ -347,76 +405,158 @@ fun CalendarHost(
     val anyOverlayVisible = showSearch || detailKey != null || createDateIso != null ||
         editKey != null || showSettings || showCalendars || showBackup ||
         importUri != null || importForm != null
-    BackHandler(enabled = !anyOverlayVisible && viewStack.size > 1) {
-        viewStack = viewStack.dropLast(1)
+    // The view switch runs on a seekable transition, so a back gesture can scrub
+    // it (#185): the previous view morphs in under the finger, releasing finishes
+    // the pop and cancelling springs back. Reduced motion keeps a plain back.
+    val viewTransition = remember { SeekableTransitionState(view) }
+    LaunchedEffect(view) { viewTransition.animateTo(view) }
+    val reduceMotion = rememberReduceMotion()
+    val viewBackEnabled = !anyOverlayVisible && viewStack.size > 1
+    if (reduceMotion) {
+        BackHandler(enabled = viewBackEnabled) {
+            navigationVersion++
+            viewStack = viewStack.dropLast(1)
+        }
+    } else {
+        PredictiveBackHandler(enabled = viewBackEnabled) { events ->
+            val previous = viewStack[viewStack.size - 2]
+            try {
+                events.collect { viewTransition.seekTo(it.progress, targetState = previous) }
+                navigationVersion++
+                viewStack = viewStack.dropLast(1)
+            } catch (e: CancellationException) {
+                withContext(NonCancellable) { viewTransition.animateTo(viewTransition.currentState) }
+                throw e
+            }
+        }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Switching between the peer views (month/week/day/agenda) is lateral
+        // Switching between the month, timeline and agenda screens is lateral
         // navigation, so it fades through rather than sliding — paging *within* a
-        // view keeps the directional slide. AnimatedContent keyed on the view type.
+        // view keeps the directional slide. What both views show morphs across
+        // (#184): see [ViewMorphKey]. Reduced motion keeps the plain fade.
         val viewSwitch = fadeThrough()
+        val morphBounds = rememberViewMorphBoundsTransform()
+        val morphFade = rememberCalendarFadeSpec()
+        val morphClip = remember { BelowTopBarClip() }
+        val stayingPut = remember { StayingPut() }
+        val chromeHost = remember { ChromeHost() }
+        val drawerState = rememberDrawerState(DrawerValue.Closed)
+        val density = LocalDensity.current
+        val topBarBottom = TopAppBarDefaults.windowInsets.getTop(density) +
+            with(density) { TopAppBarDefaults.TopAppBarExpandedHeight.toPx() }
+        val timelineScroll = remember { TimelineScrollMemory() }
+        // A timeline reached from another screen opens on the visible hours
+        // (#322); only a switch between timeline views carries the scroll over.
+        val timelineZoom = LocalTimelineZoom.current
+        LaunchedEffect(view.screen) {
+            if (view.screen != ViewScreen.Timeline && timelineZoom.hours.enabled) {
+                timelineScroll.midnightY = null
+            }
+        }
         CompositionLocalProvider(
             LocalEventMove provides moveScope,
+            LocalTimelineScroll provides timelineScroll,
+            LocalViewFocus provides focus,
             // The failure state's way out when every calendar is switched off
             // (#239); nothing else in the calendar surfaces navigates here.
-            LocalManageCalendars provides { showCalendars = true },
+            LocalManageCalendars provides remember { { showCalendars = true } },
         ) {
-        AnimatedContent(
-            targetState = view,
+        // One drawer, top bar and FAB for every screen (#184): a switch changes
+        // what they say, from what the screen on show publishes, rather than
+        // swapping them for another screen's.
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            // Open only via the menu button where edge-swipe would fight paging;
+            // the agenda has no paging to fight.
+            gesturesEnabled = drawerState.isOpen || view.screen == ViewScreen.Agenda,
+            drawerContent = {
+                CalendarDrawer(
+                    currentView = view,
+                    currentDate = chromeHost.chrome?.drawerDate ?: focus.date,
+                    drawerState = drawerState,
+                    viewOrder = drawerViewOrder,
+                    onSelectView = { target ->
+                        // Once the drawer is out of the way, so the switch is seen whole.
+                        val requestVersion = ++navigationVersion
+                        switchScope.launch {
+                            drawerState.close()
+                            if (navigationVersion == requestVersion) onSelectView(target)
+                        }
+                    },
+                    onJumpToDate = { target ->
+                        chromeHost.actions?.onJumpToDate?.invoke(target)
+                        switchScope.launch { drawerState.close() }
+                    },
+                    onSettings = {
+                        onOpenSettings()
+                        switchScope.launch { drawerState.close() }
+                    },
+                )
+            },
+        ) {
+        Scaffold(
+            topBar = {
+                CalendarTopBar(
+                    host = chromeHost,
+                    selectedView = view,
+                    quickSwitchViews = quickSwitchViews,
+                    onCycleView = { onSelectView(viewStack.last().next(quickSwitchViews)) },
+                    onOpenDrawer = { switchScope.launch { drawerState.open() } },
+                    onOpenSearch = onOpenSearch,
+                    showTodayButton = todayInToolbar,
+                )
+            },
+            floatingActionButton = { CalendarFab(chromeHost, todayInToolbar) },
+        ) { innerPadding ->
+        SharedTransitionLayout(
+            Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+.onGloballyPositioned { morphClip.top = topBarBottom - it.positionInWindow().y },
+        ) {
+        // Keyed on the screen, not the view: the day, multi-day and week views
+        // are one timeline that resizes between them itself (#184), so switching
+        // among them must not replay this transition.
+        rememberTransition(viewTransition, label = "view-switch").AnimatedContent(
             transitionSpec = { viewSwitch },
-            label = "view-switch",
+            contentKey = { it.screen },
         ) { currentView ->
-            when (currentView) {
-                CalendarView.Week -> WeekScreen(
-                    selectedView = currentView,
-                    onSelectView = onSelectView,
+            val screen = currentView.screen
+            val sharedScope = this@SharedTransitionLayout
+            val visibilityScope = this@AnimatedContent
+            val viewMorph = remember(reduceMotion, sharedScope, visibilityScope, morphBounds, morphFade, morphClip, stayingPut) {
+                if (reduceMotion) null else ViewMorphScope(sharedScope, visibilityScope, morphBounds, morphFade, morphClip, stayingPut)
+            }
+            CompositionLocalProvider(
+                LocalViewMorph provides viewMorph,
+                LocalChromeSlot provides ChromeSlot(chromeHost, current = screen == view.screen),
+            ) {
+            when (screen) {
+                ViewScreen.Timeline -> TimelineScreen(
+                    view = currentView,
                     onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
-                    onOpenSettings = onOpenSettings,
-                    onOpenSearch = onOpenSearch,
                     onCreateEvent = onCreateEvent,
-                    quickSwitchViews = quickSwitchViews,
-                    drawerViewOrder = drawerViewOrder,
-                    todayInToolbar = todayInToolbar,
                 )
-                CalendarView.Day -> DayScreen(
-                    selectedView = currentView,
-                    onSelectView = onSelectView,
+                ViewScreen.Month -> MonthScreen(
+                    onOpenDay = onOpenDay,
+                    onOpenWeek = onOpenWeek,
                     onEventClick = onEventClick,
-                    onOpenSettings = onOpenSettings,
-                    onOpenSearch = onOpenSearch,
                     onCreateEvent = onCreateEvent,
-                    initialDateIso = pendingDayIso,
-                    quickSwitchViews = quickSwitchViews,
-                    drawerViewOrder = drawerViewOrder,
-                    todayInToolbar = todayInToolbar,
                 )
-                CalendarView.Month -> MonthScreen(
-                    selectedView = currentView,
-                    onSelectView = onSelectView,
+                ViewScreen.Agenda -> AgendaScreen(
                     onOpenDay = onOpenDay,
                     onEventClick = onEventClick,
-                    onOpenSettings = onOpenSettings,
-                    onOpenSearch = onOpenSearch,
                     onCreateEvent = onCreateEvent,
                     quickSwitchViews = quickSwitchViews,
-                    drawerViewOrder = drawerViewOrder,
-                    todayInToolbar = todayInToolbar,
-                )
-                CalendarView.Agenda -> AgendaScreen(
-                    selectedView = currentView,
-                    onSelectView = onSelectView,
-                    onOpenDay = onOpenDay,
-                    onEventClick = onEventClick,
-                    onOpenSettings = onOpenSettings,
-                    onOpenSearch = onOpenSearch,
-                    onCreateEvent = onCreateEvent,
-                    quickSwitchViews = quickSwitchViews,
-                    drawerViewOrder = drawerViewOrder,
-                    todayInToolbar = todayInToolbar,
                 )
             }
+            }
+        }
+        }
+        }
         }
         }
 
@@ -429,11 +569,12 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = showSearch,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             SearchScreen(
                 onBack = { showSearch = false },
                 onEventClick = onEventClick,
+                visible = showSearch,
             )
         }
 
@@ -442,7 +583,7 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = detailKey != null,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             activeKey?.let { key ->
                 EventDetailScreen(
@@ -462,6 +603,7 @@ fun CalendarHost(
                         importForm = form
                         detailKey = null
                     },
+                    visible = detailKey != null,
                 )
             }
         }
@@ -470,7 +612,7 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = createDateIso != null,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             (createDateIso ?: heldCreateIso)?.let { iso ->
                 EventEditScreen(
@@ -479,6 +621,7 @@ fun CalendarHost(
                     onClose = { createDateIso = null },
                     onSaved = { createDateIso = null },
                     onManageCalendars = { showCalendars = true },
+                    visible = createDateIso != null,
                 )
             }
         }
@@ -487,7 +630,7 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = editKey != null,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             (editKey ?: heldEditKey)?.let { key ->
                 EventEditScreen(
@@ -499,6 +642,7 @@ fun CalendarHost(
                         detailKey = null
                     },
                     onManageCalendars = { showCalendars = true },
+                    visible = editKey != null,
                 )
             }
         }
@@ -507,12 +651,13 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = showSettings,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             SettingsScreen(
                 onBack = { showSettings = false },
                 onManageCalendars = { showCalendars = true },
                 onOpenBackup = { showBackup = true },
+                visible = showSettings,
             )
         }
 
@@ -564,11 +709,12 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = showCalendars,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             CalendarsScreen(
                 onBack = { showCalendars = false },
                 onOpenBackup = { showBackup = true },
+                visible = showCalendars,
             )
         }
 
@@ -576,7 +722,7 @@ fun CalendarHost(
         AnimatedVisibility(
             visible = showBackup,
             enter = slideInHorizontally(slideSpec) { it } + fadeIn(),
-            exit = slideOutHorizontally(slideSpec) { it } + fadeOut(),
+            exit = overlayExit,
         ) {
             // Settings can open this screen without the manager underneath, so
             // its failure states' "Manage calendars" way out has to open the
@@ -603,6 +749,7 @@ fun CalendarHost(
                         showBackup = false
                         showCalendars = false
                     },
+                    visible = showBackup,
                 )
             }
         }
@@ -614,3 +761,6 @@ private val viewStackSaver = listSaver<List<CalendarView>, Int>(
     save = { stack -> stack.map(CalendarView::ordinal) },
     restore = { ordinals -> ordinals.map { CalendarView.entries[it] } },
 )
+
+private fun localToday(): LocalDate =
+    Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date

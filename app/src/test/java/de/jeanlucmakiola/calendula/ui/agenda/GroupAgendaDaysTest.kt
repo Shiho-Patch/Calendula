@@ -78,6 +78,16 @@ class GroupAgendaDaysTest {
     }
 
     @Test
+    fun `multi-day events precede single all-day and timed events`() {
+        val multi = event(1, "Multi", at(2026, 7, 1), at(2026, 7, 4), isAllDay = true)
+        val single = event(2, "Single", at(2026, 7, 2), at(2026, 7, 3), isAllDay = true)
+        val timed = event(3, "Timed", at(2026, 7, 2, 8), at(2026, 7, 2, 9))
+        val second = days(listOf(timed, single, multi)).first { it.date == LocalDate(2026, 7, 2) }
+        assertThat(second.events.map { it.title })
+            .containsExactly("Multi", "Single", "Timed").inOrder()
+    }
+
+    @Test
     fun `an event ending exactly at midnight does not reach the next day`() {
         val e = event(1, "late", at(2026, 7, 1, 22, 0), at(2026, 7, 2, 0, 0))
 

@@ -1075,14 +1075,27 @@ class EventWriteMapperTest {
     }
 
     @Test
-    fun `occurrence exception carries the palette key`() {
+    fun `occurrence exception leaves the palette key out`() {
+        // The provider crashes on an exception insert carrying a colour key
+        // (Codeberg #338); the data source sets it with an update afterwards.
         val values = buildOccurrenceExceptionValues(
             form = form().copy(colorKey = "2", color = 0xFFE67C00.toInt()),
             originalInstanceMillis = 0L,
             zone = berlin,
         )
-        assertThat(values).containsEntry(CalendarContract.Events.EVENT_COLOR_KEY, "2")
+        assertThat(values).doesNotContainKey(CalendarContract.Events.EVENT_COLOR_KEY)
         assertThat(values).doesNotContainKey(CalendarContract.Events.EVENT_COLOR)
+    }
+
+    @Test
+    fun `occurrence exception with a custom colour writes it directly`() {
+        val values = buildOccurrenceExceptionValues(
+            form = form().copy(color = 0xFFE67C00.toInt()),
+            originalInstanceMillis = 0L,
+            zone = berlin,
+        )
+        assertThat(values).containsEntry(CalendarContract.Events.EVENT_COLOR, 0xFFE67C00.toInt())
+        assertThat(values).containsEntry(CalendarContract.Events.EVENT_COLOR_KEY, null)
     }
 
     @Test

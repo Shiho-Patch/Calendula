@@ -1,0 +1,21 @@
+# Android resource qualifier -> store listing directory under metadata/android/.
+# Store codes must be ones Google Play accepts; F-Droid takes any of them.
+# `default` is app/src/main/res/values/ (English).
+# Checked by scripts/check_store_listing.py.
+default  en-US
+ar       ar
+be       be
+cs       cs-CZ
+de       de-DE
+es       es-ES
+fr       fr-FR
+hu       hu-HU
+it       it-IT
+ja       ja-JP
+nl       nl
+pl       pl-PL
+pt       pt-PT
+pt-rBR   pt-BR
+ru       ru-RU
+sk       sk
+zh-rCN   zh-CN

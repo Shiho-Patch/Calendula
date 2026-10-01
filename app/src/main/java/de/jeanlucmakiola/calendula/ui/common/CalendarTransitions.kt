@@ -1,13 +1,7 @@
 package de.jeanlucmakiola.calendula.ui.common
 
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.spring
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -19,12 +13,12 @@ import androidx.compose.ui.unit.IntOffset
  * the reduce-motion check — now live in floret-kit's identity module
  * (`expandEnter`, `collapseExit`, `itemEnter`, `animateItemMotion`,
  * `fadeThrough`, `Modifier.predictiveBack`, `rememberReduceMotion`). What stays
- * here is only what's specific to paging the calendar grid: the directional
- * month/week/day slide and the specs that feed it.
+ * here is only what's specific to paging the calendar grid: the specs its
+ * pagers settle with, and that the view switch reuses.
  */
 
 /**
- * The M3 Expressive spatial spring used for the month/week/day slide: the
+ * The M3 Expressive spatial spring the calendar's motion is built on: the
  * *default* spring-physics spec from the active motion scheme, rather than a
  * fixed easing curve.
  *
@@ -38,6 +32,12 @@ import androidx.compose.ui.unit.IntOffset
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun rememberCalendarSlideSpec(): FiniteAnimationSpec<IntOffset> =
+    MaterialTheme.motionScheme.defaultSpatialSpec()
+
+/** The same spring as [rememberCalendarSlideSpec], for a pager settling onto its page. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun rememberCalendarPageSpec(): FiniteAnimationSpec<Float> =
     MaterialTheme.motionScheme.defaultSpatialSpec()
 
 /**
@@ -55,50 +55,17 @@ fun rememberCalendarFadeSpec(): FiniteAnimationSpec<Float> =
     MaterialTheme.motionScheme.defaultEffectsSpec()
 
 /**
- * Navigating between adjacent months/weeks/days, as M3's shared-axis X: the
- * outgoing page slides and fades one way while the incoming one arrives from the
- * other, position on a spring and opacity on an easing curve.
- *
- * @param slideDir     +1 = forward (incoming from the right), -1 = back, 0 = jump
- *                     (e.g. "today"); a jump reuses the forward direction.
- * @param spec         spatial animation spec, typically [rememberCalendarSlideSpec].
- * @param fadeSpec     effects spec for the opacity half, and for the whole
- *                     transition under reduced motion; typically
- *                     [rememberCalendarFadeSpec].
- * @param reduceMotion when true, drop the movement and cross-fade alone.
+ * A switch between views (#184): the default spatial spring, a little softer, as
+ * the whole screen reshapes rather than a page sliding by; softer still when
+ * [long], for a change the eye has further to follow.
  */
-fun calendarSlideTransition(
-    slideDir: Int,
-    spec: FiniteAnimationSpec<IntOffset>,
-    fadeSpec: FiniteAnimationSpec<Float>,
-    reduceMotion: Boolean,
-): ContentTransform {
-    if (reduceMotion) {
-        return fadeIn(fadeSpec).togetherWith(fadeOut(fadeSpec))
-    }
-    val dir = if (slideDir == 0) 1 else slideDir
-    return ContentTransform(
-        targetContentEnter =
-            slideInHorizontally(spec) { w -> dir * w / SLIDE_TRAVEL_DIVISOR } + fadeIn(fadeSpec),
-        initialContentExit =
-            slideOutHorizontally(spec) { w -> -dir * w / SLIDE_TRAVEL_DIVISOR } + fadeOut(fadeSpec),
-        // AnimatedContent clips to the animating container by default, which
-        // shears the pages against the viewport edge as they pass. Left off even
-        // where the two pages differ in height — the split grid stands as many
-        // rows as its month spans (#162) — since a page sliding out over the row
-        // below it reads as travel, and the shear reads as a fault.
-        sizeTransform = SizeTransform(clip = false),
+@Composable
+fun <T> rememberViewSwitchSpec(long: Boolean = false): FiniteAnimationSpec<T> =
+    spring(
+        dampingRatio = VIEW_SWITCH_DAMPING,
+        stiffness = if (long) LONG_VIEW_SWITCH_STIFFNESS else VIEW_SWITCH_STIFFNESS,
     )
-}
 
-/**
- * How far a page travels, as a fraction of the container width.
- *
- * A full width was the obvious reading of "paging", but the two pages are
- * stacked and both opaque, so a full-width slide showed one grid racing across
- * another — the movement carried the whole transition and had a long way to go.
- * Under M3's shared-axis pattern the offset only has to *hint* the direction
- * while the cross-fade does the swapping, so a fifth of the width is plenty and
- * leaves nothing skating past.
- */
-private const val SLIDE_TRAVEL_DIVISOR = 5
+private const val VIEW_SWITCH_DAMPING = 0.9f
+private const val VIEW_SWITCH_STIFFNESS = 450f
+private const val LONG_VIEW_SWITCH_STIFFNESS = 340f
