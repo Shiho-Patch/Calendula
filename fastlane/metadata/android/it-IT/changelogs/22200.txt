@@ -1,7 +1,7 @@
 Novità
 • Giorno, Settimana e Mese ora scorrono con un pager che segue il dito.
 • Vista multi-giorno: mostra un numero configurabile di giorni affiancati.
-• Ore visibili — un intervallo di ore scelto riempie lo schermo nelle viste a linea del tempo.
+• Ore visibili: un intervallo di ore scelto riempie lo schermo nelle viste a linea del tempo.
 
 Modifiche
 • Oggi risalta nella griglia del mese; il cambio di vista ora si trasforma invece di tagliare bruscamente.

@@ -1,7 +1,7 @@
 Neu
 • Tag, Woche und Monat lassen sich jetzt mit einem fingerfolgenden Pager wischen.
 • Mehrtagesansicht: einstellbare Anzahl Tage nebeneinander.
-• Sichtbare Stunden – ein gewählter Stundenbereich füllt den Bildschirm in Zeitleisten-Ansichten.
+• Sichtbare Stunden: ein gewählter Stundenbereich füllt den Bildschirm in Zeitleisten-Ansichten.
 
 Geändert
 • Heute hebt sich im Monatsraster ab; der Ansichtswechsel geht jetzt ineinander über statt hart zu schneiden.

@@ -1,7 +1,7 @@
 Novinky
 • Den, Týden a Měsíc teď listují stránkovačem, který sleduje prst.
 • Vícedenní zobrazení ukazuje nastavitelný počet dní vedle sebe.
-• Viditelné hodiny — zvolený rozsah hodin vyplní obrazovku v zobrazeních s časovou osou.
+• Viditelné hodiny: zvolený rozsah hodin vyplní obrazovku v zobrazeních s časovou osou.
 
 Změny
 • Dnes vyniká v mřížce měsíce a přepínání zobrazení teď plynule přechází místo ostrého střihu.

@@ -1,7 +1,7 @@
 Nouveautés
 • Jour, Semaine et Mois défilent désormais avec un pager qui suit le doigt.
 • Vue multi-jours : affiche un nombre de jours réglable, côte à côte.
-• Heures visibles — une plage d'heures choisie remplit l'écran dans les vues chronologiques.
+• Heures visibles : une plage d'heures choisie remplit l'écran dans les vues chronologiques.
 
 Modifié
 • Aujourd'hui ressort dans la grille du mois ; changer de vue se fait en fondu au lieu d'une coupure nette.

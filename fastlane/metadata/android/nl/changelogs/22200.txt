@@ -1,7 +1,7 @@
 Nieuw
 • Dag, Week en Maand kun je nu doorbladeren met een pager die je vinger volgt.
 • Een meerdaagse weergave toont een instelbaar aantal dagen naast elkaar.
-• Zichtbare uren — een gekozen tijdsbereik vult het scherm in tijdlijnweergaven.
+• Zichtbare uren: een gekozen tijdsbereik vult het scherm in tijdlijnweergaven.
 
 Gewijzigd
 • Vandaag valt op in het maandraster, en wisselen tussen weergaven gaat nu vloeiend in plaats van abrupt.

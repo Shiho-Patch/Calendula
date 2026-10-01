@@ -1,7 +1,7 @@
 Új
 • A Nap, Hét és Hónap nézet mostantól ujjkövető lapozóval lapozható.
 • A többnapos nézet beállítható számú napot jelenít meg egymás mellett.
-• Látható órák — a kiválasztott óratartomány kitölti a képernyőt az idővonalas nézetekben.
+• Látható órák: a kiválasztott óratartomány kitölti a képernyőt az idővonalas nézetekben.
 
 Változások
 • A mai nap kiemelkedik a havi rácsban, és a nézetek közti váltás most lágyan átalakul ahelyett, hogy vágna.
