@@ -7,16 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.22.0] — 2026-10-01
+
 ### Added
+- **Day, Week, and Month all page with a swipeable pager that follows your finger** instead of cutting between dates ([#131], [#336]).
 - **Pages can open the split agenda.** Swipe up from a full month to reveal the compact grid and month agenda; tap a day to filter it, then swipe down to return. The transition gives haptic feedback ([#111]).
+- **A multi-day view shows a configurable number of days side by side,** with today in the first column. Set the day count in Settings ([#193]).
+- **A "Visible hours" setting fits a chosen range of hours to the screen** when Day, Week, or the new multi-day view opens; earlier and later hours stay a scroll away ([#322]).
+- **Timeline views mark events that run outside the visible hours** with a coloured edge at the top or bottom, and keep them tappable underneath it ([#188]).
 - **Week numbers open their week.** Tap a week number in the month grid to open Week at that row; Back returns to Month ([#197]).
 
 ### Changed
+- **Day, multi-day, and Week share one timeline and morph into each other** when you switch views, instead of each view rebuilding its own ([#184]).
+- **The back gesture previews the view you're returning to** and springs back to the current one if you cancel the gesture ([#185]).
 - **Split view opens with the month's agenda.** It starts at today in the current month; tapping a day filters the list, and the filter chip restores the full month. Swiping the list moves by day when filtered and by month otherwise ([#142]).
 - **Today stands out in the month grid.** Its whole cell has a distinct background; tapping Today briefly expands that cell and nudges its neighbours aside ([#241]).
+- **All-day reminders due today or tomorrow say so** instead of spelling out the date ([#308]).
 - **Store listing in every app language.** Google Play and F-Droid show the description in all 16 languages the app ships, and each release publishes the Play listing from the repository ([#285]).
 
 ### Fixed
+- **Titles and locations stop growing at 255 characters.** Some CalDAV servers (Open-Xchange among them) silently truncate longer values on sync; Calendula now caps them first and shows a counter once you're close ([#331]).
+- **The "Calendar" launcher alias is translatable.** The "App name" setting's alternate label was hard-coded to English regardless of the app's language ([#251]).
 - **Multi-day events stay above shorter events.** Month and Week bars, Split day lists, and Agenda now place multi-day events before one-day all-day events, then timed events; declined events remain last ([#291]).
 - **Editing one occurrence of a coloured Google series saves again.** Saving with "Only this event" kept you on the edit screen without saving anything ([#338]).
 
@@ -1791,3 +1802,18 @@ automatically, with zero telemetry and no internet permission.
 [#329]: https://codeberg.org/jlmakiola/calendula/issues/329
 [#285]: https://codeberg.org/jlmakiola/calendula/issues/285
 [#338]: https://codeberg.org/jlmakiola/calendula/issues/338
+[#111]: https://codeberg.org/jlmakiola/calendula/issues/111
+[#131]: https://codeberg.org/jlmakiola/calendula/issues/131
+[#142]: https://codeberg.org/jlmakiola/calendula/issues/142
+[#184]: https://codeberg.org/jlmakiola/calendula/issues/184
+[#185]: https://codeberg.org/jlmakiola/calendula/issues/185
+[#188]: https://codeberg.org/jlmakiola/calendula/issues/188
+[#193]: https://codeberg.org/jlmakiola/calendula/issues/193
+[#197]: https://codeberg.org/jlmakiola/calendula/issues/197
+[#241]: https://codeberg.org/jlmakiola/calendula/issues/241
+[#251]: https://codeberg.org/jlmakiola/calendula/issues/251
+[#291]: https://codeberg.org/jlmakiola/calendula/issues/291
+[#308]: https://codeberg.org/jlmakiola/calendula/issues/308
+[#322]: https://codeberg.org/jlmakiola/calendula/issues/322
+[#331]: https://codeberg.org/jlmakiola/calendula/issues/331
+[#336]: https://codeberg.org/jlmakiola/calendula/issues/336

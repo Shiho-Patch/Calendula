@@ -1,0 +1,10 @@
+Nowości
+• Dzień, Tydzień i Miesiąc przewijają się teraz pagerem, który podąża za palcem.
+• Widok wielodniowy pokazuje ustawialną liczbę dni obok siebie.
+• Widoczne godziny — wybrany zakres godzin wypełnia ekran w widokach osi czasu.
+
+Zmiany
+• Dziś wyróżnia się w siatce miesiąca, a przełączanie widoków teraz płynnie się przenika zamiast ciąć.
+
+Poprawki
+• Tytuły i lokalizacje przestają rosnąć po 255 znakach, dzięki czemu serwery CalDAV nie obcinają ich w trakcie synchronizacji.

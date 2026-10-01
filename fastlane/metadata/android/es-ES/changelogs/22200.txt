@@ -1,0 +1,10 @@
+Novedades
+• Día, Semana y Mes se deslizan con un paginador que sigue tu dedo.
+• Vista de varios días: muestra un número configurable de días uno junto a otro.
+• Horas visibles: un rango de horas elegido llena la pantalla en las vistas de línea de tiempo.
+
+Cambios
+• Hoy destaca en la cuadrícula del mes; cambiar de vista se transforma ahora en vez de cortar.
+
+Corregido
+• Títulos y ubicaciones dejan de crecer tras 255 caracteres, para que CalDAV no los corte al sincronizar.

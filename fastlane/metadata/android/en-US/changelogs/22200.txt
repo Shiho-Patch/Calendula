@@ -1,0 +1,10 @@
+New
+• Day, Week and Month now page with a swipeable, finger-tracking pager.
+• A multi-day view shows a configurable number of days side by side.
+• Visible hours — fit a chosen range of hours to the screen in timeline views.
+
+Changed
+• Today stands out in the month grid, and switching views now morphs between them instead of cutting.
+
+Fixed
+• Titles and locations stop growing past 255 characters, so CalDAV servers can't cut them off mid-sync.
