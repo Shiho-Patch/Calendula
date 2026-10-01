@@ -719,7 +719,7 @@
     <string name="onboarding_hidden_title">Vaše kalendáře jsou vypnuté</string>
     <string name="onboarding_hidden_body">Calendula zobrazuje kalendáře, které má tento telefon zapnuté, což není momentálně žádný. Zapněte si kalendáře, které chcete vidět – vaše ostatní aplikace kalendáře je pak také zobrazí.</string>
     <string name="onboarding_hidden_switch_all_button">Zapnout všechny kalendáře</string>
-    <string name="onboarding_hidden_skip_button">Teď ne</string>
+    <string name="onboarding_hidden_skip_button">Později</string>
     <string name="onboarding_hidden_failed">To se nepodařilo zapnout. V Nastavení → Kalendáře jsou stejné přepínače.</string>
     <string name="onboarding_calendars_create_failed">Kalendář se nepodařilo vytvořit. Úložiště kalendáře ve vašem telefonu jej odmítlo vytvořit.</string>
     <string name="calendars_description_label">Popis</string>
