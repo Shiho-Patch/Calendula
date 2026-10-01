@@ -12,6 +12,7 @@ fr       fr-FR
 hu       hu-HU
 it       it-IT
 ja       ja-JP
+nl       nl
 pl       pl-PL
 pt       pt-PT
 pt-rBR   pt-BR
