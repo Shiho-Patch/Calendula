@@ -302,7 +302,7 @@
     <string name="agenda_range_month">٣٠ يومًا القادمة</string>
     <string name="settings_month_view_style">نمط عرض الشهر</string>
     <string name="month_style_paged">صفحات</string>
-    <string name="month_style_paged_summary">الشهر الواحد يملأ الشاشة. اسحب لليسار أو لليمين لتغيير الشهر.</string>
+    <string name="month_style_paged_summary">الشهر الواحد يملأ الشاشة. اسحب لليسار أو لليمين لتغيير الشهر، أو اسحب للأعلى لعرض جدول الشهر.</string>
     <string name="month_style_split">تقسيم</string>
     <string name="settings_color_unsupported">السماح بالألوان في التقويمات غير المدعومة</string>
     <string name="settings_color_unsupported_hint">بعض التقويمات (مثل البعض من CalDAV) لا تنشر أي مجموعة ألوان؛ لون حدث مخصص قد يزال أو يستبدل في مزامنته التالية. هذا قيد على تلك التقويمات، وليس شيئًا يمكن لـ Calendula إصلاحه.</string>
@@ -778,4 +778,27 @@
     <string name="color_name_amber">أصفر كهرماني</string>
     <string name="calendars_restore_unavailable">لا تقويم يمكنه استيعاب الأحداث المستوردة بعد.</string>
     <string name="calendars_description_label">الوصف</string>
+    <string name="app_name_calendar_alias">التقويم</string>
+    <plurals name="view_multi_day">
+        <item quantity="zero">%d يوم</item>
+        <item quantity="one">%d يوم</item>
+        <item quantity="two">%d يومان</item>
+        <item quantity="few">%d أيام</item>
+        <item quantity="many">%d يوم</item>
+        <item quantity="other">%d يوم</item>
+    </plurals>
+    <string name="settings_visible_hours_start">من</string>
+    <string name="settings_visible_hours_end">حتى</string>
+    <string name="settings_multi_day_count">عرض الأيام المتعدّدة</string>
+    <string name="settings_multi_day_count_hint">كم عدد الأيام التي يعرضها طريقة العرض متعدد الأيام جنبًا إلى جنب. اليوم يُفتح في العمود الأول.</string>
+    <string name="settings_visible_hours">الساعات الظاهرة</string>
+    <string name="settings_visible_hours_summary">حدّد مدى من الساعات للشاشة عند فتح طريقة عرض الأسبوع، متعددة الأيام أو اليوم</string>
+    <string name="settings_visible_hours_on_summary">%1$s – %2$s يملأ الشاشة عند فتح طريقة عرض</string>
+    <string name="settings_visible_hours_start_hint">الساعة في أعلى الشاشة عند فتح طريقة عرض الأسبوع، متعددة الأيام أو اليوم. لا تزال الساعات السابقة على بُعد تمرير.</string>
+    <string name="settings_visible_hours_end_hint">الساعة في أسفل الشاشة عند فتح طريقة عرض. لا تزال الساعات اللاحقة على بُعد تمرير، و عمليات التكبير بالضّم حتى يتم فتح طريقة العرض مرة أخرى.</string>
+    <string name="month_open_week">فتح الأسبوع %1$d</string>
+    <string name="settings_timeline_scale_by_visible_hours">ضبط بواسطة الساعات الظاهرة</string>
+    <string name="month_split_clear_filter">إظهار جدول الشهر كامل</string>
+    <string name="timeline_earlier_events">أحداث سابقة</string>
+    <string name="timeline_later_events">أحداث لاحقة</string>
 </resources>
