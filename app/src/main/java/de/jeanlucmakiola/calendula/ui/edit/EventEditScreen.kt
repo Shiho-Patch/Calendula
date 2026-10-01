@@ -99,6 +99,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -609,6 +610,11 @@ private fun EventEditContent(
                 .padding(vertical = 4.dp)
                 .focusRequester(titleFocusRequester),
         )
+        FieldLengthCounter(
+            length = form.title.length,
+            max = MAX_SINGLE_LINE_FIELD,
+            modifier = Modifier.fillMaxWidth(),
+        )
         Spacer(Modifier.height(10.dp))
         Box(
             modifier = Modifier
@@ -798,25 +804,31 @@ private fun EventEditContent(
                 iconAtTop = true,
             ) {
                 Row(verticalAlignment = Alignment.Top) {
-                    InlineField(
-                        value = form.location,
-                        onValueChange = viewModel::setLocation,
-                        placeholder = stringResource(R.string.event_detail_location),
-                        // A location is as often a meeting URL as an address,
-                        // and "Zoom.us/j/123" reads wrong (#146).
-                        capitalization = KeyboardCapitalization.None,
-                        // Multi-line so a long address or meeting URL wraps and
-                        // the card grows instead of scrolling off one line
-                        // (#273). The field holds no newlines of its own, so
-                        // the IME's action key closes the keyboard rather than
-                        // inserting a break setLocation would only fold away.
-                        singleLine = false,
-                        imeAction = ImeAction.Done,
-                        modifier = Modifier
-                            .weight(1f)
-                            .animateContentSizeMotion()
-                            .padding(vertical = 4.dp),
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        InlineField(
+                            value = form.location,
+                            onValueChange = viewModel::setLocation,
+                            placeholder = stringResource(R.string.event_detail_location),
+                            // A location is as often a meeting URL as an address,
+                            // and "Zoom.us/j/123" reads wrong (#146).
+                            capitalization = KeyboardCapitalization.None,
+                            // Multi-line so a long address or meeting URL wraps and
+                            // the card grows instead of scrolling off one line
+                            // (#273). The field holds no newlines of its own, so
+                            // the IME's action key closes the keyboard rather than
+                            // inserting a break setLocation would only fold away.
+                            singleLine = false,
+                            imeAction = ImeAction.Done,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .animateContentSizeMotion()
+                                .padding(vertical = 4.dp),
+                        )
+                        FieldLengthCounter(
+                            length = form.location.length,
+                            max = MAX_SINGLE_LINE_FIELD,
+                        )
+                    }
                     // The box is exactly one text line tall, so the button
                     // centres on the first line without making a single-line
                     // card taller than its text; requiredSize keeps the
@@ -2289,6 +2301,28 @@ private fun InlineField(
         capitalization = capitalization,
         imeAction = imeAction,
     )
+}
+
+/**
+ * A right-aligned "n/max" counter for a capped [InlineField] (#331), hidden
+ * until [length] gets close enough to [max] to matter — nobody needs to see
+ * "12/255" while typing a short title.
+ */
+@Composable
+private fun FieldLengthCounter(length: Int, max: Int, modifier: Modifier = Modifier) {
+    AnimatedVisibility(visible = length >= max - 55, modifier = modifier) {
+        Text(
+            text = "$length/$max",
+            style = MaterialTheme.typography.bodySmall,
+            color = if (length >= max) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            textAlign = TextAlign.End,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 /**
