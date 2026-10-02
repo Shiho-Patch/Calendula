@@ -802,4 +802,6 @@
     <string name="timeline_earlier_events">أحداث سابقة</string>
     <string name="timeline_later_events">أحداث لاحقة</string>
     <string name="reminder_day_today">اليوم</string>
+    <string name="event_detail_open_in_maps">فتح في الخرائط</string>
+    <string name="link_open_failed">لا تطبيق يمكنه فتح هذا الرابط</string>
 </resources>
