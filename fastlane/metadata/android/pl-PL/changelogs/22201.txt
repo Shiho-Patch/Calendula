@@ -1,0 +1,2 @@
+Poprawki
+• Dotknięcie linku w miejscu wydarzenia otwiera go w przeglądarce zamiast w aplikacji map. Dotknięcie adresu nadal otwiera mapy.

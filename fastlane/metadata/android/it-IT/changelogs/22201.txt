@@ -1,0 +1,2 @@
+Corretto
+• Toccare un link nel luogo di un evento lo apre nel browser invece che in un'app di mappe. Toccare l'indirizzo apre ancora le mappe.

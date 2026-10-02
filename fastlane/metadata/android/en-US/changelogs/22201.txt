@@ -1,0 +1,2 @@
+Fixed
+• Tapping a link in an event's location opens it in the browser instead of a maps app. Tapping the address still opens maps.

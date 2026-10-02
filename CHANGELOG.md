@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.22.1] — 2026-10-02
+
+### Fixed
+- **Tapping a link in an event's location opens it in the browser instead of a maps app.** Links are underlined, as in the description, and tapping the rest of the location still opens maps. A link with a capitalised `Https://`, or wrapped in `<…>` the way Outlook and Teams write them, opens correctly too. When no app can open a link, a short message says so instead of the tap doing nothing ([#357]).
+
 ## [2.22.0] — 2026-10-01
 
 ### Added
@@ -1817,3 +1822,4 @@ automatically, with zero telemetry and no internet permission.
 [#322]: https://codeberg.org/jlmakiola/calendula/issues/322
 [#331]: https://codeberg.org/jlmakiola/calendula/issues/331
 [#336]: https://codeberg.org/jlmakiola/calendula/issues/336
+[#357]: https://codeberg.org/jlmakiola/calendula/issues/357

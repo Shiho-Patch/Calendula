@@ -1,11 +1,11 @@
 package de.jeanlucmakiola.calendula.ui.detail
 
 import android.Manifest
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -534,7 +534,7 @@ private fun EventDetailContent(
             )
         }
 
-        // Location (conditional, tap → maps).
+        // Location (conditional). URLs open in the browser, the rest in maps.
         instance.location?.takeIf { it.isNotBlank() }?.let { location ->
             val context = LocalContext.current
             val locationLabel = stringResource(R.string.event_detail_location)
@@ -544,7 +544,7 @@ private fun EventDetailContent(
                 iconContentDescription = locationLabel,
             ) {
                 Text(
-                    text = location,
+                    text = linkifyUrls(location, MaterialTheme.colorScheme.primary),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
@@ -554,6 +554,7 @@ private fun EventDetailContent(
                             text = location,
                             copy = copyField,
                             onTap = { openInMaps(context, location) },
+                            onTapLabel = stringResource(R.string.event_detail_open_in_maps),
                         )
                         .padding(vertical = 2.dp),
                 )
@@ -846,21 +847,23 @@ private fun foreignTimeZone(
     )
 }
 
-/** Wrap http(s) URLs in [text] as tappable links tinted [linkColor]. */
+/** Wrap http(s) URLs in [text] as links tinted [linkColor] that open in the browser. */
 @Composable
-private fun linkifyUrls(text: String, linkColor: Color): AnnotatedString = remember(text, linkColor) {
-    val regex = Regex("""https?://\S+""")
-    val styles = TextLinkStyles(
-        style = SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline),
-    )
-    buildAnnotatedString {
-        append(text)
-        for (match in regex.findAll(text)) {
-            // Trim trailing punctuation that commonly abuts a URL in prose.
-            val raw = match.value
-            val url = raw.trimEnd('.', ',', ';', ':', '!', '?', ')', ']', '"', '\'')
-            val end = match.range.first + url.length
-            addLink(LinkAnnotation.Url(url, styles), match.range.first, end)
+private fun linkifyUrls(text: String, linkColor: Color): AnnotatedString {
+    val context = LocalContext.current
+    return remember(text, linkColor, context) {
+        val styles = TextLinkStyles(
+            style = SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline),
+        )
+        buildAnnotatedString {
+            append(text)
+            for (link in findWebLinks(text)) {
+                addLink(
+                    LinkAnnotation.Url(link.url, styles) { openWebLink(context, link.url) },
+                    link.start,
+                    link.end,
+                )
+            }
         }
     }
 }
@@ -915,21 +918,19 @@ private fun formatWhen(
 private fun Instant.toJavaLocalDateTime(zid: ZoneId): java.time.LocalDateTime =
     java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(toEpochMilliseconds()), zid)
 
+/** Open [url] in a browsable app, or say so when none can take it. */
+private fun openWebLink(context: Context, url: String) {
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE)
+    if (runCatching { context.startActivity(intent) }.isFailure) {
+        Toast.makeText(context, R.string.link_open_failed, Toast.LENGTH_SHORT).show()
+    }
+}
+
 /** Open a maps intent for [query]; fall back to a web maps URL if no app handles geo:. */
 private fun openInMaps(context: Context, query: String) {
     val encoded = Uri.encode(query)
     val geo = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=$encoded"))
-    try {
-        context.startActivity(geo)
-    } catch (e: ActivityNotFoundException) {
-        val web = Intent(
-            Intent.ACTION_VIEW,
-            Uri.parse("https://www.google.com/maps/search/?api=1&query=$encoded"),
-        )
-        try {
-            context.startActivity(web)
-        } catch (e2: ActivityNotFoundException) {
-            // No browser either — nothing sensible to do; swallow.
-        }
+    if (runCatching { context.startActivity(geo) }.isFailure) {
+        openWebLink(context, "https://www.google.com/maps/search/?api=1&query=$encoded")
     }
 }

@@ -1,0 +1,2 @@
+Opgelost
+• Tikken op een link in de locatie van een afspraak opent die in de browser in plaats van in een kaarten-app. Tikken op het adres opent nog steeds de kaart.

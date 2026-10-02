@@ -1,0 +1,2 @@
+Javítva
+• Az esemény helyszínében lévő linkre koppintva az a böngészőben nyílik meg térképalkalmazás helyett. A címre koppintva továbbra is a térkép nyílik meg.
