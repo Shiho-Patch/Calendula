@@ -1,0 +1,7 @@
+Les versions 2.22.0 et 2.22.1 ne sont pas arrivées sur Google Play ; voici donc la première version 2.22 sur Play. L'app est identique à la 2.22.1.
+
+• Jour, Semaine et Mois défilent avec un pager qui suit le doigt.
+• Vue multi-jours : affiche un nombre de jours réglable, côte à côte.
+• Heures visibles : une plage d'heures choisie remplit l'écran.
+• Aujourd'hui ressort dans la grille du mois.
+• Un lien dans le lieu d'un événement s'ouvre dans le navigateur.

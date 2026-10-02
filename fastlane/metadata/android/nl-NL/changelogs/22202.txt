@@ -1,0 +1,7 @@
+2.22.0 en 2.22.1 zijn nooit op Google Play verschenen, dus dit is daar de eerste 2.22-versie. De app is gelijk aan 2.22.1.
+
+• Dag, Week en Maand blader je door met een pager die je vinger volgt.
+• Een meerdaagse weergave toont een instelbaar aantal dagen naast elkaar.
+• Zichtbare uren: een gekozen tijdsbereik vult het scherm.
+• Vandaag valt op in het maandraster.
+• Een link in de locatie van een afspraak opent in de browser.

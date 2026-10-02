@@ -1,0 +1,7 @@
+Google Play hat 2.22.0 und 2.22.1 verpasst, deshalb ist das dort die erste 2.22-Version. Die App ist dieselbe wie 2.22.1.
+
+• Tag, Woche und Monat lassen sich mit einem fingerfolgenden Pager wischen.
+• Mehrtagesansicht: einstellbare Anzahl Tage nebeneinander.
+• Sichtbare Stunden: ein gewählter Stundenbereich füllt den Bildschirm.
+• Heute hebt sich im Monatsraster ab.
+• Ein Link im Ort eines Termins öffnet sich im Browser.

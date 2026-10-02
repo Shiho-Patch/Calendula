@@ -1,0 +1,7 @@
+Google Play missed 2.22.0 and 2.22.1, so this is the first 2.22 release there. The app is the same as 2.22.1.
+
+• Day, Week and Month follow your finger when you swipe between dates.
+• A multi-day view shows a set number of days side by side.
+• Visible hours fits the hours you choose to the screen.
+• Today stands out in the month grid.
+• A link in an event's location opens in the browser.
