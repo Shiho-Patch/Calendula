@@ -1,0 +1,7 @@
+2.22.0 y 2.22.1 no llegaron a Google Play, así que esta es la primera versión 2.22 allí. La app es la misma que 2.22.1.
+
+• Día, Semana y Mes se deslizan con un paginador que sigue tu dedo.
+• Vista de varios días: muestra un número configurable de días uno junto a otro.
+• Horas visibles: un rango de horas elegido llena la pantalla.
+• Hoy destaca en la cuadrícula del mes.
+• Un enlace en la ubicación de un evento se abre en el navegador.

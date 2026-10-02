@@ -7,6 +7,7 @@ fail the upload after the release has shipped everywhere else.
 
   - every locale directory is listed in fastlane/store-locales.txt, and every
     app language (res/values-*) has an entry there and a directory
+  - every store code is a language Play accepts (supply's ALL_LANGUAGES)
   - title / short / full description exist, are non-empty and within Play's caps,
     and the full description isn't hard-wrapped
   - icon: 512x512 32-bit PNG; featureGraphic: 1024x500 JPEG or 24-bit PNG
@@ -28,6 +29,16 @@ LISTING_ENTRIES = set(TEXT_LIMITS) | {"changelogs", "images", "video.txt"}
 SCREENSHOT_DIRS = {"phoneScreenshots", "sevenInchScreenshots", "tenInchScreenshots",
                    "tvScreenshots", "wearScreenshots"}
 IMAGE_EXTS = {".png", ".jpg", ".jpeg"}
+
+# fastlane supply/lib/supply/languages.rb, with `_` back to `-`.
+PLAY_LOCALES = set("""
+af am ar az-AZ be bg bn-BD ca cs-CZ da-DK de-DE el-GR en-AU en-CA en-GB en-IN
+en-SG en-US en-ZA es-419 es-ES es-US et eu-ES fa fi-FI fil fr-CA fr-FR gl-ES
+hi-IN hr hu-HU hy-AM id is-IS it-IT iw-IL ja-JP ka-GE km-KH kn-IN ko-KR ky-KG
+lo-LA lt lv mk-MK ml-IN mn-MN mr-IN ms ms-MY my-MM ne-NP nl-NL no-NO pl-PL
+pt-BR pt-PT rm ro ru-RU si-LK sk sl sr sv-SE sw ta-IN te-IN th tr-TR uk vi
+zh-CN zh-HK zh-TW zu
+""".split())
 
 errors = []
 
@@ -79,6 +90,10 @@ def check_mapping():
         error(f"app ships values-{q} but {rel(MAPPING)} has no store locale for it")
     for q in sorted(mapping.keys() - app_langs):
         error(f"{rel(MAPPING)} maps '{q}' but the app has no values-{q}")
+
+    for q, store in sorted(mapping.items()):
+        if store not in PLAY_LOCALES:
+            error(f"{rel(MAPPING)} maps '{q}' to '{store}', which Play doesn't accept as a listing language")
 
     stores = set(mapping.values())
     dirs = {d.name for d in META.iterdir() if d.is_dir()}

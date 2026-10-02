@@ -1,0 +1,7 @@
+Wersje 2.22.0 i 2.22.1 nie trafiły do Google Play, więc to pierwsza wersja 2.22 w tym sklepie. Aplikacja jest taka sama jak 2.22.1.
+
+• Dzień, Tydzień i Miesiąc przewijają się pagerem, który podąża za palcem.
+• Widok wielodniowy pokazuje ustawialną liczbę dni obok siebie.
+• Widoczne godziny: wybrany zakres godzin wypełnia ekran.
+• Dziś wyróżnia się w siatce miesiąca.
+• Link w miejscu wydarzenia otwiera się w przeglądarce.

@@ -1,0 +1,7 @@
+Verze 2.22.0 a 2.22.1 se na Google Play nedostaly, takže tohle je tam první verze 2.22. Aplikace je stejná jako 2.22.1.
+
+• Den, Týden a Měsíc listují stránkovačem, který sleduje prst.
+• Vícedenní zobrazení ukazuje nastavitelný počet dní vedle sebe.
+• Viditelné hodiny: zvolený rozsah hodin vyplní obrazovku.
+• Dnes vyniká v mřížce měsíce.
+• Odkaz v místě události se otevře v prohlížeči.

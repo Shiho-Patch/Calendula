@@ -1,0 +1,7 @@
+A 2.22.0 és a 2.22.1 nem jutott el a Google Playre, így ez az első 2.22-es verzió ott. Az alkalmazás ugyanaz, mint a 2.22.1.
+
+• A Nap, Hét és Hónap nézet ujjkövető lapozóval lapozható.
+• A többnapos nézet beállítható számú napot jelenít meg egymás mellett.
+• Látható órák: a kiválasztott óratartomány kitölti a képernyőt.
+• A mai nap kiemelkedik a havi rácsban.
+• Az esemény helyszínében lévő link a böngészőben nyílik meg.

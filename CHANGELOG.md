@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.22.2] — 2026-10-02
+
+### Fixed
+- **2.22 reaches Google Play.** The Dutch store listing used the locale code `nl`, which Play rejects, so the Play uploads of 2.22.0 and 2.22.1 failed. It now uses `nl-NL`, and CI checks every store locale against the codes Play accepts. The app is unchanged from 2.22.1 ([#359]).
+
 ## [2.22.1] — 2026-10-02
 
 ### Fixed
@@ -1823,3 +1828,4 @@ automatically, with zero telemetry and no internet permission.
 [#331]: https://codeberg.org/jlmakiola/calendula/issues/331
 [#336]: https://codeberg.org/jlmakiola/calendula/issues/336
 [#357]: https://codeberg.org/jlmakiola/calendula/issues/357
+[#359]: https://codeberg.org/jlmakiola/calendula/issues/359

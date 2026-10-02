@@ -184,7 +184,7 @@ on every pull request:
 | `images/icon.png` | 512×512, 32-bit PNG |
 | `images/featureGraphic.png` | 1024×500, JPEG or 24-bit PNG |
 | `images/*Screenshots/*` | JPEG or 24-bit PNG (no alpha), sides 320–3840, long edge ≤ 2× short, 2–8 per type |
-| locale directories | exactly the ones in `fastlane/store-locales.txt`, which maps every app `values-*` to a Play locale code |
+| locale directories | exactly the ones in `fastlane/store-locales.txt`, which maps every app `values-*` to a Play locale code; the code must be one Play accepts (`nl-NL`, not `nl`) |
 
 A locale without its own images falls back to en-US in both stores, so graphics
 only need to exist there. Adding an app language means adding its line to
