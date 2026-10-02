@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.22.1] — 2026-10-02
+
+### Fixed
+- **Links in an event's location open in the browser.** Tapping a location that holds a URL, such as a video-call link, opened it in a maps app; maps is now only used for plain addresses ([#357]).
+
 ## [2.22.0] — 2026-10-01
 
 ### Added
@@ -1817,3 +1822,4 @@ automatically, with zero telemetry and no internet permission.
 [#322]: https://codeberg.org/jlmakiola/calendula/issues/322
 [#331]: https://codeberg.org/jlmakiola/calendula/issues/331
 [#336]: https://codeberg.org/jlmakiola/calendula/issues/336
+[#357]: https://codeberg.org/jlmakiola/calendula/issues/357

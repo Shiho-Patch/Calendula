@@ -534,7 +534,7 @@ private fun EventDetailContent(
             )
         }
 
-        // Location (conditional, tap → maps).
+        // Location (conditional, tap → link if it holds a URL, else maps).
         instance.location?.takeIf { it.isNotBlank() }?.let { location ->
             val context = LocalContext.current
             val locationLabel = stringResource(R.string.event_detail_location)
@@ -553,7 +553,7 @@ private fun EventDetailContent(
                             label = locationLabel,
                             text = location,
                             copy = copyField,
-                            onTap = { openInMaps(context, location) },
+                            onTap = { openLocation(context, location) },
                         )
                         .padding(vertical = 2.dp),
                 )
@@ -846,19 +846,22 @@ private fun foreignTimeZone(
     )
 }
 
+private val urlRegex = Regex("""https?://\S+""")
+
+/** Strip trailing punctuation that commonly abuts a URL in prose. */
+private fun String.trimUrlPunctuation(): String =
+    trimEnd('.', ',', ';', ':', '!', '?', ')', ']', '"', '\'')
+
 /** Wrap http(s) URLs in [text] as tappable links tinted [linkColor]. */
 @Composable
 private fun linkifyUrls(text: String, linkColor: Color): AnnotatedString = remember(text, linkColor) {
-    val regex = Regex("""https?://\S+""")
     val styles = TextLinkStyles(
         style = SpanStyle(color = linkColor, textDecoration = TextDecoration.Underline),
     )
     buildAnnotatedString {
         append(text)
-        for (match in regex.findAll(text)) {
-            // Trim trailing punctuation that commonly abuts a URL in prose.
-            val raw = match.value
-            val url = raw.trimEnd('.', ',', ';', ':', '!', '?', ')', ']', '"', '\'')
+        for (match in urlRegex.findAll(text)) {
+            val url = match.value.trimUrlPunctuation()
             val end = match.range.first + url.length
             addLink(LinkAnnotation.Url(url, styles), match.range.first, end)
         }
@@ -914,6 +917,20 @@ private fun formatWhen(
 
 private fun Instant.toJavaLocalDateTime(zid: ZoneId): java.time.LocalDateTime =
     java.time.LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(toEpochMilliseconds()), zid)
+
+/** Open the first URL in [location] (e.g. a meeting link), otherwise search it in maps. */
+private fun openLocation(context: Context, location: String) {
+    val url = urlRegex.find(location)?.value?.trimUrlPunctuation()
+    if (url == null) {
+        openInMaps(context, location)
+        return
+    }
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    } catch (e: ActivityNotFoundException) {
+        // No app handles the link — nothing sensible to do; swallow.
+    }
+}
 
 /** Open a maps intent for [query]; fall back to a web maps URL if no app handles geo:. */
 private fun openInMaps(context: Context, query: String) {

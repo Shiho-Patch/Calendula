@@ -1,0 +1,2 @@
+Fixed
+• Links in an event's location open in the browser. Tapping a video-call link in the location opened a maps app instead.
