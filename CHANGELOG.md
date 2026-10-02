@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.22.3] — 2026-10-02
+
+### Fixed
+- **The store listing is called "Calendula: Calendar" again,** with "Calendar" in each store language. Since 2.22.0 the Play listing comes from the repository, whose title was only "Calendula". The app is unchanged ([#361]).
+
 ## [2.22.2] — 2026-10-02
 
 ### Fixed
@@ -1829,3 +1834,4 @@ automatically, with zero telemetry and no internet permission.
 [#336]: https://codeberg.org/jlmakiola/calendula/issues/336
 [#357]: https://codeberg.org/jlmakiola/calendula/issues/357
 [#359]: https://codeberg.org/jlmakiola/calendula/issues/359
+[#361]: https://codeberg.org/jlmakiola/calendula/issues/361
