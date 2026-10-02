@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.22.1] — 2026-10-02
 
 ### Fixed
-- **Links in an event's location open in the browser.** Links in the location are now underlined and open in the browser, as in the description, while tapping the rest of the location still opens maps. Links written with a capitalised `Https://` or wrapped in angle brackets (as Outlook and Teams do) now open correctly too ([#357]).
+- **Tapping a link in an event's location opens it in the browser instead of a maps app.** Links are underlined, as in the description, and tapping the rest of the location still opens maps. A link with a capitalised `Https://`, or wrapped in `<…>` the way Outlook and Teams write them, opens correctly too. When no app can open a link, a short message says so instead of the tap doing nothing ([#357]).
 
 ## [2.22.0] — 2026-10-01
 

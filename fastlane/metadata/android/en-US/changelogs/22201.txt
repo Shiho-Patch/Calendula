@@ -1,2 +1,2 @@
 Fixed
-• Links in an event's location open in the browser. Tapping a video-call link in the location opened a maps app instead.
+• Tapping a link in an event's location opens it in the browser instead of a maps app. Tapping the address still opens maps.
