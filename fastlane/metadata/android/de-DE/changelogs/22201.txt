@@ -1,0 +1,2 @@
+Behoben
+• Ein Tipp auf einen Link im Ort eines Termins öffnet ihn im Browser statt in einer Karten-App. Ein Tipp auf die Adresse öffnet weiterhin die Karte.

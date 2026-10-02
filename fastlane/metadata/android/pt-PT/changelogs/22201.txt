@@ -1,0 +1,2 @@
+Corrigido
+• Tocar numa ligação no local de um evento abre-a no navegador em vez de numa app de mapas. Tocar na morada continua a abrir os mapas.

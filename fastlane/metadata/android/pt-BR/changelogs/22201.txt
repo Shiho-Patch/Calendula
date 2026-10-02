@@ -1,0 +1,2 @@
+Corrigido
+• Tocar em um link no local de um evento agora o abre no navegador em vez de em um app de mapas. Tocar no endereço continua abrindo os mapas.

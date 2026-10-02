@@ -1,0 +1,2 @@
+Opravené
+• Ťuknutie na odkaz v mieste udalosti ho otvorí v prehliadači namiesto v mapách. Ťuknutie na adresu naďalej otvára mapy.

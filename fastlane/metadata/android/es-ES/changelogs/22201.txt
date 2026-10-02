@@ -1,0 +1,2 @@
+Corregido
+• Al tocar un enlace en la ubicación de un evento, se abre en el navegador en lugar de en una app de mapas. Tocar la dirección sigue abriendo los mapas.

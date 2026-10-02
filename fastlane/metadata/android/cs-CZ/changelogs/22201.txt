@@ -1,0 +1,2 @@
+Opraveno
+• Klepnutí na odkaz v místě události ho otevře v prohlížeči místo v mapách. Klepnutí na adresu dál otevírá mapy.

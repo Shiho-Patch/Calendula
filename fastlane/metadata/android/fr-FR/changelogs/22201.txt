@@ -1,0 +1,2 @@
+Corrigé
+• Toucher un lien dans le lieu d'un événement l'ouvre dans le navigateur et non plus dans une app de cartes. Toucher l'adresse ouvre toujours les cartes.
