@@ -65,9 +65,9 @@ fun rememberFieldCopier(snackbarHostState: SnackbarHostState): FieldCopier {
 /**
  * Long-press to copy [text] whole, filed on the clipboard under [label].
  *
- * [onTap] carries a field's existing tap action through; a field without one
- * stays unclickable rather than growing a ripple that leads nowhere, and gets
- * its long press announced through semantics instead. That branch merges the
+ * [onTap] carries a field's existing tap action through, announced as
+ * [onTapLabel]; a field without one stays unclickable rather than growing a
+ * ripple that leads nowhere, and gets its long press announced through semantics instead. That branch merges the
  * node it sits on, so a screen reader lands on the field itself and finds the
  * action there — a bare container is never focused.
  */
@@ -77,11 +77,13 @@ fun Modifier.copyOnLongPress(
     text: String,
     copy: FieldCopier,
     onTap: (() -> Unit)? = null,
+    onTapLabel: String? = null,
 ): Modifier {
     val actionLabel = stringResource(R.string.field_copy_action)
     return if (onTap != null) {
         combinedClickable(
             onClick = onTap,
+            onClickLabel = onTapLabel,
             onLongClickLabel = actionLabel,
             onLongClick = { copy(label, text) },
         )

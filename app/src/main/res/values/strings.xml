@@ -211,6 +211,8 @@
     <string name="event_detail_calendar_unknown">Unknown calendar</string>
     <string name="event_detail_title">Title</string>
     <string name="event_detail_location">Location</string>
+    <string name="event_detail_open_in_maps">Open in maps</string>
+    <string name="link_open_failed">No app can open this link</string>
     <string name="event_detail_description">Description</string>
     <string name="event_detail_attendees">Attendees</string>
     <string name="event_detail_recurrence">Recurrence</string>
